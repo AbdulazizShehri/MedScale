@@ -18,6 +18,7 @@ mod residency;
 mod runtime;
 mod store;
 mod token_windows;
+mod variant_selection;
 
 pub use candle_runtime::{
     CANDLE_ARCHITECTURES, CANDLE_TOKEN_CLASSIFIER_RUNTIME_ID, CandleDevicePreference,
@@ -62,4 +63,7 @@ pub use token_windows::{
     BestContextVotes, CharSpan, DecodedEntity, EntityAggregation, MAX_WINDOWS, TokenLogits,
     TokenWindow, WindowError, decode_entities, decode_entities_by_word, default_stride,
     plan_windows,
+};
+pub use variant_selection::{
+    HostPlatform, VariantChoice, VariantRuntime, rank_variants, variant_family,
 };
