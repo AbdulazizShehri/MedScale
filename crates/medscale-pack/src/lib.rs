@@ -16,8 +16,9 @@ mod store;
 mod token_windows;
 
 pub use candle_runtime::{
-    CANDLE_ARCHITECTURES, CANDLE_TOKEN_CLASSIFIER_RUNTIME_ID, CandleRunOptions, CandleRuntimeError,
-    PreparedCandleTokenClassifier, candle_model_type, prepare_candle_token_classifier,
+    CANDLE_ARCHITECTURES, CANDLE_TOKEN_CLASSIFIER_RUNTIME_ID, CandleDevicePreference,
+    CandleRunOptions, CandleRuntimeError, PreparedCandleTokenClassifier, candle_model_type,
+    prepare_candle_token_classifier, prepare_candle_token_classifier_with,
 };
 pub use catalog::{
     CatalogError, CatalogFilter, CatalogPage, CatalogRow, CatalogSource, CatalogStatus, DeviceFit,
