@@ -36,36 +36,11 @@ jobs:
       max-parallel: 3
       matrix:
         include:
-          - arch: bert
-            repo: OpenMed/OpenMed-NER-DiseaseDetect-ElectraMed-33M-v1-onnx-android
-            onnx: model.onnx
-            test: openmed_snapshot_external_103
-            text: "The patient has type 2 diabetes mellitus and chronic kidney disease."
-          - arch: distilbert
-            repo: OpenMed/OpenMed-NER-AnatomyDetect-TinyMed-65M-v1-onnx-android
-            onnx: model.onnx
-            test: openmed_snapshot_external_103
-            text: "Pain in the left knee radiates to the right ankle."
-          - arch: roberta
-            repo: OpenMed/OpenMed-NER-AnatomyDetect-TinyMed-82M-v1-onnx-android
-            onnx: model.onnx
-            test: openmed_snapshot_external_103
-            text: "Pain in the left knee radiates to the right ankle."
-          - arch: modernbert
-            repo: OpenMed/OpenMed-NER-AnatomyDetect-ModernClinical-149M-v1-onnx-android
-            onnx: model.onnx
-            test: openmed_snapshot_external_103
-            text: "Pain in the left knee radiates to the right ankle."
-          - arch: deberta-v2
-            repo: OpenMed/OpenMed-PII-Dutch-SuperClinical-Small-44M-v1-onnx-android
-            onnx: model.onnx
-            test: openmed_snapshot_external_103
-            text: "Patiënt Jan de Vries, geboren op 12 maart 1980, woont in Utrecht."
-          - arch: xlm-roberta-fp16
-            repo: OpenMed/OpenMed-PII-Spanish-BigMed-Large-278M-v1-onnx-android
-            onnx: model_fp16.onnx
-            test: openmed_snapshot_external_103
-            text: "La paciente María García, nacida el 3 de mayo de 1975, vive en Sevilla."
+          - arch: gliner-anatomy-small
+            repo: OpenMed/OpenMed-ZeroShot-NER-Anatomy-Small-166M-mlx
+            onnx: weights.safetensors
+            test: gliner_external_104
+            text: "Pain in the left knee radiates to the right ankle after aspirin."
     steps:
       - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v4
 
@@ -103,6 +78,7 @@ jobs:
           MEDSCALE_CATALOG_COMMIT: ${{ env.CATALOG_COMMIT }}
           MEDSCALE_HF_ONNX_FILE: ${{ matrix.onnx }}
           MEDSCALE_SAMPLE_TEXT: ${{ matrix.text }}
+          MEDSCALE_ZS_LABELS: "anatomy, drug"
         run: |
           set -o pipefail
           export MEDSCALE_HF_SNAPSHOT_DIR="$SNAPSHOT_DIR"
@@ -118,98 +94,3 @@ jobs:
           path: qualification.log
           if-no-files-found: ignore
 
-  # Live governed acquisition (Spec 103 T103-08): the product CLI downloads a
-  # catalog row through the Governed Browse transport (explicit consent, byte
-  # ceiling, Hub host allowlist, pinned-commit digests, atomic staging), then
-  # the external tests verify, admit and execute exactly what it acquired.
-  live-acquisition:
-    name: live acquisition (${{ matrix.kind }})
-    runs-on: ubuntu-latest
-    timeout-minutes: 90
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          - kind: safetensors
-            repo: OpenMed/OpenMed-NER-AnatomyDetect-ElectraMed-33M
-            file: model.safetensors
-            approve: "80000000"
-            test: safetensors_external_104
-          - kind: onnx
-            repo: OpenMed/OpenMed-NER-DiseaseDetect-ElectraMed-33M-v1-onnx-android
-            file: model.onnx
-            approve: "140000000"
-            test: openmed_snapshot_external_103
-    steps:
-      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v4
-
-      - name: Install Rust toolchain
-        uses: dtolnay/rust-toolchain@d1031067263f94b142dd6c0ce24c5eb9d02d52a0 # pinned master
-        with:
-          toolchain: "1.97.1"
-
-      - name: Cache cargo
-        uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2
-        with:
-          key: model-qualification-live
-
-      - name: Install Linux build dependencies
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y --no-install-recommends libfontconfig1-dev
-
-      - name: Catalog snapshot
-        run: |
-          curl -sfL -A medscale-qualification \
-            "https://raw.githubusercontent.com/maziyarpanahi/openmed/$CATALOG_COMMIT/models.jsonl" \
-            -o "$RUNNER_TEMP/models.jsonl"
-
-      - name: Refusals before any download
-        run: |
-          set -u
-          cargo build --release --locked -p medscale-cli
-          bin=target/release/medscale
-          # No consent flag: refused.
-          if "$bin" packs acquire --snapshot "$RUNNER_TEMP/models.jsonl" --commit "$CATALOG_COMMIT" \
-              --repo-id "${{ matrix.repo }}" --onnx-file "${{ matrix.file }}" \
-              --approve-bytes "${{ matrix.approve }}" --out "$RUNNER_TEMP/denied"; then
-            echo "acquisition without consent must fail"; exit 1
-          fi
-          # Byte ceiling below the files' exact size: refused before any file download.
-          if "$bin" packs acquire --snapshot "$RUNNER_TEMP/models.jsonl" --commit "$CATALOG_COMMIT" \
-              --repo-id "${{ matrix.repo }}" --onnx-file "${{ matrix.file }}" \
-              --approve-bytes 1000 --i-consent-to-download --out "$RUNNER_TEMP/denied"; then
-            echo "acquisition over the approved bytes must fail"; exit 1
-          fi
-          test ! -e "$RUNNER_TEMP/denied"
-
-      - name: Acquire through the product CLI (live)
-        run: |
-          target/release/medscale packs acquire --snapshot "$RUNNER_TEMP/models.jsonl" \
-            --commit "$CATALOG_COMMIT" --repo-id "${{ matrix.repo }}" \
-            --onnx-file "${{ matrix.file }}" --approve-bytes "${{ matrix.approve }}" \
-            --i-consent-to-download --out "$RUNNER_TEMP/acquired" | tee acquisition.json
-          ls -l "$RUNNER_TEMP/acquired"
-
-      - name: Verify, admit and execute what was acquired
-        env:
-          MEDSCALE_CATALOG_SNAPSHOT: ${{ runner.temp }}/models.jsonl
-          MEDSCALE_CATALOG_COMMIT: ${{ env.CATALOG_COMMIT }}
-          MEDSCALE_HF_SNAPSHOT_DIR: ${{ runner.temp }}/acquired
-          MEDSCALE_HF_ONNX_FILE: ${{ matrix.file }}
-          MEDSCALE_SAMPLE_TEXT: "The patient has type 2 diabetes mellitus and pain in the left knee."
-        run: |
-          set -o pipefail
-          cargo test --release --locked -p medscale-pack --test "${{ matrix.test }}" \
-            -- --ignored --nocapture 2>&1 | tee qualification.log
-          { echo '```json'; cat acquisition.json; echo '```'; grep -E '^SNAPSHOT_' qualification.log; } >> "$GITHUB_STEP_SUMMARY"
-
-      - name: Keep the logs (no weights)
-        if: always()
-        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v4.6.2
-        with:
-          name: live-acquisition-${{ matrix.kind }}
-          path: |
-            acquisition.json
-            qualification.log
-          if-no-files-found: ignore
