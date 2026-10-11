@@ -7,13 +7,14 @@
 //! MEDSCALE_HF_SNAPSHOT_DIR=<dir with metadata.json (Hub API ?blobs=true), config.json, tokenizer.json, <onnx file>>
 //! MEDSCALE_HF_ONNX_FILE=model.onnx
 //! MEDSCALE_SAMPLE_TEXT="<synthetic sentence>"
+//! MEDSCALE_PLAN_CACHE=1 (optional: also qualify the tract plan cache, cold then warm)
 //! cargo test --release -p medscale-pack --test openmed_snapshot_external_103 -- --ignored --nocapture
 
 use std::path::PathBuf;
 use std::time::Instant;
 
 use medscale_pack::{
-    DocumentRunOptions, HfRepoMetadata, ModelCatalog, OnnxTokenClassifierRuntime,
+    DocumentRunOptions, HfRepoMetadata, ModelCatalog, OnnxTokenClassifierRuntime, PlanCacheOutcome,
     TokenClassifierSnapshot, admit_pack_dir, build_token_classifier_pack,
 };
 
@@ -87,5 +88,33 @@ fn catalog_row_to_verified_pack_to_local_execution() {
         t2.elapsed().as_millis(),
         serde_json::to_string(&document.output.proposal_payload["entities"]).unwrap()
     );
+    if std::env::var("MEDSCALE_PLAN_CACHE").as_deref() == Ok("1") {
+        let cache = out.with_extension("plan-cache");
+        let mut timings = Vec::new();
+        for expected in [PlanCacheOutcome::Written, PlanCacheOutcome::Hit] {
+            let t = Instant::now();
+            let (cached, outcome) = runtime
+                .prepare_with_plan_cache(&out, &manifest, &cache)
+                .expect("plan-cache prepare");
+            timings.push(t.elapsed().as_millis());
+            assert_eq!(outcome, expected);
+            let again = cached
+                .run_document(&manifest.pack_id, &text, DocumentRunOptions::default())
+                .expect("plan-cache document run");
+            assert_eq!(
+                again.output.proposal_payload, document.output.proposal_payload,
+                "a cached plan must reproduce the uncached output exactly"
+            );
+        }
+        let bytes: u64 = std::fs::read_dir(&cache)
+            .unwrap()
+            .map(|entry| entry.unwrap().metadata().unwrap().len())
+            .sum();
+        println!(
+            "PLAN_CACHE_EVIDENCE cold_prepare_ms={} warm_prepare_ms={} cache_bytes={bytes} outputs_identical=true",
+            timings[0], timings[1]
+        );
+        let _ = std::fs::remove_dir_all(&cache);
+    }
     let _ = std::fs::remove_dir_all(&out);
 }

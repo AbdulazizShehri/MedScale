@@ -27,6 +27,24 @@ use crate::token_windows::{
 pub const ONNX_TOKEN_CLASSIFIER_RUNTIME_ID: &str = "tract_onnx_token_classification_v1";
 const MAX_LABELS: usize = 512;
 const MAX_INPUT_BYTES: usize = 65_536;
+/// Layout tag of the on-disk plan cache. Any change to the tract version or to
+/// the graph rewrites applied before caching must change this tag.
+const PLAN_CACHE_FORMAT: &str = "medscale-tract-plan-cache-v1;tract=0.22.4";
+/// A cached plan larger than a model artifact may be is never written or read.
+const PLAN_CACHE_MAX_BYTES: u64 = 1 << 30;
+const PLAN_CACHE_SIDECAR_MAX_BYTES: u64 = 65_536;
+
+/// What [`OnnxTokenClassifierRuntime::prepare_with_plan_cache`] did with the cache.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum PlanCacheOutcome {
+    /// A verified cached plan was loaded; the slow ONNX-to-typed step was skipped.
+    Hit,
+    /// No usable cached plan; the plan was built and written to the cache.
+    Written,
+    /// No usable cached plan, and the built plan could not be cached
+    /// (serialization refused, over the size bound, or the write failed).
+    NotCached,
+}
 
 /// Fail-closed runtime errors. Input text is never embedded in an error.
 #[derive(Debug, Error)]
@@ -155,6 +173,33 @@ impl OnnxTokenClassifierRuntime {
         pack_dir: &Path,
         pack: &PackManifestV0,
     ) -> Result<PreparedOnnxTokenClassifier, OnnxRuntimeError> {
+        self.prepare_inner(pack_dir, pack, None)
+            .map(|(prepared, _)| prepared)
+    }
+
+    /// Like [`Self::prepare`], but keeps the decluttered tract plan as NNEF in
+    /// `cache_dir`, so later prepares skip the ONNX-to-typed analysis (minutes
+    /// for DeBERTa-v2 exports). Pack artifacts are still verified first. The
+    /// cache key binds the Pack content digest, its runtime contract and
+    /// [`PLAN_CACHE_FORMAT`]; a cached plan is used only when its SHA-256
+    /// matches the sidecar written after it. Any cache problem falls back to
+    /// the full build. The cache shares the trust of the local Pack store: the
+    /// digest detects corruption and stale entries, not a local writer.
+    pub fn prepare_with_plan_cache(
+        &self,
+        pack_dir: &Path,
+        pack: &PackManifestV0,
+        cache_dir: &Path,
+    ) -> Result<(PreparedOnnxTokenClassifier, PlanCacheOutcome), OnnxRuntimeError> {
+        self.prepare_inner(pack_dir, pack, Some(cache_dir))
+    }
+
+    fn prepare_inner(
+        &self,
+        pack_dir: &Path,
+        pack: &PackManifestV0,
+        cache_dir: Option<&Path>,
+    ) -> Result<(PreparedOnnxTokenClassifier, PlanCacheOutcome), OnnxRuntimeError> {
         let model_bytes = select_artifact(pack_dir, pack, PackArtifactKind::OnnxModel, None)?;
         let tokenizer_bytes = select_artifact(
             pack_dir,
@@ -222,50 +267,73 @@ impl OnnxTokenClassifierRuntime {
             return Err(OnnxRuntimeError::InvalidLabels);
         }
 
-        let mut model_reader = Cursor::new(model_bytes);
-        let onnx = tract_onnx::onnx();
-        let mut proto = onnx
-            .proto_model_for_read(&mut model_reader)
-            .map_err(|e| OnnxRuntimeError::prepare("load", &e))?;
-        drop(model_reader);
-        // fp16 exports are widened to fp32 in memory (see `fp16_widen`).
-        if let Some(graph) = proto.graph.as_mut() {
-            crate::fp16_widen::widen_fp16(graph);
-        }
-        let mut model = onnx
-            .model_for_proto_model(&proto)
-            .map_err(|e| OnnxRuntimeError::prepare("load", &e))?;
-        drop(proto);
-        let input_outlets = model
-            .input_outlets()
-            .map_err(|e| OnnxRuntimeError::prepare("inputs", &e))?
-            .to_vec();
-        let input_names: Vec<String> = input_outlets
-            .iter()
-            .map(|outlet| {
-                model
-                    .outlet_label(*outlet)
-                    .unwrap_or(&model.node(outlet.node).name)
-                    .to_owned()
-            })
-            .collect();
-        for (index, name) in input_names.iter().enumerate() {
-            if !matches!(
-                name.as_str(),
-                "input_ids" | "attention_mask" | "token_type_ids"
-            ) {
-                return Err(OnnxRuntimeError::UnsupportedModelInput(name.clone()));
+        let runtime_contract_digest = runtime_contract_digest(pack)?;
+        let cache = cache_dir.map(|dir| {
+            let key = plan_cache_key(pack, &runtime_contract_digest, fixed_sequence_length);
+            (dir, key)
+        });
+        let cached = cache
+            .as_ref()
+            .and_then(|(dir, key)| load_cached_plan(dir, key));
+        let hit = cached.is_some();
+        let (decluttered, input_names) = if let Some(plan) = cached {
+            plan
+        } else {
+            let mut model_reader = Cursor::new(model_bytes);
+            let onnx = tract_onnx::onnx();
+            let mut proto = onnx
+                .proto_model_for_read(&mut model_reader)
+                .map_err(|e| OnnxRuntimeError::prepare("load", &e))?;
+            drop(model_reader);
+            // fp16 exports are widened to fp32 in memory (see `fp16_widen`).
+            if let Some(graph) = proto.graph.as_mut() {
+                crate::fp16_widen::widen_fp16(graph);
             }
-            model
-                .set_input_fact(
-                    index,
-                    InferenceFact::dt_shape(i64::datum_type(), tvec!(1, fixed_sequence_length)),
-                )
-                .map_err(|e| OnnxRuntimeError::prepare("input_fact", &e))?;
-        }
-        relax_symbolic_value_info(&mut model);
-        normalize_static_shape_ops(&mut model);
-        let optimized = model
+            let mut model = onnx
+                .model_for_proto_model(&proto)
+                .map_err(|e| OnnxRuntimeError::prepare("load", &e))?;
+            drop(proto);
+            let input_outlets = model
+                .input_outlets()
+                .map_err(|e| OnnxRuntimeError::prepare("inputs", &e))?
+                .to_vec();
+            let input_names: Vec<String> = input_outlets
+                .iter()
+                .map(|outlet| {
+                    model
+                        .outlet_label(*outlet)
+                        .unwrap_or(&model.node(outlet.node).name)
+                        .to_owned()
+                })
+                .collect();
+            for (index, name) in input_names.iter().enumerate() {
+                if !matches!(
+                    name.as_str(),
+                    "input_ids" | "attention_mask" | "token_type_ids"
+                ) {
+                    return Err(OnnxRuntimeError::UnsupportedModelInput(name.clone()));
+                }
+                model
+                    .set_input_fact(
+                        index,
+                        InferenceFact::dt_shape(i64::datum_type(), tvec!(1, fixed_sequence_length)),
+                    )
+                    .map_err(|e| OnnxRuntimeError::prepare("input_fact", &e))?;
+            }
+            relax_symbolic_value_info(&mut model);
+            normalize_static_shape_ops(&mut model);
+            let decluttered = model
+                .into_typed()
+                .and_then(TypedModel::into_decluttered)
+                .map_err(|e| OnnxRuntimeError::prepare("optimize", &e))?;
+            (decluttered, input_names)
+        };
+        let outcome = match (&cache, hit) {
+            (_, true) => PlanCacheOutcome::Hit,
+            (Some((dir, key)), false) => store_cached_plan(dir, key, &decluttered, &input_names),
+            (None, false) => PlanCacheOutcome::NotCached,
+        };
+        let optimized = decluttered
             .into_optimized()
             .map_err(|e| OnnxRuntimeError::prepare("optimize", &e))?;
         if optimized
@@ -288,9 +356,8 @@ impl OnnxTokenClassifierRuntime {
         let runnable = optimized
             .into_runnable()
             .map_err(|e| OnnxRuntimeError::prepare("runnable", &e))?;
-        let runtime_contract_digest = runtime_contract_digest(pack)?;
 
-        Ok(PreparedOnnxTokenClassifier {
+        let prepared = PreparedOnnxTokenClassifier {
             content_digest: pack.content_digest.clone(),
             runtime_contract_digest,
             provenance,
@@ -302,7 +369,8 @@ impl OnnxTokenClassifierRuntime {
             runnable,
             pad_token,
             pad_id,
-        })
+        };
+        Ok((prepared, outcome))
     }
 
     /// Convenience one-shot path; callers handling repeated traffic should keep
@@ -635,6 +703,105 @@ pub(crate) fn select_artifact(
         Some("model.meta.json") => "model.meta.json",
         _ => "onnx_model",
     }))
+}
+
+fn plan_cache_key(
+    pack: &PackManifestV0,
+    runtime_contract_digest: &DigestSha256,
+    fixed_sequence_length: usize,
+) -> String {
+    let material = format!(
+        "{PLAN_CACHE_FORMAT}\n{}\n{}\n{fixed_sequence_length}",
+        pack.content_digest.to_hex(),
+        runtime_contract_digest.to_hex()
+    );
+    DigestSha256::of(material.as_bytes()).to_hex()
+}
+
+#[derive(serde::Deserialize, serde::Serialize)]
+struct PlanCacheSidecar {
+    format: String,
+    plan_sha256: String,
+    input_names: Vec<String>,
+}
+
+fn plan_cache_nnef() -> tract_nnef::internal::Nnef {
+    use tract_onnx::WithOnnx as _;
+    tract_nnef::nnef().with_tract_core().with_onnx()
+}
+
+fn read_bounded(path: &Path, limit: u64) -> Option<Vec<u8>> {
+    let file = fs::File::open(path).ok()?;
+    if file.metadata().ok()?.len() > limit {
+        return None;
+    }
+    let mut bytes = Vec::new();
+    file.take(limit + 1).read_to_end(&mut bytes).ok()?;
+    (bytes.len() as u64 <= limit).then_some(bytes)
+}
+
+fn load_cached_plan(dir: &Path, key: &str) -> Option<(TypedModel, Vec<String>)> {
+    let sidecar = read_bounded(
+        &dir.join(format!("{key}.json")),
+        PLAN_CACHE_SIDECAR_MAX_BYTES,
+    )?;
+    let sidecar: PlanCacheSidecar = serde_json::from_slice(&sidecar).ok()?;
+    if sidecar.format != PLAN_CACHE_FORMAT
+        || sidecar.input_names.is_empty()
+        || !sidecar.input_names.iter().all(|name| {
+            matches!(
+                name.as_str(),
+                "input_ids" | "attention_mask" | "token_type_ids"
+            )
+        })
+    {
+        return None;
+    }
+    let plan = read_bounded(&dir.join(format!("{key}.nnef.tar")), PLAN_CACHE_MAX_BYTES)?;
+    if DigestSha256::of(&plan).to_hex() != sidecar.plan_sha256 {
+        return None;
+    }
+    let model = plan_cache_nnef()
+        .model_for_read(&mut Cursor::new(plan))
+        .ok()?;
+    (model.inputs.len() == sidecar.input_names.len()).then_some((model, sidecar.input_names))
+}
+
+fn store_cached_plan(
+    dir: &Path,
+    key: &str,
+    model: &TypedModel,
+    input_names: &[String],
+) -> PlanCacheOutcome {
+    let Ok(plan) = plan_cache_nnef().write_to_tar(model, Vec::new()) else {
+        return PlanCacheOutcome::NotCached;
+    };
+    if plan.len() as u64 > PLAN_CACHE_MAX_BYTES {
+        return PlanCacheOutcome::NotCached;
+    }
+    let sidecar = PlanCacheSidecar {
+        format: PLAN_CACHE_FORMAT.to_owned(),
+        plan_sha256: DigestSha256::of(&plan).to_hex(),
+        input_names: input_names.to_vec(),
+    };
+    let Ok(sidecar) = serde_json::to_vec(&sidecar) else {
+        return PlanCacheOutcome::NotCached;
+    };
+    // The plan is renamed into place before its sidecar, so a reader never
+    // pairs a sidecar with a partially written plan.
+    let write = |name: String, bytes: &[u8]| -> std::io::Result<()> {
+        let tmp = dir.join(format!("{name}.tmp"));
+        fs::write(&tmp, bytes)?;
+        fs::rename(&tmp, dir.join(name))
+    };
+    let stored = fs::create_dir_all(dir)
+        .and_then(|()| write(format!("{key}.nnef.tar"), &plan))
+        .and_then(|()| write(format!("{key}.json"), &sidecar));
+    if stored.is_ok() {
+        PlanCacheOutcome::Written
+    } else {
+        PlanCacheOutcome::NotCached
+    }
 }
 
 fn runtime_contract_digest(pack: &PackManifestV0) -> Result<DigestSha256, OnnxRuntimeError> {
