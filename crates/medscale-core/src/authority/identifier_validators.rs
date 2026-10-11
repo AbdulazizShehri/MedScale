@@ -400,191 +400,139 @@ mod tests {
         assert!(!validate_ssn("123-00-4567"), "ssn 123-00-4567");
         assert!(!validate_ssn("123-45-0000"), "ssn 123-45-0000");
         assert!(!validate_ssn("12-345-678"), "ssn 12-345-678");
-        assert_eq!(
+        assert!(
             validate_phone_us("(415) 555-2671"),
-            true,
             "phone_us (415) 555-2671"
         );
-        assert_eq!(
+        assert!(
             validate_phone_us("+1 415 555 2671"),
-            true,
             "phone_us +1 415 555 2671"
         );
-        assert_eq!(
-            validate_phone_us("015-555-2671"),
-            false,
-            "phone_us 015-555-2671"
-        );
-        assert_eq!(
-            validate_phone_us("415-055-2671"),
-            false,
-            "phone_us 415-055-2671"
-        );
+        assert!(!validate_phone_us("015-555-2671"), "phone_us 015-555-2671");
+        assert!(!validate_phone_us("415-055-2671"), "phone_us 415-055-2671");
         assert!(!validate_phone_us("555-2671"), "phone_us 555-2671");
-        assert_eq!(
-            validate_phone_us("12-415-555-2671"),
-            false,
+        assert!(
+            !validate_phone_us("12-415-555-2671"),
             "phone_us 12-415-555-2671"
         );
-        assert_eq!(
+        assert!(
             validate_luhn("4111 1111 1111 1111"),
-            true,
             "luhn 4111 1111 1111 1111"
         );
-        assert_eq!(
-            validate_luhn("4111-1111-1111-1112"),
-            false,
+        assert!(
+            !validate_luhn("4111-1111-1111-1112"),
             "luhn 4111-1111-1111-1112"
         );
         assert!(!validate_luhn("79927398713"), "luhn 79927398713");
-        assert_eq!(
+        assert!(
             validate_luhn("5500 0000 0000 0004"),
-            true,
             "luhn 5500 0000 0000 0004"
         );
-        assert_eq!(
-            validate_luhn("1234567812345670"),
-            true,
-            "luhn 1234567812345670"
-        );
+        assert!(validate_luhn("1234567812345670"), "luhn 1234567812345670");
         assert!(validate_npi("1234567893"), "npi 1234567893");
         assert!(!validate_npi("1234567890"), "npi 1234567890");
         assert!(!validate_npi("12345678"), "npi 12345678");
         assert!(validate_npi("1245319599"), "npi 1245319599");
-        assert_eq!(
+        assert!(
             validate_iban("GB82 WEST 1234 5698 7654 32"),
-            true,
             "iban GB82 WEST 1234 5698 7654 32"
         );
-        assert_eq!(
+        assert!(
             validate_iban("DE89 3704 0044 0532 0130 00"),
-            true,
             "iban DE89 3704 0044 0532 0130 00"
         );
-        assert_eq!(
-            validate_iban("GB82 WEST 1234 5698 7654 33"),
-            false,
+        assert!(
+            !validate_iban("GB82 WEST 1234 5698 7654 33"),
             "iban GB82 WEST 1234 5698 7654 33"
         );
-        assert_eq!(
-            validate_iban("DE89 3704 0044 0532 0130"),
-            false,
+        assert!(
+            !validate_iban("DE89 3704 0044 0532 0130"),
             "iban DE89 3704 0044 0532 0130"
         );
-        assert_eq!(
-            validate_iban("XX12345678901234"),
-            false,
-            "iban XX12345678901234"
-        );
+        assert!(!validate_iban("XX12345678901234"), "iban XX12345678901234");
         assert!(validate_bic("DEUTDEFF"), "bic DEUTDEFF");
         assert!(validate_bic("DEUTDEFF500"), "bic DEUTDEFF500");
         assert!(validate_bic("deut de ff"), "bic deut de ff");
         assert!(!validate_bic("DEUTXXFF"), "bic DEUTXXFF");
         assert!(!validate_bic("DEUT1EFF"), "bic DEUT1EFF");
         assert!(!validate_bic("DEUTDEF"), "bic DEUTDEF");
-        assert_eq!(
+        assert!(
             validate_uk_nhs_number("943 476 5919"),
-            true,
             "uk_nhs_number 943 476 5919"
         );
-        assert_eq!(
-            validate_uk_nhs_number("943 476 5918"),
-            false,
+        assert!(
+            !validate_uk_nhs_number("943 476 5918"),
             "uk_nhs_number 943 476 5918"
         );
-        assert_eq!(
+        assert!(
             validate_uk_nhs_number("401 023 2137"),
-            true,
             "uk_nhs_number 401 023 2137"
         );
-        assert_eq!(
-            validate_uk_nhs_number("12345"),
-            false,
-            "uk_nhs_number 12345"
-        );
+        assert!(!validate_uk_nhs_number("12345"), "uk_nhs_number 12345");
         assert!(validate_uk_nino("AB123456C"), "uk_nino AB123456C");
-        assert_eq!(
-            validate_uk_nino("ab 12 34 56 c"),
-            true,
-            "uk_nino ab 12 34 56 c"
-        );
+        assert!(validate_uk_nino("ab 12 34 56 c"), "uk_nino ab 12 34 56 c");
         assert!(!validate_uk_nino("BG123456C"), "uk_nino BG123456C");
         assert!(!validate_uk_nino("DA123456C"), "uk_nino DA123456C");
         assert!(!validate_uk_nino("AO123456C"), "uk_nino AO123456C");
         assert!(!validate_uk_nino("AB123456E"), "uk_nino AB123456E");
-        assert_eq!(
+        assert!(
             validate_canadian_sin("130 692 544"),
-            true,
             "canadian_sin 130 692 544"
         );
-        assert_eq!(
+        assert!(
             validate_canadian_sin("130-692-544"),
-            true,
             "canadian_sin 130-692-544"
         );
-        assert_eq!(
-            validate_canadian_sin("130692545"),
-            false,
+        assert!(
+            !validate_canadian_sin("130692545"),
             "canadian_sin 130692545"
         );
-        assert_eq!(
-            validate_canadian_sin("046 454 286"),
-            false,
+        assert!(
+            !validate_canadian_sin("046 454 286"),
             "canadian_sin 046 454 286"
         );
-        assert_eq!(
-            validate_canadian_sin("130 692-544"),
-            false,
+        assert!(
+            !validate_canadian_sin("130 692-544"),
             "canadian_sin 130 692-544"
         );
-        assert_eq!(
+        assert!(
             validate_australian_medicare("2123 45670 1"),
-            true,
             "australian_medicare 2123 45670 1"
         );
-        assert_eq!(
+        assert!(
             validate_australian_medicare("2123456701"),
-            true,
             "australian_medicare 2123456701"
         );
-        assert_eq!(
+        assert!(
             validate_australian_medicare("2123 45670 1 2"),
-            true,
             "australian_medicare 2123 45670 1 2"
         );
-        assert_eq!(
-            validate_australian_medicare("2123 45671 1"),
-            false,
+        assert!(
+            !validate_australian_medicare("2123 45671 1"),
             "australian_medicare 2123 45671 1"
         );
-        assert_eq!(
-            validate_australian_medicare("7123456701"),
-            false,
+        assert!(
+            !validate_australian_medicare("7123456701"),
             "australian_medicare 7123456701"
         );
-        assert_eq!(
+        assert!(
             validate_australian_tfn("123 456 782"),
-            true,
             "australian_tfn 123 456 782"
         );
-        assert_eq!(
+        assert!(
             validate_australian_tfn("123456782"),
-            true,
             "australian_tfn 123456782"
         );
-        assert_eq!(
-            validate_australian_tfn("123 456 783"),
-            false,
+        assert!(
+            !validate_australian_tfn("123 456 783"),
             "australian_tfn 123 456 783"
         );
-        assert_eq!(
-            validate_australian_tfn("000000000"),
-            false,
+        assert!(
+            !validate_australian_tfn("000000000"),
             "australian_tfn 000000000"
         );
-        assert_eq!(
-            validate_australian_tfn("12345678"),
-            false,
+        assert!(
+            !validate_australian_tfn("12345678"),
             "australian_tfn 12345678"
         );
     }
