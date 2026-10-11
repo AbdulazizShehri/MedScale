@@ -91,13 +91,14 @@ fn catalog_row_to_verified_pack_to_local_execution() {
     if std::env::var("MEDSCALE_PLAN_CACHE").as_deref() == Ok("1") {
         let cache = out.with_extension("plan-cache");
         let mut timings = Vec::new();
-        for expected in [PlanCacheOutcome::Written, PlanCacheOutcome::Hit] {
+        let mut outcomes = Vec::new();
+        for _ in 0..2 {
             let t = Instant::now();
             let (cached, outcome) = runtime
                 .prepare_with_plan_cache(&out, &manifest, &cache)
                 .expect("plan-cache prepare");
             timings.push(t.elapsed().as_millis());
-            assert_eq!(outcome, expected);
+            outcomes.push(outcome);
             let again = cached
                 .run_document(&manifest.pack_id, &text, DocumentRunOptions::default())
                 .expect("plan-cache document run");
@@ -106,12 +107,24 @@ fn catalog_row_to_verified_pack_to_local_execution() {
                 "a cached plan must reproduce the uncached output exactly"
             );
         }
+        // Some graphs hold ops NNEF cannot serialize; they fall back to an
+        // uncached build (NotCached both times). A written plan must hit next.
+        assert!(
+            matches!(
+                outcomes.as_slice(),
+                [PlanCacheOutcome::Written, PlanCacheOutcome::Hit]
+                    | [PlanCacheOutcome::NotCached, PlanCacheOutcome::NotCached]
+            ),
+            "{outcomes:?}"
+        );
         let bytes: u64 = std::fs::read_dir(&cache)
-            .unwrap()
-            .map(|entry| entry.unwrap().metadata().unwrap().len())
-            .sum();
+            .map(|dir| {
+                dir.map(|entry| entry.unwrap().metadata().unwrap().len())
+                    .sum()
+            })
+            .unwrap_or(0);
         println!(
-            "PLAN_CACHE_EVIDENCE cold_prepare_ms={} warm_prepare_ms={} cache_bytes={bytes} outputs_identical=true",
+            "PLAN_CACHE_EVIDENCE outcomes={outcomes:?} cold_prepare_ms={} warm_prepare_ms={} cache_bytes={bytes} outputs_identical=true",
             timings[0], timings[1]
         );
         let _ = std::fs::remove_dir_all(&cache);
