@@ -5,6 +5,7 @@ mod catalog;
 mod compatibility;
 mod format;
 mod fp16_widen;
+mod gliner_runtime;
 mod hf_snapshot;
 mod mesc_verify;
 mod mlx_layout;
@@ -29,6 +30,10 @@ pub use compatibility::{
     SAFETENSORS_EVIDENCED_ARCHITECTURES, SAFETENSORS_KNOWN_UNSUPPORTED, runtime_expectation,
 };
 pub use format::{admit_pack_dir, forbidden_reason};
+pub use gliner_runtime::{
+    GLINER_SPAN_FAMILY, GlinerRuntimeError, PreparedGlinerSpanModel, ZeroShotEntity,
+    is_gliner_span_export, prepare_gliner_span_model,
+};
 pub use hf_snapshot::{
     HfRepoMetadata, HfSibling, SnapshotError, TokenClassifierSnapshot, build_token_classifier_pack,
     labels_from_config, reproducibility_hash, verify_against_catalog, verify_file,
