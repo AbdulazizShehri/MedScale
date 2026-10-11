@@ -9,7 +9,7 @@ Status as of 2026-10-10 (after #191–#196). Capability matrix: [`CAPABILITY_MAT
 - [x] T103-05 (P1) Core surface `medscale_core::model_catalog` (read-only query, snapshot → Pack), with tests (#184). Dispatched as `Capability::ModelCatalogRead` (#193).
 - [x] T103-06 (P2) CLI `medscale packs catalog`, `packs admit-snapshot` (#184) and `packs acquire` (#187).
 - [ ] T103-07 (P2) Tauri Models route catalog tab. **Blocked:** needs the Tauri chain (#174 → #177), which is not merge-eligible while F096-T01 is open.
-- [~] T103-08 (P3) Governed opt-in acquisition (#187):
+- [x] T103-08 (P3) Governed opt-in acquisition (#187):
   - per-model consent and byte ceiling;
   - Governed Browse transport;
   - Hub host allowlist;
@@ -17,7 +17,8 @@ Status as of 2026-10-10 (after #191–#196). Capability matrix: [`CAPABILITY_MAT
   - atomic staging;
   - hermetic scripted-transport tests.
 
-  File-level resume of interrupted acquisitions from verified staging (#192). **Gap:** no byte-range resume inside one file (the transport sends no `Range`). Live acquisition through the product CLI runs on CI (#202, run 38037709005). It found and fixed regional CDN hosts (`*.cdn.hf.co`), and repositories updated after the catalog snapshot are acquired at the catalog-pinned revision (#203). The founder workstation lacks the memory for it.
+  File-level resume of interrupted acquisitions from verified staging (#192). Live acquisition through the product CLI runs on CI (#202, run 38037709005). It found and fixed regional CDN hosts (`*.cdn.hf.co`), and repositories updated after the catalog snapshot are acquired at the catalog-pinned revision (#203). The founder workstation lacks the memory for it.
+  Byte-range resume inside one file (#207): downloads stream to `<name>.part` and resume with `Range` after an interruption. Live evidence: run 38073595545 resumed a killed download from byte 71,756,361 of 133,813,535 and verified the full digest.
 - [~] T103-09 (P4) Budgeted LRU residency pool; Core prepared-model cache migrated to it (#185). Pre-download runtime expectation per catalog row from recorded evidence, shown in the Core catalog view and CLI (#190). **Gap:** expectations are architecture-level, not per-model verification.
 - [~] T103-10 (P5) Execution evidence for four real OpenMed v3.0.0 models: bert, distilbert, roberta, modernbert (`research.md` §9–10). Card-level rights ledger with base-model lineage: `evidence/103-local-model-catalog/RIGHTS_LEDGER.md`. **Gap:** training-dataset terms (BC5CDR, ANATOMY, PII sets) are not verified.
 - [x] T103-11 (P6) Catalog-admitted Packs run as Model Fleet lanes (end-to-end test, #188).
