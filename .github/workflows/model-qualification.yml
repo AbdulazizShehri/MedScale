@@ -41,6 +41,13 @@ jobs:
             onnx: weights.safetensors
             test: gliner_external_104
             text: "Pain in the left knee radiates to the right ankle after aspirin."
+            labels: "anatomy, drug"
+          - arch: gliner-disease-medium
+            repo: OpenMed/OpenMed-ZeroShot-NER-Disease-Medium-209M-mlx
+            onnx: weights.safetensors
+            test: gliner_external_104
+            text: "The patient has type 2 diabetes mellitus and chronic kidney disease."
+            labels: "disease, drug"
     steps:
       - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v4
 
@@ -78,7 +85,7 @@ jobs:
           MEDSCALE_CATALOG_COMMIT: ${{ env.CATALOG_COMMIT }}
           MEDSCALE_HF_ONNX_FILE: ${{ matrix.onnx }}
           MEDSCALE_SAMPLE_TEXT: ${{ matrix.text }}
-          MEDSCALE_ZS_LABELS: "anatomy, drug"
+          MEDSCALE_ZS_LABELS: ${{ matrix.labels }}
         run: |
           set -o pipefail
           export MEDSCALE_HF_SNAPSHOT_DIR="$SNAPSHOT_DIR"
