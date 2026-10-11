@@ -7,13 +7,14 @@
 //! MEDSCALE_HF_SNAPSHOT_DIR=<dir with metadata.json (Hub API ?blobs=true), config.json, tokenizer.json, <onnx file>>
 //! MEDSCALE_HF_ONNX_FILE=model.onnx
 //! MEDSCALE_SAMPLE_TEXT="<synthetic sentence>"
+//! MEDSCALE_PLAN_CACHE=1 (optional: also qualify the tract plan cache, cold then warm)
 //! cargo test --release -p medscale-pack --test openmed_snapshot_external_103 -- --ignored --nocapture
 
 use std::path::PathBuf;
 use std::time::Instant;
 
 use medscale_pack::{
-    DocumentRunOptions, HfRepoMetadata, ModelCatalog, OnnxTokenClassifierRuntime,
+    DocumentRunOptions, HfRepoMetadata, ModelCatalog, OnnxTokenClassifierRuntime, PlanCacheOutcome,
     TokenClassifierSnapshot, admit_pack_dir, build_token_classifier_pack,
 };
 
@@ -87,5 +88,46 @@ fn catalog_row_to_verified_pack_to_local_execution() {
         t2.elapsed().as_millis(),
         serde_json::to_string(&document.output.proposal_payload["entities"]).unwrap()
     );
+    if std::env::var("MEDSCALE_PLAN_CACHE").as_deref() == Ok("1") {
+        let cache = out.with_extension("plan-cache");
+        let mut timings = Vec::new();
+        let mut outcomes = Vec::new();
+        for _ in 0..2 {
+            let t = Instant::now();
+            let (cached, outcome) = runtime
+                .prepare_with_plan_cache(&out, &manifest, &cache)
+                .expect("plan-cache prepare");
+            timings.push(t.elapsed().as_millis());
+            outcomes.push(outcome);
+            let again = cached
+                .run_document(&manifest.pack_id, &text, DocumentRunOptions::default())
+                .expect("plan-cache document run");
+            assert_eq!(
+                again.output.proposal_payload, document.output.proposal_payload,
+                "a cached plan must reproduce the uncached output exactly"
+            );
+        }
+        // Some graphs hold ops NNEF cannot serialize; they fall back to an
+        // uncached build (NotCached both times). A written plan must hit next.
+        assert!(
+            matches!(
+                outcomes.as_slice(),
+                [PlanCacheOutcome::Written, PlanCacheOutcome::Hit]
+                    | [PlanCacheOutcome::NotCached, PlanCacheOutcome::NotCached]
+            ),
+            "{outcomes:?}"
+        );
+        let bytes: u64 = std::fs::read_dir(&cache)
+            .map(|dir| {
+                dir.map(|entry| entry.unwrap().metadata().unwrap().len())
+                    .sum()
+            })
+            .unwrap_or(0);
+        println!(
+            "PLAN_CACHE_EVIDENCE outcomes={outcomes:?} cold_prepare_ms={} warm_prepare_ms={} cache_bytes={bytes} outputs_identical=true",
+            timings[0], timings[1]
+        );
+        let _ = std::fs::remove_dir_all(&cache);
+    }
     let _ = std::fs::remove_dir_all(&out);
 }
