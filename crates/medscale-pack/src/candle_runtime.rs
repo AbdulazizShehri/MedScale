@@ -190,6 +190,10 @@ pub struct CandleRunOptions {
     /// Sub-token to entity aggregation; the default reproduces OpenMed's
     /// ONNX decoder (see [`EntityAggregation`]).
     pub aggregation: EntityAggregation,
+    /// With `pii_semantic_merge`: match the PII patterns on detection-
+    /// normalized text (NFKC, native digits folded; see
+    /// [`crate::normalize_for_detection`]).
+    pub pii_normalize_for_detection: bool,
 }
 
 impl Default for CandleRunOptions {
@@ -199,6 +203,7 @@ impl Default for CandleRunOptions {
             stride: None,
             pii_semantic_merge: false,
             aggregation: EntityAggregation::OpenMedOnnx,
+            pii_normalize_for_detection: false,
         }
     }
 }
@@ -559,9 +564,9 @@ impl PreparedCandleTokenClassifier {
             options.threshold,
             options.aggregation,
         );
-        let pii_merged = options
-            .pii_semantic_merge
-            .then(|| crate::pii_merge::merge_decoded(&entities, input));
+        let pii_merged = options.pii_semantic_merge.then(|| {
+            crate::pii_merge::merge_decoded(&entities, input, options.pii_normalize_for_detection)
+        });
         let aggregation =
             (options.aggregation != EntityAggregation::OpenMedOnnx).then_some(options.aggregation);
         Ok(RuntimeOutput {
