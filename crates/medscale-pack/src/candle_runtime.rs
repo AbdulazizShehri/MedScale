@@ -227,6 +227,11 @@ fn build(
     device: &Device,
 ) -> Result<(String, usize, Encoder, Linear), CandleRuntimeError> {
     let model_type = candle_model_type(config)?;
+    if crate::gliner_runtime::is_gliner_span_export(config) {
+        return Err(CandleRuntimeError::InvalidConfig(
+            "GLiNER zero-shot export: use the GLiNER runtime".into(),
+        ));
+    }
     let mlx = crate::mlx_layout::is_mlx_export(config);
     if mlx && crate::mlx_layout::is_quantized(config) {
         return Err(CandleRuntimeError::InvalidConfig(
