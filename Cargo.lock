@@ -4018,6 +4018,7 @@ dependencies = [
  "candle-metal-kernels",
  "candle-nn",
  "candle-transformers",
+ "fancy-regex 0.17.0",
  "medscale-contracts",
  "medscale-keys",
  "serde",
