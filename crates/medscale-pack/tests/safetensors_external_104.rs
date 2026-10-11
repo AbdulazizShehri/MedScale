@@ -82,5 +82,21 @@ fn safetensors_catalog_row_to_local_execution() {
         "SNAPSHOT_DOCUMENT {}",
         serde_json::to_string(&output.proposal_payload["entities"]).unwrap()
     );
+    // The optional word-level aggregation, printed beside the OpenMed-compatible
+    // baseline for comparison (never replaces it).
+    let word = prepared
+        .run_document(
+            &manifest.pack_id,
+            &text,
+            CandleRunOptions {
+                aggregation: medscale_pack::EntityAggregation::WordFirst,
+                ..CandleRunOptions::default()
+            },
+        )
+        .expect("word-aggregated run");
+    println!(
+        "SNAPSHOT_DOCUMENT_WORD_FIRST {}",
+        serde_json::to_string(&word.proposal_payload["entities"]).unwrap()
+    );
     let _ = std::fs::remove_dir_all(&out);
 }

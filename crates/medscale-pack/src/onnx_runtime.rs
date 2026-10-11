@@ -21,7 +21,8 @@ use tract_onnx::tract_hir;
 use crate::RuntimeOutput;
 use crate::format::artifact_size_limit;
 use crate::token_windows::{
-    BestContextVotes, WindowError, decode_entities, default_stride, plan_windows,
+    BestContextVotes, EntityAggregation, WindowError, decode_entities_by_word, default_stride,
+    plan_windows,
 };
 
 pub const ONNX_TOKEN_CLASSIFIER_RUNTIME_ID: &str = "tract_onnx_token_classification_v1";
@@ -100,6 +101,9 @@ pub struct DocumentRunOptions {
     /// Also report OpenMed's semantic-unit PII merge of the entities
     /// (`pii_merged_entities`; see [`crate::merge_entities_with_semantic_units`]).
     pub pii_semantic_merge: bool,
+    /// Sub-token to entity aggregation; the default reproduces OpenMed's
+    /// ONNX decoder (see [`EntityAggregation`]).
+    pub aggregation: EntityAggregation,
 }
 
 impl Default for DocumentRunOptions {
@@ -108,6 +112,7 @@ impl Default for DocumentRunOptions {
             threshold: 0.0,
             stride: None,
             pii_semantic_merge: false,
+            aggregation: EntityAggregation::OpenMedOnnx,
         }
     }
 }
@@ -590,10 +595,23 @@ impl PreparedOnnxTokenClassifier {
             )?;
         }
         let tokens = votes.finish()?;
-        let entities = decode_entities(&tokens, &self.labels, input, options.threshold);
+        let word_ids: Vec<Option<u32>> = content
+            .iter()
+            .map(|&i| encoding.get_word_ids()[i])
+            .collect();
+        let entities = decode_entities_by_word(
+            &tokens,
+            &word_ids,
+            &self.labels,
+            input,
+            options.threshold,
+            options.aggregation,
+        );
         let pii_merged = options
             .pii_semantic_merge
             .then(|| crate::pii_merge::merge_decoded(&entities, input));
+        let aggregation =
+            (options.aggregation != EntityAggregation::OpenMedOnnx).then_some(options.aggregation);
         Ok(OnnxRuntimeEvaluation {
             output: RuntimeOutput {
                 proposal_payload: crate::pii_merge::with_merged(
@@ -615,6 +633,7 @@ impl PreparedOnnxTokenClassifier {
                         "note": "Proposal/evaluation evidence only; never ClinicalAssertion",
                     }),
                     pii_merged,
+                    aggregation,
                 ),
                 evidence_only: true,
                 pack_id: pack_id.clone(),

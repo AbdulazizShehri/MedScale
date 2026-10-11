@@ -489,11 +489,20 @@ pub(crate) fn merge_decoded(
     merge_entities_with_semantic_units(&entities, text, PiiMergeOptions::default())
 }
 
-/// Add `pii_merged_entities` to a document payload when a merge was requested.
+/// Add `pii_merged_entities` to a document payload when a merge was requested,
+/// and `aggregation` when a non-default entity aggregation was used (default
+/// payloads stay byte-identical).
 pub(crate) fn with_merged(
     mut payload: serde_json::Value,
     merged: Option<Vec<PiiEntity>>,
+    aggregation: Option<crate::token_windows::EntityAggregation>,
 ) -> serde_json::Value {
+    if let (Some(aggregation), Some(object)) = (aggregation, payload.as_object_mut()) {
+        object.insert(
+            "aggregation".to_owned(),
+            serde_json::to_value(aggregation).unwrap_or_default(),
+        );
+    }
     if let (Some(merged), Some(object)) = (merged, payload.as_object_mut()) {
         object.insert(
             "pii_merged_entities".to_owned(),
