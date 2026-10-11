@@ -83,7 +83,7 @@ jobs:
           export MEDSCALE_HF_SNAPSHOT_DIR="$SNAPSHOT_DIR"
           cargo test --release --locked -p medscale-pack --test "${{ matrix.test }}" \
             -- --ignored --nocapture 2>&1 | tee qualification.log
-          grep -E '^(SNAPSHOT_|PREPARE_TIMING)' qualification.log >> "$GITHUB_STEP_SUMMARY"
+          grep -E '^(SNAPSHOT_|PREPARE_TIMING|NNEF_)' qualification.log >> "$GITHUB_STEP_SUMMARY"
 
       - name: Keep the log (no weights)
         if: always()
@@ -177,7 +177,7 @@ jobs:
           set -o pipefail
           cargo test --release --locked -p medscale-pack --test "${{ matrix.test }}" \
             -- --ignored --nocapture 2>&1 | tee qualification.log
-          { echo '```json'; cat acquisition.json; echo '```'; grep -E '^(SNAPSHOT_|PREPARE_TIMING)' qualification.log; } >> "$GITHUB_STEP_SUMMARY"
+          { echo '```json'; cat acquisition.json; echo '```'; grep -E '^(SNAPSHOT_|PREPARE_TIMING|NNEF_)' qualification.log; } >> "$GITHUB_STEP_SUMMARY"
 
       - name: Keep the logs (no weights)
         if: always()

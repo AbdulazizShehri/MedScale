@@ -276,6 +276,30 @@ impl OnnxTokenClassifierRuntime {
             .into_decluttered()
             .map_err(|e| OnnxRuntimeError::prepare("optimize", &e))?;
         eprintln!("PREPARE_TIMING declutter_ms={} nodes={}", t.elapsed().as_millis(), decluttered.nodes().len());
+        // EXPERIMENT (qual branch only): can the decluttered plan be cached as NNEF?
+        {
+            use tract_onnx::prelude::WithOnnx as _;
+            let nnef = tract_nnef::nnef().with_tract_core().with_onnx();
+            let t = std::time::Instant::now();
+            match nnef.write_to_tar(&decluttered, Vec::new()) {
+                Ok(buf) => {
+                    eprintln!("NNEF_WRITE ok bytes={} ms={}", buf.len(), t.elapsed().as_millis());
+                    let t = std::time::Instant::now();
+                    match nnef.model_for_read(&mut std::io::Cursor::new(&buf)) {
+                        Ok(reloaded) => {
+                            eprintln!("NNEF_READ ok ms={} nodes={}", t.elapsed().as_millis(), reloaded.nodes().len());
+                            let t = std::time::Instant::now();
+                            match reloaded.into_optimized() {
+                                Ok(m) => eprintln!("NNEF_OPTIMIZE ok ms={} nodes={}", t.elapsed().as_millis(), m.nodes().len()),
+                                Err(e) => eprintln!("NNEF_OPTIMIZE err {e:#}"),
+                            }
+                        }
+                        Err(e) => eprintln!("NNEF_READ err {}", format!("{e:#}").chars().take(400).collect::<String>()),
+                    }
+                }
+                Err(e) => eprintln!("NNEF_WRITE err {}", format!("{e:#}").chars().take(400).collect::<String>()),
+            }
+        }
         let t = std::time::Instant::now();
         let optimized = decluttered
             .into_optimized()
