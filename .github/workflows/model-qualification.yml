@@ -36,36 +36,36 @@ jobs:
       max-parallel: 3
       matrix:
         include:
-          - arch: bert
-            repo: OpenMed/OpenMed-NER-DiseaseDetect-ElectraMed-33M-v1-onnx-android
-            onnx: model.onnx
-            test: openmed_snapshot_external_103
-            text: "The patient has type 2 diabetes mellitus and chronic kidney disease."
-          - arch: distilbert
-            repo: OpenMed/OpenMed-NER-AnatomyDetect-TinyMed-65M-v1-onnx-android
-            onnx: model.onnx
-            test: openmed_snapshot_external_103
+          - arch: bert-biomed
+            repo: OpenMed/OpenMed-NER-AnatomyDetect-BioMed-109M
+            onnx: model.safetensors
+            test: safetensors_external_104
             text: "Pain in the left knee radiates to the right ankle."
-          - arch: roberta
-            repo: OpenMed/OpenMed-NER-AnatomyDetect-TinyMed-82M-v1-onnx-android
-            onnx: model.onnx
-            test: openmed_snapshot_external_103
-            text: "Pain in the left knee radiates to the right ankle."
-          - arch: modernbert
-            repo: OpenMed/OpenMed-NER-AnatomyDetect-ModernClinical-149M-v1-onnx-android
-            onnx: model.onnx
-            test: openmed_snapshot_external_103
-            text: "Pain in the left knee radiates to the right ankle."
-          - arch: deberta-v2
-            repo: OpenMed/OpenMed-PII-Dutch-SuperClinical-Small-44M-v1-onnx-android
-            onnx: model.onnx
-            test: openmed_snapshot_external_103
-            text: "Patiënt Jan de Vries, geboren op 12 maart 1980, woont in Utrecht."
-          - arch: xlm-roberta-fp16
-            repo: OpenMed/OpenMed-PII-Spanish-BigMed-Large-278M-v1-onnx-android
-            onnx: model_fp16.onnx
-            test: openmed_snapshot_external_103
-            text: "La paciente María García, nacida el 3 de mayo de 1975, vive en Sevilla."
+          - arch: roberta-supermedical
+            repo: OpenMed/OpenMed-NER-ChemicalDetect-SuperMedical-355M
+            onnx: model.safetensors
+            test: safetensors_external_104
+            text: "The patient received aspirin and metformin daily."
+          - arch: deberta-superclinical
+            repo: OpenMed/OpenMed-NER-GenomicDetect-SuperClinical-184M
+            onnx: model.safetensors
+            test: safetensors_external_104
+            text: "Mutations in BRCA1 and TP53 were detected."
+          - arch: bert-biopatient
+            repo: OpenMed/OpenMed-NER-OncologyDetect-BioPatient-108M
+            onnx: model.safetensors
+            test: safetensors_external_104
+            text: "The biopsy confirmed invasive ductal carcinoma of the breast."
+          - arch: bert-pubmed
+            repo: OpenMed/OpenMed-NER-ProteinDetect-PubMed-v2-109M
+            onnx: model.safetensors
+            test: safetensors_external_104
+            text: "Insulin binds the insulin receptor on hepatocytes."
+          - arch: modernbert-modernmed
+            repo: OpenMed/OpenMed-NER-SpeciesDetect-ModernMed-395M
+            onnx: model.safetensors
+            test: safetensors_external_104
+            text: "Escherichia coli was isolated from the mouse sample."
     steps:
       - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v4
 
