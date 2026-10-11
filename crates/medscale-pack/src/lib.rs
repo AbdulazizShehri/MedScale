@@ -53,6 +53,7 @@ pub use residency::{EvictionPlan, ResidencyError, ResidencyPool};
 pub use runtime::{FixtureRuntime, PackRuntimeAdapter, RuntimeOutput};
 pub use store::PackStore;
 pub use token_windows::{
-    BestContextVotes, CharSpan, DecodedEntity, MAX_WINDOWS, TokenLogits, TokenWindow, WindowError,
-    decode_entities, default_stride, plan_windows,
+    BestContextVotes, CharSpan, DecodedEntity, EntityAggregation, MAX_WINDOWS, TokenLogits,
+    TokenWindow, WindowError, decode_entities, decode_entities_by_word, default_stride,
+    plan_windows,
 };
