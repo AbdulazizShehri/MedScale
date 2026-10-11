@@ -617,6 +617,55 @@ impl CoreFacade {
             .unwrap_or_else(std::sync::PoisonError::into_inner)
     }
 
+    /// Spec 103: every prepared model in the three runtime pools.
+    fn residency_view(
+        &self,
+        unloaded: Vec<medscale_contracts::objects::DigestSha256>,
+    ) -> medscale_contracts::packs::PackResidencyView {
+        let mut rows: Vec<(String, String, u64, bool)> = Vec::new();
+        for (runtime, entries) in [
+            ("tract_onnx", resident_rows(&self.prepared_models())),
+            (
+                "candle_token_classifier",
+                resident_rows(&self.prepared_candle_models()),
+            ),
+            (
+                "candle_gliner",
+                resident_rows(&self.prepared_gliner_models()),
+            ),
+        ] {
+            rows.extend(
+                entries
+                    .into_iter()
+                    .map(|(key, bytes, pinned)| (runtime.to_owned(), key, bytes, pinned)),
+            );
+        }
+        let manifests = self.packs().list();
+        let models = rows
+            .into_iter()
+            .filter_map(|(runtime, key, resident_bytes, pinned)| {
+                let content_digest = digest_from_hex(&key)?;
+                let pack_ids = manifests
+                    .iter()
+                    .filter(|m| m.content_digest == content_digest)
+                    .map(|m| m.pack_id.clone())
+                    .collect();
+                Some(medscale_contracts::packs::ResidentModelView {
+                    runtime,
+                    content_digest,
+                    pack_ids,
+                    resident_bytes,
+                    pinned,
+                })
+            })
+            .collect();
+        medscale_contracts::packs::PackResidencyView {
+            budget_bytes_per_pool: PREPARED_MODEL_BUDGET_BYTES,
+            models,
+            unloaded,
+        }
+    }
+
     fn prepared_models(
         &self,
     ) -> std::sync::MutexGuard<
@@ -1727,6 +1776,60 @@ impl CoreFacade {
                         message: msg.to_owned(),
                     }),
                 }
+            }
+            RequestBody::PacksResidency => Ok(ResponseBody::PackResidency {
+                view: Box::new(self.residency_view(Vec::new())),
+            }),
+            RequestBody::PacksUnloadLocal { pack_id } => {
+                self.require_lease(&req.vault_id)?;
+                let target = match pack_id.as_ref() {
+                    Some(id) => Some(
+                        self.packs()
+                            .get(id)
+                            .ok_or(AuthorityError::NotFound)?
+                            .content_digest
+                            .to_hex(),
+                    ),
+                    None => None,
+                };
+                let mut unloaded = std::collections::BTreeSet::new();
+                {
+                    let mut onnx = self.prepared_models();
+                    unloaded.extend(unload_from(&mut onnx, target.as_deref()));
+                }
+                {
+                    let mut candle = self.prepared_candle_models();
+                    unloaded.extend(unload_from(&mut candle, target.as_deref()));
+                }
+                {
+                    let mut gliner = self.prepared_gliner_models();
+                    unloaded.extend(unload_from(&mut gliner, target.as_deref()));
+                }
+                let unloaded: Vec<medscale_contracts::objects::DigestSha256> = unloaded
+                    .into_iter()
+                    .filter_map(|hex| digest_from_hex(&hex))
+                    .collect();
+                let mut store = self.store();
+                let audit_id = store.alloc_id("audit");
+                store.insert(StoredObject::Audit(ActionAuditRecord {
+                    header: ObjectHeader {
+                        id: audit_id,
+                        schema_version: AUTHORITY_SCHEMA_VERSION,
+                        realm_id: req.realm_id.clone(),
+                        authority_scope_id: req.authority_scope_id.clone(),
+                    },
+                    kind: ActionAuditKind::Audit,
+                    actor: OpaqueId::new("pack-runtime"),
+                    action: "packs.unload_local".to_owned(),
+                    target_refs: pack_id.iter().cloned().collect(),
+                    effect_state: None,
+                    payload_digest: None,
+                    detail: Some(serde_json::json!({ "unloaded": unloaded.len() })),
+                }));
+                drop(store);
+                Ok(ResponseBody::PackResidency {
+                    view: Box::new(self.residency_view(unloaded)),
+                })
             }
             RequestBody::PacksEvaluateLocal { request } => {
                 self.require_lease(&req.vault_id)?;
@@ -5393,7 +5496,7 @@ fn capability_matches(cap: &Capability, body: &RequestBody) -> bool {
             | (Capability::PacksPromote, RequestBody::PacksPromote { .. })
             | (
                 Capability::PacksEvaluateLocal,
-                RequestBody::PacksEvaluateLocal { .. },
+                RequestBody::PacksEvaluateLocal { .. } | RequestBody::PacksUnloadLocal { .. },
             )
             | (
                 Capability::DocumentIntake,
@@ -5938,6 +6041,7 @@ fn capability_matches(cap: &Capability, body: &RequestBody) -> bool {
             | (
                 Capability::PackRead,
                 RequestBody::PackCatalog
+                    | RequestBody::PacksResidency
                     | RequestBody::PackInstallGet { .. }
                     | RequestBody::PackArtifactGet { .. }
                     | RequestBody::PackArtifactList { .. }
@@ -6012,4 +6116,37 @@ fn amend_err(err: super::amend::AmendError) -> AuthorityError {
             AuthorityError::InvalidArgument { message }
         }
     }
+}
+
+/// `(key, bytes, pinned)` of every resident entry, owned so the pool lock is
+/// released before the caller reads the Pack store.
+fn resident_rows<T>(pool: &medscale_pack::ResidencyPool<T>) -> Vec<(String, u64, bool)> {
+    pool.resident()
+        .into_iter()
+        .map(|(key, bytes, pinned)| (key.to_owned(), bytes, pinned))
+        .collect()
+}
+
+/// Unloads `target` (a content-digest key) or, for `None`, every unpinned
+/// entry. Pinned entries are kept. Returns the keys unloaded.
+fn unload_from<T>(pool: &mut medscale_pack::ResidencyPool<T>, target: Option<&str>) -> Vec<String> {
+    match target {
+        Some(key) => pool
+            .unload(key)
+            .ok()
+            .map(|_| vec![key.to_owned()])
+            .unwrap_or_default(),
+        None => pool.unload_all_unpinned(),
+    }
+}
+
+fn digest_from_hex(hex: &str) -> Option<medscale_contracts::objects::DigestSha256> {
+    if hex.len() != 64 {
+        return None;
+    }
+    let mut bytes = [0u8; 32];
+    for (i, byte) in bytes.iter_mut().enumerate() {
+        *byte = u8::from_str_radix(hex.get(2 * i..2 * i + 2)?, 16).ok()?;
+    }
+    Some(medscale_contracts::objects::DigestSha256::from_bytes(bytes))
 }
