@@ -10,28 +10,46 @@ LAUNCH_UI_FROZEN = FALSE
 
 The founder request promotes [095–100](PRODUCTIZATION_PROGRAM.md). Base 1e2b7d94, CI 36480424698 (6/6). Queue/closure supersede summaries ending 073/075. Drafts 124/125 stay separate. Release/privacy/multi-client readiness remains false and PHI remains unauthorized.
 
-## Spec 103 model execution — 2026-10-10
+## Spec 103 / 104 model execution — 2026-10-11
 
 ```text
-SPEC_103 = IMPLEMENTATION_IN_PROGRESS
+SPEC_103 = IMPLEMENTATION_IN_PROGRESS (repository-owned work done; remaining items are external)
+SPEC_104_NATIVE_SAFETENSORS_RUNTIME = CLOSED_CANONICAL (#198; extended by #203, #208)
 EXECUTED_TESTED_ARCHITECTURES = bert, distilbert, roberta, modernbert, deberta-v2, xlm-roberta
-SPEC_104_NATIVE_SAFETENSORS_RUNTIME = CLOSED_CANONICAL (#198)
+RUNTIMES = tract ONNX (CPU); candle safetensors and OpenMed MLX exports (CPU; Apple GPU via Metal)
+EXPECTED_RUNNABLE_CATALOG_ROWS = 1702 of 2266 (architecture-level expectation, not per-row tests)
 TASK_QUALIFIED_MODELS = 0
 CLINICALLY_VALIDATED_MODELS = 0
 RELEASE_READY = FALSE
 ```
 
-The founder's issue #183 priority, OpenMed model-execution parity, is tracked in [`specs/103-local-model-catalog/CAPABILITY_MATRIX.md`](../../specs/103-local-model-catalog/CAPABILITY_MATRIX.md). The full lifecycle runs on the pure-Rust tract runtime for six architectures with real OpenMed v3.0.0 models (qualification run 37977100903): catalog, governed acquisition, verification, signed Pack, admission, prepare, run, Model Fleet comparison, residency.
+The founder's issue #183 priority, OpenMed model-execution parity, is tracked in [`specs/103-local-model-catalog/CAPABILITY_MATRIX.md`](../../specs/103-local-model-catalog/CAPABILITY_MATRIX.md).
 
-Spec 104 adds a pure-Rust safetensors runtime (candle 0.9.1) for PyTorch-format rows. Five architectures were executed on real OpenMed models (run 37986892863); MLX-only repositories, pickle-only GLiNER and PyTorch-format XLM-R over the 1 GiB bound are not covered.
+The full lifecycle runs with real OpenMed v3.0.0 models on free GitHub runners. Every stage below is backed by recorded runs:
 
-Not done:
-- the other runtimes (ONNX Runtime, MLX/Core ML, PyTorch, Android, WebGPU);
-- GLiNER and multimodal models;
-- interactive DeBERTa prepare time;
-- the Models UI, blocked by F096-T01 ([external gates](EXTERNAL_GATES.md)).
+| Stage | Implementation |
+|---|---|
+| Discover | catalog with a Core capability |
+| Acquire | live governed acquisition through the product CLI, at the catalog-pinned revision, with byte-range resume |
+| Verify | catalog hash and per-file digests |
+| Admit | signed Pack |
+| Load / run | tract ONNX; candle safetensors and MLX exports; Apple GPU via Metal |
+| Compare | Model Fleet across runtimes |
+| Unload | residency pool |
 
-Issue #182 progress on `main`: README, identity audit and guard (#195). Its desktop parts land with the Tauri chain.
+Remaining, each with its cause:
+- the Models UI and the desktop parts of #182: blocked by F096-T01;
+- GLiNER zero-shot: pickle-only upstream weights;
+- XLM-R NER exports: defective upstream tokenizers;
+- PyTorch-format and MLX XLM-R: over the 1 GiB Pack bound, and raising it is a founder decision;
+- quantized MLX: not supported;
+- ONNX Runtime: evaluated, not admitted;
+- Android and WebGPU: MedScale has no such product surfaces;
+- multimodal models: not started;
+- the first DeBERTa-v2 prepare on tract is non-interactive (root cause recorded; the candle path prepares the same model in about 3 s);
+- task qualification and clinical validation: not performed.
+
+See [external gates](EXTERNAL_GATES.md).
 
 ## Historical completion status through Spec 073
 
