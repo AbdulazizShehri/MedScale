@@ -1761,12 +1761,20 @@ impl CoreFacade {
                 })?;
                 let candle = medscale_pack::pack_runtime_kind(&manifest)
                     == Some(medscale_pack::PackRuntimeKind::CandleSafetensors);
+                // A resident prepared model already answers which head the Pack
+                // holds; only a cold Pack re-reads its verified config.json.
+                // Each pool lock is released before any file is read.
+                let resident_key = manifest.content_digest.to_hex();
+                let resident_gliner = self.prepared_gliner_models().get(&resident_key).is_some();
+                let resident_candle = self.prepared_candle_models().get(&resident_key).is_some();
                 let zero_shot = candle
-                    && medscale_pack::pack_is_gliner_span(path, &manifest).map_err(|err| {
-                        AuthorityError::InvalidArgument {
-                            message: format!("pack runtime preparation failed: {err}"),
-                        }
-                    })?;
+                    && (resident_gliner
+                        || (!resident_candle
+                            && medscale_pack::pack_is_gliner_span(path, &manifest).map_err(
+                                |err| AuthorityError::InvalidArgument {
+                                    message: format!("pack runtime preparation failed: {err}"),
+                                },
+                            )?));
                 match (zero_shot, &request.zero_shot_labels) {
                     (true, Some(labels)) => {
                         return self.evaluate_gliner_pack(
