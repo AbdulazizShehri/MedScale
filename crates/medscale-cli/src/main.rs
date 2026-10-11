@@ -433,6 +433,9 @@ enum PacksCmd {
         max_params: Option<u64>,
         #[arg(long)]
         max_disk_mb: Option<f64>,
+        /// OpenMed size tier, for example Tiny, Small, Base or Large.
+        #[arg(long)]
+        tier: Option<String>,
         #[arg(long, default_value_t = 0)]
         offset: usize,
         #[arg(long, default_value_t = 20)]
@@ -1239,6 +1242,7 @@ fn run() -> Result<()> {
                 status,
                 max_params,
                 max_disk_mb,
+                tier,
                 offset,
                 limit,
             } => {
@@ -1254,6 +1258,7 @@ fn run() -> Result<()> {
                         format,
                         architecture,
                         license_claim: None,
+                        tier,
                         device_fit: device,
                         status,
                         max_params,

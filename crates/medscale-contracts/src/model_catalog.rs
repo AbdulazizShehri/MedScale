@@ -33,6 +33,9 @@ pub struct ModelCatalogQueryRequest {
     pub architecture: Option<String>,
     #[serde(default)]
     pub license_claim: Option<String>,
+    /// OpenMed size tier, for example `Tiny` or `Base`.
+    #[serde(default)]
+    pub tier: Option<String>,
     /// `cpu_portable`, `apple_silicon_only` or `unknown`.
     #[serde(default)]
     pub device_fit: Option<String>,

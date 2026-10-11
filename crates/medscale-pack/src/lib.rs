@@ -27,8 +27,9 @@ pub use catalog::{
     ModelCatalog, SizeMb,
 };
 pub use compatibility::{
-    EVIDENCED_ARCHITECTURES, KNOWN_DEFECTIVE_EXPORTS, KNOWN_UNSUPPORTED, RuntimeExpectation,
-    SAFETENSORS_EVIDENCED_ARCHITECTURES, SAFETENSORS_KNOWN_UNSUPPORTED, runtime_expectation,
+    EVIDENCED_ARCHITECTURES, EXECUTED_MODELS, ExecutedModel, KNOWN_DEFECTIVE_EXPORTS,
+    KNOWN_UNSUPPORTED, RuntimeExpectation, SAFETENSORS_EVIDENCED_ARCHITECTURES,
+    SAFETENSORS_KNOWN_UNSUPPORTED, executed_model, runtime_expectation,
 };
 pub use format::{admit_pack_dir, forbidden_reason};
 pub use hf_snapshot::{
