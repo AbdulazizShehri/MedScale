@@ -41,6 +41,50 @@ pub struct ExecutedModel {
 /// Per-model execution evidence (rows, not architectures). Synthetic text
 /// only: this records that the model runs, not task quality.
 pub const EXECUTED_MODELS: &[ExecutedModel] = &[
+    // Catalog rows without an `architecture` field; their `config.json`
+    // declares bert, roberta, deberta-v2 or modernbert (run 38163293053).
+    ExecutedModel {
+        repo_id: "OpenMed/OpenMed-NER-AnatomyDetect-BioMed-109M",
+        revision: "49bedb870db7008773880b643733c78100737e12",
+        runtime: "candle_safetensors",
+        weight_file: "model.safetensors",
+        evidence_run: "38163293053",
+    },
+    ExecutedModel {
+        repo_id: "OpenMed/OpenMed-NER-ChemicalDetect-SuperMedical-355M",
+        revision: "ee4f7b5d9e41a005f35a9ed033a77de71c68e4e5",
+        runtime: "candle_safetensors",
+        weight_file: "model.safetensors",
+        evidence_run: "38163293053",
+    },
+    ExecutedModel {
+        repo_id: "OpenMed/OpenMed-NER-GenomicDetect-SuperClinical-184M",
+        revision: "3d01b67e46890c10540daa00b57693e6238ebb46",
+        runtime: "candle_safetensors",
+        weight_file: "model.safetensors",
+        evidence_run: "38163293053",
+    },
+    ExecutedModel {
+        repo_id: "OpenMed/OpenMed-NER-OncologyDetect-BioPatient-108M",
+        revision: "6ffc399d133a28adc6b9a835f351bc2e6f8fc73c",
+        runtime: "candle_safetensors",
+        weight_file: "model.safetensors",
+        evidence_run: "38163293053",
+    },
+    ExecutedModel {
+        repo_id: "OpenMed/OpenMed-NER-ProteinDetect-PubMed-v2-109M",
+        revision: "f3877242a44ac750054eafc097bc92e55368b6a4",
+        runtime: "candle_safetensors",
+        weight_file: "model.safetensors",
+        evidence_run: "38163293053",
+    },
+    ExecutedModel {
+        repo_id: "OpenMed/OpenMed-NER-SpeciesDetect-ModernMed-395M",
+        revision: "8e126e50c965925235b26401a44e865d6c2fea18",
+        runtime: "candle_safetensors",
+        weight_file: "model.safetensors",
+        evidence_run: "38163293053",
+    },
     ExecutedModel {
         repo_id: "OpenMed/OpenMed-PII-EuroMed-Large-210M-v1-onnx-android",
         revision: "6f15663a6e6f863792f9ad7ef1725552c703dabb",
@@ -190,6 +234,20 @@ pub const SAFETENSORS_KNOWN_UNSUPPORTED: &[(&str, &str)] = &[(
     "PyTorch-format XLM-R weights (1.11 GB for the 278M-parameter models) exceed the 1 GiB Pack bound",
 )];
 
+/// Architecture families known not to run on any admitted runtime, matched by
+/// a substring of the catalog `architecture` (OpenMed names some families per
+/// repository, for example `openmed-pii-clinicallongformer-base-149m-v1`).
+pub const KNOWN_UNSUPPORTED_FAMILIES: &[(&str, &str)] = &[
+    (
+        "longformer",
+        "Longformer: tract cannot prepare the ONNX export (two-input Pad in the sliding-window attention, run 38161872272; at a 128-token sequence the export reshapes to a 512-token window, run 38152456058) and candle has no Longformer encoder",
+    ),
+    (
+        "privacy-filter",
+        "privacy-filter weights are 1.49 GB (8-bit MLX, quantized) to 2.80 GB, over the 1 GiB Pack bound",
+    ),
+];
+
 /// Published exports known to be defective, matched by architecture and a
 /// repository-id prefix, with the cause.
 pub const KNOWN_DEFECTIVE_EXPORTS: &[(&str, &str, &str)] = &[(
@@ -269,6 +327,14 @@ pub fn runtime_expectation(row: &CatalogRow) -> RuntimeExpectation {
         };
     }
     let arch = row.architecture.to_ascii_lowercase();
+    if let Some((_, reason)) = KNOWN_UNSUPPORTED_FAMILIES
+        .iter()
+        .find(|(family, _)| arch.contains(family))
+    {
+        return RuntimeExpectation::KnownUnsupported {
+            reason: (*reason).to_string(),
+        };
+    }
     if !row.formats.iter().any(|f| f.eq_ignore_ascii_case("onnx")) {
         // OpenMed v3.0.0 lists MLX repositories (`*-mlx`) with formats such as
         // `["mlx-fp", "pytorch"]`; they publish MLX weights only
@@ -427,6 +493,38 @@ mod tests {
                 task: "text-generation".into()
             }
         );
+    }
+
+    #[test]
+    fn known_unsupported_families_match_per_repository_architecture_names() {
+        for (arch, formats) in [
+            ("openmed-pii-clinicallongformer-base-149m-v1", r#"["onnx"]"#),
+            (
+                "openmed-pii-dutch-clinicallongformer-base-149m-v1",
+                r#"["pytorch"]"#,
+            ),
+            ("clinical-longformer", r#"["onnx"]"#),
+            ("privacy-filter-multilingual-v2", r#"["mlx-fp","pytorch"]"#),
+        ] {
+            assert!(
+                matches!(
+                    runtime_expectation(&row("token-classification", arch, formats)),
+                    RuntimeExpectation::KnownUnsupported { .. }
+                ),
+                "{arch}"
+            );
+        }
+        // A catalog row without an architecture that was executed reports it.
+        let r = named(
+            "OpenMed/OpenMed-NER-AnatomyDetect-BioMed-109M",
+            "token-classification",
+            "",
+            r#"["pytorch"]"#,
+        );
+        assert!(matches!(
+            runtime_expectation(&r),
+            RuntimeExpectation::ExecutedTested { .. }
+        ));
     }
 
     #[test]
