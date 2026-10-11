@@ -184,6 +184,8 @@ fn select_metal() -> (Device, &'static str, Option<String>) {
 pub struct CandleRunOptions {
     pub threshold: f32,
     pub stride: Option<usize>,
+    /// Also report OpenMed's semantic-unit PII merge (`pii_merged_entities`).
+    pub pii_semantic_merge: bool,
 }
 
 impl Default for CandleRunOptions {
@@ -191,6 +193,7 @@ impl Default for CandleRunOptions {
         Self {
             threshold: 0.0,
             stride: None,
+            pii_semantic_merge: false,
         }
     }
 }
@@ -535,27 +538,33 @@ impl PreparedCandleTokenClassifier {
         }
         let tokens = votes.finish()?;
         let entities = decode_entities(&tokens, &self.labels, input, options.threshold);
+        let pii_merged = options
+            .pii_semantic_merge
+            .then(|| crate::pii_merge::merge_decoded(&entities, input));
         Ok(RuntimeOutput {
-            proposal_payload: json!({
-                "kind": "candle_token_classification_document_v1",
-                "runtime": CANDLE_TOKEN_CLASSIFIER_RUNTIME_ID,
-                "model_type": self.model_type,
-                "device": self.device_name,
-                "device_fallback": self.device_fallback,
-                "content_digest": self.content_digest.to_hex(),
-                "source_kind": self.provenance.source_kind,
-                "source_repository": self.provenance.repository,
-                "source_revision": self.provenance.revision,
-                "token_count": content.len(),
-                "covered_tokens": tokens.len(),
-                "window_count": windows.len(),
-                "window_tokens": self.window,
-                "stride": stride,
-                "threshold": options.threshold,
-                "offsets": "unicode_scalar",
-                "entities": entities,
-                "note": "Proposal/evaluation evidence only; never ClinicalAssertion",
-            }),
+            proposal_payload: crate::pii_merge::with_merged(
+                json!({
+                    "kind": "candle_token_classification_document_v1",
+                    "runtime": CANDLE_TOKEN_CLASSIFIER_RUNTIME_ID,
+                    "model_type": self.model_type,
+                    "device": self.device_name,
+                    "device_fallback": self.device_fallback,
+                    "content_digest": self.content_digest.to_hex(),
+                    "source_kind": self.provenance.source_kind,
+                    "source_repository": self.provenance.repository,
+                    "source_revision": self.provenance.revision,
+                    "token_count": content.len(),
+                    "covered_tokens": tokens.len(),
+                    "window_count": windows.len(),
+                    "window_tokens": self.window,
+                    "stride": stride,
+                    "threshold": options.threshold,
+                    "offsets": "unicode_scalar",
+                    "entities": entities,
+                    "note": "Proposal/evaluation evidence only; never ClinicalAssertion",
+                }),
+                pii_merged,
+            ),
             evidence_only: true,
             pack_id: pack_id.clone(),
         })
@@ -724,7 +733,8 @@ mod tests {
                 "alice",
                 CandleRunOptions {
                     threshold: 2.0,
-                    stride: None
+                    stride: None,
+                    ..Default::default()
                 }
             ),
             Err(CandleRuntimeError::InvalidThreshold)

@@ -64,6 +64,7 @@ slint = { version = "=1.16.1", default-features = false, features = ["std", "bac
 slint-build = "=1.16.1"
 tract-onnx = { version = "=0.22.4", default-features = false }
 tract-nnef = { version = "=0.22.4", default-features = false }
+fancy-regex = "=0.17.0"
 # Spec 104: CPU-only native safetensors runtime (no tokenizer, no GPU, no C++).
 candle-core = { version = "=0.9.1", default-features = false }
 candle-nn = { version = "=0.9.1", default-features = false }
