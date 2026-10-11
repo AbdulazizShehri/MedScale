@@ -17,6 +17,7 @@ mod federation;
 mod handles;
 mod hub;
 mod huddles;
+mod identifier_validators;
 mod identity;
 mod ingest_ops;
 mod institutional;
