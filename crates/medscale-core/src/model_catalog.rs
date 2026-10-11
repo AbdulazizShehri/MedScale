@@ -25,6 +25,8 @@ pub struct CatalogQuery {
     pub format: Option<String>,
     pub architecture: Option<String>,
     pub license_claim: Option<String>,
+    /// OpenMed size tier, for example `Tiny` or `Base`.
+    pub tier: Option<String>,
     /// `cpu_portable`, `apple_silicon_only` or `unknown`.
     pub device_fit: Option<String>,
     /// For example `DISCOVERABLE` or `RIGHTS_PENDING`.
@@ -124,6 +126,7 @@ pub fn query_catalog_snapshot(
         format: query.format.clone(),
         architecture: query.architecture.clone(),
         license_claim: query.license_claim.clone(),
+        tier: query.tier.clone(),
         device_fit: query.device_fit.as_deref().map(parse_device).transpose()?,
         status: query.status.as_deref().map(parse_status).transpose()?,
         max_params: query.max_params,
@@ -160,6 +163,7 @@ pub fn catalog_page(
         format: request.format.clone(),
         architecture: request.architecture.clone(),
         license_claim: request.license_claim.clone(),
+        tier: request.tier.clone(),
         device_fit: request.device_fit.clone(),
         status: request.status.clone(),
         max_params: request.max_params,

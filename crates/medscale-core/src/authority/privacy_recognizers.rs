@@ -685,6 +685,74 @@ fn scan_identifiers(text: &str, ws: &[Word<'_>], out: &mut Vec<SensitiveSpan>) {
     }
 }
 
+type Validator = fn(&str) -> bool;
+
+/// Checksum validators that need an adjacent label, because their shapes
+/// (8-11 letters, 9-10 plain digits) are too common to flag on their own.
+const LABELLED_CHECKSUMS: &[(&str, Validator)] = &[
+    ("npi", medscale_pack::identifier_validators::validate_npi),
+    ("bic", medscale_pack::identifier_validators::validate_bic),
+    ("swift", medscale_pack::identifier_validators::validate_bic),
+    (
+        "sin",
+        medscale_pack::identifier_validators::validate_canadian_sin,
+    ),
+    (
+        "medicare",
+        medscale_pack::identifier_validators::validate_australian_medicare,
+    ),
+    (
+        "tfn",
+        medscale_pack::identifier_validators::validate_australian_tfn,
+    ),
+];
+
+/// `NNN NNN NNNN`, the printed grouping of a UK NHS number.
+fn nhs_grouping(candidate: &str) -> bool {
+    let parts: Vec<&str> = candidate.split(' ').collect();
+    parts.iter().map(|p| p.len()).collect::<Vec<_>>() == [3, 3, 4]
+        && parts.iter().all(|p| p.bytes().all(|b| b.is_ascii_digit()))
+}
+
+/// Structured identifiers confirmed by checksum (OpenMed validators, see
+/// `identifier_validators`), over windows of up to nine words so printed
+/// groupings ("4111 1111 1111 1111", "GB82 WEST 1234 …") are found.
+fn scan_checksum_identifiers(text: &str, ws: &[Word<'_>], out: &mut Vec<SensitiveSpan>) {
+    use medscale_pack::identifier_validators::{
+        validate_iban, validate_luhn, validate_uk_nhs_number, validate_uk_nino,
+    };
+    for i in 0..ws.len() {
+        let label = if i > 0 {
+            strip_punct(ws[i - 1].text).to_lowercase()
+        } else {
+            String::new()
+        };
+        for j in i..(i + 9).min(ws.len()) {
+            let start = ws[i].start;
+            let end = trim_trailing_punct(text, start, ws[j].end);
+            if end <= start {
+                continue;
+            }
+            let candidate = &text[start..end];
+            let card = candidate
+                .bytes()
+                .all(|b| b.is_ascii_digit() || b == b' ' || b == b'-')
+                && (13..=19).contains(&candidate.bytes().filter(u8::is_ascii_digit).count())
+                && validate_luhn(candidate);
+            let unlabelled = card
+                || validate_iban(candidate)
+                || validate_uk_nino(candidate)
+                || (nhs_grouping(candidate) && validate_uk_nhs_number(candidate));
+            let labelled = LABELLED_CHECKSUMS
+                .iter()
+                .any(|(name, valid)| label == *name && valid(candidate));
+            if unlabelled || labelled {
+                out.push(span(SensitiveSpanKind::Identifier, start, end));
+            }
+        }
+    }
+}
+
 const POSTAL_LABELS: &[&str] = &[
     "zip",
     "postcode",
@@ -881,6 +949,7 @@ pub fn pattern_recognize(text: &str) -> Vec<SensitiveSpan> {
     scan_dates(text, &ws, &mut out);
     scan_phones(text, &mut out);
     scan_identifiers(text, &ws, &mut out);
+    scan_checksum_identifiers(text, &ws, &mut out);
     scan_postal_codes(text, &ws, &mut out);
     scan_addresses(text, &ws, &mut out);
     scan_names(text, &ws, &mut out);
@@ -1466,5 +1535,38 @@ mod tests {
         let c = span(SensitiveSpanKind::PersonName, 13, 15);
         let out = resolve_overlaps(vec![a, b.clone(), c.clone()]);
         assert_eq!(out, vec![b, c]);
+    }
+
+    #[test]
+    fn checksum_confirmed_identifiers_are_recognized() {
+        let text = "Card 4111 1111 1111 1111 on file. IBAN GB82 WEST 1234 5698 7654 32. \
+                    NINO AB 12 34 56 C. NHS 943 476 5919. NPI 1234567893.";
+        for value in [
+            "4111 1111 1111 1111",
+            "GB82 WEST 1234 5698 7654 32",
+            "AB 12 34 56 C",
+            "1234567893",
+        ] {
+            assert!(
+                has(text, SensitiveSpanKind::Identifier, value),
+                "{value} recognized"
+            );
+        }
+        // A 3-3-4 NHS number may also match the phone pattern, which has
+        // priority at equal length; either way the value is detected.
+        assert!(
+            has(text, SensitiveSpanKind::Identifier, "943 476 5919")
+                || has(text, SensitiveSpanKind::Phone, "943 476 5919")
+        );
+        // Failing checksums and look-alike words are not flagged by checksum.
+        let negative = "Card 4111 1111 1111 1112. HOSPITAL ward. NINO BG 12 34 56 C.";
+        let kinds = kinds(negative);
+        assert!(
+            !kinds
+                .iter()
+                .any(|(k, v)| *k == SensitiveSpanKind::Identifier
+                    && (v.contains("4111") || v == "HOSPITAL" || v.contains("BG 12"))),
+            "{kinds:?}"
+        );
     }
 }

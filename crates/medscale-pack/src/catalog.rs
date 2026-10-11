@@ -227,6 +227,9 @@ pub struct CatalogFilter {
     pub format: Option<String>,
     pub architecture: Option<String>,
     pub license_claim: Option<String>,
+    /// OpenMed size tier (`Tiny`, `Small`, `Base`, `Medium`, `Large`,
+    /// `XLarge`); rows without a tier never match a tier filter.
+    pub tier: Option<String>,
     pub device_fit: Option<DeviceFit>,
     pub status: Option<CatalogStatus>,
     pub max_params: Option<u64>,
@@ -265,6 +268,11 @@ impl CatalogFilter {
                 row.license_claim
                     .as_deref()
                     .is_some_and(|c| c.eq_ignore_ascii_case(l))
+            })
+            && self.tier.as_deref().is_none_or(|t| {
+                row.tier
+                    .as_deref()
+                    .is_some_and(|r| r.eq_ignore_ascii_case(t))
             })
             && self.device_fit.is_none_or(|d| d == row.device_fit)
             && self.status.is_none_or(|s| s == row.status)
@@ -456,6 +464,37 @@ mod tests {
         assert!(catalog.query(&filter, 0, 0).is_err());
         assert!(catalog.query(&filter, 0, MAX_PAGE_SIZE + 1).is_err());
         assert!(catalog.query(&filter, 99_999, 10).unwrap().rows.is_empty());
+    }
+
+    #[test]
+    fn tier_filter_is_case_insensitive_and_skips_rows_without_tier() {
+        let rows = [
+            r#"{"repo_id":"a/tiny","family":"NER","task":"token-classification","tier":"Tiny","architecture":"bert","formats":["onnx"],"license":"apache-2.0"}"#,
+            r#"{"repo_id":"a/base","family":"NER","task":"token-classification","tier":"Base","architecture":"bert","formats":["onnx"],"license":"apache-2.0"}"#,
+            r#"{"repo_id":"a/none","family":"NER","task":"token-classification","tier":null,"architecture":"bert","formats":["onnx"],"license":"apache-2.0"}"#,
+        ]
+        .join("
+");
+        let catalog = ModelCatalog::import("s/f", COMMIT, rows.as_bytes()).unwrap();
+        let tiny = CatalogFilter {
+            tier: Some("tiny".into()),
+            ..Default::default()
+        };
+        let page = catalog.query(&tiny, 0, 10).unwrap();
+        assert_eq!(page.total_matching, 1);
+        assert_eq!(page.rows[0].repo_id, "a/tiny");
+        let xlarge = CatalogFilter {
+            tier: Some("XLarge".into()),
+            ..Default::default()
+        };
+        assert_eq!(catalog.query(&xlarge, 0, 10).unwrap().total_matching, 0);
+        assert_eq!(
+            catalog
+                .query(&CatalogFilter::default(), 0, 10)
+                .unwrap()
+                .total_matching,
+            3
+        );
     }
 
     #[test]
