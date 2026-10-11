@@ -2,7 +2,9 @@ use std::fs;
 use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicU64, Ordering};
 
-use medscale_pack::{OnnxRuntimeError, OnnxTokenClassifierRuntime, admit_pack_dir};
+use medscale_pack::{
+    OnnxRuntimeError, OnnxTokenClassifierRuntime, PlanCacheOutcome, admit_pack_dir,
+};
 
 fn fixture_pack() -> PathBuf {
     PathBuf::from(env!("CARGO_MANIFEST_DIR")).join(
@@ -51,6 +53,71 @@ fn real_onnx_fixture_runs_evidence_only() {
         .as_array()
         .unwrap();
     assert!(predictions.iter().all(|item| item["label"] == "ENTITY"));
+}
+
+#[test]
+fn plan_cache_round_trip_matches_the_uncached_plan() {
+    let root = fixture_pack();
+    let manifest = admit_pack_dir(&root).expect("signed pack admits");
+    let runtime = OnnxTokenClassifierRuntime::new(4).expect("runtime");
+    let text = "alice visited clinic today";
+    let payload = |prepared: &medscale_pack::PreparedOnnxTokenClassifier| {
+        prepared
+            .run(&manifest.pack_id, text)
+            .expect("inference")
+            .output
+            .proposal_payload
+    };
+    let expected = payload(&runtime.prepare(&root, &manifest).expect("prepare"));
+
+    let cache = temp_copy().join("plan-cache");
+    let (cold, outcome) = runtime
+        .prepare_with_plan_cache(&root, &manifest, &cache)
+        .expect("cold prepare");
+    assert_eq!(outcome, PlanCacheOutcome::Written);
+    assert_eq!(payload(&cold), expected);
+    let (warm, outcome) = runtime
+        .prepare_with_plan_cache(&root, &manifest, &cache)
+        .expect("warm prepare");
+    assert_eq!(outcome, PlanCacheOutcome::Hit);
+    assert_eq!(payload(&warm), expected);
+
+    // A corrupted plan fails its digest: the cache is rebuilt, never trusted.
+    let plan = fs::read_dir(&cache)
+        .expect("cache dir")
+        .map(|entry| entry.expect("entry").path())
+        .find(|path| path.to_string_lossy().ends_with(".nnef.tar"))
+        .expect("cached plan");
+    let mut bytes = fs::read(&plan).expect("read plan");
+    let middle = bytes.len() / 2;
+    bytes[middle] ^= 0x55;
+    fs::write(&plan, bytes).expect("corrupt plan");
+    let (rebuilt, outcome) = runtime
+        .prepare_with_plan_cache(&root, &manifest, &cache)
+        .expect("prepare after corruption");
+    assert_eq!(outcome, PlanCacheOutcome::Written);
+    assert_eq!(payload(&rebuilt), expected);
+    let (_, outcome) = runtime
+        .prepare_with_plan_cache(&root, &manifest, &cache)
+        .expect("prepare after rebuild");
+    assert_eq!(outcome, PlanCacheOutcome::Hit);
+}
+
+#[test]
+fn plan_cache_still_verifies_pack_artifacts() {
+    let root = temp_copy();
+    let manifest = admit_pack_dir(&root).expect("initial admission");
+    let runtime = OnnxTokenClassifierRuntime::new(4).expect("runtime");
+    let cache = root.join("plan-cache");
+    let (_, outcome) = runtime
+        .prepare_with_plan_cache(&root, &manifest, &cache)
+        .expect("cold prepare");
+    assert_eq!(outcome, PlanCacheOutcome::Written);
+    fs::write(root.join("labels.json"), b"[\"O\"]\n").expect("tamper");
+    assert!(matches!(
+        runtime.prepare_with_plan_cache(&root, &manifest, &cache),
+        Err(OnnxRuntimeError::ArtifactDigestMismatch)
+    ));
 }
 
 #[test]
