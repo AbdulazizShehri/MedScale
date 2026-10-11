@@ -85,11 +85,7 @@ jobs:
           MEDSCALE_CATALOG_COMMIT: ${{ env.CATALOG_COMMIT }}
           MEDSCALE_HF_ONNX_FILE: ${{ matrix.onnx }}
           MEDSCALE_SAMPLE_TEXT: ${{ matrix.text }}
-<<<<<<< HEAD
-          MEDSCALE_PLAN_CACHE: "1"
-=======
           MEDSCALE_FIXED_SEQUENCE_LENGTH: ${{ matrix.seq }}
->>>>>>> origin/qual/103-longformer-512
         run: |
           set -o pipefail
           export MEDSCALE_HF_SNAPSHOT_DIR="$SNAPSHOT_DIR"

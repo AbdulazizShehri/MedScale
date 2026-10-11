@@ -7,11 +7,8 @@
 //! MEDSCALE_HF_SNAPSHOT_DIR=<dir with metadata.json (Hub API ?blobs=true), config.json, tokenizer.json, <onnx file>>
 //! MEDSCALE_HF_ONNX_FILE=model.onnx
 //! MEDSCALE_SAMPLE_TEXT="<synthetic sentence>"
-<<<<<<< HEAD
 //! MEDSCALE_PLAN_CACHE=1 (optional: also qualify the tract plan cache, cold then warm)
-=======
 //! MEDSCALE_FIXED_SEQUENCE_LENGTH=512 (optional; default 128)
->>>>>>> origin/qual/103-longformer-512
 //! cargo test --release -p medscale-pack --test openmed_snapshot_external_103 -- --ignored --nocapture
 
 use std::path::PathBuf;
