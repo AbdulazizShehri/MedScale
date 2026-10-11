@@ -104,3 +104,24 @@ Expected runnable in total: **1,702 of 2,266**. Each runtime and format is backe
 - **GLiNER zero-shot (91 rows)** ships pickle weights only, which are refused (R103-06). It needs upstream safetensors.
 - **Production signing** is `NOT_GRANTED`; **real PHI** is `NOT_AUTHORIZED`; **clinical validation** is `NOT_PERFORMED`.
 - **Training-dataset terms** (BC5CDR, ANATOMY, PII sets) are unverified ([rights ledger](../../evidence/103-local-model-catalog/RIGHTS_LEDGER.md)).
+
+## 6. Update (2026-10-11)
+
+This section supersedes the rows above where they differ. Status vocabulary as in the header.
+
+| Area | Change | Evidence | Status |
+|---|---|---|---|
+| Catalog search | Tier filter (case-insensitive; rows without a tier never match). Per-row execution evidence (`EXECUTED_MODELS`) is reported before architecture heuristics. A test walks `Cargo.lock` to prove `medscale-pack` cannot reach a network crate (T103-04) | #211 | IMPLEMENTED |
+| PII validators | OpenMed `clinical_ids.py` checksum and structure rules (US SSN and phone, Luhn, NPI, IBAN, BIC, UK NHS and NINO, Canadian SIN, Australian Medicare and TFN) wired into the privacy recognizers | #212 | IMPLEMENTED |
+| PII entity merger | OpenMed `pii_entity_merger.py`: 27 semantic-unit patterns, context scoring, validators, dominant label, span union, coalescing. Opt-in `pii_semantic_merge` on both document runtimes. Not ported: the `india_clinical` path | #216 | IMPLEMENTED |
+| ONNX prepare time | Integrity-checked tract plan cache (NNEF, SHA-256 sidecar, keyed by Pack digest and tract version). DeBERTa-v2 first prepare is 686–767 s; a cached prepare takes 3.2–3.6 s with identical output. RoBERTa and XLM-R graphs cannot be serialized and fall back uncached (T103-15) | #214; runs 38152211383, 38154652812 | IN REVIEW |
+| GLiNER zero-shot | OpenMed `gliner_span.py`, `gliner_common.py` and `inference.py` ported to candle (DeBERTa-v2 encoder, BiLSTM, span marker, prompt scorer, flat NER). Runs the `ZeroShot-NER-*-mlx` exports (safetensors, family `gliner-uni-encoder-span`). Core `PacksEvaluateLocal` takes `zero_shot_labels` | #215, #217; runs 38161626788 (Anatomy-Small-166M), 38163323960 (Disease-Medium-209M) | IN REVIEW |
+| EuroBERT, Qwen | First tract executions: PII-EuroMed-Large-210M (`model.onnx`, prepare 5.0 s) and PII-Chinese-QwenMed-XLarge-600M (`model_int8.onnx`, the only export under the 1 GiB bound; warm run 6.2 s) | #211; run 38152456058 | EXECUTED_TESTED (these rows) |
+| Rows without `architecture` | Six catalog rows list no architecture; their `config.json` declares bert, roberta, deberta-v2 or modernbert. All six ran on candle at their pinned revisions | run 38163293053 | EXECUTED_TESTED (these rows) |
+| Longformer (20 rows) | tract cannot prepare the ONNX export: at a 128-token sequence it reshapes to a 512-token window (run 38152456058); at 512 the sliding-window attention uses a two-input `Pad` tract rejects (run 38161872272). candle has no Longformer encoder | as cited | BLOCKED (runtime support) |
+| privacy-filter (13 rows) | Weights are 1.49 GB (8-bit MLX, quantized) to 2.80 GB | Hub sizes at review | BLOCKED (1 GiB Pack bound; quantized MLX refused) |
+| Generative and vision rows (12) | Text generation and visual question answering, 1.3–20.6 GB | Hub sizes at review | NOT IMPLEMENTED (outside token classification; over the Pack bound) |
+
+**Decoding parity note.** On unprefixed or `B-`-per-subword label schemes, several models emit adjacent fragments (`met` + `form` + `in`). MedScale's decoder is line-for-line OpenMed's ONNX `_decode_entities`, and OpenMed's default `analyze_text` path uses Hugging Face `aggregation_strategy="simple"`, which also starts a new entity at each `B-`. The fragments therefore match OpenMed's own output; they are not a MedScale defect.
+
+**GLiNER residual.** 26 of the 52 zero-shot MLX exports (Small and Medium) fit the 1 GiB bound. Large and XLarge (26) do not. The 91 PyTorch GLiNER rows remain pickle-only and refused.
