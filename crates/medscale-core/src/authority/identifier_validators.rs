@@ -114,7 +114,7 @@ fn luhn_check_digit(digits: &[u32]) -> u32 {
         .rev()
         .enumerate()
         .map(|(i, &d)| {
-            if i % 2 == 0 {
+            if i.is_multiple_of(2) {
                 let doubled = d * 2;
                 if doubled > 9 { doubled - 9 } else { doubled }
             } else {
@@ -139,6 +139,7 @@ fn all_ascii(s: &str, pred: fn(&u8) -> bool) -> bool {
 
 /// US Social Security number: 9 digits; no 000/666/9xx area, 00 group or 0000 serial.
 #[must_use]
+#[allow(dead_code)] // Ported for parity; the recognizer already flags these shapes.
 pub fn validate_ssn(text: &str) -> bool {
     let d = digits_only(text);
     if d.len() != 9 {
@@ -153,6 +154,7 @@ pub fn validate_ssn(text: &str) -> bool {
 
 /// US phone: 10 digits (or 11 with a leading 1); area and exchange rules.
 #[must_use]
+#[allow(dead_code)] // Ported for parity; the recognizer already flags these shapes.
 pub fn validate_phone_us(text: &str) -> bool {
     let mut d = digits_only(text);
     if d.len() == 11 && d[0] == 1 {
@@ -210,10 +212,12 @@ pub fn validate_iban(text: &str) -> bool {
     {
         return false;
     }
-    if let Some((_, length)) = IBAN_LENGTHS.iter().find(|(cc, _)| *cc == &c[..2]) {
-        if c.len() != *length {
-            return false;
-        }
+    if IBAN_LENGTHS
+        .iter()
+        .find(|(cc, _)| *cc == &c[..2])
+        .is_some_and(|(_, length)| c.len() != *length)
+    {
+        return false;
     }
     let rearranged = format!("{}{}", &c[4..], &c[..4]);
     mod97(&rearranged) == 1
@@ -377,7 +381,7 @@ pub fn validate_australian_tfn(text: &str) -> bool {
         .zip(&d)
         .map(|(w, v)| w * v)
         .sum();
-    total % 11 == 0
+    total.is_multiple_of(11)
 }
 
 #[cfg(test)]
@@ -388,14 +392,14 @@ mod tests {
     /// OpenMed reference functions.
     #[test]
     fn validators_agree_with_the_openmed_reference() {
-        assert_eq!(validate_ssn("123-45-6789"), true, "ssn 123-45-6789");
-        assert_eq!(validate_ssn("078-05-1120"), true, "ssn 078-05-1120");
-        assert_eq!(validate_ssn("000-12-3456"), false, "ssn 000-12-3456");
-        assert_eq!(validate_ssn("666-12-3456"), false, "ssn 666-12-3456");
-        assert_eq!(validate_ssn("912-34-5678"), false, "ssn 912-34-5678");
-        assert_eq!(validate_ssn("123-00-4567"), false, "ssn 123-00-4567");
-        assert_eq!(validate_ssn("123-45-0000"), false, "ssn 123-45-0000");
-        assert_eq!(validate_ssn("12-345-678"), false, "ssn 12-345-678");
+        assert!(validate_ssn("123-45-6789"), "ssn 123-45-6789");
+        assert!(validate_ssn("078-05-1120"), "ssn 078-05-1120");
+        assert!(!validate_ssn("000-12-3456"), "ssn 000-12-3456");
+        assert!(!validate_ssn("666-12-3456"), "ssn 666-12-3456");
+        assert!(!validate_ssn("912-34-5678"), "ssn 912-34-5678");
+        assert!(!validate_ssn("123-00-4567"), "ssn 123-00-4567");
+        assert!(!validate_ssn("123-45-0000"), "ssn 123-45-0000");
+        assert!(!validate_ssn("12-345-678"), "ssn 12-345-678");
         assert_eq!(
             validate_phone_us("(415) 555-2671"),
             true,
@@ -416,7 +420,7 @@ mod tests {
             false,
             "phone_us 415-055-2671"
         );
-        assert_eq!(validate_phone_us("555-2671"), false, "phone_us 555-2671");
+        assert!(!validate_phone_us("555-2671"), "phone_us 555-2671");
         assert_eq!(
             validate_phone_us("12-415-555-2671"),
             false,
@@ -432,7 +436,7 @@ mod tests {
             false,
             "luhn 4111-1111-1111-1112"
         );
-        assert_eq!(validate_luhn("79927398713"), false, "luhn 79927398713");
+        assert!(!validate_luhn("79927398713"), "luhn 79927398713");
         assert_eq!(
             validate_luhn("5500 0000 0000 0004"),
             true,
@@ -443,10 +447,10 @@ mod tests {
             true,
             "luhn 1234567812345670"
         );
-        assert_eq!(validate_npi("1234567893"), true, "npi 1234567893");
-        assert_eq!(validate_npi("1234567890"), false, "npi 1234567890");
-        assert_eq!(validate_npi("12345678"), false, "npi 12345678");
-        assert_eq!(validate_npi("1245319599"), true, "npi 1245319599");
+        assert!(validate_npi("1234567893"), "npi 1234567893");
+        assert!(!validate_npi("1234567890"), "npi 1234567890");
+        assert!(!validate_npi("12345678"), "npi 12345678");
+        assert!(validate_npi("1245319599"), "npi 1245319599");
         assert_eq!(
             validate_iban("GB82 WEST 1234 5698 7654 32"),
             true,
@@ -472,12 +476,12 @@ mod tests {
             false,
             "iban XX12345678901234"
         );
-        assert_eq!(validate_bic("DEUTDEFF"), true, "bic DEUTDEFF");
-        assert_eq!(validate_bic("DEUTDEFF500"), true, "bic DEUTDEFF500");
-        assert_eq!(validate_bic("deut de ff"), true, "bic deut de ff");
-        assert_eq!(validate_bic("DEUTXXFF"), false, "bic DEUTXXFF");
-        assert_eq!(validate_bic("DEUT1EFF"), false, "bic DEUT1EFF");
-        assert_eq!(validate_bic("DEUTDEF"), false, "bic DEUTDEF");
+        assert!(validate_bic("DEUTDEFF"), "bic DEUTDEFF");
+        assert!(validate_bic("DEUTDEFF500"), "bic DEUTDEFF500");
+        assert!(validate_bic("deut de ff"), "bic deut de ff");
+        assert!(!validate_bic("DEUTXXFF"), "bic DEUTXXFF");
+        assert!(!validate_bic("DEUT1EFF"), "bic DEUT1EFF");
+        assert!(!validate_bic("DEUTDEF"), "bic DEUTDEF");
         assert_eq!(
             validate_uk_nhs_number("943 476 5919"),
             true,
@@ -498,16 +502,16 @@ mod tests {
             false,
             "uk_nhs_number 12345"
         );
-        assert_eq!(validate_uk_nino("AB123456C"), true, "uk_nino AB123456C");
+        assert!(validate_uk_nino("AB123456C"), "uk_nino AB123456C");
         assert_eq!(
             validate_uk_nino("ab 12 34 56 c"),
             true,
             "uk_nino ab 12 34 56 c"
         );
-        assert_eq!(validate_uk_nino("BG123456C"), false, "uk_nino BG123456C");
-        assert_eq!(validate_uk_nino("DA123456C"), false, "uk_nino DA123456C");
-        assert_eq!(validate_uk_nino("AO123456C"), false, "uk_nino AO123456C");
-        assert_eq!(validate_uk_nino("AB123456E"), false, "uk_nino AB123456E");
+        assert!(!validate_uk_nino("BG123456C"), "uk_nino BG123456C");
+        assert!(!validate_uk_nino("DA123456C"), "uk_nino DA123456C");
+        assert!(!validate_uk_nino("AO123456C"), "uk_nino AO123456C");
+        assert!(!validate_uk_nino("AB123456E"), "uk_nino AB123456E");
         assert_eq!(
             validate_canadian_sin("130 692 544"),
             true,

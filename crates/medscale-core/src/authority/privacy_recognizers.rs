@@ -685,9 +685,11 @@ fn scan_identifiers(text: &str, ws: &[Word<'_>], out: &mut Vec<SensitiveSpan>) {
     }
 }
 
+type Validator = fn(&str) -> bool;
+
 /// Checksum validators that need an adjacent label, because their shapes
 /// (8-11 letters, 9-10 plain digits) are too common to flag on their own.
-const LABELLED_CHECKSUMS: &[(&str, fn(&str) -> bool)] = &[
+const LABELLED_CHECKSUMS: &[(&str, Validator)] = &[
     ("npi", super::identifier_validators::validate_npi),
     ("bic", super::identifier_validators::validate_bic),
     ("swift", super::identifier_validators::validate_bic),
