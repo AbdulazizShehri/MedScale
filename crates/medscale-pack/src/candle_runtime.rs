@@ -117,6 +117,9 @@ pub struct PreparedCandleTokenClassifier {
     window: usize,
     encoder: Encoder,
     classifier: Linear,
+    device: Device,
+    device_name: &'static str,
+    device_fallback: Option<String>,
 }
 
 impl fmt::Debug for PreparedCandleTokenClassifier {
@@ -127,6 +130,53 @@ impl fmt::Debug for PreparedCandleTokenClassifier {
             .field("window", &self.window)
             .finish_non_exhaustive()
     }
+}
+
+/// Where a candle model runs.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub enum CandleDevicePreference {
+    /// Apple GPU (Metal) when this build and machine provide one, else CPU.
+    #[default]
+    Auto,
+    /// Always the CPU.
+    Cpu,
+}
+
+/// Resolves the device; returns it, its name and why Metal was not used.
+fn select_device(preference: CandleDevicePreference) -> (Device, &'static str, Option<String>) {
+    if preference == CandleDevicePreference::Cpu {
+        return (Device::Cpu, "cpu", Some("cpu requested".into()));
+    }
+    select_metal()
+}
+
+/// The Apple GPU when present and working; a tiny operation proves it executes.
+#[cfg(target_os = "macos")]
+fn select_metal() -> (Device, &'static str, Option<String>) {
+    match Device::new_metal(0) {
+        Ok(device) => match Tensor::ones(4, DType::F32, &device)
+            .and_then(|t| t.sum_all())
+            .and_then(|t| t.to_scalar::<f32>())
+        {
+            Ok(v) if (v - 4.0).abs() < f32::EPSILON => (device, "metal", None),
+            Ok(_) => (Device::Cpu, "cpu", Some("metal self-test mismatch".into())),
+            Err(e) => (
+                Device::Cpu,
+                "cpu",
+                Some(format!("metal self-test failed: {e}")),
+            ),
+        },
+        Err(e) => (Device::Cpu, "cpu", Some(format!("no metal device: {e}"))),
+    }
+}
+
+#[cfg(not(target_os = "macos"))]
+fn select_metal() -> (Device, &'static str, Option<String>) {
+    (
+        Device::Cpu,
+        "cpu",
+        Some("metal is available on macOS only".into()),
+    )
 }
 
 /// Options for [`PreparedCandleTokenClassifier::run_document`].
@@ -171,6 +221,7 @@ fn build(
     config: &Value,
     weights: Vec<u8>,
     num_labels: usize,
+    device: &Device,
 ) -> Result<(String, usize, Encoder, Linear), CandleRuntimeError> {
     let model_type = candle_model_type(config)?;
     let mlx = crate::mlx_layout::is_mlx_export(config);
@@ -179,8 +230,8 @@ fn build(
             "quantized MLX exports are not supported".into(),
         ));
     }
-    let vb = VarBuilder::from_buffered_safetensors(weights, DType::F32, &Device::Cpu)
-        .map_err(prepare_err)?;
+    let vb =
+        VarBuilder::from_buffered_safetensors(weights, DType::F32, device).map_err(prepare_err)?;
     // OpenMed MLX exports store the same weights under renamed keys; the
     // encoders ask for Hugging Face names (see `mlx_layout`).
     let vb = if mlx {
@@ -268,10 +319,20 @@ fn build(
     Ok((model_type, window.clamp(8, MAX_WINDOW), encoder, classifier))
 }
 
-/// Prepares an admitted Pack that declares the candle runtime.
+/// Prepares an admitted Pack that declares the candle runtime, on the Apple
+/// GPU when available (macOS, Metal) and otherwise on the CPU.
 pub fn prepare_candle_token_classifier(
     pack_dir: &Path,
     pack: &PackManifestV0,
+) -> Result<PreparedCandleTokenClassifier, CandleRuntimeError> {
+    prepare_candle_token_classifier_with(pack_dir, pack, CandleDevicePreference::Auto)
+}
+
+/// As [`prepare_candle_token_classifier`] with an explicit device preference.
+pub fn prepare_candle_token_classifier_with(
+    pack_dir: &Path,
+    pack: &PackManifestV0,
+    preference: CandleDevicePreference,
 ) -> Result<PreparedCandleTokenClassifier, CandleRuntimeError> {
     let declared = pack
         .runtime_requirements
@@ -317,6 +378,7 @@ pub fn prepare_candle_token_classifier(
         weights,
         &tokenizer_bytes,
         &labels_bytes,
+        preference,
     )
 }
 
@@ -328,6 +390,7 @@ pub(crate) fn prepare_from_bytes(
     weights: Vec<u8>,
     tokenizer_bytes: &[u8],
     labels_bytes: &[u8],
+    preference: CandleDevicePreference,
 ) -> Result<PreparedCandleTokenClassifier, CandleRuntimeError> {
     let config: Value = serde_json::from_slice(config_bytes)
         .map_err(|e| CandleRuntimeError::InvalidConfig(e.to_string()))?;
@@ -344,7 +407,8 @@ pub(crate) fn prepare_from_bytes(
     tokenizer
         .with_truncation(None)
         .map_err(|_| CandleRuntimeError::Tokenizer)?;
-    let (model_type, window, encoder, classifier) = build(&config, weights, labels.len())?;
+    let (device, device_name, device_fallback) = select_device(preference);
+    let (model_type, window, encoder, classifier) = build(&config, weights, labels.len(), &device)?;
     Ok(PreparedCandleTokenClassifier {
         content_digest,
         provenance,
@@ -354,6 +418,9 @@ pub(crate) fn prepare_from_bytes(
         window,
         encoder,
         classifier,
+        device,
+        device_name,
+        device_fallback,
     })
 }
 
@@ -368,6 +435,18 @@ impl PreparedCandleTokenClassifier {
         self.window
     }
 
+    /// `metal` or `cpu`.
+    #[must_use]
+    pub const fn device_name(&self) -> &'static str {
+        self.device_name
+    }
+
+    /// Why the Apple GPU was not used, when it was not.
+    #[must_use]
+    pub fn device_fallback(&self) -> Option<&str> {
+        self.device_fallback.as_deref()
+    }
+
     #[must_use]
     pub fn provenance(&self) -> &ModelSourceProvenance {
         &self.provenance
@@ -377,14 +456,15 @@ impl PreparedCandleTokenClassifier {
     fn infer(&self, ids: &[u32], type_ids: &[u32]) -> Result<Vec<f32>, CandleRuntimeError> {
         let exec = |_| CandleRuntimeError::ModelExecution;
         let len = ids.len();
-        let input = Tensor::from_slice(ids, (1, len), &Device::Cpu).map_err(exec)?;
-        let types = Tensor::from_slice(type_ids, (1, len), &Device::Cpu).map_err(exec)?;
-        let ones = Tensor::ones((1, len), DType::U32, &Device::Cpu).map_err(exec)?;
+        let device = &self.device;
+        let input = Tensor::from_slice(ids, (1, len), device).map_err(exec)?;
+        let types = Tensor::from_slice(type_ids, (1, len), device).map_err(exec)?;
+        let ones = Tensor::ones((1, len), DType::U32, device).map_err(exec)?;
         let hidden = match &self.encoder {
             Encoder::Bert(m) => m.forward(&input, &types, Some(&ones)),
             Encoder::DistilBert(m) => {
                 // DistilBERT masks where the mask is nonzero: nothing is masked here.
-                let none = Tensor::zeros((1, 1, 1, len), DType::U8, &Device::Cpu).map_err(exec)?;
+                let none = Tensor::zeros((1, 1, 1, len), DType::U8, device).map_err(exec)?;
                 m.forward(&input, &none)
             }
             Encoder::Roberta(m) => m.forward(&input, &ones, &types, None, None, None),
@@ -460,6 +540,8 @@ impl PreparedCandleTokenClassifier {
                 "kind": "candle_token_classification_document_v1",
                 "runtime": CANDLE_TOKEN_CLASSIFIER_RUNTIME_ID,
                 "model_type": self.model_type,
+                "device": self.device_name,
+                "device_fallback": self.device_fallback,
                 "content_digest": self.content_digest.to_hex(),
                 "source_kind": self.provenance.source_kind,
                 "source_repository": self.provenance.repository,
@@ -558,6 +640,7 @@ mod tests {
             tiny_bert_weights(&config),
             TOKENIZER.as_bytes(),
             br#"["O","ENTITY"]"#,
+            CandleDevicePreference::Cpu,
         )
         .unwrap();
         assert_eq!(prepared.model_type(), "bert");
@@ -572,6 +655,18 @@ mod tests {
         assert_eq!(p["token_count"], 24);
         assert_eq!(p["covered_tokens"], 24);
         assert_eq!(p["window_count"], 2);
+    }
+
+    #[test]
+    fn device_selection_records_the_choice_and_any_fallback() {
+        let (_, name, why) = select_device(CandleDevicePreference::Cpu);
+        assert_eq!(name, "cpu");
+        assert_eq!(why.as_deref(), Some("cpu requested"));
+        let (device, name, why) = select_device(CandleDevicePreference::Auto);
+        match name {
+            "metal" => assert!(device.is_metal() && why.is_none()),
+            _ => assert!(!device.is_metal() && why.is_some()),
+        }
     }
 
     #[test]
@@ -596,6 +691,7 @@ mod tests {
             b"not safetensors".to_vec(),
             TOKENIZER.as_bytes(),
             br#"["O"]"#,
+            CandleDevicePreference::Cpu,
         )
         .unwrap_err();
         assert!(matches!(
@@ -610,6 +706,7 @@ mod tests {
             tiny_bert_weights(&config),
             TOKENIZER.as_bytes(),
             br#"["O","ENTITY"]"#,
+            CandleDevicePreference::Cpu,
         )
         .unwrap();
         let pid = OpaqueId::new("p");

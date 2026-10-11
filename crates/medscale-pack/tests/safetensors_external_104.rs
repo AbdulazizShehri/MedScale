@@ -68,7 +68,9 @@ fn safetensors_catalog_row_to_local_execution() {
     assert!(output.evidence_only);
     assert_eq!(prepared.provenance().revision, meta.sha);
     println!(
-        "SNAPSHOT_EVIDENCE runtime=candle repo={} revision={} model_type={} window={} prepare_ms={} warm_run_ms={}",
+        "SNAPSHOT_EVIDENCE runtime=candle device={} device_fallback={:?} repo={} revision={} model_type={} window={} prepare_ms={} warm_run_ms={}",
+        prepared.device_name(),
+        prepared.device_fallback(),
         meta.id,
         meta.sha,
         prepared.model_type(),

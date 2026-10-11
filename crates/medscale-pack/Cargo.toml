@@ -21,5 +21,12 @@ candle-nn = { workspace = true }
 candle-transformers = { workspace = true }
 tokenizers = { workspace = true }
 
+# Spec 104: Apple GPU (Metal) execution on macOS only; CPU elsewhere.
+[target.'cfg(target_os = "macos")'.dependencies]
+candle-core = { workspace = true, features = ["metal"] }
+candle-nn = { workspace = true, features = ["metal"] }
+candle-transformers = { workspace = true, features = ["metal"] }
+candle-metal-kernels = { workspace = true }
+
 [lints]
 workspace = true
