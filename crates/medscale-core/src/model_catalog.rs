@@ -111,6 +111,34 @@ fn load(
 }
 
 /// Read-only query of a locally supplied catalog snapshot. No network access.
+/// Runnable format variants of `repo_id`'s model, best first for `host`
+/// (`apple_silicon`, `other`, or `None` for this machine). Read-only; no
+/// network. See `medscale_pack::rank_variants`.
+pub fn catalog_variants(
+    manifest: &Path,
+    repository: &str,
+    commit: &str,
+    repo_id: &str,
+    host: Option<&str>,
+) -> Result<Vec<medscale_pack::VariantChoice>, ModelCatalogError> {
+    let catalog = load(manifest, repository, commit)?;
+    if catalog.get(repo_id).is_none() {
+        return Err(ModelCatalogError::NotInCatalog(repo_id.to_owned()));
+    }
+    let host = match host {
+        None => medscale_pack::HostPlatform::current(),
+        Some("apple_silicon") => medscale_pack::HostPlatform::AppleSilicon,
+        Some("other") => medscale_pack::HostPlatform::Other,
+        Some(other) => {
+            return Err(ModelCatalogError::InvalidArgument {
+                field: "host",
+                value: other.to_owned(),
+            });
+        }
+    };
+    Ok(medscale_pack::rank_variants(&catalog, repo_id, host))
+}
+
 pub fn query_catalog_snapshot(
     manifest: &Path,
     repository: &str,
@@ -255,6 +283,29 @@ mod tests {
         ));
         std::fs::write(&path, rows).unwrap();
         path
+    }
+
+    #[test]
+    fn variants_are_read_only_and_validate_their_arguments() {
+        let path = manifest("variants");
+        let ranked =
+            catalog_variants(&path, "org/fixture", COMMIT, "Org/ner-en", Some("other")).unwrap();
+        assert_eq!(ranked.len(), 1);
+        assert_eq!(ranked[0].runtime, medscale_pack::VariantRuntime::TractOnnx);
+        // Text generation has no runnable token-classification variant.
+        assert!(
+            catalog_variants(&path, "org/fixture", COMMIT, "Org/gen", None)
+                .unwrap()
+                .is_empty()
+        );
+        assert!(matches!(
+            catalog_variants(&path, "org/fixture", COMMIT, "Org/missing", None),
+            Err(ModelCatalogError::NotInCatalog(_))
+        ));
+        assert!(matches!(
+            catalog_variants(&path, "org/fixture", COMMIT, "Org/ner-en", Some("gpu")),
+            Err(ModelCatalogError::InvalidArgument { field: "host", .. })
+        ));
     }
 
     #[test]
