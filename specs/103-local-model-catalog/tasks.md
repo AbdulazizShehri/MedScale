@@ -25,9 +25,9 @@ Status as of 2026-10-10 (after #191–#196). Capability matrix: [`CAPABILITY_MAT
 - [~] T103-12 Bare model-count claims are blocked by the identity guard (`apps/desktop-tauri/src/identity.test.ts`, on #179). **Gap:** lands with the Tauri chain.
 - [x] T103-13 Whole-document execution without truncation: windows, best-context vote and BIOES entity decoding ported from OpenMed v3.0.0 (`token_windows.rs`, #194), with whitespace-trimmed spans.
 - [x] T103-14 DeBERTa-v2 and XLM-R on tract: integer `Sign` with `If`-branch rewrite, symbolic `value_info` relaxation, fp16→fp32 widening at load, degenerate-tokenizer refusal, stage-specific prepare diagnostics (#196). Qualification run 37977100903 executed all six architectures.
-- [ ] T103-15 DeBERTa-v2 first prepare on tract takes 9–13 minutes on CI.
-  - **Root cause, measured:** run 38065948181, experimental branch, not merged. Almost all of the time is in tract's HIR type and shape inference (`into_typed`: 763.7 s over 923 nodes). Declutter (0.03 s) and optimize (0.05 s) are negligible.
-  - **Mitigation in place:** the same DeBERTa-v2 models prepare in about 3 s through the candle runtime from their safetensors (2.8 s) and MLX (3.4 s) exports.
-  - **Gap:** ONNX-only DeBERTa-v2 rows remain non-interactive on first load; residency caching hides repeats only.
-  - **Options not taken:** a digest-bound on-disk cache of the compiled plan (tract NNEF), or upstream tract inference work.
+- [x] T103-15 DeBERTa-v2 first prepare on tract takes 9–13 minutes on CI.
+  - **Root cause, measured:** run 38065948181. Almost all of the time is in tract's HIR type and shape inference (`into_typed`: 763.7 s over 923 nodes). Declutter (0.03 s) and optimize (0.05 s) are negligible.
+  - **Fix:** opt-in `prepare_with_plan_cache` keeps the decluttered plan as NNEF, keyed by the Pack content digest, runtime contract digest, fixed sequence length and tract version, and used only when its SHA-256 matches. Pack artifacts are verified before any cache use; any cache problem falls back to the full build.
+  - **Evidence:** run 38152211383, PII-Dutch-SuperClinical-Small-44M ONNX. A cold prepare took 766.8 s; a warm prepare took 3.55 s, with byte-identical whole-document output. RoBERTa and XLM-R graphs cannot be serialized to NNEF and fall back uncached, with identical output.
+  - **Remaining:** the first load of an ONNX-only DeBERTa-v2 row per machine still takes about 13 minutes; the candle runtime (about 3 s from safetensors or MLX) remains the interactive path.
 - [~] T103-16 Runtimes beyond tract ONNX. PyTorch-format weights: Spec 104 native safetensors runtime (#198, merged; 5 architectures executed on CI). Still open: ONNX Runtime (evaluated, not admitted), MLX/Core ML, Android, WebGPU, GLiNER zero-shot, multimodal. Each needs its own dependency-admission spec.
