@@ -22,10 +22,14 @@ Same method. The safetensors and MLX variants of the four models above (`OpenMed
 | `OpenMed/OpenMed-PII-Spanish-BigMed-Large-278M-v1-onnx-android` @ `da3fec60` | `ab9eecda0645b3b5` | apache-2.0 | `OpenMed/OpenMed-PII-Spanish-BigMed-Large-278M-v1` @ `2ca9bef4` (apache-2.0; card `07b9e6b0a93b38fa`) ← `FacebookAI/xlm-roberta-base` @ `e73636d4` | MIT | `ai4privacy/pii-masking-400k` (Hub license `other`) |
 | `OpenMed/OpenMed-NER-AnatomyDetect-SuperClinical-141M-mlx` @ `8d9d9946` | `2e547c92300469e2` | apache-2.0 | `OpenMed/OpenMed-NER-AnatomyDetect-SuperClinical-141M` @ `3539a0dd` (apache-2.0; card `15f3929e59059f48`, "Base Model: deberta-v3-small") ← `microsoft/deberta-v3-small` @ `a36c7390` | MIT | ANATOMY |
 | `OpenMed/OpenMed-ZeroShot-NER-Anatomy-Small-166M-mlx` @ `02a3c8ba` (executed; the later head `7762cb19` only fixes card language metadata, card `cefe3f9a9d312c17`) | `d3540a5e99dd9834` | apache-2.0 | `OpenMed/OpenMed-ZeroShot-NER-Anatomy-Small-166M` @ `819e08e6` (apache-2.0; card `639e95b3ad9b72f3`, "Base Model: gliner_small-v2.1") ← `urchade/gliner_small-v2.1` @ `4e091416` | Apache-2.0 | ANATOMY; the GLiNER base names `urchade/pile-mistral-v0.1` |
+| `OpenMed/OpenMed-PII-EuroMed-Large-210M-v1-onnx-android` @ `6f15663a` | `8864c1bce1454636` | apache-2.0 | `OpenMed/OpenMed-PII-EuroMed-Large-210M-v1` @ `a238b9fc` (apache-2.0; card `263533c35e302924`) ← `EuroBERT/EuroBERT-210m` @ `39b51e15` | Apache-2.0 | `nvidia/Nemotron-PII` (`b70ffaf5`, Hub license CC-BY-4.0) |
+| `OpenMed/OpenMed-PII-Chinese-QwenMed-XLarge-600M-v1-onnx-android` @ `0f9550e4` (`model_int8.onnx`) | `f28e30d25b955cff` | apache-2.0 | `OpenMed/OpenMed-PII-Chinese-QwenMed-XLarge-600M-v1` @ `b230cdde` (apache-2.0; card `ce3d9310f2327558`) ← `Qwen/Qwen3-Embedding-0.6B` @ `97b0c614` | Apache-2.0 | `ai4privacy/pii-masking-200k` (`7c22e681`, no Hub license tag) plus synthetic Chinese PII |
 
 New residuals:
 - **`ai4privacy/pii-masking-400k`** (`414d0a3b`) declares license `other` on the Hub: custom terms. The terms text was **not reviewed** here. The two PII models are recorded as `DATASET_TERMS_UNVERIFIED (custom license)`.
 - **`urchade/pile-mistral-v0.1`** (training data of the GLiNER base): terms **not verified**.
+- **`nvidia/Nemotron-PII`** declares CC-BY-4.0 (attribution required on redistribution of the dataset); its effect on derived weights was not reviewed.
+- **`ai4privacy/pii-masking-200k`** carries no Hub license tag; its terms were **not reviewed**. The QwenMed model is recorded as `DATASET_TERMS_UNVERIFIED`.
 
 ## Findings
 
