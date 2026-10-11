@@ -21,6 +21,7 @@ pub const EVIDENCED_ARCHITECTURES: &[&str] = &[
     "modernbert",
     "deberta-v2",
     "xlm-roberta",
+    "eurobert",
 ];
 
 /// One catalog row executed end to end on a real model: acquisition at the
@@ -40,6 +41,22 @@ pub struct ExecutedModel {
 /// Per-model execution evidence (rows, not architectures). Synthetic text
 /// only: this records that the model runs, not task quality.
 pub const EXECUTED_MODELS: &[ExecutedModel] = &[
+    ExecutedModel {
+        repo_id: "OpenMed/OpenMed-PII-EuroMed-Large-210M-v1-onnx-android",
+        revision: "6f15663a6e6f863792f9ad7ef1725552c703dabb",
+        runtime: "tract_onnx",
+        weight_file: "model.onnx",
+        evidence_run: "38152456058",
+    },
+    // Only the int8 export fits the 1 GiB artifact bound (model.onnx keeps
+    // its weights in external data; model_fp16.onnx is 1.19 GB).
+    ExecutedModel {
+        repo_id: "OpenMed/OpenMed-PII-Chinese-QwenMed-XLarge-600M-v1-onnx-android",
+        revision: "0f9550e49fbf1d90d9136879be1a635b5e9728f2",
+        runtime: "tract_onnx",
+        weight_file: "model_int8.onnx",
+        evidence_run: "38152456058",
+    },
     ExecutedModel {
         repo_id: "OpenMed/OpenMed-NER-DiseaseDetect-ElectraMed-33M-v1-onnx-android",
         revision: "54c9cc119d325ddad23300a1e9108bafa9643a06",
