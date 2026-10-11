@@ -23,6 +23,136 @@ pub const EVIDENCED_ARCHITECTURES: &[&str] = &[
     "xlm-roberta",
 ];
 
+/// One catalog row executed end to end on a real model: acquisition at the
+/// catalog-pinned revision, verification, signed Pack, admission and run.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
+pub struct ExecutedModel {
+    pub repo_id: &'static str,
+    /// Hub commit the evidence ran against.
+    pub revision: &'static str,
+    /// `tract_onnx`, `candle_safetensors` or `candle_mlx`.
+    pub runtime: &'static str,
+    pub weight_file: &'static str,
+    /// GitHub Actions run id of the qualification evidence.
+    pub evidence_run: &'static str,
+}
+
+/// Per-model execution evidence (rows, not architectures). Synthetic text
+/// only: this records that the model runs, not task quality.
+pub const EXECUTED_MODELS: &[ExecutedModel] = &[
+    ExecutedModel {
+        repo_id: "OpenMed/OpenMed-NER-DiseaseDetect-ElectraMed-33M-v1-onnx-android",
+        revision: "54c9cc119d325ddad23300a1e9108bafa9643a06",
+        runtime: "tract_onnx",
+        weight_file: "model.onnx",
+        evidence_run: "37984399447",
+    },
+    ExecutedModel {
+        repo_id: "OpenMed/OpenMed-NER-AnatomyDetect-TinyMed-65M-v1-onnx-android",
+        revision: "ad5e79cb87caf49d9ecc28da4de008856527ab63",
+        runtime: "tract_onnx",
+        weight_file: "model.onnx",
+        evidence_run: "37984399447",
+    },
+    ExecutedModel {
+        repo_id: "OpenMed/OpenMed-NER-AnatomyDetect-TinyMed-82M-v1-onnx-android",
+        revision: "95f0bf742c8c31d24b66190e17c1add82664482c",
+        runtime: "tract_onnx",
+        weight_file: "model.onnx",
+        evidence_run: "37984399447",
+    },
+    ExecutedModel {
+        repo_id: "OpenMed/OpenMed-NER-AnatomyDetect-ModernClinical-149M-v1-onnx-android",
+        revision: "66525717fb59d0ff6e1396b7c2d1ab8c1e4a93c8",
+        runtime: "tract_onnx",
+        weight_file: "model.onnx",
+        evidence_run: "37984399447",
+    },
+    ExecutedModel {
+        repo_id: "OpenMed/OpenMed-PII-Dutch-SuperClinical-Small-44M-v1-onnx-android",
+        revision: "e41c8009026fdd98dae146cb67ae9b16673faf49",
+        runtime: "tract_onnx",
+        weight_file: "model.onnx",
+        evidence_run: "37984399447",
+    },
+    ExecutedModel {
+        repo_id: "OpenMed/OpenMed-PII-Spanish-BigMed-Large-278M-v1-onnx-android",
+        revision: "da3fec609614401bba850912065c832a74586d5a",
+        runtime: "tract_onnx",
+        weight_file: "model_fp16.onnx",
+        evidence_run: "37984399447",
+    },
+    ExecutedModel {
+        repo_id: "OpenMed/OpenMed-NER-AnatomyDetect-ElectraMed-33M",
+        revision: "3c914174cf099fda326b43084f679ad31425f88c",
+        runtime: "candle_safetensors",
+        weight_file: "model.safetensors",
+        evidence_run: "37986892863",
+    },
+    ExecutedModel {
+        repo_id: "OpenMed/OpenMed-NER-AnatomyDetect-TinyMed-65M",
+        revision: "1ab9359dada59aafc76bf63879c4984a5fa3490e",
+        runtime: "candle_safetensors",
+        weight_file: "model.safetensors",
+        evidence_run: "37986892863",
+    },
+    ExecutedModel {
+        repo_id: "OpenMed/OpenMed-NER-AnatomyDetect-TinyMed-82M",
+        revision: "724a3702f1fcc80ab0bd695f1a3e3ddf2ac854f1",
+        runtime: "candle_safetensors",
+        weight_file: "model.safetensors",
+        evidence_run: "37986892863",
+    },
+    ExecutedModel {
+        repo_id: "OpenMed/OpenMed-PII-Dutch-SuperClinical-Small-44M-v1",
+        revision: "ee9cafadbe5689d779f4ae6971d30eb348274b82",
+        runtime: "candle_safetensors",
+        weight_file: "model.safetensors",
+        evidence_run: "37986892863",
+    },
+    ExecutedModel {
+        repo_id: "OpenMed/OpenMed-NER-AnatomyDetect-ModernClinical-149M",
+        revision: "3c0bdcc332af0fc54b8f945bcfbebdd375eb69dd",
+        runtime: "candle_safetensors",
+        weight_file: "model.safetensors",
+        evidence_run: "37986892863",
+    },
+    ExecutedModel {
+        repo_id: "OpenMed/OpenMed-NER-AnatomyDetect-ElectraMed-33M-mlx",
+        revision: "70bcf3d3c4e37781723795830772d4a4ad8f2f1c",
+        runtime: "candle_mlx",
+        weight_file: "weights.safetensors",
+        evidence_run: "38039625442",
+    },
+    ExecutedModel {
+        repo_id: "OpenMed/OpenMed-NER-AnatomyDetect-TinyMed-65M-mlx",
+        revision: "1be81258e117a95f41600bd2b0b5684581a5714a",
+        runtime: "candle_mlx",
+        weight_file: "weights.safetensors",
+        evidence_run: "38039625442",
+    },
+    ExecutedModel {
+        repo_id: "OpenMed/OpenMed-NER-AnatomyDetect-TinyMed-82M-mlx",
+        revision: "30ae97175384e04e2c961ab6dc6af5bc0342d3ce",
+        runtime: "candle_mlx",
+        weight_file: "weights.safetensors",
+        evidence_run: "38039625442",
+    },
+    ExecutedModel {
+        repo_id: "OpenMed/OpenMed-NER-AnatomyDetect-SuperClinical-141M-mlx",
+        revision: "8d9d9946e0b291bffb505a59b7f73c15ef4a92be",
+        runtime: "candle_mlx",
+        weight_file: "weights.safetensors",
+        evidence_run: "38041300631",
+    },
+];
+
+/// Recorded execution evidence for one catalog row, if any.
+#[must_use]
+pub fn executed_model(repo_id: &str) -> Option<&'static ExecutedModel> {
+    EXECUTED_MODELS.iter().find(|m| m.repo_id == repo_id)
+}
+
 /// Architectures recorded as not supported by the current runtime, with the cause.
 pub const KNOWN_UNSUPPORTED: &[(&str, &str)] = &[];
 
@@ -54,6 +184,14 @@ pub const KNOWN_DEFECTIVE_EXPORTS: &[(&str, &str, &str)] = &[(
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 #[serde(tag = "kind", rename_all = "snake_case")]
 pub enum RuntimeExpectation {
+    /// This exact row was executed end to end on its real weights (see
+    /// [`EXECUTED_MODELS`]); evidence, not task qualification.
+    ExecutedTested {
+        runtime: String,
+        revision: String,
+        weight_file: String,
+        evidence_run: String,
+    },
     /// Same task, an ONNX file, and an architecture with recorded execution
     /// evidence. Expected to run; still unverified for this row.
     ExpectedRunnable,
@@ -103,6 +241,14 @@ pub fn runtime_expectation(row: &CatalogRow) -> RuntimeExpectation {
     if row.task != "token-classification" {
         return RuntimeExpectation::UnsupportedTask {
             task: row.task.clone(),
+        };
+    }
+    if let Some(model) = executed_model(&row.repo_id) {
+        return RuntimeExpectation::ExecutedTested {
+            runtime: model.runtime.to_owned(),
+            revision: model.revision.to_owned(),
+            weight_file: model.weight_file.to_owned(),
+            evidence_run: model.evidence_run.to_owned(),
         };
     }
     let arch = row.architecture.to_ascii_lowercase();
@@ -198,7 +344,7 @@ mod tests {
         );
         assert_eq!(
             runtime_expectation(&named(
-                "OpenMed/OpenMed-PII-Spanish-BigMed-Large-278M-v1-onnx-android",
+                "OpenMed/OpenMed-PII-French-BigMed-Large-278M-v1-onnx-android",
                 "token-classification",
                 "xlm-roberta",
                 r#"["onnx"]"#
@@ -264,6 +410,38 @@ mod tests {
                 task: "text-generation".into()
             }
         );
+    }
+
+    #[test]
+    fn executed_rows_report_their_own_evidence_first() {
+        let r = named(
+            "OpenMed/OpenMed-NER-AnatomyDetect-ElectraMed-33M-mlx",
+            "token-classification",
+            "bert",
+            r#"["mlx-fp","pytorch"]"#,
+        );
+        match runtime_expectation(&r) {
+            RuntimeExpectation::ExecutedTested {
+                runtime,
+                revision,
+                evidence_run,
+                ..
+            } => {
+                assert_eq!(runtime, "candle_mlx");
+                assert_eq!(revision.len(), 40);
+                assert_eq!(evidence_run, "38039625442");
+            }
+            other => panic!("{other:?}"),
+        }
+        let mut repos: Vec<&str> = EXECUTED_MODELS.iter().map(|m| m.repo_id).collect();
+        repos.sort_unstable();
+        repos.dedup();
+        assert_eq!(repos.len(), EXECUTED_MODELS.len(), "one entry per row");
+        for m in EXECUTED_MODELS {
+            assert_eq!(m.revision.len(), 40, "{}", m.repo_id);
+            assert!(m.revision.bytes().all(|b| b.is_ascii_hexdigit()));
+            assert!(m.evidence_run.bytes().all(|b| b.is_ascii_digit()));
+        }
     }
 
     #[test]
