@@ -446,27 +446,37 @@ impl PreparedGlinerSpanModel {
         if ids.len() > MAX_TOKENS {
             return Err(GlinerRuntimeError::TooLong);
         }
-        // `_prepare_word_mask`: first sub-token of each text word, in order.
+        // `_prepare_word_mask`: first sub-token of each text word. The word
+        // index is kept with the position, so a word the tokenizer drops
+        // (no tokens) cannot shift the offsets of the words after it.
         let mut word_positions = Vec::with_capacity(words.len());
+        let mut word_index = Vec::with_capacity(words.len());
+        let mut marker_positions = Vec::with_capacity(labels.len());
         let mut previous = None;
-        for (position, word_id) in encoding.get_word_ids().iter().enumerate() {
-            if let Some(w) = *word_id {
-                if previous != Some(w) && w as usize >= prompt.len() {
-                    word_positions.push(position as u32);
-                }
-                previous = Some(w);
-            } else {
+        for (position, (word_id, id)) in encoding.get_word_ids().iter().zip(ids).enumerate() {
+            let Some(w) = *word_id else {
                 previous = None;
+                continue;
+            };
+            let w = w as usize;
+            if w < prompt.len() {
+                // Class markers count only inside the label prompt.
+                if *id == self.class_token_index {
+                    marker_positions.push(position as u32);
+                }
+            } else if previous != Some(w) {
+                word_positions.push(position as u32);
+                word_index.push(w - prompt.len());
             }
+            previous = Some(w);
         }
-        let marker_positions: Vec<u32> = ids
-            .iter()
-            .enumerate()
-            .filter(|(_, id)| **id == self.class_token_index)
-            .map(|(p, _)| p as u32)
-            .collect();
+        // One marker per label; a label that contains the entity token (or
+        // tokenizes to it) would misalign labels and prompts.
+        if marker_positions.len() != labels.len() {
+            return Err(GlinerRuntimeError::InvalidLabels);
+        }
         let n_words = word_positions.len();
-        if n_words == 0 || marker_positions.is_empty() {
+        if n_words == 0 {
             return Ok(Vec::new());
         }
         let device = &self.device;
@@ -530,12 +540,14 @@ impl PreparedGlinerSpanModel {
             .and_then(|l| candle_nn::ops::sigmoid(&l))
             .and_then(|s| s.to_vec2::<f32>())
             .map_err(exec)?;
-        let label_count = labels.len().min(marker_positions.len());
         let mut entities = Vec::new();
         for (span, row) in scores.iter().enumerate() {
             let (start_word, end_word) = (starts[span] as usize, ends[span] as usize);
-            let (start, end) = (word_spans[start_word].0, word_spans[end_word].1);
-            for (label_index, score) in row.iter().enumerate().take(label_count) {
+            let (start, end) = (
+                word_spans[word_index[start_word]].0,
+                word_spans[word_index[end_word]].1,
+            );
+            for (label_index, score) in row.iter().enumerate() {
                 if *score >= threshold {
                     entities.push(ZeroShotEntity {
                         label: labels[label_index].to_owned(),
@@ -833,6 +845,21 @@ mod tests {
                 .predict("   ", &["anatomy"], 0.5, true)
                 .unwrap()
                 .is_empty()
+        );
+        // A label carrying the entity token would add a prompt marker.
+        assert!(matches!(
+            model.predict("pain", &["<<ENT>>"], 0.5, true),
+            Err(GlinerRuntimeError::InvalidLabels)
+        ));
+        // The entity token inside the text is split into ordinary words
+        // (`<`, `<`, `ENT`, `>`, `>`) and never acts as a label marker:
+        // 6 words, widths 1..=3, one label.
+        assert_eq!(
+            model
+                .predict("<<ENT>> pain", &["anatomy"], 0.0, false)
+                .unwrap()
+                .len(),
+            6 + 5 + 4
         );
         let mut token_classifier = tiny_config();
         token_classifier["_mlx_family"] = json!("bert");
