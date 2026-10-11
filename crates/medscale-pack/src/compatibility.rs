@@ -240,7 +240,7 @@ pub const SAFETENSORS_KNOWN_UNSUPPORTED: &[(&str, &str)] = &[(
 pub const KNOWN_UNSUPPORTED_FAMILIES: &[(&str, &str)] = &[
     (
         "longformer",
-        "Longformer: tract cannot prepare the ONNX export (two-input Pad in the sliding-window attention, run 38161872272; at a 128-token sequence the export reshapes to a 512-token window, run 38152456058) and candle has no Longformer encoder",
+        "Longformer: tract 0.22.4 fails in Gather when running the ONNX export at 512 and 1024 tokens, after the omitted Pad input is dropped (run 38172472172; at 128 tokens the export reshapes to a 512-token window, run 38152456058), and candle has no Longformer encoder",
     ),
     (
         "privacy-filter",
