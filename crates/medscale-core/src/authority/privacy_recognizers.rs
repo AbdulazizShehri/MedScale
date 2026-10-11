@@ -690,15 +690,21 @@ type Validator = fn(&str) -> bool;
 /// Checksum validators that need an adjacent label, because their shapes
 /// (8-11 letters, 9-10 plain digits) are too common to flag on their own.
 const LABELLED_CHECKSUMS: &[(&str, Validator)] = &[
-    ("npi", super::identifier_validators::validate_npi),
-    ("bic", super::identifier_validators::validate_bic),
-    ("swift", super::identifier_validators::validate_bic),
-    ("sin", super::identifier_validators::validate_canadian_sin),
+    ("npi", medscale_pack::identifier_validators::validate_npi),
+    ("bic", medscale_pack::identifier_validators::validate_bic),
+    ("swift", medscale_pack::identifier_validators::validate_bic),
+    (
+        "sin",
+        medscale_pack::identifier_validators::validate_canadian_sin,
+    ),
     (
         "medicare",
-        super::identifier_validators::validate_australian_medicare,
+        medscale_pack::identifier_validators::validate_australian_medicare,
     ),
-    ("tfn", super::identifier_validators::validate_australian_tfn),
+    (
+        "tfn",
+        medscale_pack::identifier_validators::validate_australian_tfn,
+    ),
 ];
 
 /// `NNN NNN NNNN`, the printed grouping of a UK NHS number.
@@ -712,7 +718,7 @@ fn nhs_grouping(candidate: &str) -> bool {
 /// `identifier_validators`), over windows of up to nine words so printed
 /// groupings ("4111 1111 1111 1111", "GB82 WEST 1234 …") are found.
 fn scan_checksum_identifiers(text: &str, ws: &[Word<'_>], out: &mut Vec<SensitiveSpan>) {
-    use super::identifier_validators::{
+    use medscale_pack::identifier_validators::{
         validate_iban, validate_luhn, validate_uk_nhs_number, validate_uk_nino,
     };
     for i in 0..ws.len() {

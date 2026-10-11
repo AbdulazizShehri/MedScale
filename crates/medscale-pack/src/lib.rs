@@ -6,10 +6,12 @@ mod compatibility;
 mod format;
 mod fp16_widen;
 mod hf_snapshot;
+pub mod identifier_validators;
 mod mesc_verify;
 mod mlx_layout;
 mod onnx_runtime;
 mod pack_runtime;
+mod pii_merge;
 mod residency;
 mod runtime;
 mod store;
@@ -41,6 +43,10 @@ pub use onnx_runtime::{
 };
 pub use pack_runtime::{
     PackEvaluation, PackRuntimeKind, evaluate_admitted_pack, pack_runtime_kind,
+};
+pub use pii_merge::{
+    PiiEntity, PiiMergeOptions, SemanticUnit, find_semantic_units, is_more_specific,
+    merge_entities_with_semantic_units, normalize_label,
 };
 pub use residency::{EvictionPlan, ResidencyError, ResidencyPool};
 pub use runtime::{FixtureRuntime, PackRuntimeAdapter, RuntimeOutput};

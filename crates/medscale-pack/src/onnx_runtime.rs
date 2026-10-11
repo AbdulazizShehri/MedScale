@@ -79,6 +79,9 @@ pub struct DocumentRunOptions {
     /// Overlapping content tokens between windows; `None` uses OpenMed's
     /// default (at most 96, a quarter of the window).
     pub stride: Option<usize>,
+    /// Also report OpenMed's semantic-unit PII merge of the entities
+    /// (`pii_merged_entities`; see [`crate::merge_entities_with_semantic_units`]).
+    pub pii_semantic_merge: bool,
 }
 
 impl Default for DocumentRunOptions {
@@ -86,6 +89,7 @@ impl Default for DocumentRunOptions {
         Self {
             threshold: 0.0,
             stride: None,
+            pii_semantic_merge: false,
         }
     }
 }
@@ -512,25 +516,31 @@ impl PreparedOnnxTokenClassifier {
         }
         let tokens = votes.finish()?;
         let entities = decode_entities(&tokens, &self.labels, input, options.threshold);
+        let pii_merged = options
+            .pii_semantic_merge
+            .then(|| crate::pii_merge::merge_decoded(&entities, input));
         Ok(OnnxRuntimeEvaluation {
             output: RuntimeOutput {
-                proposal_payload: json!({
-                    "kind": "onnx_token_classification_document_v1",
-                    "runtime": ONNX_TOKEN_CLASSIFIER_RUNTIME_ID,
-                    "content_digest": self.content_digest.to_hex(),
-                    "source_kind": self.provenance.source_kind,
-                    "source_repository": self.provenance.repository,
-                    "source_revision": self.provenance.revision,
-                    "token_count": content.len(),
-                    "covered_tokens": tokens.len(),
-                    "window_count": windows.len(),
-                    "window_tokens": window,
-                    "stride": stride,
-                    "threshold": options.threshold,
-                    "offsets": "unicode_scalar",
-                    "entities": entities,
-                    "note": "Proposal/evaluation evidence only; never ClinicalAssertion",
-                }),
+                proposal_payload: crate::pii_merge::with_merged(
+                    json!({
+                        "kind": "onnx_token_classification_document_v1",
+                        "runtime": ONNX_TOKEN_CLASSIFIER_RUNTIME_ID,
+                        "content_digest": self.content_digest.to_hex(),
+                        "source_kind": self.provenance.source_kind,
+                        "source_repository": self.provenance.repository,
+                        "source_revision": self.provenance.revision,
+                        "token_count": content.len(),
+                        "covered_tokens": tokens.len(),
+                        "window_count": windows.len(),
+                        "window_tokens": window,
+                        "stride": stride,
+                        "threshold": options.threshold,
+                        "offsets": "unicode_scalar",
+                        "entities": entities,
+                        "note": "Proposal/evaluation evidence only; never ClinicalAssertion",
+                    }),
+                    pii_merged,
+                ),
                 evidence_only: true,
                 pack_id: pack_id.clone(),
             },

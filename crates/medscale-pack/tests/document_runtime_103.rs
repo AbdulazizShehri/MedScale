@@ -60,11 +60,50 @@ fn long_document_is_fully_covered_instead_of_truncated() {
             DocumentRunOptions {
                 threshold: 0.0,
                 stride: Some(1),
+                ..Default::default()
             },
         )
         .expect("overlapping windows");
     assert_eq!(overlapped.output.proposal_payload["window_count"], 3);
     assert_eq!(overlapped.output.proposal_payload["covered_tokens"], 8);
+
+    assert!(
+        overlapped
+            .output
+            .proposal_payload
+            .get("pii_merged_entities")
+            .is_none(),
+        "merge is opt-in"
+    );
+
+    let merged = prepared
+        .run_document(
+            &manifest.pack_id,
+            DOC,
+            DocumentRunOptions {
+                pii_semantic_merge: true,
+                ..Default::default()
+            },
+        )
+        .expect("document run with PII merge");
+    let p = &merged.output.proposal_payload;
+    assert!(p["pii_merged_entities"].is_array());
+    assert_eq!(
+        p["entities"],
+        overlapped_default_entities(&prepared, &manifest)
+    );
+}
+
+fn overlapped_default_entities(
+    prepared: &medscale_pack::PreparedOnnxTokenClassifier,
+    manifest: &medscale_contracts::packs::PackManifestV0,
+) -> serde_json::Value {
+    prepared
+        .run_document(&manifest.pack_id, DOC, DocumentRunOptions::default())
+        .unwrap()
+        .output
+        .proposal_payload["entities"]
+        .clone()
 }
 
 #[test]
@@ -81,7 +120,8 @@ fn document_run_refuses_invalid_options() {
             DOC,
             DocumentRunOptions {
                 threshold: 1.5,
-                stride: None
+                stride: None,
+                ..Default::default()
             }
         ),
         Err(OnnxRuntimeError::InvalidThreshold)
@@ -92,7 +132,8 @@ fn document_run_refuses_invalid_options() {
             DOC,
             DocumentRunOptions {
                 threshold: 0.0,
-                stride: Some(4)
+                stride: Some(4),
+                ..Default::default()
             }
         ),
         Err(OnnxRuntimeError::Windowing(WindowError::StrideTooLarge))

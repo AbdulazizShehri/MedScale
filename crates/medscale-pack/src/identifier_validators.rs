@@ -139,7 +139,6 @@ fn all_ascii(s: &str, pred: fn(&u8) -> bool) -> bool {
 
 /// US Social Security number: 9 digits; no 000/666/9xx area, 00 group or 0000 serial.
 #[must_use]
-#[allow(dead_code)] // Ported for parity; the recognizer already flags these shapes.
 pub fn validate_ssn(text: &str) -> bool {
     let d = digits_only(text);
     if d.len() != 9 {
@@ -154,7 +153,6 @@ pub fn validate_ssn(text: &str) -> bool {
 
 /// US phone: 10 digits (or 11 with a leading 1); area and exchange rules.
 #[must_use]
-#[allow(dead_code)] // Ported for parity; the recognizer already flags these shapes.
 pub fn validate_phone_us(text: &str) -> bool {
     let mut d = digits_only(text);
     if d.len() == 11 && d[0] == 1 {
