@@ -36,36 +36,18 @@ jobs:
       max-parallel: 3
       matrix:
         include:
-          - arch: bert
-            repo: OpenMed/OpenMed-NER-DiseaseDetect-ElectraMed-33M-v1-onnx-android
+          - arch: clinical-longformer-512
+            repo: OpenMed/OpenMed-PII-ClinicalLongformer-Base-149M-v1-onnx-android
             onnx: model.onnx
             test: openmed_snapshot_external_103
-            text: "The patient has type 2 diabetes mellitus and chronic kidney disease."
-          - arch: distilbert
-            repo: OpenMed/OpenMed-NER-AnatomyDetect-TinyMed-65M-v1-onnx-android
+            text: "Patient John Smith, born 12 March 1980, lives in Leeds."
+            seq: "512"
+          - arch: clinical-longformer-1024
+            repo: OpenMed/OpenMed-PII-ClinicalLongformer-Base-149M-v1-onnx-android
             onnx: model.onnx
             test: openmed_snapshot_external_103
-            text: "Pain in the left knee radiates to the right ankle."
-          - arch: roberta
-            repo: OpenMed/OpenMed-NER-AnatomyDetect-TinyMed-82M-v1-onnx-android
-            onnx: model.onnx
-            test: openmed_snapshot_external_103
-            text: "Pain in the left knee radiates to the right ankle."
-          - arch: modernbert
-            repo: OpenMed/OpenMed-NER-AnatomyDetect-ModernClinical-149M-v1-onnx-android
-            onnx: model.onnx
-            test: openmed_snapshot_external_103
-            text: "Pain in the left knee radiates to the right ankle."
-          - arch: deberta-v2
-            repo: OpenMed/OpenMed-PII-Dutch-SuperClinical-Small-44M-v1-onnx-android
-            onnx: model.onnx
-            test: openmed_snapshot_external_103
-            text: "Patiënt Jan de Vries, geboren op 12 maart 1980, woont in Utrecht."
-          - arch: xlm-roberta-fp16
-            repo: OpenMed/OpenMed-PII-Spanish-BigMed-Large-278M-v1-onnx-android
-            onnx: model_fp16.onnx
-            test: openmed_snapshot_external_103
-            text: "La paciente María García, nacida el 3 de mayo de 1975, vive en Sevilla."
+            text: "Patient John Smith, born 12 March 1980, lives in Leeds."
+            seq: "1024"
     steps:
       - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v4
 
@@ -103,7 +85,11 @@ jobs:
           MEDSCALE_CATALOG_COMMIT: ${{ env.CATALOG_COMMIT }}
           MEDSCALE_HF_ONNX_FILE: ${{ matrix.onnx }}
           MEDSCALE_SAMPLE_TEXT: ${{ matrix.text }}
+<<<<<<< HEAD
           MEDSCALE_PLAN_CACHE: "1"
+=======
+          MEDSCALE_FIXED_SEQUENCE_LENGTH: ${{ matrix.seq }}
+>>>>>>> origin/qual/103-longformer-512
         run: |
           set -o pipefail
           export MEDSCALE_HF_SNAPSHOT_DIR="$SNAPSHOT_DIR"

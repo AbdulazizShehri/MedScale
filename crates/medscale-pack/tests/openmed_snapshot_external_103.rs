@@ -7,7 +7,11 @@
 //! MEDSCALE_HF_SNAPSHOT_DIR=<dir with metadata.json (Hub API ?blobs=true), config.json, tokenizer.json, <onnx file>>
 //! MEDSCALE_HF_ONNX_FILE=model.onnx
 //! MEDSCALE_SAMPLE_TEXT="<synthetic sentence>"
+<<<<<<< HEAD
 //! MEDSCALE_PLAN_CACHE=1 (optional: also qualify the tract plan cache, cold then warm)
+=======
+//! MEDSCALE_FIXED_SEQUENCE_LENGTH=512 (optional; default 128)
+>>>>>>> origin/qual/103-longformer-512
 //! cargo test --release -p medscale-pack --test openmed_snapshot_external_103 -- --ignored --nocapture
 
 use std::path::PathBuf;
@@ -38,6 +42,11 @@ fn catalog_row_to_verified_pack_to_local_execution() {
         .get(&meta.id)
         .expect("repository must be in the catalog");
     let onnx_file = env("MEDSCALE_HF_ONNX_FILE");
+    let fixed_sequence_length: u32 =
+        std::env::var("MEDSCALE_FIXED_SEQUENCE_LENGTH").map_or(128, |v| {
+            v.parse()
+                .expect("MEDSCALE_FIXED_SEQUENCE_LENGTH is a number")
+        });
     let out = std::env::temp_dir().join(format!("medscale-103-pack-{}", std::process::id()));
 
     let pack_id = build_token_classifier_pack(
@@ -46,7 +55,7 @@ fn catalog_row_to_verified_pack_to_local_execution() {
             row,
             snapshot_dir: &snapshot,
             onnx_file: &onnx_file,
-            fixed_sequence_length: 128,
+            fixed_sequence_length,
         },
         &out,
     )
@@ -54,7 +63,7 @@ fn catalog_row_to_verified_pack_to_local_execution() {
     let manifest = admit_pack_dir(&out).expect("signed Pack must admit");
     assert_eq!(manifest.pack_id.as_str(), pack_id);
 
-    let runtime = OnnxTokenClassifierRuntime::new(128).unwrap();
+    let runtime = OnnxTokenClassifierRuntime::new(fixed_sequence_length as usize).unwrap();
     let t0 = Instant::now();
     let prepared = runtime
         .prepare(&out, &manifest)
