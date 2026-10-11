@@ -36,36 +36,21 @@ jobs:
       max-parallel: 3
       matrix:
         include:
-          - arch: bert
-            repo: OpenMed/OpenMed-NER-DiseaseDetect-ElectraMed-33M-v1-onnx-android
+          - arch: eurobert
+            repo: OpenMed/OpenMed-PII-EuroMed-Large-210M-v1-onnx-android
             onnx: model.onnx
             test: openmed_snapshot_external_103
-            text: "The patient has type 2 diabetes mellitus and chronic kidney disease."
-          - arch: distilbert
-            repo: OpenMed/OpenMed-NER-AnatomyDetect-TinyMed-65M-v1-onnx-android
+            text: "Patient John Smith, born 12 March 1980, lives in Leeds."
+          - arch: clinical-longformer
+            repo: OpenMed/OpenMed-PII-ClinicalLongformer-Base-149M-v1-onnx-android
             onnx: model.onnx
             test: openmed_snapshot_external_103
-            text: "Pain in the left knee radiates to the right ankle."
-          - arch: roberta
-            repo: OpenMed/OpenMed-NER-AnatomyDetect-TinyMed-82M-v1-onnx-android
-            onnx: model.onnx
+            text: "Patient John Smith, born 12 March 1980, lives in Leeds."
+          - arch: qwen-int8
+            repo: OpenMed/OpenMed-PII-Chinese-QwenMed-XLarge-600M-v1-onnx-android
+            onnx: model_int8.onnx
             test: openmed_snapshot_external_103
-            text: "Pain in the left knee radiates to the right ankle."
-          - arch: modernbert
-            repo: OpenMed/OpenMed-NER-AnatomyDetect-ModernClinical-149M-v1-onnx-android
-            onnx: model.onnx
-            test: openmed_snapshot_external_103
-            text: "Pain in the left knee radiates to the right ankle."
-          - arch: deberta-v2
-            repo: OpenMed/OpenMed-PII-Dutch-SuperClinical-Small-44M-v1-onnx-android
-            onnx: model.onnx
-            test: openmed_snapshot_external_103
-            text: "Patiënt Jan de Vries, geboren op 12 maart 1980, woont in Utrecht."
-          - arch: xlm-roberta-fp16
-            repo: OpenMed/OpenMed-PII-Spanish-BigMed-Large-278M-v1-onnx-android
-            onnx: model_fp16.onnx
-            test: openmed_snapshot_external_103
-            text: "La paciente María García, nacida el 3 de mayo de 1975, vive en Sevilla."
+            text: "患者张伟，1980年3月12日出生，住在北京。"
     steps:
       - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v4
 
