@@ -10,6 +10,7 @@ mod hf_snapshot;
 pub mod identifier_validators;
 mod mesc_verify;
 mod mlx_layout;
+mod onnx_optional_inputs;
 mod onnx_runtime;
 mod pack_runtime;
 mod pii_merge;
