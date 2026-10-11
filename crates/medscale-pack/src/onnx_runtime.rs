@@ -788,9 +788,11 @@ fn store_cached_plan(
         return PlanCacheOutcome::NotCached;
     };
     // The plan is renamed into place before its sidecar, so a reader never
-    // pairs a sidecar with a partially written plan.
+    // pairs a sidecar with a partially written plan. Temporary names carry the
+    // process id so concurrent writers do not interleave; a sidecar paired
+    // with another writer's plan fails the digest check and is rebuilt.
     let write = |name: String, bytes: &[u8]| -> std::io::Result<()> {
-        let tmp = dir.join(format!("{name}.tmp"));
+        let tmp = dir.join(format!("{name}.{}.tmp", std::process::id()));
         fs::write(&tmp, bytes)?;
         fs::rename(&tmp, dir.join(name))
     };
