@@ -1,6 +1,6 @@
 # Spec 103 tasks
 
-Status as of 2026-10-11 (after #211–#218). Capability matrix: [`CAPABILITY_MATRIX.md`](CAPABILITY_MATRIX.md). `[x]` done, `[~]` partly done (the gap is stated), `[ ]` not started.
+Status as of 2026-10-12 (after #211–#221). Capability matrix: [`CAPABILITY_MATRIX.md`](CAPABILITY_MATRIX.md). `[x]` done, `[~]` partly done (the gap is stated), `[ ]` not started.
 
 - [x] T103-01 (P1) `catalog.rs`: `CatalogRow`, `CatalogStatus` (10-state ladder), snapshot source binding (repository, commit, SHA-256), strict JSONL parser with required fields validated and duplicates rejected. Unknown fields are ignored, not kept. Merged in #184.
 - [x] T103-02 (P1) Filters: task, family, language, format, architecture, license claim, tier (#211), device fit, status, parameter and disk ceilings; stable ordering; offset pagination. Offset pagination is stable because a catalog snapshot is immutable and rows are sorted by repository id; cursors add nothing here.
@@ -35,3 +35,5 @@ Status as of 2026-10-11 (after #211–#218). Capability matrix: [`CAPABILITY_MAT
 - [x] T103-18 Optional word-level entity aggregation (`EntityAggregation::Word*`, #218) beside the unchanged OpenMed-compatible decoder. Real-weight comparison (run 38170219043): `met|form|in` becomes `metformin`, `Esc|herichia coli` becomes `Escherichia coli`. No accuracy claim without labelled evaluation.
 - [ ] T103-19 Clinical Longformer (20 rows). **Blocked (runtime support):** the omitted-`Pad`-input rewrite (#218) lets tract prepare the export, but tract 0.22.4 then fails in `Gather` at 512 and 1024 tokens (runs 38170322676, 38172472172; contained as `ModelExecution` since #218). candle has no Longformer encoder.
 - [x] T103-20 Catalog rows with no `architecture` field: six NER rows whose `config.json` declares bert, roberta, deberta-v2 or modernbert executed on candle (run 38163293053), recorded per row.
+- [x] T103-21 Model unload through Core: `PacksResidency` lists prepared models in the tract, candle and GLiNER pools; `PacksUnloadLocal` unloads one Pack's models or every unpinned one (#219).
+- [x] T103-22 Opt-in detection normalization for the PII merger (OpenMed `normalize_for_detection`: NFKC per code point, native digits folded, spans mapped back) (#221).
