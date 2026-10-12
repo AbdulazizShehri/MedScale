@@ -111,6 +111,21 @@ jobs:
             -- --ignored --nocapture 2>&1 | tee qualification.log
           grep -E '^(SNAPSHOT_|PLAN_CACHE_)' qualification.log >> "$GITHUB_STEP_SUMMARY"
 
+      # Optional reference check (matrix `reference: hf`): the same snapshot run
+      # by Hugging Face Transformers on CPU, decoded with OpenMed's ONNX decoder
+      # and compared entity by entity (qualification only; never in the product).
+      - name: Compare with the Hugging Face reference
+        if: matrix.reference == 'hf'
+        env:
+          TEXT: ${{ matrix.text }}
+        run: |
+          set -euo pipefail
+          python3 -m pip install --quiet --index-url https://download.pytorch.org/whl/cpu torch==2.5.1
+          python3 -m pip install --quiet transformers==4.46.3 tokenizers==0.20.3 safetensors==0.4.5 numpy==2.1.3
+          python3 scripts/qualification/hf_reference_compare.py "$SNAPSHOT_DIR" "$TEXT" qualification.log | tee reference.log
+          cat reference.log >> qualification.log
+          grep -E '^REFERENCE_' reference.log >> "$GITHUB_STEP_SUMMARY"
+
       - name: Keep the log (no weights)
         if: always()
         uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v4.6.2
