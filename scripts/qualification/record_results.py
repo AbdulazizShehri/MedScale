@@ -50,7 +50,14 @@ def main() -> int:
     for job in jobs:
         if not job["name"].startswith("qualify"):
             continue
-        log = gh("api", f"repos/{args.repo}/actions/jobs/{job['databaseId']}/logs")
+        if job.get("status") != "completed":
+            summary.append(f"| {job['name']} | {job.get('status')} | not finished |")
+            continue
+        try:
+            log = gh("api", f"repos/{args.repo}/actions/jobs/{job['databaseId']}/logs")
+        except subprocess.CalledProcessError:
+            # Logs of cancelled or expired jobs may be unavailable.
+            log = ""
         log = re.sub(r"\x1b\[[0-9;]*m", "", log)
         lines = [re.sub(r"^\S+Z ", "", l) for l in log.splitlines()]
         evidence = next((l for l in lines if l.startswith("SNAPSHOT_EVIDENCE")), None)

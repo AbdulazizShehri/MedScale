@@ -240,6 +240,7 @@ fn build(
     num_labels: usize,
     device: &Device,
 ) -> Result<(String, usize, Encoder, Linear), CandleRuntimeError> {
+    let config = &normalize_transformers_config(config)?;
     let model_type = candle_model_type(config)?;
     if crate::gliner_runtime::is_gliner_span_export(config) {
         return Err(CandleRuntimeError::InvalidConfig(
@@ -356,6 +357,51 @@ fn build(
     let classifier =
         candle_nn::linear(hidden, num_labels, vb.pp("classifier")).map_err(prepare_err)?;
     Ok((model_type, window.clamp(8, MAX_WINDOW), encoder, classifier))
+}
+
+/// Restores fields that Transformers 5 no longer writes to `config.json`,
+/// with the values Transformers itself uses (batch run 38314653881):
+/// - `position_embedding_type` is omitted when it is the default
+///   `"absolute"`;
+/// - ModernBERT keeps its rotary bases in `rope_parameters` per layer type
+///   instead of `global_rope_theta` / `local_rope_theta`. Only the `default`
+///   rotary type maps onto those fields; any other type is refused.
+fn normalize_transformers_config(config: &Value) -> Result<Value, CandleRuntimeError> {
+    let mut config = config.clone();
+    let Some(fields) = config.as_object_mut() else {
+        return Ok(config);
+    };
+    fields
+        .entry("position_embedding_type")
+        .or_insert_with(|| json!("absolute"));
+    let modernbert = fields
+        .get("model_type")
+        .and_then(Value::as_str)
+        .is_some_and(|t| t.eq_ignore_ascii_case("modernbert"));
+    if modernbert
+        && !fields.contains_key("global_rope_theta")
+        && let Some(rope) = fields.get("rope_parameters").cloned()
+    {
+        for (layer_type, field) in [
+            ("full_attention", "global_rope_theta"),
+            ("sliding_attention", "local_rope_theta"),
+        ] {
+            let params = &rope[layer_type];
+            if params["rope_type"].as_str().is_some_and(|t| t != "default") {
+                return Err(CandleRuntimeError::InvalidConfig(format!(
+                    "modernbert: rope_type {} is not supported",
+                    params["rope_type"]
+                )));
+            }
+            let theta = params["rope_theta"].as_f64().ok_or_else(|| {
+                CandleRuntimeError::InvalidConfig(format!(
+                    "modernbert: rope_parameters.{layer_type}.rope_theta is missing"
+                ))
+            })?;
+            fields.insert(field.to_owned(), json!(theta));
+        }
+    }
+    Ok(config)
 }
 
 /// True when the safetensors header names LayerNorm parameters with the
@@ -1014,6 +1060,46 @@ mod tests {
             prepared
                 .run_document(&pid, &text, CandleRunOptions::default())
                 .unwrap()
+        );
+    }
+
+    #[test]
+    fn transformers_5_configs_are_normalized_like_transformers_does() {
+        // RoBERTa without `position_embedding_type` runs like the default.
+        let mut v5 = tiny_roberta_config("roberta");
+        v5.as_object_mut()
+            .unwrap()
+            .remove("position_embedding_type");
+        let normalized = normalize_transformers_config(&v5).unwrap();
+        assert_eq!(normalized, tiny_roberta_config("roberta"));
+        let _: xlm_roberta::Config = serde_json::from_value(normalized).unwrap();
+        // An explicit value is kept.
+        let mut relative = tiny_roberta_config("roberta");
+        relative["position_embedding_type"] = json!("relative_key");
+        assert_eq!(normalize_transformers_config(&relative).unwrap(), relative);
+
+        // ModernBERT rotary bases from `rope_parameters`.
+        let modern = json!({
+            "model_type": "modernbert",
+            "rope_parameters": {
+                "full_attention": {"rope_theta": 160000.0, "rope_type": "default"},
+                "sliding_attention": {"rope_theta": 10000.0, "rope_type": "default"}
+            }
+        });
+        let normalized = normalize_transformers_config(&modern).unwrap();
+        assert_eq!(normalized["global_rope_theta"], 160000.0);
+        assert_eq!(normalized["local_rope_theta"], 10000.0);
+        let mut scaled = modern.clone();
+        scaled["rope_parameters"]["full_attention"]["rope_type"] = json!("yarn");
+        assert!(matches!(
+            normalize_transformers_config(&scaled),
+            Err(CandleRuntimeError::InvalidConfig(_))
+        ));
+        let mut legacy = modern;
+        legacy["global_rope_theta"] = json!(1.0);
+        assert_eq!(
+            normalize_transformers_config(&legacy).unwrap()["global_rope_theta"],
+            1.0
         );
     }
 
