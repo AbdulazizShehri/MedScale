@@ -314,6 +314,145 @@ fn normalized_text(bytes: &[u8]) -> Vec<u8> {
     out
 }
 
+/// Inputs of a text-generation Pack built from a verified snapshot (Spec 105).
+pub struct TextGenerationSnapshot<'a> {
+    pub meta: &'a HfRepoMetadata,
+    pub row: &'a CatalogRow,
+    pub snapshot_dir: &'a Path,
+    /// Data-only weights, for example `model.safetensors`.
+    pub weight_file: &'a str,
+}
+
+/// Verifies a text-generation snapshot against the catalog and Hub digests,
+/// then writes a signed Pack (weights, config, tokenizer, provenance) for the
+/// candle text-generation runtime. The catalog row must be a
+/// `text-generation` row; only `.safetensors` weights are admitted, under the
+/// same per-artifact bound as every Pack. Signed with the synthetic
+/// qualification trust root.
+pub fn build_text_generation_pack(
+    input: &TextGenerationSnapshot<'_>,
+    out_dir: &Path,
+) -> Result<String, SnapshotError> {
+    if input.row.task != "text-generation" {
+        return Err(SnapshotError::Metadata(format!(
+            "catalog task {:?} is not text-generation",
+            input.row.task
+        )));
+    }
+    if !input
+        .weight_file
+        .to_ascii_lowercase()
+        .ends_with(".safetensors")
+    {
+        return Err(SnapshotError::RefusedArtifact(input.weight_file.to_owned()));
+    }
+    verify_against_catalog(input.meta, input.row)?;
+    let license = spdx_for(input.row.license_claim.as_deref())?;
+    let read = |name: &str| -> Result<Vec<u8>, SnapshotError> {
+        fs::read(input.snapshot_dir.join(safe_relative(name)?)).map_err(|e| io(&e))
+    };
+    let runtime_id = crate::generation_runtime::CANDLE_TEXT_GENERATION_RUNTIME_ID;
+    let model = read(input.weight_file)?;
+    let model_sha = verify_file(input.meta, input.weight_file, &model)?;
+    let tokenizer = read("tokenizer.json")?;
+    verify_file(input.meta, "tokenizer.json", &tokenizer)?;
+    let config = read("config.json")?;
+    verify_file(input.meta, "config.json", &config)?;
+    let context = serde_json::from_slice::<Value>(&config)
+        .ok()
+        .and_then(|c| c["max_position_embeddings"].as_u64())
+        .and_then(|v| u32::try_from(v).ok())
+        .ok_or_else(|| {
+            SnapshotError::Metadata("config.json has no max_position_embeddings".into())
+        })?;
+
+    let revision = input.meta.sha.clone();
+    let rights_uri = format!(
+        "https://huggingface.co/{}/blob/{revision}/README.md",
+        input.meta.id
+    );
+    let provenance = ModelSourceProvenance {
+        source_kind: "hugging_face".into(),
+        repository: input.meta.id.clone(),
+        revision: revision.clone(),
+        original_file: input.weight_file.to_string(),
+        source_sha256: model_sha,
+        transform: "none".into(),
+        fixed_sequence_length: context,
+        task: "text-generation".into(),
+        export_format: "safetensors".into(),
+        runtime_family: runtime_id.into(),
+        license_id: license.into(),
+        upstream_rights_uri: rights_uri.clone(),
+    };
+    fs::create_dir_all(out_dir).map_err(|e| io(&e))?;
+    let write = |name: &str, bytes: &[u8]| fs::write(out_dir.join(name), bytes).map_err(|e| io(&e));
+    write("model.safetensors", &model)?;
+    write("config.json", &config)?;
+    write("tokenizer.json", &tokenizer)?;
+    write(
+        "model.meta.json",
+        (serde_json::to_string_pretty(&provenance)
+            .map_err(|e| SnapshotError::Io(e.to_string()))?
+            + "\n")
+            .as_bytes(),
+    )?;
+    let mut rows = Vec::new();
+    for (name, kind, text) in [
+        ("config.json", "model_metadata", true),
+        ("model.meta.json", "model_metadata", true),
+        ("model.safetensors", "safetensors_model", false),
+        ("tokenizer.json", "tokenizer_meta", true),
+    ] {
+        let bytes = fs::read(out_dir.join(name)).map_err(|e| io(&e))?;
+        let bytes = if text { normalized_text(&bytes) } else { bytes };
+        rows.push(json!({"relative_path": name, "kind": kind, "digest": DigestSha256::of(&bytes).to_hex()}));
+    }
+    let digest_lines: String = rows
+        .iter()
+        .map(|r| format!("{}\n", r["digest"].as_str().unwrap_or_default()))
+        .collect();
+    let content_digest = DigestSha256::of(digest_lines.as_bytes()).to_hex();
+    let short = input
+        .meta
+        .id
+        .rsplit('/')
+        .next()
+        .unwrap_or("model")
+        .to_ascii_lowercase();
+    let pack_id = format!("hf-{short}-generation");
+    let sbom_ref = format!("hf:{}@{revision}#{}", input.meta.id, input.weight_file);
+    let payload = pack_signing_payload(
+        &pack_id,
+        "1.0.0",
+        1,
+        &content_digest,
+        &rights_uri,
+        &sbom_ref,
+    );
+    let manifest = json!({
+        "pack_id": pack_id,
+        "version": "1.0.0",
+        "pack_epoch": 1,
+        "content_digest": content_digest,
+        "artifacts": rows,
+        "rights_uri": rights_uri,
+        "sbom_ref": sbom_ref,
+        "runtime_requirements": format!("{runtime_id};synthetic_only=true;context={context}"),
+        "benchmark_links": ["specs/105-runtime-families/spec.md"],
+        "promotion_state": "candidate",
+        "trust_root_id": SYNTHETIC_PACK_TRUST_ROOT_ID,
+        "signature_hex": sign_pack_payload(&payload),
+    });
+    write(
+        "pack.manifest.json",
+        (serde_json::to_string_pretty(&manifest).map_err(|e| SnapshotError::Io(e.to_string()))?
+            + "\n")
+            .as_bytes(),
+    )?;
+    Ok(pack_id)
+}
+
 /// Inputs of a token-classification Pack built from a verified snapshot.
 pub struct TokenClassifierSnapshot<'a> {
     pub meta: &'a HfRepoMetadata,

@@ -15,6 +15,7 @@
 
 use std::fmt;
 use std::path::Path;
+use std::sync::atomic::{AtomicBool, Ordering};
 
 use candle_core::{DType, Device, Module, Tensor};
 use candle_nn::{LayerNorm, Linear, VarBuilder};
@@ -69,6 +70,8 @@ pub enum CandleRuntimeError {
     Prepare(String),
     #[error("model execution failed")]
     ModelExecution,
+    #[error("run cancelled by the caller")]
+    Cancelled,
     #[error("model output shape is outside the token-classification contract")]
     OutputShape,
     #[error("model output contained a non-finite logit")]
@@ -602,6 +605,18 @@ impl PreparedCandleTokenClassifier {
         input: &str,
         options: CandleRunOptions,
     ) -> Result<RuntimeOutput, CandleRuntimeError> {
+        self.run_document_cancellable(pack_id, input, options, &AtomicBool::new(false))
+    }
+
+    /// [`Self::run_document`] that stops between windows once `cancel` is
+    /// set, returning [`CandleRuntimeError::Cancelled`] (no partial output).
+    pub fn run_document_cancellable(
+        &self,
+        pack_id: &OpaqueId,
+        input: &str,
+        options: CandleRunOptions,
+        cancel: &AtomicBool,
+    ) -> Result<RuntimeOutput, CandleRuntimeError> {
         if input.len() > MAX_INPUT_BYTES {
             return Err(CandleRuntimeError::InputBound);
         }
@@ -630,6 +645,9 @@ impl PreparedCandleTokenClassifier {
         let width = self.labels.len();
         let mut votes = BestContextVotes::new(content.len());
         for w in &windows {
+            if cancel.load(Ordering::Relaxed) {
+                return Err(CandleRuntimeError::Cancelled);
+            }
             let window_ids: Vec<u32> = w.positions.iter().map(|&p| ids[p]).collect();
             let window_types: Vec<u32> = w.positions.iter().map(|&p| type_ids[p]).collect();
             let logits = self.infer(&window_ids, &window_types)?;
@@ -965,6 +983,37 @@ mod tests {
         assert_eq!(
             legacy_layer_norm_key("classifier.weight"),
             "classifier.weight"
+        );
+    }
+
+    #[test]
+    fn a_cancelled_document_run_stops_without_output() {
+        let config = tiny_bert_config();
+        let prepared = prepare_from_bytes(
+            DigestSha256::of(b"tiny"),
+            provenance(),
+            config.to_string().as_bytes(),
+            tiny_bert_weights(&config),
+            TOKENIZER.as_bytes(),
+            br#"["O","ENTITY"]"#,
+            CandleDevicePreference::Cpu,
+        )
+        .unwrap();
+        let text = "alice visited clinic today bob called alice visited ".repeat(3);
+        let pid = OpaqueId::new("p");
+        let cancelled = AtomicBool::new(true);
+        assert!(matches!(
+            prepared.run_document_cancellable(&pid, &text, CandleRunOptions::default(), &cancelled),
+            Err(CandleRuntimeError::Cancelled)
+        ));
+        let running = AtomicBool::new(false);
+        assert_eq!(
+            prepared
+                .run_document_cancellable(&pid, &text, CandleRunOptions::default(), &running)
+                .unwrap(),
+            prepared
+                .run_document(&pid, &text, CandleRunOptions::default())
+                .unwrap()
         );
     }
 

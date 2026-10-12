@@ -135,6 +135,26 @@ fn overlapped_default_entities(
 }
 
 #[test]
+fn a_cancelled_document_run_stops_without_output() {
+    let root = fixture_pack();
+    let manifest = admit_pack_dir(&root).unwrap();
+    let prepared = OnnxTokenClassifierRuntime::new(4)
+        .unwrap()
+        .prepare(&root, &manifest)
+        .unwrap();
+    let cancelled = std::sync::atomic::AtomicBool::new(true);
+    assert!(matches!(
+        prepared.run_document_cancellable(
+            &manifest.pack_id,
+            DOC,
+            DocumentRunOptions::default(),
+            &cancelled
+        ),
+        Err(OnnxRuntimeError::Cancelled)
+    ));
+}
+
+#[test]
 fn document_run_refuses_invalid_options() {
     let root = fixture_pack();
     let manifest = admit_pack_dir(&root).unwrap();
