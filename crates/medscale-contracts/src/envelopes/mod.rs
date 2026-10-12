@@ -683,6 +683,12 @@ pub enum RequestBody {
     PacksEvaluateLocal {
         request: PackEvaluationRequest,
     },
+    /// Spec 103: list the prepared models resident in Core.
+    PacksResidency,
+    /// Spec 103: unload a Pack's prepared models (`None`: every unpinned one).
+    PacksUnloadLocal {
+        pack_id: Option<OpaqueId>,
+    },
     DocumentIntake {
         request: DocumentIntakeRequest,
     },
@@ -1807,6 +1813,9 @@ pub enum ResponseBody {
     },
     PackEvaluation {
         result: PackEvaluationResult,
+    },
+    PackResidency {
+        view: Box<crate::packs::PackResidencyView>,
     },
     DocumentIntake {
         result: DocumentIntakeResult,

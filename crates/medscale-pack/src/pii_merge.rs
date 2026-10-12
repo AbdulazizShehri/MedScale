@@ -112,6 +112,11 @@ pub struct PiiMergeOptions {
     pub prefer_model_labels: bool,
     pub allow_semantic_only_matches: bool,
     pub allow_label_expansion: bool,
+    /// Match the semantic-unit patterns on detection-normalized text (NFKC
+    /// per code point, native decimal digits folded to ASCII, see
+    /// [`normalize_for_detection`]) and map every unit back to the source.
+    /// Off by default, as in OpenMed, where only language packs opt in.
+    pub normalize_for_detection: bool,
 }
 
 impl Default for PiiMergeOptions {
@@ -121,8 +126,52 @@ impl Default for PiiMergeOptions {
             prefer_model_labels: false,
             allow_semantic_only_matches: true,
             allow_label_expansion: true,
+            normalize_for_detection: false,
         }
     }
+}
+
+/// Native decimal digit blocks folded by OpenMed `text_normalize.normalize_digits`.
+const NATIVE_DIGIT_ZEROS: &[u32] = &[
+    0x0660, // Arabic-Indic
+    0x06F0, // Eastern Arabic-Indic (Persian)
+    0x0966, // Devanagari
+    0x09E6, // Bengali
+    0x0E50, // Thai
+    0xFF10, // Fullwidth
+    0x0C66, // Telugu
+];
+
+fn fold_digit(c: char) -> char {
+    let code = u32::from(c);
+    NATIVE_DIGIT_ZEROS
+        .iter()
+        .find(|zero| (**zero..**zero + 10).contains(&code))
+        .and_then(|zero| char::from_digit(code - zero, 10))
+        .unwrap_or(c)
+}
+
+/// Detection text and, for each of its chars, the source scalar span.
+///
+/// Port of OpenMed `text_normalize.normalize_for_detection`: NFKC, then
+/// native digits folded to ASCII. Each source code point is normalized on its
+/// own, so a one-to-many expansion (`ﬁ` to `fi`) maps every output char to
+/// its source char. Canonical composition across code points is not applied
+/// (OpenMed aligns that case with a sequence matcher); such text is matched
+/// in its decomposed form, which the ASCII-oriented patterns do not depend
+/// on.
+#[must_use]
+pub fn normalize_for_detection(text: &str) -> (String, Vec<(usize, usize)>) {
+    use unicode_normalization::UnicodeNormalization as _;
+    let mut out = String::with_capacity(text.len());
+    let mut spans = Vec::with_capacity(text.len());
+    for (index, c) in text.chars().enumerate() {
+        for n in std::iter::once(c).nfkc() {
+            out.push(fold_digit(n));
+            spans.push((index, index + 1));
+        }
+    }
+    (out, spans)
 }
 
 /// A regex semantic unit (`find_semantic_units`).
@@ -205,6 +254,21 @@ fn find_context_words(
 /// `find_semantic_units` over every bundled pattern.
 pub fn find_semantic_units(text: &str) -> Vec<SemanticUnit> {
     semantic_units(text, &CharMap::new(text))
+}
+
+/// Semantic units found on [`normalize_for_detection`] text, with spans and
+/// context mapped back to `text`.
+fn normalized_semantic_units(text: &str) -> Vec<SemanticUnit> {
+    let (normalized, spans) = normalize_for_detection(text);
+    let normalized_map = CharMap::new(&normalized);
+    semantic_units(&normalized, &normalized_map)
+        .into_iter()
+        .filter_map(|unit| {
+            let start = spans.get(unit.start)?.0;
+            let end = spans.get(unit.end.checked_sub(1)?)?.1;
+            (start < end).then_some(SemanticUnit { start, end, ..unit })
+        })
+        .collect()
 }
 
 fn semantic_units(text: &str, map: &CharMap) -> Vec<SemanticUnit> {
@@ -384,7 +448,11 @@ pub fn merge_entities_with_semantic_units(
     if !options.use_semantic_patterns {
         return entities;
     }
-    let units = semantic_units(text, &map);
+    let units = if options.normalize_for_detection {
+        normalized_semantic_units(text)
+    } else {
+        semantic_units(text, &map)
+    };
     if units.is_empty() {
         return entities;
     }
@@ -471,6 +539,7 @@ pub fn merge_entities_with_semantic_units(
 pub(crate) fn merge_decoded(
     entities: &[crate::token_windows::DecodedEntity],
     text: &str,
+    normalize_for_detection: bool,
 ) -> Vec<PiiEntity> {
     let entities: Vec<PiiEntity> = entities
         .iter()
@@ -486,14 +555,30 @@ pub(crate) fn merge_decoded(
             detector_sources: None,
         })
         .collect();
-    merge_entities_with_semantic_units(&entities, text, PiiMergeOptions::default())
+    merge_entities_with_semantic_units(
+        &entities,
+        text,
+        PiiMergeOptions {
+            normalize_for_detection,
+            ..PiiMergeOptions::default()
+        },
+    )
 }
 
-/// Add `pii_merged_entities` to a document payload when a merge was requested.
+/// Add `pii_merged_entities` to a document payload when a merge was requested,
+/// and `aggregation` when a non-default entity aggregation was used (default
+/// payloads stay byte-identical).
 pub(crate) fn with_merged(
     mut payload: serde_json::Value,
     merged: Option<Vec<PiiEntity>>,
+    aggregation: Option<crate::token_windows::EntityAggregation>,
 ) -> serde_json::Value {
+    if let (Some(aggregation), Some(object)) = (aggregation, payload.as_object_mut()) {
+        object.insert(
+            "aggregation".to_owned(),
+            serde_json::to_value(aggregation).unwrap_or_default(),
+        );
+    }
     if let (Some(merged), Some(object)) = (merged, payload.as_object_mut()) {
         object.insert(
             "pii_merged_entities".to_owned(),
@@ -682,6 +767,71 @@ mod tests {
         assert_eq!(
             merge_entities_with_semantic_units(&[], text, PiiMergeOptions::default()).len(),
             1
+        );
+    }
+
+    #[test]
+    fn detection_normalization_maps_native_digits_back_to_the_source() {
+        let (n, spans) = normalize_for_detection("٠١/١٥/١٩٧٠ ﬁ");
+        assert_eq!(n, "01/15/1970 fi");
+        assert_eq!(spans.len(), n.chars().count());
+        assert_eq!(spans[11], (11, 12), "both ligature chars map to it");
+        assert_eq!(spans[12], (11, 12));
+
+        // Unicode `\d` already matches native digits, so an Arabic-Indic date
+        // is found either way; with normalization it maps back to the same
+        // source span.
+        let text = "تاريخ الميلاد DOB: ٠١/١٥/١٩٧٠";
+        let start = text.chars().position(|c| c == '٠').unwrap();
+        for normalize in [false, true] {
+            let units = if normalize {
+                normalized_semantic_units(text)
+            } else {
+                find_semantic_units(text)
+            };
+            let date = units.iter().find(|u| u.entity_type == "date").unwrap();
+            assert_eq!((date.start, date.end), (start, start + 10), "{normalize}");
+        }
+
+        // Validators read ASCII digits: a fullwidth SSN only validates on the
+        // folded form.
+        let fw = "SSN １２３-４５-６７８９";
+        let plain = find_semantic_units(fw);
+        assert!(
+            !plain
+                .iter()
+                .find(|u| u.entity_type == "ssn")
+                .unwrap()
+                .validated
+        );
+        let units = normalized_semantic_units(fw);
+        let ssn = units.iter().find(|u| u.entity_type == "ssn").unwrap();
+        assert!(ssn.validated);
+        assert_eq!(
+            fw.chars()
+                .skip(ssn.start)
+                .take(ssn.end - ssn.start)
+                .collect::<String>(),
+            "１２３-４５-６７８９"
+        );
+
+        // Fullwidth Latin letters miss ASCII classes such as the IBAN's
+        // `[A-Z]` unless normalized.
+        let iban = "IBAN ＧＢ８２ＷＥＳＴ１２３４５６９８７６５４３２";
+        let has_iban = |units: &[SemanticUnit]| units.iter().any(|u| u.entity_type == "iban");
+        assert!(!has_iban(&find_semantic_units(iban)));
+        assert!(has_iban(&normalized_semantic_units(iban)));
+        let merged = merge_entities_with_semantic_units(
+            &[],
+            iban,
+            PiiMergeOptions {
+                normalize_for_detection: true,
+                ..PiiMergeOptions::default()
+            },
+        );
+        assert!(
+            merged.iter().any(|e| e.text.starts_with('Ｇ')),
+            "{merged:?}"
         );
     }
 

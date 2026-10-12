@@ -117,6 +117,31 @@ pub struct PackEvaluationRequest {
     pub zero_shot_labels: Option<Vec<String>>,
 }
 
+/// One prepared model held in a Core residency pool (Spec 103).
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct ResidentModelView {
+    /// `tract_onnx`, `candle_token_classifier` or `candle_gliner`.
+    pub runtime: String,
+    pub content_digest: DigestSha256,
+    /// Admitted Packs with this content digest.
+    pub pack_ids: Vec<OpaqueId>,
+    /// Budgeted size (the model artifact bytes).
+    pub resident_bytes: u64,
+    pub pinned: bool,
+}
+
+/// Prepared models resident in Core (`PacksResidency`, `PacksUnloadLocal`).
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct PackResidencyView {
+    /// Byte budget of each runtime's pool.
+    pub budget_bytes_per_pool: u64,
+    pub models: Vec<ResidentModelView>,
+    /// Content digests unloaded by this request (empty for a listing).
+    pub unloaded: Vec<DigestSha256>,
+}
+
 /// Evidence-only output from a local admitted model runtime.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]

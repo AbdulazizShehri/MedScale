@@ -441,6 +441,20 @@ enum PacksCmd {
         #[arg(long, default_value_t = 20)]
         limit: usize,
     },
+    /// Runnable format variants of a catalog model, best first for this host
+    /// (or `--host apple_silicon|other`). Read-only; no network access.
+    Variants {
+        #[arg(long)]
+        snapshot: PathBuf,
+        #[arg(long)]
+        commit: String,
+        #[arg(long, default_value = "maziyarpanahi/openmed")]
+        repository: String,
+        #[arg(long)]
+        repo_id: String,
+        #[arg(long)]
+        host: Option<String>,
+    },
     /// Verify a locally supplied Hugging Face snapshot against its catalog row,
     /// build a signed Pack and admit it (Spec 103; no network access).
     AdmitSnapshot {
@@ -1268,6 +1282,23 @@ fn run() -> Result<()> {
                     },
                 )?;
                 println!("{}", serde_json::to_string_pretty(&view)?);
+                Ok(())
+            }
+            PacksCmd::Variants {
+                snapshot,
+                commit,
+                repository,
+                repo_id,
+                host,
+            } => {
+                let variants = medscale_core::model_catalog::catalog_variants(
+                    &snapshot,
+                    &repository,
+                    &commit,
+                    &repo_id,
+                    host.as_deref(),
+                )?;
+                println!("{}", serde_json::to_string_pretty(&variants)?);
                 Ok(())
             }
             PacksCmd::AdmitSnapshot {

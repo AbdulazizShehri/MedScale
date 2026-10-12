@@ -28,7 +28,8 @@ use tokenizers::Tokenizer;
 use crate::RuntimeOutput;
 use crate::onnx_runtime::{OnnxRuntimeError, select_artifact};
 use crate::token_windows::{
-    BestContextVotes, WindowError, decode_entities, default_stride, plan_windows,
+    BestContextVotes, EntityAggregation, WindowError, decode_entities_by_word, default_stride,
+    plan_windows,
 };
 
 pub const CANDLE_TOKEN_CLASSIFIER_RUNTIME_ID: &str = "candle_safetensors_token_classification_v1";
@@ -186,6 +187,13 @@ pub struct CandleRunOptions {
     pub stride: Option<usize>,
     /// Also report OpenMed's semantic-unit PII merge (`pii_merged_entities`).
     pub pii_semantic_merge: bool,
+    /// Sub-token to entity aggregation; the default reproduces OpenMed's
+    /// ONNX decoder (see [`EntityAggregation`]).
+    pub aggregation: EntityAggregation,
+    /// With `pii_semantic_merge`: match the PII patterns on detection-
+    /// normalized text (NFKC, native digits folded; see
+    /// [`crate::normalize_for_detection`]).
+    pub pii_normalize_for_detection: bool,
 }
 
 impl Default for CandleRunOptions {
@@ -194,6 +202,8 @@ impl Default for CandleRunOptions {
             threshold: 0.0,
             stride: None,
             pii_semantic_merge: false,
+            aggregation: EntityAggregation::OpenMedOnnx,
+            pii_normalize_for_detection: false,
         }
     }
 }
@@ -542,10 +552,23 @@ impl PreparedCandleTokenClassifier {
             )?;
         }
         let tokens = votes.finish()?;
-        let entities = decode_entities(&tokens, &self.labels, input, options.threshold);
-        let pii_merged = options
-            .pii_semantic_merge
-            .then(|| crate::pii_merge::merge_decoded(&entities, input));
+        let word_ids: Vec<Option<u32>> = content
+            .iter()
+            .map(|&i| encoding.get_word_ids()[i])
+            .collect();
+        let entities = decode_entities_by_word(
+            &tokens,
+            &word_ids,
+            &self.labels,
+            input,
+            options.threshold,
+            options.aggregation,
+        );
+        let pii_merged = options.pii_semantic_merge.then(|| {
+            crate::pii_merge::merge_decoded(&entities, input, options.pii_normalize_for_detection)
+        });
+        let aggregation =
+            (options.aggregation != EntityAggregation::OpenMedOnnx).then_some(options.aggregation);
         Ok(RuntimeOutput {
             proposal_payload: crate::pii_merge::with_merged(
                 json!({
@@ -569,6 +592,7 @@ impl PreparedCandleTokenClassifier {
                     "note": "Proposal/evaluation evidence only; never ClinicalAssertion",
                 }),
                 pii_merged,
+                aggregation,
             ),
             evidence_only: true,
             pack_id: pack_id.clone(),

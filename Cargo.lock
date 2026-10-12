@@ -4029,6 +4029,7 @@ dependencies = [
  "tokenizers",
  "tract-nnef",
  "tract-onnx",
+ "unicode-normalization",
 ]
 
 [[package]]

@@ -354,6 +354,12 @@ impl ModelCatalog {
         self.rows.is_empty()
     }
 
+    /// Every row, sorted by repository id.
+    #[must_use]
+    pub fn rows(&self) -> &[CatalogRow] {
+        &self.rows
+    }
+
     pub fn get(&self, repo_id: &str) -> Option<&CatalogRow> {
         self.rows
             .binary_search_by(|r| r.repo_id.as_str().cmp(repo_id))
