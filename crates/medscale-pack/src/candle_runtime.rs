@@ -45,6 +45,7 @@ pub const CANDLE_ARCHITECTURES: &[&str] = &[
     "xlm-roberta",
     "deberta-v2",
     "modernbert",
+    "longformer",
 ];
 
 /// Fail-closed errors. Input text is never embedded in an error.
@@ -301,6 +302,16 @@ fn build(
                 max_positions.saturating_sub(2),
             )
         }
+        "longformer" => (
+            Encoder::Roberta(Box::new(
+                xlm_roberta::XLMRobertaModel::new(
+                    &serde_json::from_value(config.clone()).map_err(parse("longformer"))?,
+                    vb.pp("longformer"),
+                )
+                .map_err(prepare_err)?,
+            )),
+            longformer_exact_window(config)?.min(max_positions.saturating_sub(2)),
+        ),
         "deberta-v2" => {
             let cfg: debertav2::Config =
                 serde_json::from_value(config.clone()).map_err(parse("deberta-v2"))?;
@@ -371,6 +382,47 @@ fn legacy_layer_norm_key(name: &str) -> String {
     } else {
         name.to_owned()
     }
+}
+
+/// Longest sequence for which Longformer equals full self-attention.
+///
+/// Hugging Face `LongformerForTokenClassification` gives no token global
+/// attention by default, and each token attends to keys within the one-sided
+/// window (`attention_window / 2`). When every pair of positions is within
+/// that distance, i.e. at most `attention_window / 2 + 1` tokens including
+/// the special tokens, sliding-window attention is exactly full attention
+/// with the same `query`/`key`/`value` projections, so the RoBERTa-shaped
+/// encoder reproduces it; the `*_global` projections are never used.
+/// Documents longer than this run through the usual overlapping windows.
+fn longformer_exact_window(config: &Value) -> Result<usize, CandleRuntimeError> {
+    if config["attention_mode"]
+        .as_str()
+        .is_some_and(|m| m != "longformer")
+    {
+        return Err(CandleRuntimeError::InvalidConfig(
+            "only attention_mode \"longformer\" is supported".into(),
+        ));
+    }
+    let window = &config["attention_window"];
+    let smallest = match window {
+        Value::Number(n) => n.as_u64(),
+        Value::Array(layers) => layers
+            .iter()
+            .map(Value::as_u64)
+            .collect::<Option<Vec<u64>>>()
+            .and_then(|w| w.into_iter().min()),
+        _ => None,
+    }
+    // The runtime's smallest window is 8 tokens; a smaller exact bound would
+    // be widened and lose exactness, so it is refused instead.
+    .filter(|w| *w >= 14 && w % 2 == 0)
+    .ok_or_else(|| {
+        CandleRuntimeError::InvalidConfig(
+            "attention_window must be an even size of at least 14".into(),
+        )
+    })?;
+    usize::try_from(smallest / 2 + 1)
+        .map_err(|_| CandleRuntimeError::InvalidConfig("attention_window too large".into()))
 }
 
 /// Prepares an admitted Pack that declares the candle runtime, on the Apple
@@ -729,6 +781,137 @@ mod tests {
         assert_eq!(p["token_count"], 24);
         assert_eq!(p["covered_tokens"], 24);
         assert_eq!(p["window_count"], 2);
+    }
+
+    fn tiny_roberta_config(model_type: &str) -> Value {
+        json!({
+            "model_type": model_type,
+            "vocab_size": 8, "hidden_size": 8, "num_hidden_layers": 1,
+            "num_attention_heads": 2, "intermediate_size": 16, "hidden_act": "gelu",
+            "hidden_dropout_prob": 0.0, "attention_probs_dropout_prob": 0.0,
+            "max_position_embeddings": 40, "type_vocab_size": 1,
+            "initializer_range": 0.02, "layer_norm_eps": 1e-5, "pad_token_id": 1,
+            "bos_token_id": 0, "eos_token_id": 2, "position_embedding_type": "absolute",
+            "use_cache": false, "classifier_dropout": null,
+            "attention_window": [16], "attention_mode": "longformer"
+        })
+    }
+
+    /// Tiny RoBERTa-shaped weights saved under `prefix`, plus Longformer's
+    /// unused global-attention projections when `prefix` is `longformer`.
+    fn tiny_roberta_weights(prefix: &str) -> Vec<u8> {
+        let varmap = VarMap::new();
+        let vb = VarBuilder::from_varmap(&varmap, DType::F32, &Device::Cpu);
+        let cfg: xlm_roberta::Config =
+            serde_json::from_value(tiny_roberta_config("roberta")).unwrap();
+        xlm_roberta::XLMRobertaModel::new(&cfg, vb.pp(prefix)).unwrap();
+        candle_nn::linear(8, 2, vb.pp("classifier")).unwrap();
+        if prefix == "longformer" {
+            for name in ["query_global", "key_global", "value_global"] {
+                candle_nn::linear(
+                    8,
+                    8,
+                    vb.pp(format!("longformer.encoder.layer.0.attention.self.{name}")),
+                )
+                .unwrap();
+            }
+        }
+        static NEXT: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
+        let path = std::env::temp_dir().join(format!(
+            "medscale-103-tiny-{prefix}-{}-{}.safetensors",
+            std::process::id(),
+            NEXT.fetch_add(1, std::sync::atomic::Ordering::Relaxed)
+        ));
+        varmap.save(&path).unwrap();
+        let bytes = std::fs::read(&path).unwrap();
+        let _ = std::fs::remove_file(path);
+        bytes
+    }
+
+    /// The same tensors renamed from one prefix to another.
+    fn renamed(bytes: &[u8], from: &str, to: &str) -> Vec<u8> {
+        let tensors = candle_core::safetensors::load_buffer(bytes, &Device::Cpu).unwrap();
+        let renamed: std::collections::HashMap<String, Tensor> = tensors
+            .into_iter()
+            .filter(|(k, _)| !k.contains("_global"))
+            .map(|(k, v)| (k.replacen(from, to, 1), v))
+            .collect();
+        static NEXT: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
+        let path = std::env::temp_dir().join(format!(
+            "medscale-103-renamed-{}-{}.safetensors",
+            std::process::id(),
+            NEXT.fetch_add(1, std::sync::atomic::Ordering::Relaxed)
+        ));
+        candle_core::safetensors::save(&renamed, &path).unwrap();
+        let out = std::fs::read(&path).unwrap();
+        let _ = std::fs::remove_file(path);
+        out
+    }
+
+    #[test]
+    fn longformer_runs_exactly_as_roberta_within_its_one_sided_window() {
+        let weights = tiny_roberta_weights("longformer");
+        let prepare = |config: Value, weights: Vec<u8>| {
+            prepare_from_bytes(
+                DigestSha256::of(b"tiny-longformer"),
+                provenance(),
+                config.to_string().as_bytes(),
+                weights,
+                TOKENIZER.as_bytes(),
+                br#"["O","ENTITY"]"#,
+                CandleDevicePreference::Cpu,
+            )
+        };
+        let longformer = prepare(tiny_roberta_config("longformer"), weights.clone()).unwrap();
+        assert_eq!(longformer.model_type(), "longformer");
+        // attention_window 16: one-sided 8, so at most 9 tokens per window.
+        assert_eq!(longformer.window(), 9);
+        let roberta = prepare(
+            tiny_roberta_config("roberta"),
+            renamed(&weights, "longformer.", "roberta."),
+        )
+        .unwrap();
+        // A text that fits one Longformer window gives identical output.
+        let text = "alice visited";
+        let run = |p: &PreparedCandleTokenClassifier| {
+            p.run_document(&OpaqueId::new("p"), text, CandleRunOptions::default())
+                .unwrap()
+                .proposal_payload["entities"]
+                .clone()
+        };
+        assert_eq!(run(&longformer), run(&roberta));
+        // Longer documents are covered by overlapping exact windows.
+        let long = "alice visited clinic today bob called alice visited ".repeat(2);
+        let out = longformer
+            .run_document(&OpaqueId::new("p"), &long, CandleRunOptions::default())
+            .unwrap();
+        assert_eq!(out.proposal_payload["covered_tokens"], 16);
+        assert!(out.proposal_payload["window_count"].as_u64().unwrap() > 1);
+    }
+
+    #[test]
+    fn longformer_configs_outside_the_exact_contract_are_refused() {
+        for bad in [
+            json!({"attention_mode": "n2"}),
+            json!({"attention_window": 7}),
+            json!({"attention_window": 12}),
+            json!({"attention_window": []}),
+            json!({"attention_window": "512"}),
+        ] {
+            let mut config = tiny_roberta_config("longformer");
+            for (k, v) in bad.as_object().unwrap() {
+                config[k] = v.clone();
+            }
+            assert!(matches!(
+                longformer_exact_window(&config),
+                Err(CandleRuntimeError::InvalidConfig(_))
+            ));
+        }
+        assert_eq!(
+            longformer_exact_window(&json!({"attention_window": [512, 256]})).unwrap(),
+            129,
+            "the smallest layer window bounds the exact sequence"
+        );
     }
 
     #[test]

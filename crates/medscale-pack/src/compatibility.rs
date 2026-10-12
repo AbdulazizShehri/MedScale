@@ -155,6 +155,15 @@ pub const EXECUTED_MODELS: &[ExecutedModel] = &[
         weight_file: "model_fp16.onnx",
         evidence_run: "38301622121",
     },
+    // Clinical Longformer on the exact candle local-window path; entities
+    // match Hugging Face LongformerForTokenClassification (run 38300309054).
+    ExecutedModel {
+        repo_id: "OpenMed/OpenMed-PII-ClinicalLongformer-Base-149M-v1",
+        revision: "ade4412daadbae377eda99f73e107557d15d31c0",
+        runtime: "candle_safetensors",
+        weight_file: "model.safetensors",
+        evidence_run: "38300309054",
+    },
     // The remaining QwenMed PII rows, int8 export (run 38260759126).
     ExecutedModel {
         repo_id: "OpenMed/OpenMed-PII-Dutch-QwenMed-XLarge-600M-v1-onnx-android",
@@ -468,7 +477,7 @@ pub const SAFETENSORS_KNOWN_UNSUPPORTED: &[(&str, &str)] = &[
 pub const KNOWN_UNSUPPORTED_FAMILIES: &[(&str, &str)] = &[
     (
         "longformer",
-        "Longformer: tract 0.22.4 fails in Gather when running the ONNX export at 512 and 1024 tokens, after the omitted Pad input is dropped (run 38172472172; at 128 tokens the export reshapes to a 512-token window, run 38152456058), and candle has no Longformer encoder",
+        "Longformer ONNX export: tract 0.22.4 fails in Gather at 512 and 1024 tokens, after the omitted Pad input is dropped (run 38172472172); the PyTorch-format rows run on candle (exact local-window path, run 38300309054)",
     ),
     (
         "privacy-filter",
@@ -646,6 +655,12 @@ fn expectation_without_size(row: &CatalogRow) -> RuntimeExpectation {
         };
     }
     let arch = row.architecture.to_ascii_lowercase();
+    let has_onnx = row.formats.iter().any(|f| f.eq_ignore_ascii_case("onnx"));
+    // Longformer: the ONNX export is blocked on tract, but PyTorch-format
+    // rows run on the exact candle local-window path (Spec 103 T103-19).
+    if arch.contains("longformer") && !has_onnx {
+        return RuntimeExpectation::ExpectedRunnableSafetensors;
+    }
     if let Some((_, reason)) = KNOWN_UNSUPPORTED_FAMILIES
         .iter()
         .find(|(family, _)| arch.contains(family))
@@ -818,13 +833,29 @@ mod tests {
     }
 
     #[test]
+    fn longformer_pytorch_rows_run_on_candle_while_onnx_rows_stay_blocked() {
+        assert_eq!(
+            runtime_expectation(&row(
+                "token-classification",
+                "openmed-pii-dutch-clinicallongformer-base-149m-v1",
+                r#"["pytorch"]"#
+            )),
+            RuntimeExpectation::ExpectedRunnableSafetensors
+        );
+        assert!(matches!(
+            runtime_expectation(&row(
+                "token-classification",
+                "openmed-pii-dutch-clinicallongformer-base-149m-v1",
+                r#"["onnx"]"#
+            )),
+            RuntimeExpectation::KnownUnsupported { .. }
+        ));
+    }
+
+    #[test]
     fn known_unsupported_families_match_per_repository_architecture_names() {
         for (arch, formats) in [
             ("openmed-pii-clinicallongformer-base-149m-v1", r#"["onnx"]"#),
-            (
-                "openmed-pii-dutch-clinicallongformer-base-149m-v1",
-                r#"["pytorch"]"#,
-            ),
             ("clinical-longformer", r#"["onnx"]"#),
             ("privacy-filter-multilingual-v2", r#"["mlx-fp","pytorch"]"#),
         ] {
