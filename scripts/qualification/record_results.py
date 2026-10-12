@@ -62,6 +62,9 @@ def main() -> int:
             summary.append(f"| {job['name']} | {job['conclusion']} | {(detail or panic)[:200]} |")
             continue
         fields = dict(kv.split("=", 1) for kv in evidence.split()[1:] if "=" in kv)
+        if fields.get("repo") != entry.get("repo"):
+            summary.append(f"| {job['name']} | mismatch | evidence repo {fields.get('repo')} != batch entry {entry.get('repo')} |")
+            continue
         weights, test = entry["weights"], entry["test"]
         runtime = RUNTIME_BY_TEST.get(test)
         if runtime is None:

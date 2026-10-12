@@ -91,12 +91,19 @@ jobs:
           MEDSCALE_HF_ONNX_FILE: ${{ matrix.weights }}
           MEDSCALE_SAMPLE_TEXT: ${{ matrix.text }}
           MEDSCALE_ZS_LABELS: ${{ matrix.labels }}
+          # Batch fields reach the shell only through the environment.
+          ENTRY_ID: ${{ matrix.id }}
+          ENTRY_TEST: ${{ matrix.test }}
         run: |
           set -o pipefail
+          case "$ENTRY_TEST" in
+            openmed_snapshot_external_103|safetensors_external_104|gliner_external_104) ;;
+            *) echo "unknown batch test: $ENTRY_TEST" >&2; exit 1 ;;
+          esac
           export MEDSCALE_HF_SNAPSHOT_DIR="$SNAPSHOT_DIR"
-          cargo test --release --locked -p medscale-pack --test "${{ matrix.test }}" \
+          cargo test --release --locked -p medscale-pack --test "$ENTRY_TEST" \
             -- --ignored --nocapture 2>&1 | tee qualification.log
-          echo "BATCH_ENTRY id=${{ matrix.id }} weights=${{ matrix.weights }} test=${{ matrix.test }}" >> qualification.log
+          echo "BATCH_ENTRY id=$ENTRY_ID weights=$MEDSCALE_HF_ONNX_FILE test=$ENTRY_TEST" >> qualification.log
           grep -E '^(SNAPSHOT_EVIDENCE|BATCH_ENTRY)' qualification.log >> "$GITHUB_STEP_SUMMARY"
 
       - name: Keep the log (no weights)
