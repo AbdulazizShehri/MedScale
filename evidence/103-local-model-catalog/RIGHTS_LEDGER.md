@@ -24,12 +24,20 @@ Same method. The safetensors and MLX variants of the four models above (`OpenMed
 | `OpenMed/OpenMed-ZeroShot-NER-Anatomy-Small-166M-mlx` @ `02a3c8ba` (executed; the later head `7762cb19` only fixes card language metadata, card `cefe3f9a9d312c17`) | `d3540a5e99dd9834` | apache-2.0 | `OpenMed/OpenMed-ZeroShot-NER-Anatomy-Small-166M` @ `819e08e6` (apache-2.0; card `639e95b3ad9b72f3`, "Base Model: gliner_small-v2.1") ← `urchade/gliner_small-v2.1` @ `4e091416` | Apache-2.0 | ANATOMY; the GLiNER base names `urchade/pile-mistral-v0.1` |
 | `OpenMed/OpenMed-PII-EuroMed-Large-210M-v1-onnx-android` @ `6f15663a` | `8864c1bce1454636` | apache-2.0 | `OpenMed/OpenMed-PII-EuroMed-Large-210M-v1` @ `a238b9fc` (apache-2.0; card `263533c35e302924`) ← `EuroBERT/EuroBERT-210m` @ `39b51e15` | Apache-2.0 | `nvidia/Nemotron-PII` (`b70ffaf5`, Hub license CC-BY-4.0) |
 | `OpenMed/OpenMed-PII-Chinese-QwenMed-XLarge-600M-v1-onnx-android` @ `0f9550e4` (`model_int8.onnx`) | `f28e30d25b955cff` | apache-2.0 | `OpenMed/OpenMed-PII-Chinese-QwenMed-XLarge-600M-v1` @ `b230cdde` (apache-2.0; card `ce3d9310f2327558`) ← `Qwen/Qwen3-Embedding-0.6B` @ `97b0c614` | Apache-2.0 | `ai4privacy/pii-masking-200k` (`7c22e681`, no Hub license tag) plus synthetic Chinese PII |
+| `OpenMed/OpenMed-NER-AnatomyDetect-BioMed-109M` @ `49bedb87` | `b125ba65d53c2b14` | apache-2.0 | base model not declared in Hub metadata (config `bert`) | not declared | ANATOMY |
+| `OpenMed/OpenMed-NER-ChemicalDetect-SuperMedical-355M` @ `ee4f7b5d` | `b95d6ffce2376ed9` | apache-2.0 | base model not declared in Hub metadata (config `roberta`) | not declared | BC4CHEMD |
+| `OpenMed/OpenMed-NER-GenomicDetect-SuperClinical-184M` @ `3d01b67e` | `91e9f2a5c75003c7` | apache-2.0 | base model not declared in Hub metadata (config `deberta-v2`) | not declared | GELLUS |
+| `OpenMed/OpenMed-NER-OncologyDetect-BioPatient-108M` @ `6ffc399d` | `e40d811bac1876fc` | apache-2.0 | base model not declared in Hub metadata (config `bert`) | not declared | BioNLP 2013 CG |
+| `OpenMed/OpenMed-NER-ProteinDetect-PubMed-v2-109M` @ `f3877242` | `117aca6e7bc8d9c9` | apache-2.0 | base model not declared in Hub metadata (config `bert`) | not declared | FSU |
+| `OpenMed/OpenMed-NER-SpeciesDetect-ModernMed-395M` @ `8e126e50` | `dbf09299bd6921a8` | apache-2.0 | base model not declared in Hub metadata (config `modernbert`) | not declared | LINNAEUS |
+| `OpenMed/OpenMed-ZeroShot-NER-Disease-Medium-209M-mlx` @ `0c3d802d` | `d29bffb78711ccf1` | apache-2.0 | `OpenMed/OpenMed-ZeroShot-NER-Disease-Medium-209M` @ `9fd7a9da` (apache-2.0; card `caf6665b9c819232`, GLiNER; upstream base model not declared) | not declared | BC5CDR-Disease |
 
 New residuals:
 - **`ai4privacy/pii-masking-400k`** (`414d0a3b`) declares license `other` on the Hub: custom terms. The terms text was **not reviewed** here. The two PII models are recorded as `DATASET_TERMS_UNVERIFIED (custom license)`.
 - **`urchade/pile-mistral-v0.1`** (training data of the GLiNER base): terms **not verified**.
 - **`nvidia/Nemotron-PII`** declares CC-BY-4.0 (attribution required on redistribution of the dataset); its effect on derived weights was not reviewed.
 - **`ai4privacy/pii-masking-200k`** carries no Hub license tag; its terms were **not reviewed**. The QwenMed model is recorded as `DATASET_TERMS_UNVERIFIED`.
+- **Base models not declared:** the six NER rows without a catalog `architecture` field (BioMed-109M, SuperMedical-355M, SuperClinical-184M, BioPatient-108M, PubMed-v2-109M, ModernMed-395M) and the GLiNER Disease-Medium base declare no upstream base model in Hub metadata, so the upstream base license is **not determined**. Their training sets (ANATOMY, BC4CHEMD, GELLUS, BioNLP 2013 CG, FSU, LINNAEUS, BC5CDR-Disease) are `DATASET_TERMS_UNVERIFIED`.
 
 ## Findings
 

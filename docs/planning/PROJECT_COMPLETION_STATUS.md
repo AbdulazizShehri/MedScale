@@ -10,14 +10,16 @@ LAUNCH_UI_FROZEN = FALSE
 
 The founder request promotes [095–100](PRODUCTIZATION_PROGRAM.md). Base 1e2b7d94, CI 36480424698 (6/6). Queue/closure supersede summaries ending 073/075. Drafts 124/125 stay separate. Release/privacy/multi-client readiness remains false and PHI remains unauthorized.
 
-## Spec 103 / 104 model execution — 2026-10-11
+## Spec 103 / 104 model execution — 2026-10-12 (updated after #211–#221)
 
 ```text
 SPEC_103 = IMPLEMENTATION_IN_PROGRESS (repository-owned work done; remaining items are external)
 SPEC_104_NATIVE_SAFETENSORS_RUNTIME = CLOSED_CANONICAL (#198; extended by #203, #208)
-EXECUTED_TESTED_ARCHITECTURES = bert, distilbert, roberta, modernbert, deberta-v2, xlm-roberta
-RUNTIMES = tract ONNX (CPU); candle safetensors and OpenMed MLX exports (CPU; Apple GPU via Metal)
-EXPECTED_RUNNABLE_CATALOG_ROWS = 1702 of 2266 (architecture-level expectation, not per-row tests)
+EXECUTED_TESTED_ARCHITECTURES = bert, distilbert, roberta, modernbert, deberta-v2, xlm-roberta, eurobert, qwen (int8 export)
+EXECUTED_TESTED_ZERO_SHOT = GLiNER uni-encoder span (OpenMed ZeroShot MLX exports, Small and Medium)
+RUNTIMES = tract ONNX (CPU, integrity-checked plan cache); candle safetensors and OpenMed MLX exports (CPU; Apple GPU via Metal); candle GLiNER zero-shot
+EXECUTED_TESTED_CATALOG_ROWS = 25 (row-level recorded runs)
+EXPECTED_RUNNABLE_CATALOG_ROWS = 1727 more (1752 of 2266 executed or expected; architecture-level expectation, not per-row tests)
 TASK_QUALIFIED_MODELS = 0
 CLINICALLY_VALIDATED_MODELS = 0
 RELEASE_READY = FALSE
@@ -39,14 +41,16 @@ The full lifecycle runs with real OpenMed v3.0.0 models on free GitHub runners. 
 
 Remaining, each with its cause:
 - the Models UI and the desktop parts of #182: blocked by F096-T01;
-- GLiNER zero-shot: pickle-only upstream weights;
+- GLiNER zero-shot: the 91 PyTorch rows ship pickle only, and the Base and Large MLX exports exceed the 1 GiB Pack bound (the Small and Medium MLX exports run);
+- Clinical Longformer: tract prepares the export after the omitted-`Pad` rewrite but panics in `Gather` (contained); candle has no Longformer encoder;
+- privacy-filter: 1.49–2.80 GB, over the 1 GiB Pack bound;
 - XLM-R NER exports: defective upstream tokenizers;
 - PyTorch-format and MLX XLM-R: over the 1 GiB Pack bound, and raising it is a founder decision;
 - quantized MLX: not supported;
 - ONNX Runtime: evaluated, not admitted;
 - Android and WebGPU: MedScale has no such product surfaces;
-- multimodal models: not started;
-- the first DeBERTa-v2 prepare on tract is non-interactive (root cause recorded; the candle path prepares the same model in about 3 s);
+- generative and multimodal models: not started (outside token classification; 1.3–20.6 GB);
+- the first DeBERTa-v2 prepare on tract per machine is non-interactive (about 11–13 minutes); later prepares take about 3 s from the plan cache, and the candle path prepares the same model in about 3 s;
 - task qualification and clinical validation: not performed.
 
 See [external gates](EXTERNAL_GATES.md).
