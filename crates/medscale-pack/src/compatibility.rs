@@ -41,6 +41,91 @@ pub struct ExecutedModel {
 /// Per-model execution evidence (rows, not architectures). Synthetic text
 /// only: this records that the model runs, not task quality.
 pub const EXECUTED_MODELS: &[ExecutedModel] = &[
+    // The remaining QwenMed PII rows, int8 export (run 38260759126).
+    ExecutedModel {
+        repo_id: "OpenMed/OpenMed-PII-Dutch-QwenMed-XLarge-600M-v1-onnx-android",
+        revision: "b23b67ba6797bd57fe43ab5c74dbb02370261970",
+        runtime: "tract_onnx",
+        weight_file: "model_int8.onnx",
+        evidence_run: "38260759126",
+    },
+    ExecutedModel {
+        repo_id: "OpenMed/OpenMed-PII-French-QwenMed-XLarge-600M-v1-onnx-android",
+        revision: "ab281a758ae9713c53e1b230342ef52e5ab4e053",
+        runtime: "tract_onnx",
+        weight_file: "model_int8.onnx",
+        evidence_run: "38260759126",
+    },
+    ExecutedModel {
+        repo_id: "OpenMed/OpenMed-PII-German-QwenMed-XLarge-600M-v1-onnx-android",
+        revision: "236025090d28429f45664edd8b43bc8fd4903511",
+        runtime: "tract_onnx",
+        weight_file: "model_int8.onnx",
+        evidence_run: "38260759126",
+    },
+    ExecutedModel {
+        repo_id: "OpenMed/OpenMed-PII-Hindi-QwenMed-XLarge-600M-v1-onnx-android",
+        revision: "8eb77f446e812328a8c461526e03a2f195f7216e",
+        runtime: "tract_onnx",
+        weight_file: "model_int8.onnx",
+        evidence_run: "38260759126",
+    },
+    ExecutedModel {
+        repo_id: "OpenMed/OpenMed-PII-Italian-QwenMed-XLarge-600M-v1-onnx-android",
+        revision: "cb463fd8f72a1340fbf81f49be9adb4c50c17ebf",
+        runtime: "tract_onnx",
+        weight_file: "model_int8.onnx",
+        evidence_run: "38260759126",
+    },
+    ExecutedModel {
+        repo_id: "OpenMed/OpenMed-PII-Japanese-QwenMed-XLarge-600M-v1-onnx-android",
+        revision: "2652ad2ff21b8ff9bed70028617a5e034dd618d9",
+        runtime: "tract_onnx",
+        weight_file: "model_int8.onnx",
+        evidence_run: "38260759126",
+    },
+    ExecutedModel {
+        repo_id: "OpenMed/OpenMed-PII-Korean-QwenMed-XLarge-600M-v1-onnx-android",
+        revision: "d15e599e481265938fd8e49a8a10b4ae4ca91f16",
+        runtime: "tract_onnx",
+        weight_file: "model_int8.onnx",
+        evidence_run: "38260759126",
+    },
+    ExecutedModel {
+        repo_id: "OpenMed/OpenMed-PII-Portuguese-QwenMed-XLarge-600M-v1-onnx-android",
+        revision: "b9b80f6b92aa18d5726de026b0555c6bdf34daa3",
+        runtime: "tract_onnx",
+        weight_file: "model_int8.onnx",
+        evidence_run: "38260759126",
+    },
+    ExecutedModel {
+        repo_id: "OpenMed/OpenMed-PII-QwenMed-XLarge-600M-v1-onnx-android",
+        revision: "e47526af75653006cb2ae0200dd271c733dacba0",
+        runtime: "tract_onnx",
+        weight_file: "model_int8.onnx",
+        evidence_run: "38260759126",
+    },
+    ExecutedModel {
+        repo_id: "OpenMed/OpenMed-PII-Spanish-QwenMed-XLarge-600M-v1-onnx-android",
+        revision: "e4c4c8aa8c55089bfa26b337dc8257356031e58f",
+        runtime: "tract_onnx",
+        weight_file: "model_int8.onnx",
+        evidence_run: "38260759126",
+    },
+    ExecutedModel {
+        repo_id: "OpenMed/OpenMed-PII-Telugu-QwenMed-XLarge-600M-v1-onnx-android",
+        revision: "19ad9f710bb9d442a745abbfea7030115c7fd187",
+        runtime: "tract_onnx",
+        weight_file: "model_int8.onnx",
+        evidence_run: "38260759126",
+    },
+    ExecutedModel {
+        repo_id: "OpenMed/OpenMed-PII-Turkish-QwenMed-XLarge-600M-v1-onnx-android",
+        revision: "d796a5e3366f65fa26e4a857bbfc010f800b7213",
+        runtime: "tract_onnx",
+        weight_file: "model_int8.onnx",
+        evidence_run: "38260759126",
+    },
     // Catalog rows without an `architecture` field; their `config.json`
     // declares bert, roberta, deberta-v2 or modernbert (run 38163293053).
     ExecutedModel {
