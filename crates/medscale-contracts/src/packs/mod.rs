@@ -111,6 +111,10 @@ pub struct PackEvaluationRequest {
     pub max_tokens: u32,
     /// Spec 069 remains synthetic-only; real PHI requires a later explicit gate.
     pub synthetic_only: bool,
+    /// Spec 104: entity types for a GLiNER zero-shot Pack (1 to 64). Required
+    /// for zero-shot Packs and refused for token-classification Packs.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub zero_shot_labels: Option<Vec<String>>,
 }
 
 /// Evidence-only output from a local admitted model runtime.

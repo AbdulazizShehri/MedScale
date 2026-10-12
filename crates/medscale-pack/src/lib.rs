@@ -6,6 +6,9 @@ mod compatibility;
 mod format;
 mod fp16_widen;
 mod gliner_runtime;
+#[cfg(feature = "synthetic-fixtures")]
+#[doc(hidden)]
+pub use gliner_runtime::fixtures as gliner_fixtures;
 mod hf_snapshot;
 pub mod identifier_validators;
 mod mesc_verify;
@@ -34,8 +37,9 @@ pub use compatibility::{
 };
 pub use format::{admit_pack_dir, forbidden_reason};
 pub use gliner_runtime::{
-    GLINER_SPAN_FAMILY, GlinerRuntimeError, PreparedGlinerSpanModel, ZeroShotEntity,
-    is_gliner_span_export, prepare_gliner_span_model,
+    GLINER_DEFAULT_THRESHOLD, GLINER_SPAN_FAMILY, GLINER_ZERO_SHOT_RUNTIME_ID, GlinerRuntimeError,
+    PreparedGlinerSpanModel, ZeroShotEntity, is_gliner_span_export, pack_is_gliner_span,
+    prepare_gliner_span_model,
 };
 pub use hf_snapshot::{
     HfRepoMetadata, HfSibling, SnapshotError, TokenClassifierSnapshot, build_token_classifier_pack,

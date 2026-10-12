@@ -31,7 +31,7 @@ pub struct ExecutedModel {
     pub repo_id: &'static str,
     /// Hub commit the evidence ran against.
     pub revision: &'static str,
-    /// `tract_onnx`, `candle_safetensors` or `candle_mlx`.
+    /// `tract_onnx`, `candle_safetensors`, `candle_mlx` or `candle_gliner`.
     pub runtime: &'static str,
     pub weight_file: &'static str,
     /// GitHub Actions run id of the qualification evidence.
@@ -41,6 +41,21 @@ pub struct ExecutedModel {
 /// Per-model execution evidence (rows, not architectures). Synthetic text
 /// only: this records that the model runs, not task quality.
 pub const EXECUTED_MODELS: &[ExecutedModel] = &[
+    // GLiNER zero-shot MLX exports (Spec 104), run with synthetic labels.
+    ExecutedModel {
+        repo_id: "OpenMed/OpenMed-ZeroShot-NER-Anatomy-Small-166M-mlx",
+        revision: "02a3c8ba849c2ddcd5f994ce882df2418abbd02e",
+        runtime: "candle_gliner",
+        weight_file: "weights.safetensors",
+        evidence_run: "38161626788",
+    },
+    ExecutedModel {
+        repo_id: "OpenMed/OpenMed-ZeroShot-NER-Disease-Medium-209M-mlx",
+        revision: "0c3d802dcba6c88afa3fd6b6451216b4d56c1b1a",
+        runtime: "candle_gliner",
+        weight_file: "weights.safetensors",
+        evidence_run: "38163323960",
+    },
     ExecutedModel {
         repo_id: "OpenMed/OpenMed-PII-EuroMed-Large-210M-v1-onnx-android",
         revision: "6f15663a6e6f863792f9ad7ef1725552c703dabb",
@@ -219,6 +234,11 @@ pub enum RuntimeExpectation {
     /// run; still unverified for this row (its weights may be pickle-only,
     /// which acquisition refuses).
     ExpectedRunnableSafetensors,
+    /// OpenMed zero-shot MLX export (GLiNER uni-encoder span, Spec 104) in a
+    /// tier whose weights fit the 1 GiB Pack bound. Expected to run through
+    /// the GLiNER runtime with caller-supplied labels; still unverified for
+    /// this row.
+    ExpectedRunnableZeroShot,
     /// No runnable artifact is listed (for example MLX only).
     NoOnnxArtifact,
     /// The task is not token classification.
@@ -236,9 +256,21 @@ fn mlx_expectation(row: &CatalogRow, arch: &str) -> RuntimeExpectation {
             reason: "quantized MLX exports change tensor contents and are not supported".into(),
         };
     }
-    // Zero-shot repositories use span heads, not token-classification heads.
+    // Zero-shot repositories use GLiNER span heads (Spec 104). In OpenMed
+    // v3.0.0 the Small (611 MB) and Medium (781 MB) exports fit the Pack
+    // bound; the untiered Base (1.16 GB) and Large (1.78 GB) ones do not.
     if row.repo_id.contains("ZeroShot") {
-        return RuntimeExpectation::Untested;
+        if arch != "deberta-v2" {
+            return RuntimeExpectation::Untested;
+        }
+        return match row.tier.as_deref() {
+            Some(t) if t.eq_ignore_ascii_case("small") || t.eq_ignore_ascii_case("medium") => {
+                RuntimeExpectation::ExpectedRunnableZeroShot
+            }
+            _ => RuntimeExpectation::KnownUnsupported {
+                reason: "zero-shot MLX exports outside the Small and Medium tiers are 1.16-1.78 GB, over the 1 GiB Pack bound".into(),
+            },
+        };
     }
     if let Some((_, reason)) = SAFETENSORS_KNOWN_UNSUPPORTED
         .iter()
@@ -427,6 +459,49 @@ mod tests {
                 task: "text-generation".into()
             }
         );
+    }
+
+    #[test]
+    fn zero_shot_mlx_rows_follow_tier_size_evidence() {
+        let zs = |repo: &str, tier: &str| {
+            let tier = if tier.is_empty() {
+                "null".to_owned()
+            } else {
+                format!("\"{tier}\"")
+            };
+            let line = format!(
+                r#"{{"repo_id":"{repo}","family":"ZeroShot","task":"token-classification","tier":{tier},"architecture":"deberta-v2","formats":["mlx-fp","pytorch"],"license":"apache-2.0"}}"#
+            );
+            let catalog = ModelCatalog::import("s/f", COMMIT, line.as_bytes()).unwrap();
+            runtime_expectation(catalog.get(repo).unwrap())
+        };
+        assert_eq!(
+            zs(
+                "OpenMed/OpenMed-ZeroShot-NER-Pharma-Small-166M-mlx",
+                "Small"
+            ),
+            RuntimeExpectation::ExpectedRunnableZeroShot
+        );
+        assert_eq!(
+            zs(
+                "OpenMed/OpenMed-ZeroShot-NER-Pharma-Medium-209M-mlx",
+                "Medium"
+            ),
+            RuntimeExpectation::ExpectedRunnableZeroShot
+        );
+        for tier in ["Large", ""] {
+            assert!(matches!(
+                zs("OpenMed/OpenMed-ZeroShot-NER-Pharma-X-mlx", tier),
+                RuntimeExpectation::KnownUnsupported { .. }
+            ));
+        }
+        assert!(matches!(
+            zs(
+                "OpenMed/OpenMed-ZeroShot-NER-Disease-Medium-209M-mlx",
+                "Medium"
+            ),
+            RuntimeExpectation::ExecutedTested { .. }
+        ));
     }
 
     #[test]

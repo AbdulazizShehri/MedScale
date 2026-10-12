@@ -58,6 +58,7 @@ fn candle_pack_evaluates_through_core_with_a_resident_cache() {
                         input: "alice visited clinic today".to_owned(),
                         max_tokens: 16,
                         synthetic_only: true,
+                        zero_shot_labels: None,
                     },
                 },
             ))
@@ -93,6 +94,7 @@ fn candle_pack_evaluates_through_core_with_a_resident_cache() {
                 input: "alice".to_owned(),
                 max_tokens: 16,
                 synthetic_only: false,
+                zero_shot_labels: None,
             },
         },
     ));

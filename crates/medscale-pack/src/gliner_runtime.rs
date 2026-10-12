@@ -37,6 +37,11 @@ use crate::onnx_runtime::{OnnxRuntimeError, select_artifact};
 
 /// OpenMed family of the supported zero-shot exports.
 pub const GLINER_SPAN_FAMILY: &str = "gliner-uni-encoder-span";
+/// Runtime identity reported for GLiNER zero-shot evaluations. Packs still
+/// declare the candle runtime; this names the zero-shot head on top of it.
+pub const GLINER_ZERO_SHOT_RUNTIME_ID: &str = "candle_gliner_zero_shot_v1";
+/// OpenMed's default zero-shot score threshold.
+pub const GLINER_DEFAULT_THRESHOLD: f32 = 0.5;
 const MAX_INPUT_BYTES: usize = 65_536;
 const MAX_TOKENS: usize = 512;
 const MAX_LABELS: usize = 64;
@@ -346,6 +351,23 @@ pub(crate) fn prepare_gliner_from_bytes(
     })
 }
 
+/// True when an admitted candle Pack's verified `config.json` is a GLiNER
+/// span export (artifact digests are checked as for preparation).
+pub fn pack_is_gliner_span(
+    pack_dir: &Path,
+    pack: &PackManifestV0,
+) -> Result<bool, GlinerRuntimeError> {
+    let config = select_artifact(
+        pack_dir,
+        pack,
+        PackArtifactKind::ModelMetadata,
+        Some("config.json"),
+    )?;
+    let config: Value = serde_json::from_slice(&config)
+        .map_err(|e| GlinerRuntimeError::InvalidConfig(e.to_string()))?;
+    Ok(is_gliner_span_export(&config))
+}
+
 /// Prepares an admitted candle Pack whose `config.json` is a GLiNER span
 /// export (CPU; the candle device policy is the token-classification one).
 pub fn prepare_gliner_span_model(
@@ -599,59 +621,22 @@ impl PreparedGlinerSpanModel {
     }
 }
 
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use candle_nn::{Init, VarMap};
+/// Deterministic-shape synthetic GLiNER fixtures (random weights, synthetic
+/// only) for this crate's and downstream tests. Never a real model.
+#[cfg(any(test, feature = "synthetic-fixtures"))]
+#[doc(hidden)]
+pub mod fixtures {
+    use candle_core::{DType, Device};
+    use candle_nn::{Init, VarBuilder, VarMap};
+    use candle_transformers::models::debertav2;
+    use serde_json::{Value, json};
 
-    #[test]
-    fn words_split_like_openmed() {
-        let text = "Type-2 diabetes, e.g. in snake_case; Émile";
-        let words: Vec<String> = split_words(text)
-            .into_iter()
-            .map(|(s, e)| text.chars().skip(s).take(e - s).collect())
-            .collect();
-        assert_eq!(
-            words,
-            [
-                "Type-2",
-                "diabetes",
-                ",",
-                "e",
-                ".",
-                "g",
-                ".",
-                "in",
-                "snake_case",
-                ";",
-                "Émile"
-            ]
-        );
-        assert!(split_words("   ").is_empty());
-    }
-
-    #[test]
-    fn overlaps_keep_the_best_span() {
-        let e = |label: &str, score: f32, start: usize, end: usize| ZeroShotEntity {
-            label: label.into(),
-            score,
-            start,
-            end,
-            text: String::new(),
-        };
-        let kept = suppress_overlaps(vec![
-            e("a", 0.6, 0, 10),
-            e("b", 0.9, 5, 8),
-            e("c", 0.7, 10, 12),
-        ]);
-        let labels: Vec<&str> = kept.iter().map(|x| x.label.as_str()).collect();
-        assert_eq!(labels, ["b", "c"]);
-    }
+    use super::{GLINER_SPAN_FAMILY, backbone_config};
 
     const H: usize = 8;
     const E: usize = 8;
 
-    fn tiny_config() -> Value {
+    pub fn tiny_config() -> Value {
         json!({
             "model_type": "deberta-v2",
             "_mlx_family": GLINER_SPAN_FAMILY,
@@ -665,11 +650,12 @@ mod tests {
             "layer_norm_eps": 1e-7, "relative_attention": true, "max_relative_positions": -1,
             "pad_token_id": 0, "position_biased_input": false, "pos_att_type": ["p2c", "c2p"],
             "position_buckets": 8, "share_att_key": true, "norm_rel_ebd": "layer_norm",
-            "max_width": 3
+            "max_width": 3,
+            "id2label": {"0": "O"}
         })
     }
 
-    fn tiny_tokenizer() -> String {
+    pub fn tiny_tokenizer() -> String {
         let vocab = [
             "[PAD]", "[UNK]", "[CLS]", "[SEP]", "<<ENT>>", "<<SEP>>", "anatomy", "drug", "pain",
             "in", "the", "left", "knee", "aspirin", ".", "today",
@@ -699,7 +685,7 @@ mod tests {
     }
 
     /// Random tiny GLiNER weights written in the OpenMed MLX layout.
-    fn tiny_weights(config: &Value) -> Vec<u8> {
+    pub fn tiny_weights(config: &Value) -> Vec<u8> {
         let varmap = VarMap::new();
         let vb = VarBuilder::from_varmap(&varmap, DType::F32, &Device::Cpu);
         let backbone = backbone_config(config).unwrap();
@@ -754,6 +740,56 @@ mod tests {
         let bytes = std::fs::read(&path).unwrap();
         let _ = std::fs::remove_file(path);
         bytes
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::fixtures::{tiny_config, tiny_tokenizer, tiny_weights};
+    use super::*;
+
+    #[test]
+    fn words_split_like_openmed() {
+        let text = "Type-2 diabetes, e.g. in snake_case; Émile";
+        let words: Vec<String> = split_words(text)
+            .into_iter()
+            .map(|(s, e)| text.chars().skip(s).take(e - s).collect())
+            .collect();
+        assert_eq!(
+            words,
+            [
+                "Type-2",
+                "diabetes",
+                ",",
+                "e",
+                ".",
+                "g",
+                ".",
+                "in",
+                "snake_case",
+                ";",
+                "Émile"
+            ]
+        );
+        assert!(split_words("   ").is_empty());
+    }
+
+    #[test]
+    fn overlaps_keep_the_best_span() {
+        let e = |label: &str, score: f32, start: usize, end: usize| ZeroShotEntity {
+            label: label.into(),
+            score,
+            start,
+            end,
+            text: String::new(),
+        };
+        let kept = suppress_overlaps(vec![
+            e("a", 0.6, 0, 10),
+            e("b", 0.9, 5, 8),
+            e("c", 0.7, 10, 12),
+        ]);
+        let labels: Vec<&str> = kept.iter().map(|x| x.label.as_str()).collect();
+        assert_eq!(labels, ["b", "c"]);
     }
 
     fn provenance() -> ModelSourceProvenance {
