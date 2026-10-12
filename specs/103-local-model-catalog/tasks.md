@@ -37,3 +37,4 @@ Status as of 2026-10-12 (after #211–#221). Capability matrix: [`CAPABILITY_MAT
 - [x] T103-20 Catalog rows with no `architecture` field: six NER rows whose `config.json` declares bert, roberta, deberta-v2 or modernbert executed on candle (run 38163293053), recorded per row.
 - [x] T103-21 Model unload through Core: `PacksResidency` lists prepared models in the tract, candle and GLiNER pools; `PacksUnloadLocal` unloads one Pack's models or every unpinned one (#219).
 - [x] T103-22 Opt-in detection normalization for the PII merger (OpenMed `normalize_for_detection`: NFKC per code point, native digits folded, spans mapped back) (#221).
+- [x] T103-23 All 13 QwenMed PII ONNX rows executed with their int8 export, the only one under the 1 GiB bound (runs 38152456058, 38260759126). Warm single-window runs were 5.7–9.6 s on some runners and about 106 s on others: executable, not interactive on CPU.

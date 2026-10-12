@@ -137,7 +137,7 @@ Computed by `runtime_expectation` (CLI `packs catalog`, paged) at the evidence/d
 
 | Expectation | Rows |
 |---|---|
-| Executed (this exact row, recorded run): candle safetensors 11, tract ONNX 8, candle MLX 4, candle GLiNER 2 | 25 |
+| Executed (this exact row, recorded run): tract ONNX 20, candle safetensors 11, candle MLX 4, candle GLiNER 2 | 37 |
 | Expected runnable via ONNX on tract | 656 |
 | Expected runnable via safetensors on candle | 577 |
 | Expected runnable via MLX `mlx-fp` exports on candle | 470 |
@@ -151,8 +151,8 @@ Computed by `runtime_expectation` (CLI `packs catalog`, paged) at the evidence/d
 | Known unsupported: Qwen PyTorch rows (no candle encoder; int8 ONNX runs) | 13 |
 | Known unsupported: privacy-filter (over the bound) | 13 |
 | Known unsupported: quantized MLX | 1 |
-| Untested: Qwen ONNX rows other than the executed one (only `model_int8.onnx` fits the bound; the expectation does not name a file), one row without metadata | 13 |
+| Untested: one row without metadata | 1 |
 | Task outside token classification (generation, VQA) | 12 |
 
-Executed or expected runnable: **1,752 of 2,266** (was 1,702 on 2026-10-10).
+Executed or expected runnable: **1,764 of 2,266** (was 1,702 on 2026-10-10). All 13 QwenMed PII ONNX rows were executed with `model_int8.onnx` (runs 38152456058, 38260759126); their warm single-window run took 5.7–9.6 s on some runners and about 106 s on others, so they are not interactive on CPU.
 
