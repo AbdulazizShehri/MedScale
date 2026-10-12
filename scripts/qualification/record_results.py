@@ -1,8 +1,9 @@
 """Turn a finished `model-qualification-batch` run into per-row evidence.
 
 Reads each job log of the run (through the GitHub CLI), keeps the jobs that
-succeeded and printed `SNAPSHOT_EVIDENCE` (repository and executed revision)
-and `BATCH_ENTRY` (weight file and test), and prints:
+succeeded and printed `SNAPSHOT_EVIDENCE` (repository and executed revision),
+takes each job's weight file and test from `qualification/batch.json` at the
+run's commit, and prints:
 - Rust `ExecutedModel` entries for `crates/medscale-pack/src/compatibility.rs`;
 - a Markdown summary of every job, failures included, for the evidence record.
 
@@ -36,7 +37,15 @@ def main() -> int:
     parser.add_argument("--repo", default="TheHalfMoon/MedScale")
     args = parser.parse_args()
 
-    jobs = json.loads(gh("run", "view", args.run, "--repo", args.repo, "--json", "jobs"))["jobs"]
+    run = json.loads(gh("run", "view", args.run, "--repo", args.repo, "--json", "jobs,headSha"))
+    jobs = run["jobs"]
+    batch_raw = gh(
+        "api",
+        f"repos/{args.repo}/contents/qualification/batch.json?ref={run['headSha']}",
+        "-H",
+        "Accept: application/vnd.github.raw+json",
+    )
+    batch = {entry["id"]: entry for entry in json.loads(batch_raw)}
     entries, summary = [], []
     for job in jobs:
         if not job["name"].startswith("qualify"):
@@ -45,14 +54,15 @@ def main() -> int:
         log = re.sub(r"\x1b\[[0-9;]*m", "", log)
         lines = [re.sub(r"^\S+Z ", "", l) for l in log.splitlines()]
         evidence = next((l for l in lines if l.startswith("SNAPSHOT_EVIDENCE")), None)
-        entry = next((l for l in lines if l.startswith("BATCH_ENTRY")), None)
-        panic = next((l for l in lines if "panicked" in l or "error:" in l), "")
+        job_id = job["name"].removeprefix("qualify (").removesuffix(")")
+        entry = batch.get(job_id)
+        panic = next((l for l in lines if "panicked" in l or l.startswith("error:")), "")
+        detail = next((l for l in lines if l.startswith(("model must", "called `Result"))), "")
         if job["conclusion"] != "success" or not evidence or not entry:
-            summary.append(f"| {job['name']} | {job['conclusion']} | {panic[:160]} |")
+            summary.append(f"| {job['name']} | {job['conclusion']} | {(detail or panic)[:200]} |")
             continue
         fields = dict(kv.split("=", 1) for kv in evidence.split()[1:] if "=" in kv)
-        meta = dict(kv.split("=", 1) for kv in entry.split()[1:] if "=" in kv)
-        weights, test = meta["weights"], meta["test"]
+        weights, test = entry["weights"], entry["test"]
         runtime = RUNTIME_BY_TEST.get(test)
         if runtime is None:
             runtime = "candle_mlx" if weights == "weights.safetensors" else "candle_safetensors"

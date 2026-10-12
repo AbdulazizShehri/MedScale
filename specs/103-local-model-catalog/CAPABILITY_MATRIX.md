@@ -156,3 +156,17 @@ Computed by `runtime_expectation` (CLI `packs catalog`, paged) at the evidence/d
 
 Executed or expected runnable: **1,764 of 2,266** (was 1,702 on 2026-10-10). All 13 QwenMed PII ONNX rows were executed with `model_int8.onnx` (runs 38152456058, 38260759126); their warm single-window run took 5.7–9.6 s on some runners and about 106 s on others, so they are not interactive on CPU.
 
+## 7. Per-row batch qualification (2026-10-13)
+
+`.github/workflows/model-qualification-batch.yml` qualifies up to 24 pinned catalog rows per run on free GitHub runners, one job per row (synthetic input only). `scripts/qualification/record_results.py <run>` turns successes into `EXECUTED_MODELS` entries; failures stay here as negative evidence.
+
+**Batch 01** (run 38301622121, 24 rows): **16 executed** (8 tract ONNX incl. 4 fp16 exports, 7 candle safetensors, 1 candle MLX). Failures:
+
+| Row(s) | Failure | Classification |
+|---|---|---|
+| `BioClinicalBERT-Base-110M-v1-mlx`, `ClinicalE5-Small-33M-v1-mlx`, `Dutch-BioClinicalBERT-Base-110M-v1-mlx` (PII) | repository ships no `tokenizer.json` | EXTERNAL (upstream packaging) |
+| `PII-BigMed-Large-278M-v1-onnx-android` | degenerate tokenizer (already on the exact `KNOWN_DEFECTIVE_EXPORTS` list) | EXTERNAL (upstream export) |
+| `PII-Arabic-BigMed-Large-560M-v1`, `PII-Chinese-BigMed-Large-560M-v1` (ONNX) | weights in an external-data sibling (tract loads single-file models only); 560M parameters are over the 1 GiB bound even at fp16, now `EstimatedOverBound`; the selector skips external-data files | GATED (1 GiB bound; not raised) |
+| `PII-Dutch-BioClinicalBERT-Base-110M-v1` (safetensors) | legacy `LayerNorm.gamma`/`beta` tensor names | **fixed** in the runtime (renamed on load like Transformers); requalify in batch 02 |
+| `ClinicalNER-SuperClinical-Large-434M-v1` fp16 ONNX | tract DeBERTa-v2 prepare exceeded the 90-minute job timeout | REPOSITORY (runtime performance) |
+

@@ -248,6 +248,7 @@ fn build(
             "quantized MLX exports are not supported".into(),
         ));
     }
+    let legacy_layer_norm = uses_legacy_layer_norm_names(&weights);
     let vb =
         VarBuilder::from_buffered_safetensors(weights, DType::F32, device).map_err(prepare_err)?;
     // OpenMed MLX exports store the same weights under renamed keys; the
@@ -255,6 +256,12 @@ fn build(
     let vb = if mlx {
         let layout_type = model_type.clone();
         vb.rename_f(move |name| crate::mlx_layout::mlx_key(name, &layout_type))
+    } else if legacy_layer_norm {
+        // Older (TensorFlow-era) BERT checkpoints name LayerNorm parameters
+        // `gamma`/`beta`; Transformers renames them to `weight`/`bias` on load
+        // and so does MedScale (batch run 38301622121,
+        // OpenMed-PII-Dutch-BioClinicalBERT-Base-110M-v1).
+        vb.rename_f(legacy_layer_norm_key)
     } else {
         vb
     };
@@ -335,6 +342,35 @@ fn build(
     let classifier =
         candle_nn::linear(hidden, num_labels, vb.pp("classifier")).map_err(prepare_err)?;
     Ok((model_type, window.clamp(8, MAX_WINDOW), encoder, classifier))
+}
+
+/// True when the safetensors header names LayerNorm parameters with the
+/// legacy `gamma`/`beta` suffixes. Reads only the bounded JSON header.
+fn uses_legacy_layer_norm_names(weights: &[u8]) -> bool {
+    let Some(len) = weights
+        .get(..8)
+        .and_then(|b| <[u8; 8]>::try_from(b).ok())
+        .map(u64::from_le_bytes)
+        .and_then(|n| usize::try_from(n).ok())
+    else {
+        return false;
+    };
+    weights
+        .get(8..8usize.saturating_add(len))
+        .and_then(|header| serde_json::from_slice::<serde_json::Map<String, Value>>(header).ok())
+        .is_some_and(|header| header.keys().any(|k| k.ends_with("LayerNorm.gamma")))
+}
+
+/// Maps a requested `*.LayerNorm.weight`/`bias` name to the legacy
+/// `gamma`/`beta` name; every other name is unchanged.
+fn legacy_layer_norm_key(name: &str) -> String {
+    if let Some(prefix) = name.strip_suffix("LayerNorm.weight") {
+        format!("{prefix}LayerNorm.gamma")
+    } else if let Some(prefix) = name.strip_suffix("LayerNorm.bias") {
+        format!("{prefix}LayerNorm.beta")
+    } else {
+        name.to_owned()
+    }
 }
 
 /// Prepares an admitted Pack that declares the candle runtime, on the Apple
@@ -693,6 +729,60 @@ mod tests {
         assert_eq!(p["token_count"], 24);
         assert_eq!(p["covered_tokens"], 24);
         assert_eq!(p["window_count"], 2);
+    }
+
+    #[test]
+    fn legacy_gamma_beta_layer_norm_checkpoints_load_like_current_ones() {
+        let config = tiny_bert_config();
+        let current = tiny_bert_weights(&config);
+        // The same tensors with LayerNorm parameters renamed gamma/beta.
+        let tensors = candle_core::safetensors::load_buffer(&current, &Device::Cpu).unwrap();
+        let legacy: std::collections::HashMap<String, Tensor> = tensors
+            .into_iter()
+            .map(|(k, v)| {
+                let k = k
+                    .replace("LayerNorm.weight", "LayerNorm.gamma")
+                    .replace("LayerNorm.bias", "LayerNorm.beta");
+                (k, v)
+            })
+            .collect();
+        let path = std::env::temp_dir().join(format!(
+            "medscale-103-legacy-{}.safetensors",
+            std::process::id()
+        ));
+        candle_core::safetensors::save(&legacy, &path).unwrap();
+        let legacy_bytes = std::fs::read(&path).unwrap();
+        let _ = std::fs::remove_file(path);
+        assert!(uses_legacy_layer_norm_names(&legacy_bytes));
+        assert!(!uses_legacy_layer_norm_names(&current));
+        assert!(!uses_legacy_layer_norm_names(b"short"));
+        let prepare = |weights: Vec<u8>| {
+            prepare_from_bytes(
+                DigestSha256::of(b"tiny"),
+                provenance(),
+                config.to_string().as_bytes(),
+                weights,
+                TOKENIZER.as_bytes(),
+                br#"["O","ENTITY"]"#,
+                CandleDevicePreference::Cpu,
+            )
+            .unwrap()
+        };
+        let text = "alice visited clinic today";
+        let run = |p: PreparedCandleTokenClassifier| {
+            p.run_document(&OpaqueId::new("p"), text, CandleRunOptions::default())
+                .unwrap()
+                .proposal_payload
+        };
+        assert_eq!(run(prepare(legacy_bytes)), run(prepare(current)));
+        assert_eq!(
+            legacy_layer_norm_key("bert.embeddings.LayerNorm.bias"),
+            "bert.embeddings.LayerNorm.beta"
+        );
+        assert_eq!(
+            legacy_layer_norm_key("classifier.weight"),
+            "classifier.weight"
+        );
     }
 
     #[test]
