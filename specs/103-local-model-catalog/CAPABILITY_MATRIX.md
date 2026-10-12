@@ -127,4 +127,30 @@ This section supersedes the rows above where they differ. Status vocabulary as i
 
 **Decoding parity note.** On unprefixed or `B-`-per-subword label schemes, several models emit adjacent fragments (`met` + `form` + `in`). MedScale's decoder is line-for-line OpenMed's ONNX `_decode_entities`, and OpenMed's default `analyze_text` path uses Hugging Face `aggregation_strategy="simple"`, which also starts a new entity at each `B-`. The fragments therefore match OpenMed's own output; they are not a MedScale defect.
 
-**GLiNER residual.** 26 of the 52 zero-shot MLX exports (Small and Medium) fit the 1 GiB bound. Large and XLarge (26) do not. The 91 PyTorch GLiNER rows remain pickle-only and refused.
+**GLiNER residual.** 26 of the 52 zero-shot MLX exports (Small and Medium) fit the 1 GiB bound. The untiered Base and the Large exports (26) do not. The 91 PyTorch GLiNER rows remain pickle-only and refused.
+
+### Pre-download expectations across the catalog (2,266 rows, recomputed 2026-10-11)
+
+Computed by `runtime_expectation` (CLI `packs catalog`, paged) at the evidence/docs PR head. Expectations are not tests; only `ExecutedTested` rows were run.
+
+| Expectation | Rows |
+|---|---|
+| Executed (this exact row, recorded run): candle safetensors 11, tract ONNX 8, candle MLX 4, candle GLiNER 2 | 25 |
+| Expected runnable via ONNX on tract | 656 |
+| Expected runnable via safetensors on candle | 577 |
+| Expected runnable via MLX `mlx-fp` exports on candle | 470 |
+| Expected runnable via GLiNER zero-shot (Small and Medium MLX exports) | 24 |
+| Known unsupported: PyTorch-format XLM-R over the 1 GiB bound | 244 |
+| Known unsupported: GLiNER PyTorch rows, pickle only | 91 |
+| Known unsupported: XLM-R NER exports with a degenerate tokenizer | 65 |
+| Known unsupported: GLiNER Base and Large MLX exports over the bound | 26 |
+| Known unsupported: Clinical Longformer (tract `Gather` failure) | 20 |
+| Known unsupported: EuroBERT PyTorch rows (no candle encoder; ONNX runs) | 16 |
+| Known unsupported: Qwen PyTorch rows (no candle encoder; int8 ONNX runs) | 13 |
+| Known unsupported: privacy-filter (over the bound) | 13 |
+| Known unsupported: quantized MLX | 1 |
+| Untested: Qwen ONNX rows other than the executed one (only `model_int8.onnx` fits the bound; the expectation does not name a file), one row without metadata | 13 |
+| Task outside token classification (generation, VQA) | 12 |
+
+Executed or expected runnable: **1,752 of 2,266** (was 1,702 on 2026-10-10).
+

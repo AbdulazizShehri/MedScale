@@ -244,10 +244,24 @@ pub const SAFETENSORS_EVIDENCED_ARCHITECTURES: &[&str] =
 pub const MLX_EVIDENCED_ARCHITECTURES: &[&str] = &["bert", "distilbert", "roberta", "deberta-v2"];
 
 /// PyTorch-format architectures known not to fit the safetensors path.
-pub const SAFETENSORS_KNOWN_UNSUPPORTED: &[(&str, &str)] = &[(
-    "xlm-roberta",
-    "PyTorch-format XLM-R weights (1.11 GB for the 278M-parameter models) exceed the 1 GiB Pack bound",
-)];
+pub const SAFETENSORS_KNOWN_UNSUPPORTED: &[(&str, &str)] = &[
+    (
+        "xlm-roberta",
+        "PyTorch-format XLM-R weights (1.11 GB for the 278M-parameter models) exceed the 1 GiB Pack bound",
+    ),
+    (
+        "gliner",
+        "PyTorch GLiNER repositories ship pickle weights only (pytorch_model.bin), which are refused; the ZeroShot MLX exports run",
+    ),
+    (
+        "eurobert",
+        "the candle runtime has no EuroBERT encoder; the ONNX exports run on tract",
+    ),
+    (
+        "qwen",
+        "the candle runtime has no Qwen token-classification encoder; the int8 ONNX export runs on tract",
+    ),
+];
 
 /// Architecture families known not to run on any admitted runtime, matched by
 /// a substring of the catalog `architecture` (OpenMed names some families per
@@ -491,10 +505,16 @@ mod tests {
             )),
             RuntimeExpectation::KnownUnsupported { .. }
         ));
-        assert_eq!(
-            runtime_expectation(&row("token-classification", "gliner", r#"["pytorch"]"#)),
-            RuntimeExpectation::Untested
-        );
+        // Pickle-only GLiNER, and encoders the candle runtime lacks.
+        for arch in ["gliner", "eurobert", "qwen"] {
+            assert!(
+                matches!(
+                    runtime_expectation(&row("token-classification", arch, r#"["pytorch"]"#)),
+                    RuntimeExpectation::KnownUnsupported { .. }
+                ),
+                "{arch}"
+            );
+        }
         assert_eq!(
             runtime_expectation(&row(
                 "token-classification",
