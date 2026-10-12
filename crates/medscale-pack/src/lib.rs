@@ -5,6 +5,7 @@ mod catalog;
 mod compatibility;
 mod format;
 mod fp16_widen;
+mod generation_runtime;
 mod gliner_runtime;
 #[cfg(feature = "synthetic-fixtures")]
 #[doc(hidden)]
@@ -39,14 +40,22 @@ pub use compatibility::{
     runtime_expectation,
 };
 pub use format::{admit_pack_dir, forbidden_reason};
+#[cfg(feature = "synthetic-fixtures")]
+#[doc(hidden)]
+pub use generation_runtime::fixtures as generation_fixtures;
+pub use generation_runtime::{
+    CANDLE_TEXT_GENERATION_RUNTIME_ID, GENERATION_ARCHITECTURES, GenerationRuntimeError,
+    MAX_NEW_TOKENS, PreparedTextGenerator, StopReason, prepare_text_generator,
+};
 pub use gliner_runtime::{
     GLINER_DEFAULT_THRESHOLD, GLINER_SPAN_FAMILY, GLINER_ZERO_SHOT_RUNTIME_ID, GlinerRuntimeError,
     PreparedGlinerSpanModel, ZeroShotEntity, is_gliner_span_export, pack_is_gliner_span,
     prepare_gliner_span_model,
 };
 pub use hf_snapshot::{
-    HfRepoMetadata, HfSibling, SnapshotError, TokenClassifierSnapshot, build_token_classifier_pack,
-    labels_from_config, reproducibility_hash, verify_against_catalog, verify_file,
+    HfRepoMetadata, HfSibling, SnapshotError, TextGenerationSnapshot, TokenClassifierSnapshot,
+    build_text_generation_pack, build_token_classifier_pack, labels_from_config,
+    reproducibility_hash, verify_against_catalog, verify_file,
 };
 pub use mesc_verify::{MescEpochStore, MescVerifyError, verify_mesc_release_dir};
 pub use mlx_layout::{is_mlx_export, mlx_key};
