@@ -19,8 +19,16 @@ use std::sync::LazyLock;
 use fancy_regex::{Regex, RegexBuilder};
 use serde::{Deserialize, Serialize};
 
+#[path = "india_clinical.rs"]
+mod india_clinical;
 #[path = "pii_patterns.rs"]
 mod patterns;
+
+pub use india_clinical::{
+    ClinicalNormalization, INDIAN_CLINICAL_ABBREVIATIONS, INDIAN_CLINICAL_NORMALIZATION_VERSION,
+    IndiaClinicalMerge, merge_india_code_mixed_spans, normalize_indian_clinical_entities,
+    normalize_indian_clinical_surface,
+};
 
 /// Characters OpenMed searches on each side of a match for context words.
 const CONTEXT_WINDOW_CHARS: usize = 100;
@@ -82,6 +90,15 @@ pub struct PiiEntity {
     pub mixed_label_union: Option<bool>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub detector_sources: Option<Vec<String>>,
+    /// `india_clinical`: the surface with clinical abbreviations expanded
+    /// (`text` and offsets are unchanged).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub normalized_text: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub clinical_normalization: Option<ClinicalNormalization>,
+    /// `india_clinical`: built by bridging a Latin/Indic script boundary.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub india_clinical_merge: Option<IndiaClinicalMerge>,
 }
 
 impl PiiEntity {
@@ -101,6 +118,9 @@ impl PiiEntity {
             source_labels: None,
             mixed_label_union: None,
             detector_sources: None,
+            normalized_text: None,
+            clinical_normalization: None,
+            india_clinical_merge: None,
         }
     }
 }
@@ -117,6 +137,10 @@ pub struct PiiMergeOptions {
     /// [`normalize_for_detection`]) and map every unit back to the source.
     /// Off by default, as in OpenMed, where only language packs opt in.
     pub normalize_for_detection: bool,
+    /// OpenMed `india_clinical`: expand Indian-English clinical abbreviations
+    /// (added as `normalized_text`) and bridge PERSON or LOCATION fragments
+    /// split only by a Latin/Devanagari or Latin/Telugu script change.
+    pub india_clinical: bool,
 }
 
 impl Default for PiiMergeOptions {
@@ -127,6 +151,7 @@ impl Default for PiiMergeOptions {
             allow_semantic_only_matches: true,
             allow_label_expansion: true,
             normalize_for_detection: false,
+            india_clinical: false,
         }
     }
 }
@@ -444,9 +469,19 @@ pub fn merge_entities_with_semantic_units(
         .filter(|e| e.start < e.end && e.end <= map.len())
         .cloned()
         .collect::<Vec<_>>();
+    if options.india_clinical {
+        entities = normalize_indian_clinical_entities(entities);
+    }
     entities.sort_by(entity_order);
+    let finish = |merged: Vec<PiiEntity>| {
+        if options.india_clinical {
+            merge_india_code_mixed_spans(merged, text)
+        } else {
+            merged
+        }
+    };
     if !options.use_semantic_patterns {
-        return entities;
+        return finish(entities);
     }
     let units = if options.normalize_for_detection {
         normalized_semantic_units(text)
@@ -454,7 +489,7 @@ pub fn merge_entities_with_semantic_units(
         semantic_units(text, &map)
     };
     if units.is_empty() {
-        return entities;
+        return finish(entities);
     }
     let mut merged = Vec::new();
     let mut used = vec![false; entities.len()];
@@ -474,6 +509,9 @@ pub fn merge_entities_with_semantic_units(
                     source_labels: Some(vec![unit.entity_type.to_owned()]),
                     mixed_label_union: Some(false),
                     detector_sources: Some(vec!["locale_rule".to_owned()]),
+                    normalized_text: None,
+                    clinical_normalization: None,
+                    india_clinical_merge: None,
                 });
             }
             continue;
@@ -520,6 +558,9 @@ pub fn merge_entities_with_semantic_units(
             mixed_label_union: Some(label_union_is_mixed(&source_labels)),
             source_labels: Some(source_labels),
             detector_sources: Some(vec!["ml".to_owned(), "locale_rule".to_owned()]),
+            normalized_text: None,
+            clinical_normalization: None,
+            india_clinical_merge: None,
         });
         for i in overlapping {
             used[i] = true;
@@ -532,7 +573,7 @@ pub fn merge_entities_with_semantic_units(
             .filter(|(_, used)| !used)
             .map(|(e, _)| e),
     );
-    coalesce_overlapping(merged, text, &map)
+    finish(coalesce_overlapping(merged, text, &map))
 }
 
 /// Merge the document runtimes' decoded entities.
@@ -553,6 +594,9 @@ pub(crate) fn merge_decoded(
             source_labels: None,
             mixed_label_union: None,
             detector_sources: None,
+            normalized_text: None,
+            clinical_normalization: None,
+            india_clinical_merge: None,
         })
         .collect();
     merge_entities_with_semantic_units(
@@ -666,6 +710,9 @@ fn coalesce_overlapping(mut entities: Vec<PiiEntity>, text: &str, map: &CharMap)
                 mixed_label_union: Some(label_union_is_mixed(&source_labels)),
                 source_labels: Some(source_labels),
                 detector_sources: Some(detector_sources),
+                normalized_text: None,
+                clinical_normalization: None,
+                india_clinical_merge: None,
             }
         })
         .collect()
@@ -832,6 +879,43 @@ mod tests {
         assert!(
             merged.iter().any(|e| e.text.starts_with('Ｇ')),
             "{merged:?}"
+        );
+    }
+
+    #[test]
+    fn india_clinical_option_bridges_code_mixed_names_end_to_end() {
+        let text = "Patient राहुल Sharma, DOB 01/15/1970, Tab Dolo BD";
+        let s = text.chars().position(|c| c == 'र').unwrap();
+        let sh = text.chars().position(|c| c == 'S').unwrap();
+        let tab = text.chars().position(|c| c == 'T').unwrap();
+        let entities = [
+            PiiEntity::model("PERSON", 0.8, s, s + 5, text),
+            PiiEntity::model("PERSON", 0.9, sh, sh + 6, text),
+            PiiEntity::model("DRUG", 0.7, tab, tab + 11, text),
+        ];
+        let off = merge_entities_with_semantic_units(&entities, text, PiiMergeOptions::default());
+        assert_eq!(off.iter().filter(|e| e.label == "PERSON").count(), 2);
+        assert!(off.iter().all(|e| e.normalized_text.is_none()));
+        let on = merge_entities_with_semantic_units(
+            &entities,
+            text,
+            PiiMergeOptions {
+                india_clinical: true,
+                ..PiiMergeOptions::default()
+            },
+        );
+        let person: Vec<&PiiEntity> = on.iter().filter(|e| e.label == "PERSON").collect();
+        assert_eq!(person.len(), 1, "{on:?}");
+        assert_eq!(person[0].text, "राहुल Sharma");
+        assert!(person[0].india_clinical_merge.is_some());
+        let drug = on.iter().find(|e| e.label == "DRUG").unwrap();
+        assert_eq!(
+            drug.normalized_text.as_deref(),
+            Some("tablet Dolo twice daily")
+        );
+        assert!(
+            on.iter().any(|e| e.label == "date"),
+            "semantic units still merge"
         );
     }
 
