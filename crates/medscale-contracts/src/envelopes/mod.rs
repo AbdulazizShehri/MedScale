@@ -57,8 +57,8 @@ use crate::network::{EgressAllowlistEntry, NetworkBrokerRequest, NetworkBrokerRe
 use crate::objects::{AmendmentKind, DigestSha256, EffectState, MedicalTime, OpaqueId, VaultId};
 use crate::online_packs::OnlinePackAcquireRequest;
 use crate::packs::{
-    PackAdmitResult, PackEvaluationRequest, PackEvaluationResult, PackManifestV0,
-    PackPromotionState,
+    PackAdmitResult, PackEvaluationRequest, PackEvaluationResult, PackGenerationRequest,
+    PackManifestV0, PackPromotionState,
 };
 use crate::presentation::{DrillDownResult, SubjectBriefV1, SubjectCoverageV1, SubjectTimelineV1};
 use crate::privacy_gate::{
@@ -682,6 +682,10 @@ pub enum RequestBody {
     },
     PacksEvaluateLocal {
         request: PackEvaluationRequest,
+    },
+    /// Spec 105: bounded local text generation (evidence-only proposal).
+    PacksGenerateLocal {
+        request: PackGenerationRequest,
     },
     /// Spec 103: list the prepared models resident in Core.
     PacksResidency,
