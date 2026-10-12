@@ -1,0 +1,170 @@
+[
+  {
+    "id": "00-OpenMed-PII-Dutch-BioClinicalModern-Base-149M-v1",
+    "repo": "OpenMed/OpenMed-PII-Dutch-BioClinicalModern-Base-149M-v1",
+    "weights": "model.safetensors",
+    "test": "safetensors_external_104",
+    "text": "Patiënt Jan de Vries, geboren op 12 maart 1980, woont in Utrecht en heeft diabetes.",
+    "labels": ""
+  },
+  {
+    "id": "01-OpenMed-PII-Dutch-ClinicalLongformer-Base-149M-v",
+    "repo": "OpenMed/OpenMed-PII-Dutch-ClinicalLongformer-Base-149M-v1",
+    "weights": "model.safetensors",
+    "test": "safetensors_external_104",
+    "text": "Patiënt Jan de Vries, geboren op 12 maart 1980, woont in Utrecht en heeft diabetes.",
+    "labels": ""
+  },
+  {
+    "id": "02-OpenMed-PII-Dutch-FastClinical-Small-82M-v1",
+    "repo": "OpenMed/OpenMed-PII-Dutch-FastClinical-Small-82M-v1",
+    "weights": "model.safetensors",
+    "test": "safetensors_external_104",
+    "text": "Patiënt Jan de Vries, geboren op 12 maart 1980, woont in Utrecht en heeft diabetes.",
+    "labels": ""
+  },
+  {
+    "id": "03-OpenMed-PII-Dutch-SuperMedical-Base-125M-v1",
+    "repo": "OpenMed/OpenMed-PII-Dutch-SuperMedical-Base-125M-v1",
+    "weights": "model.safetensors",
+    "test": "safetensors_external_104",
+    "text": "Patiënt Jan de Vries, geboren op 12 maart 1980, woont in Utrecht en heeft diabetes.",
+    "labels": ""
+  },
+  {
+    "id": "04-OpenMed-PII-French-BigMed-Large-278M-v1-onnx-and",
+    "repo": "OpenMed/OpenMed-PII-French-BigMed-Large-278M-v1-onnx-android",
+    "weights": "model_fp16.onnx",
+    "test": "openmed_snapshot_external_103",
+    "text": "Le patient Jean Dupont, né le 12 mars 1980, habite à Lyon et souffre de diabète.",
+    "labels": ""
+  },
+  {
+    "id": "05-OpenMed-PII-French-BioClinicalBERT-Base-110M-v1",
+    "repo": "OpenMed/OpenMed-PII-French-BioClinicalBERT-Base-110M-v1",
+    "weights": "model.safetensors",
+    "test": "safetensors_external_104",
+    "text": "Le patient Jean Dupont, né le 12 mars 1980, habite à Lyon et souffre de diabète.",
+    "labels": ""
+  },
+  {
+    "id": "06-OpenMed-PII-French-BioClinicalBERT-Base-110M-v1-",
+    "repo": "OpenMed/OpenMed-PII-French-BioClinicalBERT-Base-110M-v1-onnx-android",
+    "weights": "model.onnx",
+    "test": "openmed_snapshot_external_103",
+    "text": "Le patient Jean Dupont, né le 12 mars 1980, habite à Lyon et souffre de diabète.",
+    "labels": ""
+  },
+  {
+    "id": "07-OpenMed-PII-French-BioClinicalModern-Base-149M-v",
+    "repo": "OpenMed/OpenMed-PII-French-BioClinicalModern-Base-149M-v1",
+    "weights": "model.safetensors",
+    "test": "safetensors_external_104",
+    "text": "Le patient Jean Dupont, né le 12 mars 1980, habite à Lyon et souffre de diabète.",
+    "labels": ""
+  },
+  {
+    "id": "08-OpenMed-PII-French-BioClinicalModern-Base-149M-v",
+    "repo": "OpenMed/OpenMed-PII-French-BioClinicalModern-Base-149M-v1-onnx-android",
+    "weights": "model.onnx",
+    "test": "openmed_snapshot_external_103",
+    "text": "Le patient Jean Dupont, né le 12 mars 1980, habite à Lyon et souffre de diabète.",
+    "labels": ""
+  },
+  {
+    "id": "09-OpenMed-PII-French-BioClinicalModern-Large-395M-",
+    "repo": "OpenMed/OpenMed-PII-French-BioClinicalModern-Large-395M-v1-onnx-android",
+    "weights": "model_fp16.onnx",
+    "test": "openmed_snapshot_external_103",
+    "text": "Le patient Jean Dupont, né le 12 mars 1980, habite à Lyon et souffre de diabète.",
+    "labels": ""
+  },
+  {
+    "id": "10-OpenMed-PII-French-BiomedBERT-Large-340M-v1-onnx",
+    "repo": "OpenMed/OpenMed-PII-French-BiomedBERT-Large-340M-v1-onnx-android",
+    "weights": "model_fp16.onnx",
+    "test": "openmed_snapshot_external_103",
+    "text": "Le patient Jean Dupont, né le 12 mars 1980, habite à Lyon et souffre de diabète.",
+    "labels": ""
+  },
+  {
+    "id": "11-OpenMed-PII-French-ClinicalE5-Small-33M-v1",
+    "repo": "OpenMed/OpenMed-PII-French-ClinicalE5-Small-33M-v1",
+    "weights": "model.safetensors",
+    "test": "safetensors_external_104",
+    "text": "Le patient Jean Dupont, né le 12 mars 1980, habite à Lyon et souffre de diabète.",
+    "labels": ""
+  },
+  {
+    "id": "12-OpenMed-PII-French-ClinicalE5-Small-33M-v1-onnx-",
+    "repo": "OpenMed/OpenMed-PII-French-ClinicalE5-Small-33M-v1-onnx-android",
+    "weights": "model.onnx",
+    "test": "openmed_snapshot_external_103",
+    "text": "Le patient Jean Dupont, né le 12 mars 1980, habite à Lyon et souffre de diabète.",
+    "labels": ""
+  },
+  {
+    "id": "13-OpenMed-PII-French-ClinicalLongformer-Base-149M-",
+    "repo": "OpenMed/OpenMed-PII-French-ClinicalLongformer-Base-149M-v1",
+    "weights": "model.safetensors",
+    "test": "safetensors_external_104",
+    "text": "Le patient Jean Dupont, né le 12 mars 1980, habite à Lyon et souffre de diabète.",
+    "labels": ""
+  },
+  {
+    "id": "14-OpenMed-PII-French-EuroMed-Large-210M-v1-onnx-an",
+    "repo": "OpenMed/OpenMed-PII-French-EuroMed-Large-210M-v1-onnx-android",
+    "weights": "model.onnx",
+    "test": "openmed_snapshot_external_103",
+    "text": "Le patient Jean Dupont, né le 12 mars 1980, habite à Lyon et souffre de diabète.",
+    "labels": ""
+  },
+  {
+    "id": "15-OpenMed-PII-French-FastClinical-Small-82M-v1",
+    "repo": "OpenMed/OpenMed-PII-French-FastClinical-Small-82M-v1",
+    "weights": "model.safetensors",
+    "test": "safetensors_external_104",
+    "text": "Le patient Jean Dupont, né le 12 mars 1980, habite à Lyon et souffre de diabète.",
+    "labels": ""
+  },
+  {
+    "id": "16-OpenMed-PII-French-FastClinical-Small-82M-v1-onn",
+    "repo": "OpenMed/OpenMed-PII-French-FastClinical-Small-82M-v1-onnx-android",
+    "weights": "model.onnx",
+    "test": "openmed_snapshot_external_103",
+    "text": "Le patient Jean Dupont, né le 12 mars 1980, habite à Lyon et souffre de diabète.",
+    "labels": ""
+  },
+  {
+    "id": "17-OpenMed-PII-French-LiteClinical-Small-66M-v1",
+    "repo": "OpenMed/OpenMed-PII-French-LiteClinical-Small-66M-v1",
+    "weights": "model.safetensors",
+    "test": "safetensors_external_104",
+    "text": "Le patient Jean Dupont, né le 12 mars 1980, habite à Lyon et souffre de diabète.",
+    "labels": ""
+  },
+  {
+    "id": "18-OpenMed-PII-French-LiteClinical-Small-66M-v1-onn",
+    "repo": "OpenMed/OpenMed-PII-French-LiteClinical-Small-66M-v1-onnx-android",
+    "weights": "model.onnx",
+    "test": "openmed_snapshot_external_103",
+    "text": "Le patient Jean Dupont, né le 12 mars 1980, habite à Lyon et souffre de diabète.",
+    "labels": ""
+  },
+  {
+    "id": "19-OpenMed-PII-French-SuperClinical-Base-184M-v1",
+    "repo": "OpenMed/OpenMed-PII-French-SuperClinical-Base-184M-v1",
+    "weights": "model.safetensors",
+    "test": "safetensors_external_104",
+    "text": "Le patient Jean Dupont, né le 12 mars 1980, habite à Lyon et souffre de diabète.",
+    "labels": ""
+  },
+  {
+    "id": "20-OpenMed-PII-French-SuperClinical-Base-184M-v1-on",
+    "repo": "OpenMed/OpenMed-PII-French-SuperClinical-Base-184M-v1-onnx-android",
+    "weights": "model.onnx",
+    "test": "openmed_snapshot_external_103",
+    "text": "Le patient Jean Dupont, né le 12 mars 1980, habite à Lyon et souffre de diabète.",
+    "labels": ""
+  }
+]
