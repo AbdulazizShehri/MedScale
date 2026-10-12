@@ -170,3 +170,10 @@ Executed or expected runnable: **1,764 of 2,266** (was 1,702 on 2026-10-10). All
 | `PII-Dutch-BioClinicalBERT-Base-110M-v1` (safetensors) | legacy `LayerNorm.gamma`/`beta` tensor names | **fixed** in the runtime (renamed on load like Transformers); requalify in batch 02 |
 | `ClinicalNER-SuperClinical-Large-434M-v1` fp16 ONNX | tract DeBERTa-v2 prepare exceeded the 90-minute job timeout | REPOSITORY (runtime performance) |
 
+**Batch 02** (run 38314653881, 24 rows, mostly Dutch PII): **21 executed** (12 tract ONNX incl. 5 fp16 exports, 9 candle safetensors), including `OpenMed-PII-Dutch-BioClinicalBERT-Base-110M-v1`, which batch 01 could not load (legacy `gamma`/`beta` names, now fixed). Failures:
+
+| Row(s) | Failure | Classification |
+|---|---|---|
+| `PII-Dutch-FastClinical-Small-82M-v1`, `PII-Dutch-SuperMedical-Base-125M-v1` (safetensors) | `config.json` saved by Transformers 5.1 omits the default `position_embedding_type` | **fixed** (normalized to `"absolute"`, as Transformers does); requalify in batch 03 |
+| `PII-Dutch-BioClinicalModern-Base-149M-v1` (safetensors) | ModernBERT rotary bases moved to `rope_parameters` (Transformers 5.1) | **fixed** (mapped to `global_rope_theta`/`local_rope_theta`; non-default rotary types refused); requalify in batch 03 |
+

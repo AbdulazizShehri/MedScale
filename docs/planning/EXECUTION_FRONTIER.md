@@ -2,33 +2,28 @@
 
 The live, repository-backed handoff for autonomous sessions. Each session verifies it against GitHub before acting and updates it in the next evidence PR. Status documents of record remain `BUILD_QUEUE.md`, `PROJECT_COMPLETION_STATUS.md` and `EXTERNAL_GATES.md`.
 
-**As of:** 2026-10-13. **Verified main:** `9393e2d` (post-merge CI run 38282986807, 6/6).
+**As of:** 2026-10-13 (verify main CI on the latest merge before acting).
 
 ## Open pull requests
 
-| PR | Scope | Base | State at handoff |
-|---|---|---|---|
-| #223 | OpenMed `india_clinical` code-mixing path; Spec 103 queue classification | main | CI pending (Windows) |
-| #224 | Spec 105 phase A: bounded text generation on candle; Spec 105 documents | main | CI pending (Windows) |
-| #225 | Exact Clinical Longformer on candle (Hugging Face reference match, run 38300309054) | main | CI pending (Windows) |
-| #226 | Cancellable whole-document runs (tract, candle) | main | CI pending (Windows) |
-| #227 | Hermetic end-to-end model lifecycle test through Core | main | CI pending |
-| #228 | Text generation through Core (T105-03) | #224 | stacked; retarget to main after #224 merges |
-| this PR | Batch per-row qualification harness, batch 01 evidence, size-aware expectations, exact degenerate-tokenizer list | main | — |
+| PR | Scope | State at handoff |
+|---|---|---|
+| #228 | Text generation through Core (T105-03) | retargeted to main, main merged in |
+| #230 | `llama` decoder and cancellable generation (T105-04) | CI |
+| this PR | Batch harness, batches 01–02 evidence, size-aware expectations, exact defective-export list, legacy LayerNorm names, Transformers 5 config normalization | — |
 
-Merge order: #223, #225, #226, #227 (independent), #224, then #228 (retarget). After the batch: merge main into later branches, check conflicts (`compatibility.rs`, `tasks.md`), re-run exact-head CI.
+Merged 2026-10-13: #223 (india_clinical), #224 (Spec 105 phase A), #225 (Longformer), #226 (cancellation), #227 (E2E lifecycle).
 
 ## Qualification runs
 
-- Batch 01: run 38301622121 (`qual-batch/103-batch-01`, 24 rows). Record with `python scripts/qualification/record_results.py 38301622121`; failures stay negative evidence.
-- Next batches: regenerate catalog pages with `medscale packs catalog --limit 500 --offset N`, then `scripts/qualification/select_batch.py ... --count 24 --out qualification/batch.json` on a new `qual-batch/103-batch-NN` branch.
+- Batch 01: run 38301622121, 16 of 24 executed. Batch 02: run 38314653881, 21 of 24 executed. Failures: `CAPABILITY_MATRIX.md` section 7.
+- Next batch: build the CLI from this head, regenerate catalog pages (`medscale packs catalog --limit 500 --offset N`), run `scripts/qualification/select_batch.py ... --count 24 --out qualification/batch.json` on a new `qual-batch/103-batch-NN` branch, then `record_results.py RUN`. Requalify the three batch 02 Transformers 5 rows.
 
 ## Next eligible repository work
 
-1. Record batch 01 evidence; run batch 02 and later (T103-09).
-2. After #224: generation cancellation; `llama` decoder (T105-04).
-3. Update `tasks.md` classification for T103-19 after #225 merges.
-4. Reconcile `CAPABILITY_MATRIX.md`, `BUILD_QUEUE.md`, `PROJECT_COMPLETION_STATUS.md` once the batch is recorded.
+1. Batch 03 and later (T103-09).
+2. tract prepare of large DeBERTa-v2 fp16 exports exceeded 90 minutes (batch 01); investigate or prefer another fitting export.
+3. Reconcile `BUILD_QUEUE.md`, `PROJECT_COMPLETION_STATUS.md` and the T103 classification table after the open PRs merge.
 
 ## Tooling status
 
