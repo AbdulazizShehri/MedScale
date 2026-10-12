@@ -103,12 +103,13 @@ jobs:
           MEDSCALE_CATALOG_COMMIT: ${{ env.CATALOG_COMMIT }}
           MEDSCALE_HF_ONNX_FILE: ${{ matrix.onnx }}
           MEDSCALE_SAMPLE_TEXT: ${{ matrix.text }}
+          MEDSCALE_PLAN_CACHE: "1"
         run: |
           set -o pipefail
           export MEDSCALE_HF_SNAPSHOT_DIR="$SNAPSHOT_DIR"
           cargo test --release --locked -p medscale-pack --test "${{ matrix.test }}" \
             -- --ignored --nocapture 2>&1 | tee qualification.log
-          grep -E '^SNAPSHOT_' qualification.log >> "$GITHUB_STEP_SUMMARY"
+          grep -E '^(SNAPSHOT_|PLAN_CACHE_)' qualification.log >> "$GITHUB_STEP_SUMMARY"
 
       - name: Keep the log (no weights)
         if: always()

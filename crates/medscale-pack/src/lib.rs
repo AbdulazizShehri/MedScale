@@ -49,7 +49,7 @@ pub use mesc_verify::{MescEpochStore, MescVerifyError, verify_mesc_release_dir};
 pub use mlx_layout::{is_mlx_export, mlx_key};
 pub use onnx_runtime::{
     DocumentRunOptions, ONNX_TOKEN_CLASSIFIER_RUNTIME_ID, OnnxRuntimeError,
-    OnnxTokenClassifierRuntime, PreparedOnnxTokenClassifier,
+    OnnxTokenClassifierRuntime, PlanCacheOutcome, PreparedOnnxTokenClassifier,
 };
 pub use pack_runtime::{
     PackEvaluation, PackRuntimeKind, evaluate_admitted_pack, pack_runtime_kind,
