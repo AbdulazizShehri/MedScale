@@ -295,6 +295,149 @@ pub fn decode_entities(
     entities
 }
 
+/// How per-token predictions become entities.
+///
+/// `OpenMedOnnx` is the default and reproduces OpenMed v3.0.0's ONNX decoder
+/// (and, for prefixed labels, Hugging Face `aggregation_strategy="simple"`):
+/// every sub-token is labelled on its own, so a `B-` on a word-internal
+/// sub-token starts a new entity. The `Word*` strategies follow Hugging Face's
+/// word-level strategies: sub-tokens are grouped by the tokenizer's own word
+/// ids (its pre-tokenizer words), each word gets one label, and words are then
+/// grouped. They never create spans beyond the tokens' offsets, and a better
+/// score on any benchmark is not claimed for them.
+#[derive(Clone, Copy, Debug, Default, Eq, PartialEq, serde::Serialize, serde::Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum EntityAggregation {
+    #[default]
+    OpenMedOnnx,
+    /// The label and score of each word's first sub-token.
+    WordFirst,
+    /// Softmax probabilities averaged over the word's sub-tokens.
+    WordAverage,
+    /// The sub-token with the highest probability decides the word.
+    WordMax,
+}
+
+fn softmax(logits: &[f32]) -> Vec<f32> {
+    let max = logits.iter().copied().fold(f32::NEG_INFINITY, f32::max);
+    let exp: Vec<f32> = logits.iter().map(|v| (v - max).exp()).collect();
+    let sum: f32 = exp.iter().sum();
+    exp.into_iter().map(|v| v / sum).collect()
+}
+
+fn arg_max(probabilities: &[f32]) -> (usize, f32) {
+    probabilities
+        .iter()
+        .enumerate()
+        .max_by(|(_, a), (_, b)| a.total_cmp(b))
+        .map_or((0, 0.0), |(i, v)| (i, *v))
+}
+
+/// Word-level decoding: `word_ids[i]` is the tokenizer word of `tokens[i]`
+/// (`None` for a token outside any word, which is decoded on its own).
+/// Words are grouped as Hugging Face `group_entities` does: `B`/`S`/`U` start
+/// an entity, `I`/`E`/`L` continue one with the same label, an unprefixed
+/// label continues the previous word's entity of the same label, and `E`/`L`/
+/// `S`/`U` close it. Entity scores are the mean of the word scores.
+#[must_use]
+pub fn decode_entities_by_word(
+    tokens: &[TokenLogits],
+    word_ids: &[Option<u32>],
+    labels: &[String],
+    text: &str,
+    threshold: f32,
+    strategy: EntityAggregation,
+) -> Vec<DecodedEntity> {
+    if strategy == EntityAggregation::OpenMedOnnx || word_ids.len() != tokens.len() {
+        return decode_entities(tokens, labels, text, threshold);
+    }
+    let mut chars: Vec<usize> = text.char_indices().map(|(b, _)| b).collect();
+    chars.push(text.len());
+    // Consecutive tokens with the same word id form one word.
+    let mut words: Vec<std::ops::Range<usize>> = Vec::new();
+    for i in 0..tokens.len() {
+        match words.last_mut() {
+            Some(last) if word_ids[i].is_some() && word_ids[i] == word_ids[last.end - 1] => {
+                last.end = i + 1;
+            }
+            _ => words.push(i..i + 1),
+        }
+    }
+    let mut entities = Vec::new();
+    let mut current: Option<Open> = None;
+    for word in words {
+        let members: Vec<&TokenLogits> = tokens[word]
+            .iter()
+            .filter(|((start, end), _)| start < end)
+            .collect();
+        let Some(first) = members.first() else {
+            flush(&mut entities, &mut current, &chars, text, threshold);
+            continue;
+        };
+        let start = members
+            .iter()
+            .map(|((s, _), _)| *s)
+            .min()
+            .unwrap_or(first.0.0);
+        let end = members
+            .iter()
+            .map(|((_, e), _)| *e)
+            .max()
+            .unwrap_or(first.0.1);
+        let probabilities = match strategy {
+            EntityAggregation::WordAverage => {
+                let width = first.1.len();
+                let mut sum = vec![0.0f32; width];
+                for (_, logits) in &members {
+                    for (acc, p) in sum.iter_mut().zip(softmax(logits)) {
+                        *acc += p;
+                    }
+                }
+                #[allow(clippy::cast_precision_loss)]
+                let n = members.len() as f32;
+                sum.into_iter().map(|v| v / n).collect()
+            }
+            EntityAggregation::WordMax => members
+                .iter()
+                .map(|(_, logits)| softmax(logits))
+                .max_by(|a, b| arg_max(a).1.total_cmp(&arg_max(b).1))
+                .unwrap_or_default(),
+            _ => softmax(&first.1),
+        };
+        let (label_id, score) = arg_max(&probabilities);
+        let raw = labels
+            .get(label_id)
+            .cloned()
+            .unwrap_or_else(|| format!("LABEL_{label_id}"));
+        let (prefix, label) = split_label(&raw);
+        if label.eq_ignore_ascii_case("O") {
+            flush(&mut entities, &mut current, &chars, text, threshold);
+            continue;
+        }
+        let starts_new = match &current {
+            None => true,
+            Some(open) => open.label != label || matches!(prefix, 'B' | 'S' | 'U'),
+        };
+        if starts_new {
+            flush(&mut entities, &mut current, &chars, text, threshold);
+            current = Some(Open {
+                label: label.to_owned(),
+                start,
+                end,
+                scores: vec![score],
+            });
+        } else if let Some(open) = current.as_mut() {
+            open.end = open.end.max(end);
+            open.scores.push(score);
+        }
+        if matches!(prefix, 'E' | 'L' | 'S' | 'U') {
+            flush(&mut entities, &mut current, &chars, text, threshold);
+        }
+    }
+    flush(&mut entities, &mut current, &chars, text, threshold);
+    entities
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -414,6 +557,148 @@ mod tests {
         assert_eq!(
             s.iter().map(|x| x.text.as_str()).collect::<Vec<_>>(),
             ["a", "b"]
+        );
+    }
+
+    fn hot(width: usize, index: usize, peak: f32) -> Vec<f32> {
+        let mut v = vec![0.0; width];
+        v[index] = peak;
+        v
+    }
+
+    #[test]
+    fn word_strategies_join_sub_tokens_the_baseline_splits() {
+        // "metformin" = met | form | in, each predicted B-CHEM (OpenMed splits).
+        let text = "took metformin daily";
+        let l = labels(&["O", "B-CHEM", "I-CHEM"]);
+        let tokens = vec![
+            ((0, 4), hot(3, 0, 9.0)),
+            ((5, 8), hot(3, 1, 9.0)),
+            ((8, 12), hot(3, 1, 9.0)),
+            ((12, 14), hot(3, 1, 9.0)),
+            ((15, 20), hot(3, 0, 9.0)),
+        ];
+        let words = [Some(0), Some(1), Some(1), Some(1), Some(2)];
+        let baseline = decode_entities(&tokens, &l, text, 0.0);
+        assert_eq!(
+            baseline.len(),
+            3,
+            "OpenMed-compatible baseline is unchanged"
+        );
+        assert_eq!(
+            decode_entities_by_word(
+                &tokens,
+                &words,
+                &l,
+                text,
+                0.0,
+                EntityAggregation::OpenMedOnnx
+            ),
+            baseline
+        );
+        for strategy in [
+            EntityAggregation::WordFirst,
+            EntityAggregation::WordAverage,
+            EntityAggregation::WordMax,
+        ] {
+            let e = decode_entities_by_word(&tokens, &words, &l, text, 0.0, strategy);
+            assert_eq!(e.len(), 1, "{strategy:?}");
+            assert_eq!(
+                (e[0].text.as_str(), e[0].start, e[0].end),
+                ("metformin", 5, 14)
+            );
+        }
+    }
+
+    #[test]
+    fn word_strategies_differ_only_in_how_a_word_is_labelled() {
+        let text = "aspirin";
+        let l = labels(&["O", "B-CHEM"]);
+        // First sub-token says O weakly; the other two say CHEM strongly.
+        let tokens = vec![
+            ((0, 3), vec![1.0, 0.5]),
+            ((3, 5), vec![0.0, 6.0]),
+            ((5, 7), vec![0.0, 6.0]),
+        ];
+        let words = [Some(0); 3];
+        let first =
+            decode_entities_by_word(&tokens, &words, &l, text, 0.0, EntityAggregation::WordFirst);
+        assert!(first.is_empty(), "first sub-token decides: O");
+        for strategy in [EntityAggregation::WordAverage, EntityAggregation::WordMax] {
+            let e = decode_entities_by_word(&tokens, &words, &l, text, 0.0, strategy);
+            assert_eq!(e.len(), 1, "{strategy:?}");
+            assert_eq!(e[0].text, "aspirin");
+        }
+    }
+
+    #[test]
+    fn word_strategies_keep_bioes_boundaries_and_repeated_words() {
+        let text = "knee knee left knee";
+        let l = labels(&["O", "B-A", "I-A", "S-A", "E-A"]);
+        let tokens = vec![
+            ((0, 4), hot(5, 3, 9.0)),   // S
+            ((5, 9), hot(5, 3, 9.0)),   // S
+            ((10, 14), hot(5, 1, 9.0)), // B
+            ((15, 19), hot(5, 4, 9.0)), // E
+        ];
+        let words = [Some(0), Some(1), Some(2), Some(3)];
+        let e =
+            decode_entities_by_word(&tokens, &words, &l, text, 0.0, EntityAggregation::WordFirst);
+        let spans: Vec<&str> = e.iter().map(|x| x.text.as_str()).collect();
+        assert_eq!(spans, ["knee", "knee", "left knee"]);
+    }
+
+    #[test]
+    fn word_strategies_use_unicode_scalar_offsets_and_skip_empty_tokens() {
+        // Multilingual text with multi-byte characters; one token has an
+        // empty span (a dropped or special piece) and must not widen a word.
+        let text = "Née à Zürich 北京";
+        let l = labels(&["O", "B-LOC", "I-LOC"]);
+        let tokens = vec![
+            ((0, 3), hot(3, 0, 9.0)),
+            ((4, 5), hot(3, 0, 9.0)),
+            ((6, 9), hot(3, 1, 9.0)),
+            ((9, 12), hot(3, 2, 9.0)),
+            ((12, 12), hot(3, 1, 9.0)),
+            ((13, 14), hot(3, 1, 9.0)),
+            ((14, 15), hot(3, 2, 9.0)),
+        ];
+        let words = [Some(0), Some(1), Some(2), Some(2), None, Some(3), Some(3)];
+        let e =
+            decode_entities_by_word(&tokens, &words, &l, text, 0.0, EntityAggregation::WordFirst);
+        let spans: Vec<(&str, usize, usize)> = e
+            .iter()
+            .map(|x| (x.text.as_str(), x.start, x.end))
+            .collect();
+        assert_eq!(spans, [("Zürich", 6, 12), ("北京", 13, 15)]);
+    }
+
+    #[test]
+    fn unprefixed_labels_join_adjacent_words_like_hugging_face() {
+        let text = "Escherichia coli grew";
+        let l = labels(&["O", "SPECIES"]);
+        let tokens = vec![
+            ((0, 3), hot(2, 1, 9.0)),
+            ((3, 11), hot(2, 1, 9.0)),
+            ((12, 16), hot(2, 1, 9.0)),
+            ((17, 21), hot(2, 0, 9.0)),
+        ];
+        let words = [Some(0), Some(0), Some(1), Some(2)];
+        let e =
+            decode_entities_by_word(&tokens, &words, &l, text, 0.0, EntityAggregation::WordFirst);
+        assert_eq!(e.len(), 1);
+        assert_eq!(e[0].text, "Escherichia coli");
+        // Mismatched word ids fall back to the baseline decoder.
+        assert_eq!(
+            decode_entities_by_word(
+                &tokens,
+                &words[..2],
+                &l,
+                text,
+                0.0,
+                EntityAggregation::WordFirst
+            ),
+            decode_entities(&tokens, &l, text, 0.0)
         );
     }
 }

@@ -88,6 +88,34 @@ fn long_document_is_fully_covered_instead_of_truncated() {
         .expect("document run with PII merge");
     let p = &merged.output.proposal_payload;
     assert!(p["pii_merged_entities"].is_array());
+    assert!(
+        p.get("aggregation").is_none(),
+        "default aggregation is not reported"
+    );
+
+    let word = prepared
+        .run_document(
+            &manifest.pack_id,
+            DOC,
+            DocumentRunOptions {
+                aggregation: medscale_pack::EntityAggregation::WordFirst,
+                ..Default::default()
+            },
+        )
+        .expect("document run with word aggregation");
+    let wp = &word.output.proposal_payload;
+    assert_eq!(wp["aggregation"], "word_first");
+    let chars: Vec<char> = DOC.chars().collect();
+    for e in wp["entities"].as_array().unwrap() {
+        let (start, end) = (
+            usize::try_from(e["start"].as_u64().unwrap()).unwrap(),
+            usize::try_from(e["end"].as_u64().unwrap()).unwrap(),
+        );
+        assert_eq!(
+            e["text"],
+            chars[start..end].iter().collect::<String>().as_str()
+        );
+    }
     assert_eq!(
         p["entities"],
         overlapped_default_entities(&prepared, &manifest)

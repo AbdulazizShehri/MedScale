@@ -21,7 +21,8 @@ use tract_onnx::tract_hir;
 use crate::RuntimeOutput;
 use crate::format::artifact_size_limit;
 use crate::token_windows::{
-    BestContextVotes, WindowError, decode_entities, default_stride, plan_windows,
+    BestContextVotes, EntityAggregation, WindowError, decode_entities_by_word, default_stride,
+    plan_windows,
 };
 
 pub const ONNX_TOKEN_CLASSIFIER_RUNTIME_ID: &str = "tract_onnx_token_classification_v1";
@@ -29,7 +30,7 @@ const MAX_LABELS: usize = 512;
 const MAX_INPUT_BYTES: usize = 65_536;
 /// Layout tag of the on-disk plan cache. Any change to the tract version or to
 /// the graph rewrites applied before caching must change this tag.
-const PLAN_CACHE_FORMAT: &str = "medscale-tract-plan-cache-v1;tract=0.22.4";
+const PLAN_CACHE_FORMAT: &str = "medscale-tract-plan-cache-v2;tract=0.22.4;pad-optional-inputs";
 /// A cached plan larger than a model artifact may be is never written or read.
 const PLAN_CACHE_MAX_BYTES: u64 = 1 << 30;
 const PLAN_CACHE_SIDECAR_MAX_BYTES: u64 = 65_536;
@@ -100,6 +101,9 @@ pub struct DocumentRunOptions {
     /// Also report OpenMed's semantic-unit PII merge of the entities
     /// (`pii_merged_entities`; see [`crate::merge_entities_with_semantic_units`]).
     pub pii_semantic_merge: bool,
+    /// Sub-token to entity aggregation; the default reproduces OpenMed's
+    /// ONNX decoder (see [`EntityAggregation`]).
+    pub aggregation: EntityAggregation,
 }
 
 impl Default for DocumentRunOptions {
@@ -108,6 +112,7 @@ impl Default for DocumentRunOptions {
             threshold: 0.0,
             stride: None,
             pii_semantic_merge: false,
+            aggregation: EntityAggregation::OpenMedOnnx,
         }
     }
 }
@@ -289,9 +294,12 @@ impl OnnxTokenClassifierRuntime {
                 .proto_model_for_read(&mut model_reader)
                 .map_err(|e| OnnxRuntimeError::prepare("load", &e))?;
             drop(model_reader);
-            // fp16 exports are widened to fp32 in memory (see `fp16_widen`).
+            // Load-time graph rewrites: fp16 exports are widened to fp32 in
+            // memory (see `fp16_widen`), and omitted optional `Pad` inputs are
+            // dropped (see `onnx_optional_inputs`).
             if let Some(graph) = proto.graph.as_mut() {
                 crate::fp16_widen::widen_fp16(graph);
+                crate::onnx_optional_inputs::drop_omitted_pad_inputs(graph);
             }
             let mut model = onnx
                 .model_for_proto_model(&proto)
@@ -509,10 +517,14 @@ impl PreparedOnnxTokenClassifier {
                 .map_err(|_| OnnxRuntimeError::ModelExecution)?;
             model_inputs.push(tensor.into_tvalue());
         }
-        let outputs = self
-            .runnable
-            .run(model_inputs)
-            .map_err(|_| OnnxRuntimeError::ModelExecution)?;
+        // tract can panic on graphs it prepared but cannot execute (an
+        // out-of-range `Gather` in the Longformer exports, run 38170322676).
+        // The panic is contained and reported as a model execution failure.
+        let outputs = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+            self.runnable.run(model_inputs)
+        }))
+        .map_err(|_| OnnxRuntimeError::ModelExecution)?
+        .map_err(|_| OnnxRuntimeError::ModelExecution)?;
         if outputs.len() != 1 {
             return Err(OnnxRuntimeError::OutputShape);
         }
@@ -583,10 +595,23 @@ impl PreparedOnnxTokenClassifier {
             )?;
         }
         let tokens = votes.finish()?;
-        let entities = decode_entities(&tokens, &self.labels, input, options.threshold);
+        let word_ids: Vec<Option<u32>> = content
+            .iter()
+            .map(|&i| encoding.get_word_ids()[i])
+            .collect();
+        let entities = decode_entities_by_word(
+            &tokens,
+            &word_ids,
+            &self.labels,
+            input,
+            options.threshold,
+            options.aggregation,
+        );
         let pii_merged = options
             .pii_semantic_merge
             .then(|| crate::pii_merge::merge_decoded(&entities, input));
+        let aggregation =
+            (options.aggregation != EntityAggregation::OpenMedOnnx).then_some(options.aggregation);
         Ok(OnnxRuntimeEvaluation {
             output: RuntimeOutput {
                 proposal_payload: crate::pii_merge::with_merged(
@@ -608,6 +633,7 @@ impl PreparedOnnxTokenClassifier {
                         "note": "Proposal/evaluation evidence only; never ClinicalAssertion",
                     }),
                     pii_merged,
+                    aggregation,
                 ),
                 evidence_only: true,
                 pack_id: pack_id.clone(),
