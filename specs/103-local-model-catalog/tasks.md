@@ -1,6 +1,6 @@
 # Spec 103 tasks
 
-Status as of 2026-10-12 (after #211–#221). Capability matrix: [`CAPABILITY_MATRIX.md`](CAPABILITY_MATRIX.md). `[x]` done, `[~]` partly done (the gap is stated), `[ ]` not started.
+Status as of 2026-10-12 (after #211–#222). Capability matrix: [`CAPABILITY_MATRIX.md`](CAPABILITY_MATRIX.md). `[x]` done, `[~]` partly done (the gap is stated), `[ ]` not started.
 
 - [x] T103-01 (P1) `catalog.rs`: `CatalogRow`, `CatalogStatus` (10-state ladder), snapshot source binding (repository, commit, SHA-256), strict JSONL parser with required fields validated and duplicates rejected. Unknown fields are ignored, not kept. Merged in #184.
 - [x] T103-02 (P1) Filters: task, family, language, format, architecture, license claim, tier (#211), device fit, status, parameter and disk ceilings; stable ordering; offset pagination. Offset pagination is stable because a catalog snapshot is immutable and rows are sorted by repository id; cursors add nothing here.
@@ -31,10 +31,27 @@ Status as of 2026-10-12 (after #211–#221). Capability matrix: [`CAPABILITY_MAT
   - **Evidence:** run 38152211383, PII-Dutch-SuperClinical-Small-44M ONNX. A cold prepare took 766.8 s; a warm prepare took 3.55 s, with byte-identical whole-document output. RoBERTa and XLM-R graphs cannot be serialized to NNEF and fall back uncached, with identical output.
   - **Remaining:** the first load of an ONNX-only DeBERTa-v2 row per machine still takes about 13 minutes; the candle runtime (about 3 s from safetensors or MLX) remains the interactive path.
 - [~] T103-16 Runtimes beyond tract ONNX. Done: native safetensors on candle (#198), OpenMed MLX `mlx-fp` exports on candle with Apple Metal (#203, #208), GLiNER zero-shot span heads from the MLX exports (#215, Core surface #217). Still open, each needing its own dependency-admission spec: ONNX Runtime (evaluated, not admitted), Core ML, Android, WebGPU, generative and multimodal models (also over the 1 GiB Pack bound).
-- [x] T103-17 OpenMed PII post-processing: identifier checksum validators from `clinical_ids.py` in the privacy recognizers (#212); semantic-unit entity merger from `pii_entity_merger.py` as an opt-in on both document runtimes (#216). Not ported: the `india_clinical` code-mixing path.
+- [x] T103-17 OpenMed PII post-processing: identifier checksum validators from `clinical_ids.py` in the privacy recognizers (#212); semantic-unit entity merger from `pii_entity_merger.py` as an opt-in on both document runtimes (#216); detection normalization (#221); the `india_clinical` path (abbreviation expansion from `clinical/normalization/india.py` and Latin/Devanagari or Latin/Telugu span bridging from `merge_india_code_mixed_spans`), with synthetic fixtures (this change).
 - [x] T103-18 Optional word-level entity aggregation (`EntityAggregation::Word*`, #218) beside the unchanged OpenMed-compatible decoder. Real-weight comparison (run 38170219043): `met|form|in` becomes `metformin`, `Esc|herichia coli` becomes `Escherichia coli`. No accuracy claim without labelled evaluation.
 - [ ] T103-19 Clinical Longformer (20 rows). **Blocked (runtime support):** the omitted-`Pad`-input rewrite (#218) lets tract prepare the export, but tract 0.22.4 then fails in `Gather` at 512 and 1024 tokens (runs 38170322676, 38172472172; contained as `ModelExecution` since #218). candle has no Longformer encoder.
 - [x] T103-20 Catalog rows with no `architecture` field: six NER rows whose `config.json` declares bert, roberta, deberta-v2 or modernbert executed on candle (run 38163293053), recorded per row.
 - [x] T103-21 Model unload through Core: `PacksResidency` lists prepared models in the tract, candle and GLiNER pools; `PacksUnloadLocal` unloads one Pack's models or every unpinned one (#219).
 - [x] T103-22 Opt-in detection normalization for the PII merger (OpenMed `normalize_for_detection`: NFKC per code point, native digits folded, spans mapped back) (#221).
 - [x] T103-23 All 13 QwenMed PII ONNX rows executed with their int8 export, the only one under the 1 GiB bound (runs 38152456058, 38260759126). Warm single-window runs were 5.7–9.6 s on some runners and about 106 s on others: executable, not interactive on CPU.
+
+## Execution queue classification (2026-10-12)
+
+Founder directive on #183 (2026-10-12): every remaining row is one of `IMPLEMENTED_AND_QUALIFIED`, `REPOSITORY_WORK_REMAINING` or `EXTERNAL_BLOCKED`, with evidence. "Qualified" means merged with exact-head CI and the cited execution or contract tests; it never means task-qualified or clinically validated.
+
+| Task | Class | Evidence or next grain |
+|---|---|---|
+| T103-01–06, 08, 11, 13–15, 17, 18, 20–23 | `IMPLEMENTED_AND_QUALIFIED` | Merged PRs cited per task; post-merge main CI 6/6 (latest `9393e2d`, run 38282986807) |
+| T103-09 per-row evidence | `REPOSITORY_WORK_REMAINING` | 37 of 2,266 rows executed. Next: a reusable batch qualification job that runs prioritized rows (one per family, language and runtime) on free CI and records them in `EXECUTED_MODELS` |
+| T103-19 Clinical Longformer | `REPOSITORY_WORK_REMAINING` | tract fails in `Gather` (run 38172472172). Next: a MedScale-owned candle Longformer path. With no global attention (the token-classification default) and a sequence no longer than the one-sided window plus one (257 tokens for `attention_window` 512), sliding-window attention equals full attention, so the RoBERTa-shaped encoder with Longformer weights is exact within that bound; longer documents use the existing windowing |
+| T103-16a generative and multimodal | `REPOSITORY_WORK_REMAINING` (spec) / `EXTERNAL_BLOCKED` (catalog rows) | Every OpenMed v3.0.0 generative or vision row is 1.31–20.6 GB, over the unchanged 1 GiB Pack bound. Next: a bounded spec for a generative/multimodal Pack contract and runtime admission, testable with synthetic small models; the catalog rows stay blocked until the founder decides on the bound |
+| T103-16b native ONNX Runtime | `REPOSITORY_WORK_REMAINING` (spec) | Evaluated, not admitted. Next: dependency-admission spec (native binary provenance, `cargo deny`, no build-time download) |
+| T103-16c Core ML | `REPOSITORY_WORK_REMAINING` (spec) | Next: spec scoped to macOS CI runners (zero cost); conversion tooling stays outside the product |
+| T103-16d Android, WebGPU | `EXTERNAL_BLOCKED` (product surface) | MedScale has no Android or browser product surface in the adopted plan; a spec records the runtime contract only |
+| T103-07 Models UI, T103-12 desktop identity guard | `EXTERNAL_BLOCKED` | Tauri chain (#174 → #179) blocked by F096-T01 (`glib` advisory, not accepted) |
+| T103-10 training-dataset terms | `EXTERNAL_BLOCKED` | Dataset terms need rights review outside the repository; execution evidence is unaffected |
+| Task and clinical accuracy | `EXTERNAL_BLOCKED` | Needs authorized labelled datasets; synthetic contract, decoder, offset, failure and no-egress tests continue |
