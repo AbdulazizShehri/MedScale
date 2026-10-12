@@ -59,6 +59,10 @@ def hub_sizes(repo: str) -> dict[str, int]:
 
 def choose(row: dict, kind: str, sizes: dict[str, int]):
     formats = [f.lower() for f in row["formats"]]
+    # Every runtime needs the repository's tokenizer.json (batch 01: three
+    # MLX repositories ship none).
+    if "tokenizer.json" not in sizes:
+        return None
     if kind == "expected_runnable":
         for name in ("model.onnx", "model_fp16.onnx", "model_int8.onnx"):
             # A graph whose weights live in an external-data file cannot be a
