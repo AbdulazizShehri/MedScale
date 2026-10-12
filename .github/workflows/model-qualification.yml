@@ -36,36 +36,66 @@ jobs:
       max-parallel: 3
       matrix:
         include:
-          - arch: bert
-            repo: OpenMed/OpenMed-NER-DiseaseDetect-ElectraMed-33M-v1-onnx-android
-            onnx: model.onnx
-            test: openmed_snapshot_external_103
-            text: "The patient has type 2 diabetes mellitus and chronic kidney disease."
-          - arch: distilbert
-            repo: OpenMed/OpenMed-NER-AnatomyDetect-TinyMed-65M-v1-onnx-android
-            onnx: model.onnx
-            test: openmed_snapshot_external_103
-            text: "Pain in the left knee radiates to the right ankle."
-          - arch: roberta
-            repo: OpenMed/OpenMed-NER-AnatomyDetect-TinyMed-82M-v1-onnx-android
-            onnx: model.onnx
-            test: openmed_snapshot_external_103
-            text: "Pain in the left knee radiates to the right ankle."
-          - arch: modernbert
-            repo: OpenMed/OpenMed-NER-AnatomyDetect-ModernClinical-149M-v1-onnx-android
-            onnx: model.onnx
-            test: openmed_snapshot_external_103
-            text: "Pain in the left knee radiates to the right ankle."
-          - arch: deberta-v2
-            repo: OpenMed/OpenMed-PII-Dutch-SuperClinical-Small-44M-v1-onnx-android
-            onnx: model.onnx
+          - arch: qwen-int8-dutch
+            repo: OpenMed/OpenMed-PII-Dutch-QwenMed-XLarge-600M-v1-onnx-android
+            onnx: model_int8.onnx
             test: openmed_snapshot_external_103
             text: "Patiënt Jan de Vries, geboren op 12 maart 1980, woont in Utrecht."
-          - arch: xlm-roberta-fp16
-            repo: OpenMed/OpenMed-PII-Spanish-BigMed-Large-278M-v1-onnx-android
-            onnx: model_fp16.onnx
+          - arch: qwen-int8-french
+            repo: OpenMed/OpenMed-PII-French-QwenMed-XLarge-600M-v1-onnx-android
+            onnx: model_int8.onnx
+            test: openmed_snapshot_external_103
+            text: "Le patient Jean Dupont, né le 12 mars 1980, habite à Lyon."
+          - arch: qwen-int8-german
+            repo: OpenMed/OpenMed-PII-German-QwenMed-XLarge-600M-v1-onnx-android
+            onnx: model_int8.onnx
+            test: openmed_snapshot_external_103
+            text: "Der Patient Hans Müller, geboren am 12. März 1980, wohnt in Berlin."
+          - arch: qwen-int8-hindi
+            repo: OpenMed/OpenMed-PII-Hindi-QwenMed-XLarge-600M-v1-onnx-android
+            onnx: model_int8.onnx
+            test: openmed_snapshot_external_103
+            text: "मरीज़ राहुल शर्मा का जन्म 12 मार्च 1980 को हुआ और वह दिल्ली में रहते हैं।"
+          - arch: qwen-int8-italian
+            repo: OpenMed/OpenMed-PII-Italian-QwenMed-XLarge-600M-v1-onnx-android
+            onnx: model_int8.onnx
+            test: openmed_snapshot_external_103
+            text: "Il paziente Mario Rossi, nato il 12 marzo 1980, vive a Milano."
+          - arch: qwen-int8-japanese
+            repo: OpenMed/OpenMed-PII-Japanese-QwenMed-XLarge-600M-v1-onnx-android
+            onnx: model_int8.onnx
+            test: openmed_snapshot_external_103
+            text: "患者の山田太郎さんは1980年3月12日生まれで、東京に住んでいます。"
+          - arch: qwen-int8-korean
+            repo: OpenMed/OpenMed-PII-Korean-QwenMed-XLarge-600M-v1-onnx-android
+            onnx: model_int8.onnx
+            test: openmed_snapshot_external_103
+            text: "환자 김민수는 1980년 3월 12일에 태어났으며 서울에 살고 있습니다."
+          - arch: qwen-int8-portuguese
+            repo: OpenMed/OpenMed-PII-Portuguese-QwenMed-XLarge-600M-v1-onnx-android
+            onnx: model_int8.onnx
+            test: openmed_snapshot_external_103
+            text: "O paciente João Silva, nascido em 12 de março de 1980, mora em Lisboa."
+          - arch: qwen-int8-english
+            repo: OpenMed/OpenMed-PII-QwenMed-XLarge-600M-v1-onnx-android
+            onnx: model_int8.onnx
+            test: openmed_snapshot_external_103
+            text: "Patient John Smith, born 12 March 1980, lives in Leeds."
+          - arch: qwen-int8-spanish
+            repo: OpenMed/OpenMed-PII-Spanish-QwenMed-XLarge-600M-v1-onnx-android
+            onnx: model_int8.onnx
             test: openmed_snapshot_external_103
             text: "La paciente María García, nacida el 3 de mayo de 1975, vive en Sevilla."
+          - arch: qwen-int8-telugu
+            repo: OpenMed/OpenMed-PII-Telugu-QwenMed-XLarge-600M-v1-onnx-android
+            onnx: model_int8.onnx
+            test: openmed_snapshot_external_103
+            text: "రోగి రవి కుమార్ 1980 మార్చి 12న జన్మించారు మరియు హైదరాబాద్‌లో నివసిస్తున్నారు."
+          - arch: qwen-int8-turkish
+            repo: OpenMed/OpenMed-PII-Turkish-QwenMed-XLarge-600M-v1-onnx-android
+            onnx: model_int8.onnx
+            test: openmed_snapshot_external_103
+            text: "Hasta Ahmet Yılmaz, 12 Mart 1980 doğumlu ve İstanbul'da yaşıyor."
     steps:
       - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v4
 
