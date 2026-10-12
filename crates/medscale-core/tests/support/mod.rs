@@ -207,3 +207,49 @@ pub fn candle_pack(out: &Path) -> String {
     let _ = std::fs::remove_dir_all(snapshot);
     pack_id
 }
+
+const GLINER_REPO: &str = "OpenMed/Synthetic-Core-ZeroShot-mlx";
+
+/// A signed candle Pack holding a synthetic GLiNER zero-shot export
+/// (random weights from `medscale_pack::gliner_fixtures`), built through the
+/// catalog snapshot path like a real `ZeroShot-NER-*-mlx` row.
+pub fn gliner_pack(out: &Path) -> String {
+    use medscale_pack::gliner_fixtures::{tiny_config, tiny_tokenizer, tiny_weights};
+    let config_value = tiny_config();
+    let config = serde_json::to_vec(&config_value).unwrap();
+    let tokenizer = tiny_tokenizer().into_bytes();
+    let weights = tiny_weights(&config_value);
+    let snapshot = dir("gliner-snapshot");
+    std::fs::write(snapshot.join("config.json"), &config).unwrap();
+    std::fs::write(snapshot.join("tokenizer.json"), &tokenizer).unwrap();
+    std::fs::write(snapshot.join("weights.safetensors"), &weights).unwrap();
+    let meta: HfRepoMetadata = serde_json::from_value(json!({
+        "id": GLINER_REPO, "sha": SHA, "lastModified": "2026-07-13T07:43:16.000Z",
+        "gated": false, "private": false,
+        "siblings": [
+            {"rfilename": "config.json", "size": config.len(), "blobId": git_blob(&config)},
+            {"rfilename": "weights.safetensors", "size": weights.len(),
+             "lfs": {"sha256": hex(&Sha256::digest(&weights)), "size": weights.len()}},
+            {"rfilename": "tokenizer.json", "size": tokenizer.len(), "blobId": git_blob(&tokenizer)}
+        ]
+    }))
+    .unwrap();
+    let row = format!(
+        r#"{{"repo_id":"{GLINER_REPO}","family":"ZeroShot","task":"token-classification","architecture":"deberta-v2","formats":["mlx-fp","pytorch"],"license":"apache-2.0","reproducibility_hash":"{}"}}"#,
+        reproducibility_hash(&meta)
+    );
+    let catalog = ModelCatalog::import("maziyarpanahi/openmed", COMMIT, row.as_bytes()).unwrap();
+    let pack_id = build_token_classifier_pack(
+        &TokenClassifierSnapshot {
+            meta: &meta,
+            row: catalog.get(GLINER_REPO).unwrap(),
+            snapshot_dir: &snapshot,
+            onnx_file: "weights.safetensors",
+            fixed_sequence_length: 64,
+        },
+        out,
+    )
+    .unwrap();
+    let _ = std::fs::remove_dir_all(snapshot);
+    pack_id
+}

@@ -102,6 +102,7 @@ fn evaluation_request(synthetic_only: bool) -> PackEvaluationRequest {
         input: "alice visited clinic today".to_owned(),
         max_tokens: 4,
         synthetic_only,
+        zero_shot_labels: None,
     }
 }
 
@@ -239,6 +240,7 @@ fn prepared_cache_reuse_never_leaks_the_first_pack_identity() {
                 input: "alice visited clinic today".to_owned(),
                 max_tokens: 4,
                 synthetic_only: true,
+                zero_shot_labels: None,
             },
         },
     ));
@@ -308,6 +310,7 @@ fn prepared_cache_reuse_requires_the_same_runtime_contract() {
                 input: "alice visited clinic today".to_owned(),
                 max_tokens: 4,
                 synthetic_only: true,
+                zero_shot_labels: None,
             },
         },
     ));

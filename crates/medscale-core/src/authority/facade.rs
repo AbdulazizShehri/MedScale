@@ -45,6 +45,9 @@ pub struct CoreFacade {
     /// Spec 104: prepared candle safetensors models, with the same budget.
     prepared_candle_models:
         Mutex<medscale_pack::ResidencyPool<Arc<medscale_pack::PreparedCandleTokenClassifier>>>,
+    /// Spec 104: prepared GLiNER zero-shot models, with the same budget.
+    prepared_gliner_models:
+        Mutex<medscale_pack::ResidencyPool<Arc<medscale_pack::PreparedGlinerSpanModel>>>,
     mesc_epochs: Mutex<medscale_pack::MescEpochStore>,
     /// Spec 079: custody of pseudonym map keys. Never vault metadata.
     privacy_keys: PrivacyKeys,
@@ -120,6 +123,9 @@ impl CoreFacade {
                 PREPARED_MODEL_BUDGET_BYTES,
             )),
             prepared_candle_models: Mutex::new(medscale_pack::ResidencyPool::new(
+                PREPARED_MODEL_BUDGET_BYTES,
+            )),
+            prepared_gliner_models: Mutex::new(medscale_pack::ResidencyPool::new(
                 PREPARED_MODEL_BUDGET_BYTES,
             )),
             mesc_epochs: Mutex::new(medscale_pack::MescEpochStore::new()),
@@ -633,6 +639,17 @@ impl CoreFacade {
             .unwrap_or_else(std::sync::PoisonError::into_inner)
     }
 
+    fn prepared_gliner_models(
+        &self,
+    ) -> std::sync::MutexGuard<
+        '_,
+        medscale_pack::ResidencyPool<Arc<medscale_pack::PreparedGlinerSpanModel>>,
+    > {
+        self.prepared_gliner_models
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner)
+    }
+
     /// Spec 104: `PacksEvaluateLocal` for a Pack that declares the candle
     /// safetensors runtime. Same admission checks as the ONNX path (done by
     /// the caller); prepared models are kept in their own residency pool,
@@ -710,6 +727,97 @@ impl CoreFacade {
                 pack_id: output.pack_id,
                 content_digest: manifest.content_digest.clone(),
                 runtime_id: medscale_pack::CANDLE_TOKEN_CLASSIFIER_RUNTIME_ID.to_owned(),
+                prepared_cache_hit,
+                evidence_only: output.evidence_only,
+                proposal_payload: output.proposal_payload,
+                provenance: prepared.provenance().clone(),
+                audit_id,
+            },
+        })
+    }
+
+    /// Spec 104: `PacksEvaluateLocal` for a candle Pack holding a GLiNER
+    /// zero-shot export, run for the requested entity types at OpenMed's
+    /// default threshold with flat (non-overlapping) decoding. Same admission
+    /// checks as the other paths (done by the caller); prepared models have
+    /// their own residency pool and preparation never holds the pool lock.
+    fn evaluate_gliner_pack(
+        &self,
+        path: &std::path::Path,
+        manifest: &medscale_contracts::packs::PackManifestV0,
+        input: &str,
+        labels: &[String],
+        realm_id: medscale_contracts::objects::RealmId,
+        authority_scope_id: medscale_contracts::objects::AuthorityScopeId,
+    ) -> Result<ResponseBody, AuthorityError> {
+        let key = manifest.content_digest.to_hex();
+        let cached = self.prepared_gliner_models().get(&key).cloned();
+        let (prepared, prepared_cache_hit) = if let Some(prepared) = cached {
+            (prepared, true)
+        } else {
+            let candidate = Arc::new(
+                medscale_pack::prepare_gliner_span_model(path, manifest).map_err(|err| {
+                    AuthorityError::InvalidArgument {
+                        message: format!("pack runtime preparation failed: {err}"),
+                    }
+                })?,
+            );
+            let resident_bytes = manifest
+                .artifacts
+                .iter()
+                .filter(|a| a.kind == medscale_contracts::packs::PackArtifactKind::SafetensorsModel)
+                .filter_map(|a| std::fs::metadata(path.join(&a.relative_path)).ok())
+                .map(|m| m.len())
+                .sum::<u64>()
+                .max(1);
+            let mut cache = self.prepared_gliner_models();
+            if let Some(existing) = cache.get(&key).cloned() {
+                (existing, true)
+            } else {
+                let _ = cache.load(&key, resident_bytes, Arc::clone(&candidate));
+                (candidate, false)
+            }
+        };
+        let labels: Vec<&str> = labels.iter().map(String::as_str).collect();
+        let output = prepared
+            .run(
+                &manifest.pack_id,
+                input,
+                &labels,
+                medscale_pack::GLINER_DEFAULT_THRESHOLD,
+            )
+            .map_err(|err| AuthorityError::InvalidArgument {
+                message: format!("pack runtime evaluation failed: {err}"),
+            })?;
+        let mut store = self.store();
+        let audit_id = store.alloc_id("audit");
+        store.insert(StoredObject::Audit(ActionAuditRecord {
+            header: ObjectHeader {
+                id: audit_id.clone(),
+                schema_version: AUTHORITY_SCHEMA_VERSION,
+                realm_id,
+                authority_scope_id,
+            },
+            kind: ActionAuditKind::Audit,
+            actor: OpaqueId::new("pack-runtime"),
+            action: "packs.evaluate_local".to_owned(),
+            target_refs: vec![manifest.pack_id.clone()],
+            effect_state: None,
+            payload_digest: None,
+            detail: Some(serde_json::json!({
+                "runtime": medscale_pack::GLINER_ZERO_SHOT_RUNTIME_ID,
+                "input_bytes": input.len(),
+                "label_count": labels.len(),
+                "evidence_only": true,
+                "synthetic_only": true,
+                "prepared_cache_hit": prepared_cache_hit,
+            })),
+        }));
+        Ok(ResponseBody::PackEvaluation {
+            result: medscale_contracts::packs::PackEvaluationResult {
+                pack_id: output.pack_id,
+                content_digest: manifest.content_digest.clone(),
+                runtime_id: medscale_pack::GLINER_ZERO_SHOT_RUNTIME_ID.to_owned(),
                 prepared_cache_hit,
                 evidence_only: output.evidence_only,
                 proposal_payload: output.proposal_payload,
@@ -1651,9 +1759,46 @@ impl CoreFacade {
                         message: "max_tokens is not representable".to_owned(),
                     }
                 })?;
-                if medscale_pack::pack_runtime_kind(&manifest)
-                    == Some(medscale_pack::PackRuntimeKind::CandleSafetensors)
-                {
+                let candle = medscale_pack::pack_runtime_kind(&manifest)
+                    == Some(medscale_pack::PackRuntimeKind::CandleSafetensors);
+                // A resident prepared model already answers which head the Pack
+                // holds; only a cold Pack re-reads its verified config.json.
+                // Each pool lock is released before any file is read.
+                let resident_key = manifest.content_digest.to_hex();
+                let resident_gliner = self.prepared_gliner_models().get(&resident_key).is_some();
+                let resident_candle = self.prepared_candle_models().get(&resident_key).is_some();
+                let zero_shot = candle
+                    && (resident_gliner
+                        || (!resident_candle
+                            && medscale_pack::pack_is_gliner_span(path, &manifest).map_err(
+                                |err| AuthorityError::InvalidArgument {
+                                    message: format!("pack runtime preparation failed: {err}"),
+                                },
+                            )?));
+                match (zero_shot, &request.zero_shot_labels) {
+                    (true, Some(labels)) => {
+                        return self.evaluate_gliner_pack(
+                            path,
+                            &manifest,
+                            &request.input,
+                            labels,
+                            req.realm_id,
+                            req.authority_scope_id,
+                        );
+                    }
+                    (true, None) => {
+                        return Err(AuthorityError::InvalidArgument {
+                            message: "zero-shot Pack requires zero_shot_labels".to_owned(),
+                        });
+                    }
+                    (false, Some(_)) => {
+                        return Err(AuthorityError::InvalidArgument {
+                            message: "zero_shot_labels apply only to zero-shot Packs".to_owned(),
+                        });
+                    }
+                    (false, None) => {}
+                }
+                if candle {
                     return self.evaluate_candle_pack(
                         path,
                         &manifest,
