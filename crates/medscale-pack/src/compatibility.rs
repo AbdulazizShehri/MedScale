@@ -364,11 +364,46 @@ pub const KNOWN_UNSUPPORTED_FAMILIES: &[(&str, &str)] = &[
 
 /// Published exports known to be defective, matched by architecture and a
 /// repository-id prefix, with the cause.
-pub const KNOWN_DEFECTIVE_EXPORTS: &[(&str, &str, &str)] = &[(
-    "xlm-roberta",
-    "OpenMed/OpenMed-NER-",
-    "the published tokenizer.json is a BPE model with zero merges, so text is split into single characters; the runtime refuses it",
-)];
+/// Why a listed export in [`KNOWN_DEFECTIVE_EXPORTS`] cannot run.
+pub const DEGENERATE_TOKENIZER_REASON: &str = "the published tokenizer.json is a BPE model with zero merges, so text is split into single characters; the runtime refuses it";
+
+/// Published exports known to be defective, by exact repository id. The 28
+/// XLM-R exports whose `tokenizer.json` is BPE with an empty `merges` list
+/// (26 NER, 2 PII), found by reading the end of every XLM-R ONNX row's
+/// tokenizer (2026-10-13; batch run 38301622121 confirmed it on
+/// `OpenMed-PII-BigMed-Large-278M-v1`). The other 39 XLM-R NER exports ship a
+/// well-formed Unigram tokenizer and are not listed. The runtime refuses a
+/// degenerate tokenizer at prepare in any case.
+pub const KNOWN_DEFECTIVE_EXPORTS: &[&str] = &[
+    "OpenMed/OpenMed-NER-AnatomyDetect-BigMed-278M-v1-onnx-android",
+    "OpenMed/OpenMed-NER-AnatomyDetect-BigMed-560M-v1-onnx-android",
+    "OpenMed/OpenMed-NER-BloodCancerDetect-BigMed-278M-v1-onnx-android",
+    "OpenMed/OpenMed-NER-BloodCancerDetect-BigMed-560M-v1-onnx-android",
+    "OpenMed/OpenMed-NER-ChemicalDetect-BigMed-278M-v1-onnx-android",
+    "OpenMed/OpenMed-NER-ChemicalDetect-BigMed-560M-v1-onnx-android",
+    "OpenMed/OpenMed-NER-DNADetect-BigMed-278M-v1-onnx-android",
+    "OpenMed/OpenMed-NER-DNADetect-BigMed-560M-v1-onnx-android",
+    "OpenMed/OpenMed-NER-DiseaseDetect-BigMed-278M-v1-onnx-android",
+    "OpenMed/OpenMed-NER-DiseaseDetect-BigMed-560M-v1-onnx-android",
+    "OpenMed/OpenMed-NER-GenomeDetect-BigMed-278M-v1-onnx-android",
+    "OpenMed/OpenMed-NER-GenomeDetect-BigMed-560M-v1-onnx-android",
+    "OpenMed/OpenMed-NER-GenomicDetect-BigMed-278M-v1-onnx-android",
+    "OpenMed/OpenMed-NER-GenomicDetect-BigMed-560M-v1-onnx-android",
+    "OpenMed/OpenMed-NER-OncologyDetect-BigMed-278M-v1-onnx-android",
+    "OpenMed/OpenMed-NER-OncologyDetect-BigMed-560M-v1-onnx-android",
+    "OpenMed/OpenMed-NER-OrganismDetect-BigMed-278M-v1-onnx-android",
+    "OpenMed/OpenMed-NER-OrganismDetect-BigMed-560M-v1-onnx-android",
+    "OpenMed/OpenMed-NER-PathologyDetect-BigMed-278M-v1-onnx-android",
+    "OpenMed/OpenMed-NER-PathologyDetect-BigMed-560M-v1-onnx-android",
+    "OpenMed/OpenMed-NER-PharmaDetect-BigMed-278M-v1-onnx-android",
+    "OpenMed/OpenMed-NER-PharmaDetect-BigMed-560M-v1-onnx-android",
+    "OpenMed/OpenMed-NER-ProteinDetect-BigMed-278M-v1-onnx-android",
+    "OpenMed/OpenMed-NER-ProteinDetect-BigMed-560M-v1-onnx-android",
+    "OpenMed/OpenMed-NER-SpeciesDetect-BigMed-278M-v1-onnx-android",
+    "OpenMed/OpenMed-NER-SpeciesDetect-BigMed-560M-v1-onnx-android",
+    "OpenMed/OpenMed-PII-BigMed-Large-278M-v1-onnx-android",
+    "OpenMed/OpenMed-PII-BigMed-Large-560M-v1-onnx-android",
+];
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 #[serde(tag = "kind", rename_all = "snake_case")]
@@ -402,6 +437,12 @@ pub enum RuntimeExpectation {
     UnsupportedTask { task: String },
     /// ONNX token classifier with an architecture not yet tried.
     Untested,
+    /// The architecture runs, but even a half-precision export of this many
+    /// parameters (2 bytes each) would exceed the 1 GiB Pack artifact bound.
+    /// An estimate from the catalog parameter count, not a measurement; a
+    /// recorded run of the row (for example a fitting int8 export) overrides
+    /// it.
+    EstimatedOverBound { estimated_megabytes: u64 },
 }
 
 /// Expectation for `row` on the local ONNX token-classification runtime.
@@ -443,7 +484,40 @@ fn mlx_expectation(row: &CatalogRow, arch: &str) -> RuntimeExpectation {
     RuntimeExpectation::Untested
 }
 
+/// Bytes per parameter of the smallest export MedScale admits for a runnable
+/// architecture (fp16); fp32 exports are larger, int8 exports vary.
+const MIN_BYTES_PER_PARAMETER: u64 = 2;
+const PACK_ARTIFACT_BOUND: u64 = 1 << 30;
+
+/// Downgrades an `Expected*` result when the parameter count says no
+/// half-precision export can fit the bound.
+fn size_checked(row: &CatalogRow, expectation: RuntimeExpectation) -> RuntimeExpectation {
+    let expected = matches!(
+        expectation,
+        RuntimeExpectation::ExpectedRunnable
+            | RuntimeExpectation::ExpectedRunnableSafetensors
+            | RuntimeExpectation::ExpectedRunnableZeroShot
+    );
+    match row.param_count {
+        Some(params)
+            if expected && params.saturating_mul(MIN_BYTES_PER_PARAMETER) > PACK_ARTIFACT_BOUND =>
+        {
+            RuntimeExpectation::EstimatedOverBound {
+                estimated_megabytes: params.saturating_mul(MIN_BYTES_PER_PARAMETER) / 1_000_000,
+            }
+        }
+        _ => expectation,
+    }
+}
+
 pub fn runtime_expectation(row: &CatalogRow) -> RuntimeExpectation {
+    if executed_model(&row.repo_id).is_some() || row.task != "token-classification" {
+        return expectation_without_size(row);
+    }
+    size_checked(row, expectation_without_size(row))
+}
+
+fn expectation_without_size(row: &CatalogRow) -> RuntimeExpectation {
     if row.task != "token-classification" {
         return RuntimeExpectation::UnsupportedTask {
             task: row.task.clone(),
@@ -497,12 +571,9 @@ pub fn runtime_expectation(row: &CatalogRow) -> RuntimeExpectation {
         }
         return RuntimeExpectation::NoOnnxArtifact;
     }
-    if let Some((_, _, reason)) = KNOWN_DEFECTIVE_EXPORTS
-        .iter()
-        .find(|(a, prefix, _)| *a == arch && row.repo_id.starts_with(prefix))
-    {
+    if KNOWN_DEFECTIVE_EXPORTS.contains(&row.repo_id.as_str()) {
         return RuntimeExpectation::KnownUnsupported {
-            reason: (*reason).to_string(),
+            reason: DEGENERATE_TOKENIZER_REASON.to_owned(),
         };
     }
     if let Some((_, reason)) = KNOWN_UNSUPPORTED.iter().find(|(a, _)| *a == arch) {
@@ -705,6 +776,66 @@ mod tests {
             ),
             RuntimeExpectation::ExecutedTested { .. }
         ));
+    }
+
+    #[test]
+    fn rows_too_large_for_any_half_precision_export_are_estimated_over_bound() {
+        let sized = |params: u64| {
+            let line = format!(
+                r#"{{"repo_id":"Org/big","family":"PII","task":"token-classification","architecture":"xlm-roberta","formats":["onnx"],"license":"apache-2.0","param_count":{params}}}"#
+            );
+            let catalog = ModelCatalog::import("s/f", COMMIT, line.as_bytes()).unwrap();
+            runtime_expectation(catalog.get("Org/big").unwrap())
+        };
+        assert_eq!(sized(278_000_000), RuntimeExpectation::ExpectedRunnable);
+        assert_eq!(
+            sized(560_000_000),
+            RuntimeExpectation::EstimatedOverBound {
+                estimated_megabytes: 1_120
+            }
+        );
+        // A recorded run overrides the estimate (QwenMed 600M int8 fits).
+        let qwen = named(
+            "OpenMed/OpenMed-PII-Chinese-QwenMed-XLarge-600M-v1-onnx-android",
+            "token-classification",
+            "qwen",
+            r#"["onnx"]"#,
+        );
+        assert!(matches!(
+            runtime_expectation(&qwen),
+            RuntimeExpectation::ExecutedTested { .. }
+        ));
+    }
+
+    #[test]
+    fn degenerate_tokenizers_are_listed_by_exact_repository() {
+        let row = |repo: &str, params: u64| {
+            let line = format!(
+                r#"{{"repo_id":"{repo}","family":"NER","task":"token-classification","architecture":"xlm-roberta","formats":["onnx"],"license":"apache-2.0","param_count":{params}}}"#
+            );
+            let catalog = ModelCatalog::import("s/f", COMMIT, line.as_bytes()).unwrap();
+            runtime_expectation(catalog.get(repo).unwrap())
+        };
+        assert_eq!(
+            row(
+                "OpenMed/OpenMed-PII-BigMed-Large-278M-v1-onnx-android",
+                278_000_000
+            ),
+            RuntimeExpectation::KnownUnsupported {
+                reason: DEGENERATE_TOKENIZER_REASON.to_owned()
+            },
+            "a PII export with a degenerate tokenizer (batch 01)"
+        );
+        // A well-formed (Unigram) NER export is not blocked by the tokenizer
+        // rule; this one is too large for the bound instead.
+        assert!(matches!(
+            row(
+                "OpenMed/OpenMed-NER-AnatomyDetect-MultiMed-568M-v1-onnx-android",
+                568_000_000
+            ),
+            RuntimeExpectation::EstimatedOverBound { .. }
+        ));
+        assert_eq!(KNOWN_DEFECTIVE_EXPORTS.len(), 28);
     }
 
     #[test]

@@ -61,7 +61,10 @@ def choose(row: dict, kind: str, sizes: dict[str, int]):
     formats = [f.lower() for f in row["formats"]]
     if kind == "expected_runnable":
         for name in ("model.onnx", "model_fp16.onnx", "model_int8.onnx"):
-            if 0 < sizes.get(name, 0) <= BOUND:
+            # A graph whose weights live in an external-data file cannot be a
+            # single-file Pack artifact (batch 01: Arabic BigMed-Large-560M).
+            external = any(f.startswith(name) and f != name for f in sizes)
+            if not external and 0 < sizes.get(name, 0) <= BOUND:
                 return name, "openmed_snapshot_external_103", "tract_onnx"
         return None
     if kind == "expected_runnable_zero_shot":
