@@ -24,6 +24,7 @@ thiserror = { workspace = true }
 # external-SQLite fixtures. No product dependency edge is added (core still
 # reaches SQLite exclusively through medscale-storage).
 [dev-dependencies]
+medscale-pack = { workspace = true, features = ["synthetic-fixtures"] }
 rusqlite = { workspace = true }
 sha1 = { workspace = true }
 
