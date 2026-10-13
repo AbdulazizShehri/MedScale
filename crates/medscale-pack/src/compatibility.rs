@@ -41,6 +41,77 @@ pub struct ExecutedModel {
 /// Per-model execution evidence (rows, not architectures). Synthetic text
 /// only: this records that the model runs, not task quality.
 pub const EXECUTED_MODELS: &[ExecutedModel] = &[
+    // Batch 13 (run 38373925933, 10 of 10 rows; Vietnamese PII and remaining groups).
+    ExecutedModel {
+        repo_id: "OpenMed/OpenMed-PII-mLiteClinical-Base-135M-v1",
+        revision: "3f12cf0e68b81b02072050197c4a58c978859321",
+        runtime: "candle_safetensors",
+        weight_file: "model.safetensors",
+        evidence_run: "38373925933",
+    },
+    ExecutedModel {
+        repo_id: "OpenMed/OpenMed-PII-Vietnamese-SuperClinical-Base-184M-v1",
+        revision: "7960bf5842c314e7258b5873a02e7708443ed061",
+        runtime: "candle_safetensors",
+        weight_file: "model.safetensors",
+        evidence_run: "38373925933",
+    },
+    ExecutedModel {
+        repo_id: "OpenMed/OpenMed-PII-Vietnamese-SuperMedical-Large-355M-v1-onnx-android",
+        revision: "021b5f323b38c8e1ab9315e869358d89c6d6c6b6",
+        runtime: "tract_onnx",
+        weight_file: "model_fp16.onnx",
+        evidence_run: "38373925933",
+    },
+    ExecutedModel {
+        repo_id: "OpenMed/OpenMed-PII-Vietnamese-SuperClinical-Base-184M-v1-mlx",
+        revision: "42bc5dde40eb47457a5f82943312357ba48071f8",
+        runtime: "candle_mlx",
+        weight_file: "weights.safetensors",
+        evidence_run: "38373925933",
+    },
+    ExecutedModel {
+        repo_id: "OpenMed/OpenMed-PII-mLiteClinical-Base-135M-v1-onnx-android",
+        revision: "9bb6c30bd6fdab600dbfc00aa29a946391993077",
+        runtime: "tract_onnx",
+        weight_file: "model.onnx",
+        evidence_run: "38373925933",
+    },
+    ExecutedModel {
+        repo_id: "OpenMed/OpenMed-PII-Vietnamese-SuperClinical-Large-434M-v1-onnx-android",
+        revision: "4f8370e154dd542c54095c8e39c07b1d9da3597f",
+        runtime: "tract_onnx",
+        weight_file: "model_fp16.onnx",
+        evidence_run: "38373925933",
+    },
+    ExecutedModel {
+        repo_id: "OpenMed/OpenMed-PII-Vietnamese-SuperClinical-Small-44M-v1-onnx-android",
+        revision: "665e766d817110a648d9cc38d074041702ca9675",
+        runtime: "tract_onnx",
+        weight_file: "model.onnx",
+        evidence_run: "38373925933",
+    },
+    ExecutedModel {
+        repo_id: "OpenMed/OpenMed-PII-Vietnamese-SuperClinical-Small-44M-v1-mlx",
+        revision: "3dc1f01cf53d055f8568add0bd7462658998a104",
+        runtime: "candle_mlx",
+        weight_file: "weights.safetensors",
+        evidence_run: "38373925933",
+    },
+    ExecutedModel {
+        repo_id: "OpenMed/OpenMed-PII-Vietnamese-SuperClinical-Base-184M-v1-onnx-android",
+        revision: "4c8b167a7e7a64cd710ae6ac13ce534c6571cdf9",
+        runtime: "tract_onnx",
+        weight_file: "model.onnx",
+        evidence_run: "38373925933",
+    },
+    ExecutedModel {
+        repo_id: "OpenMed/OpenMed-PII-Vietnamese-SuperClinical-Small-44M-v1",
+        revision: "f59723b61cb9141242524c65d227ba4132547d2c",
+        runtime: "candle_safetensors",
+        weight_file: "model.safetensors",
+        evidence_run: "38373925933",
+    },
     // Batch 12 (run 38368604917, 24 of 24 rows; Turkish and Vietnamese PII).
     ExecutedModel {
         repo_id: "OpenMed/OpenMed-PII-Turkish-ClinicalLongformer-Base-149M-v1",
