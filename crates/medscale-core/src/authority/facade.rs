@@ -48,6 +48,9 @@ pub struct CoreFacade {
     /// Spec 104: prepared GLiNER zero-shot models, with the same budget.
     prepared_gliner_models:
         Mutex<medscale_pack::ResidencyPool<Arc<medscale_pack::PreparedGlinerSpanModel>>>,
+    /// Spec 105: prepared text generators, with the same budget.
+    prepared_generators:
+        Mutex<medscale_pack::ResidencyPool<Arc<medscale_pack::PreparedTextGenerator>>>,
     mesc_epochs: Mutex<medscale_pack::MescEpochStore>,
     /// Spec 079: custody of pseudonym map keys. Never vault metadata.
     privacy_keys: PrivacyKeys,
@@ -126,6 +129,9 @@ impl CoreFacade {
                 PREPARED_MODEL_BUDGET_BYTES,
             )),
             prepared_gliner_models: Mutex::new(medscale_pack::ResidencyPool::new(
+                PREPARED_MODEL_BUDGET_BYTES,
+            )),
+            prepared_generators: Mutex::new(medscale_pack::ResidencyPool::new(
                 PREPARED_MODEL_BUDGET_BYTES,
             )),
             mesc_epochs: Mutex::new(medscale_pack::MescEpochStore::new()),
@@ -633,6 +639,10 @@ impl CoreFacade {
                 "candle_gliner",
                 resident_rows(&self.prepared_gliner_models()),
             ),
+            (
+                "candle_text_generation",
+                resident_rows(&self.prepared_generators()),
+            ),
         ] {
             rows.extend(
                 entries
@@ -695,6 +705,17 @@ impl CoreFacade {
         medscale_pack::ResidencyPool<Arc<medscale_pack::PreparedGlinerSpanModel>>,
     > {
         self.prepared_gliner_models
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner)
+    }
+
+    fn prepared_generators(
+        &self,
+    ) -> std::sync::MutexGuard<
+        '_,
+        medscale_pack::ResidencyPool<Arc<medscale_pack::PreparedTextGenerator>>,
+    > {
+        self.prepared_generators
             .lock()
             .unwrap_or_else(std::sync::PoisonError::into_inner)
     }
@@ -867,6 +888,89 @@ impl CoreFacade {
                 pack_id: output.pack_id,
                 content_digest: manifest.content_digest.clone(),
                 runtime_id: medscale_pack::GLINER_ZERO_SHOT_RUNTIME_ID.to_owned(),
+                prepared_cache_hit,
+                evidence_only: output.evidence_only,
+                proposal_payload: output.proposal_payload,
+                provenance: prepared.provenance().clone(),
+                audit_id,
+            },
+        })
+    }
+
+    /// Spec 105: `PacksGenerateLocal` with an admitted generation Pack, after
+    /// the caller's admission checks. Prepared generators have their own
+    /// residency pool; the prompt text is never written to the audit.
+    fn generate_with_pack(
+        &self,
+        path: &std::path::Path,
+        manifest: &medscale_contracts::packs::PackManifestV0,
+        input: &str,
+        max_new_tokens: usize,
+        realm_id: medscale_contracts::objects::RealmId,
+        authority_scope_id: medscale_contracts::objects::AuthorityScopeId,
+    ) -> Result<ResponseBody, AuthorityError> {
+        let key = manifest.content_digest.to_hex();
+        let cached = self.prepared_generators().get(&key).cloned();
+        let (prepared, prepared_cache_hit) = if let Some(prepared) = cached {
+            (prepared, true)
+        } else {
+            let candidate = Arc::new(
+                medscale_pack::prepare_text_generator(path, manifest).map_err(|err| {
+                    AuthorityError::InvalidArgument {
+                        message: format!("pack runtime preparation failed: {err}"),
+                    }
+                })?,
+            );
+            let resident_bytes = manifest
+                .artifacts
+                .iter()
+                .filter(|a| a.kind == medscale_contracts::packs::PackArtifactKind::SafetensorsModel)
+                .filter_map(|a| std::fs::metadata(path.join(&a.relative_path)).ok())
+                .map(|m| m.len())
+                .sum::<u64>()
+                .max(1);
+            let mut cache = self.prepared_generators();
+            if let Some(existing) = cache.get(&key).cloned() {
+                (existing, true)
+            } else {
+                let _ = cache.load(&key, resident_bytes, Arc::clone(&candidate));
+                (candidate, false)
+            }
+        };
+        let output = prepared
+            .generate(&manifest.pack_id, input, max_new_tokens)
+            .map_err(|err| AuthorityError::InvalidArgument {
+                message: format!("pack generation failed: {err}"),
+            })?;
+        let mut store = self.store();
+        let audit_id = store.alloc_id("audit");
+        store.insert(StoredObject::Audit(ActionAuditRecord {
+            header: ObjectHeader {
+                id: audit_id.clone(),
+                schema_version: AUTHORITY_SCHEMA_VERSION,
+                realm_id,
+                authority_scope_id,
+            },
+            kind: ActionAuditKind::Audit,
+            actor: OpaqueId::new("pack-runtime"),
+            action: "packs.generate_local".to_owned(),
+            target_refs: vec![manifest.pack_id.clone()],
+            effect_state: None,
+            payload_digest: None,
+            detail: Some(serde_json::json!({
+                "runtime": medscale_pack::CANDLE_TEXT_GENERATION_RUNTIME_ID,
+                "input_bytes": input.len(),
+                "max_new_tokens": max_new_tokens,
+                "evidence_only": true,
+                "synthetic_only": true,
+                "prepared_cache_hit": prepared_cache_hit,
+            })),
+        }));
+        Ok(ResponseBody::PackEvaluation {
+            result: medscale_contracts::packs::PackEvaluationResult {
+                pack_id: output.pack_id,
+                content_digest: manifest.content_digest.clone(),
+                runtime_id: medscale_pack::CANDLE_TEXT_GENERATION_RUNTIME_ID.to_owned(),
                 prepared_cache_hit,
                 evidence_only: output.evidence_only,
                 proposal_payload: output.proposal_payload,
@@ -1777,6 +1881,46 @@ impl CoreFacade {
                     }),
                 }
             }
+            RequestBody::PacksGenerateLocal { request } => {
+                self.require_lease(&req.vault_id)?;
+                if !request.synthetic_only {
+                    return Err(AuthorityError::ExternalGateRequired {
+                        gate: "REAL_PHI_MODEL_RUNTIME".to_owned(),
+                    });
+                }
+                let path = std::path::Path::new(&request.local_path);
+                let manifest = medscale_pack::admit_pack_dir(path).map_err(|err| {
+                    AuthorityError::InvalidArgument {
+                        message: format!("pack generation admission failed: {err}"),
+                    }
+                })?;
+                if manifest.pack_id != request.pack_id {
+                    return Err(AuthorityError::DigestMismatch);
+                }
+                let stored = self
+                    .packs()
+                    .get(&request.pack_id)
+                    .ok_or(AuthorityError::NotFound)?;
+                if stored.content_digest != manifest.content_digest
+                    || stored.pack_epoch != manifest.pack_epoch
+                    || stored.version != manifest.version
+                {
+                    return Err(AuthorityError::DigestMismatch);
+                }
+                let max_new_tokens = usize::try_from(request.max_new_tokens).map_err(|_| {
+                    AuthorityError::InvalidArgument {
+                        message: "max_new_tokens is not representable".to_owned(),
+                    }
+                })?;
+                self.generate_with_pack(
+                    path,
+                    &manifest,
+                    &request.prompt,
+                    max_new_tokens,
+                    req.realm_id.clone(),
+                    req.authority_scope_id.clone(),
+                )
+            }
             RequestBody::PacksResidency => Ok(ResponseBody::PackResidency {
                 view: Box::new(self.residency_view(Vec::new())),
             }),
@@ -1804,6 +1948,10 @@ impl CoreFacade {
                 {
                     let mut gliner = self.prepared_gliner_models();
                     unloaded.extend(unload_from(&mut gliner, target.as_deref()));
+                }
+                {
+                    let mut generators = self.prepared_generators();
+                    unloaded.extend(unload_from(&mut generators, target.as_deref()));
                 }
                 let unloaded: Vec<medscale_contracts::objects::DigestSha256> = unloaded
                     .into_iter()
@@ -5496,7 +5644,9 @@ fn capability_matches(cap: &Capability, body: &RequestBody) -> bool {
             | (Capability::PacksPromote, RequestBody::PacksPromote { .. })
             | (
                 Capability::PacksEvaluateLocal,
-                RequestBody::PacksEvaluateLocal { .. } | RequestBody::PacksUnloadLocal { .. },
+                RequestBody::PacksEvaluateLocal { .. }
+                    | RequestBody::PacksGenerateLocal { .. }
+                    | RequestBody::PacksUnloadLocal { .. },
             )
             | (
                 Capability::DocumentIntake,

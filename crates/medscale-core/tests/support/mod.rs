@@ -253,3 +253,47 @@ pub fn gliner_pack(out: &Path) -> String {
     let _ = std::fs::remove_dir_all(snapshot);
     pack_id
 }
+
+const GENERATION_REPO: &str = "OpenMed/Synthetic-Core-Generator";
+
+/// A signed generation Pack (Spec 105) holding a synthetic tiny Qwen2
+/// (random weights from `medscale_pack::generation_fixtures`), built through
+/// the catalog snapshot path like a `text-generation` row.
+pub fn generation_pack(out: &Path) -> String {
+    use medscale_pack::generation_fixtures::{tiny_config, tiny_tokenizer, tiny_weights};
+    let config = serde_json::to_vec(&tiny_config("qwen2")).unwrap();
+    let tokenizer = tiny_tokenizer().into_bytes();
+    let weights = tiny_weights("qwen2");
+    let snapshot = dir("generation-snapshot");
+    std::fs::write(snapshot.join("config.json"), &config).unwrap();
+    std::fs::write(snapshot.join("tokenizer.json"), &tokenizer).unwrap();
+    std::fs::write(snapshot.join("model.safetensors"), &weights).unwrap();
+    let meta: HfRepoMetadata = serde_json::from_value(json!({
+        "id": GENERATION_REPO, "sha": SHA, "lastModified": "2026-07-13T07:43:16.000Z",
+        "gated": false, "private": false,
+        "siblings": [
+            {"rfilename": "config.json", "size": config.len(), "blobId": git_blob(&config)},
+            {"rfilename": "model.safetensors", "size": weights.len(),
+             "lfs": {"sha256": hex(&Sha256::digest(&weights)), "size": weights.len()}},
+            {"rfilename": "tokenizer.json", "size": tokenizer.len(), "blobId": git_blob(&tokenizer)}
+        ]
+    }))
+    .unwrap();
+    let row = format!(
+        r#"{{"repo_id":"{GENERATION_REPO}","family":"General","task":"text-generation","architecture":"qwen","formats":["pytorch"],"license":"apache-2.0","reproducibility_hash":"{}"}}"#,
+        reproducibility_hash(&meta)
+    );
+    let catalog = ModelCatalog::import("maziyarpanahi/openmed", COMMIT, row.as_bytes()).unwrap();
+    let pack_id = medscale_pack::build_text_generation_pack(
+        &medscale_pack::TextGenerationSnapshot {
+            meta: &meta,
+            row: catalog.get(GENERATION_REPO).unwrap(),
+            snapshot_dir: &snapshot,
+            weight_file: "model.safetensors",
+        },
+        out,
+    )
+    .unwrap();
+    let _ = std::fs::remove_dir_all(snapshot);
+    pack_id
+}
