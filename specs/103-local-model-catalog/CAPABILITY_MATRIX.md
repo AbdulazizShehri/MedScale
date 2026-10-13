@@ -189,3 +189,5 @@ Executed or expected runnable: **1,764 of 2,266** (was 1,702 on 2026-10-10). All
 
 **Batch 07** (run 38347129440, 24 rows, Italian, Portuguese, Japanese and Korean PII): **24 of 24 executed**, including the Japanese and Korean `NomicMed-Large-395M` fp16 exports and a Portuguese MLX export.
 
+**Batch 08** (run 38350788210, 24 rows, Portuguese PII): **24 of 24 executed** (tract ONNX, candle safetensors and six MLX exports; the DeBERTa-v2 `SuperClinical-Large-434M` fp16 export prepared in 10.2 s).
+
