@@ -185,3 +185,5 @@ Executed or expected runnable: **1,764 of 2,266** (was 1,702 on 2026-10-10). All
 
 **DeBERTa-v2 preparation fix** (T103-15): the typing cost above came from tract eagerly evaluating the constant relative-position `MatMul`s with its reference loop. With `hir_const_matmul`, the same products run through tract's optimized kernels. Locally, typing dropped from 999 s to 1.7 s, and the logits matched the unwrapped graph to 1.14e-5 with identical labels. The next batch run measures it on CI.
 
+**Batch 06** (run 38343611678, 24 rows): **24 of 24 executed**. It includes seven `SuperClinical-Large-434M` DeBERTa-v2 fp16 exports, among them `ClinicalNER-SuperClinical-Large-434M`, which exceeded the 90-minute job limit in batch 01. With the constant-MatMul fix, the large exports prepared in 9.0–11.1 s (typing about 4.7 s), DeBERTa-v2 Base in 5.9 s and Small in 3.6 s. Batches 04–05 had measured 582–1,575 s of typing for the same architecture. The T103-15 fix is confirmed on CI.
+
