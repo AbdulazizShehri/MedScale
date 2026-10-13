@@ -8,6 +8,7 @@ use std::fs;
 use std::io::{Cursor, Read};
 use std::path::{Component, Path, PathBuf};
 use std::sync::atomic::{AtomicBool, Ordering};
+use std::time::Instant;
 
 use medscale_contracts::objects::{DigestSha256, OpaqueId};
 use medscale_contracts::packs::{ModelSourceProvenance, PackArtifactKind, PackManifestV0};
@@ -140,6 +141,20 @@ pub struct OnnxTokenClassifierRuntime {
 
 /// Prepared local model session. Model weights and execution plan are reusable;
 /// no user input is retained between evaluations.
+/// Wall-clock milliseconds spent in each tract preparation stage. Load,
+/// typing and decluttering are zero on a plan-cache hit.
+#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
+pub struct PrepareStageTimings {
+    pub load_ms: u64,
+    pub typed_and_decluttered_ms: u64,
+    pub optimized_ms: u64,
+    pub runnable_ms: u64,
+}
+
+fn elapsed_ms(since: Instant) -> u64 {
+    u64::try_from(since.elapsed().as_millis()).unwrap_or(u64::MAX)
+}
+
 pub struct PreparedOnnxTokenClassifier {
     content_digest: DigestSha256,
     runtime_contract_digest: DigestSha256,
@@ -154,6 +169,7 @@ pub struct PreparedOnnxTokenClassifier {
     input_names: Vec<String>,
     fixed_sequence_length: usize,
     runnable: TypedSimplePlan<TypedModel>,
+    stage_timings: PrepareStageTimings,
 }
 
 impl fmt::Debug for PreparedOnnxTokenClassifier {
@@ -293,9 +309,11 @@ impl OnnxTokenClassifierRuntime {
             .as_ref()
             .and_then(|(dir, key)| load_cached_plan(dir, key));
         let hit = cached.is_some();
+        let mut stage_timings = PrepareStageTimings::default();
         let (decluttered, input_names) = if let Some(plan) = cached {
             plan
         } else {
+            let load_started = Instant::now();
             let mut model_reader = Cursor::new(model_bytes);
             let onnx = tract_onnx::onnx();
             let mut proto = onnx
@@ -342,10 +360,13 @@ impl OnnxTokenClassifierRuntime {
             }
             relax_symbolic_value_info(&mut model);
             normalize_static_shape_ops(&mut model);
+            stage_timings.load_ms = elapsed_ms(load_started);
+            let typed_started = Instant::now();
             let decluttered = model
                 .into_typed()
                 .and_then(TypedModel::into_decluttered)
                 .map_err(|e| OnnxRuntimeError::prepare("optimize", &e))?;
+            stage_timings.typed_and_decluttered_ms = elapsed_ms(typed_started);
             (decluttered, input_names)
         };
         let outcome = match (&cache, hit) {
@@ -353,9 +374,11 @@ impl OnnxTokenClassifierRuntime {
             (Some((dir, key)), false) => store_cached_plan(dir, key, &decluttered, &input_names),
             (None, false) => PlanCacheOutcome::NotCached,
         };
+        let optimize_started = Instant::now();
         let optimized = decluttered
             .into_optimized()
             .map_err(|e| OnnxRuntimeError::prepare("optimize", &e))?;
+        stage_timings.optimized_ms = elapsed_ms(optimize_started);
         if optimized
             .output_outlets()
             .map_err(|_| OnnxRuntimeError::OutputShape)?
@@ -373,9 +396,11 @@ impl OnnxTokenClassifierRuntime {
         {
             return Err(OnnxRuntimeError::OutputShape);
         }
+        let runnable_started = Instant::now();
         let runnable = optimized
             .into_runnable()
             .map_err(|e| OnnxRuntimeError::prepare("runnable", &e))?;
+        stage_timings.runnable_ms = elapsed_ms(runnable_started);
 
         let prepared = PreparedOnnxTokenClassifier {
             content_digest: pack.content_digest.clone(),
@@ -389,6 +414,7 @@ impl OnnxTokenClassifierRuntime {
             runnable,
             pad_token,
             pad_id,
+            stage_timings,
         };
         Ok((prepared, outcome))
     }
@@ -406,6 +432,12 @@ impl OnnxTokenClassifierRuntime {
 }
 
 impl PreparedOnnxTokenClassifier {
+    /// Time spent in each preparation stage (qualification evidence).
+    #[must_use]
+    pub fn stage_timings(&self) -> PrepareStageTimings {
+        self.stage_timings
+    }
+
     #[must_use]
     pub const fn fixed_sequence_length(&self) -> usize {
         self.fixed_sequence_length
