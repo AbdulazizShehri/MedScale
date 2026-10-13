@@ -191,3 +191,5 @@ Executed or expected runnable: **1,764 of 2,266** (was 1,702 on 2026-10-10). All
 
 **Batch 08** (run 38350788210, 24 rows, Portuguese PII): **24 of 24 executed** (tract ONNX, candle safetensors and six MLX exports; the DeBERTa-v2 `SuperClinical-Large-434M` fp16 export prepared in 10.2 s).
 
+**Batch 08** (run 38350788210, 24 rows, Portuguese PII): **24 of 24 executed** (tract ONNX, candle safetensors and five MLX exports, including a DeBERTa-v2 Large fp16 export prepared in seconds).
+
