@@ -1,0 +1,194 @@
+[
+  {
+    "id": "00-OpenMed-ClinicalNER-SuperClinical-Large-434M-v1-",
+    "repo": "OpenMed/OpenMed-ClinicalNER-SuperClinical-Large-434M-v1-onnx-android",
+    "weights": "model_fp16.onnx",
+    "test": "openmed_snapshot_external_103",
+    "text": "Patient John Smith, born 12 March 1980, has type 2 diabetes and pain in the left knee.",
+    "labels": ""
+  },
+  {
+    "id": "01-OpenMed-PII-Hindi-SuperClinical-Base-184M-v1",
+    "repo": "OpenMed/OpenMed-PII-Hindi-SuperClinical-Base-184M-v1",
+    "weights": "model.safetensors",
+    "test": "safetensors_external_104",
+    "text": "मरीज़ राहुल शर्मा का जन्म 12 मार्च 1980 को हुआ और उन्हें मधुमेह है।",
+    "labels": ""
+  },
+  {
+    "id": "02-OpenMed-PII-Hindi-SuperClinical-Base-184M-v1-onn",
+    "repo": "OpenMed/OpenMed-PII-Hindi-SuperClinical-Base-184M-v1-onnx-android",
+    "weights": "model.onnx",
+    "test": "openmed_snapshot_external_103",
+    "text": "मरीज़ राहुल शर्मा का जन्म 12 मार्च 1980 को हुआ और उन्हें मधुमेह है।",
+    "labels": ""
+  },
+  {
+    "id": "03-OpenMed-PII-Hindi-SuperClinical-Large-434M-v1-on",
+    "repo": "OpenMed/OpenMed-PII-Hindi-SuperClinical-Large-434M-v1-onnx-android",
+    "weights": "model_fp16.onnx",
+    "test": "openmed_snapshot_external_103",
+    "text": "मरीज़ राहुल शर्मा का जन्म 12 मार्च 1980 को हुआ और उन्हें मधुमेह है।",
+    "labels": ""
+  },
+  {
+    "id": "04-OpenMed-PII-Hindi-SuperClinical-Small-44M-v1",
+    "repo": "OpenMed/OpenMed-PII-Hindi-SuperClinical-Small-44M-v1",
+    "weights": "model.safetensors",
+    "test": "safetensors_external_104",
+    "text": "मरीज़ राहुल शर्मा का जन्म 12 मार्च 1980 को हुआ और उन्हें मधुमेह है।",
+    "labels": ""
+  },
+  {
+    "id": "05-OpenMed-PII-Hindi-SuperClinical-Small-44M-v1-onn",
+    "repo": "OpenMed/OpenMed-PII-Hindi-SuperClinical-Small-44M-v1-onnx-android",
+    "weights": "model.onnx",
+    "test": "openmed_snapshot_external_103",
+    "text": "मरीज़ राहुल शर्मा का जन्म 12 मार्च 1980 को हुआ और उन्हें मधुमेह है।",
+    "labels": ""
+  },
+  {
+    "id": "06-OpenMed-PII-Hindi-SuperMedical-Base-125M-v1",
+    "repo": "OpenMed/OpenMed-PII-Hindi-SuperMedical-Base-125M-v1",
+    "weights": "model.safetensors",
+    "test": "safetensors_external_104",
+    "text": "मरीज़ राहुल शर्मा का जन्म 12 मार्च 1980 को हुआ और उन्हें मधुमेह है।",
+    "labels": ""
+  },
+  {
+    "id": "07-OpenMed-PII-Hindi-SuperMedical-Base-125M-v1-onnx",
+    "repo": "OpenMed/OpenMed-PII-Hindi-SuperMedical-Base-125M-v1-onnx-android",
+    "weights": "model.onnx",
+    "test": "openmed_snapshot_external_103",
+    "text": "मरीज़ राहुल शर्मा का जन्म 12 मार्च 1980 को हुआ और उन्हें मधुमेह है।",
+    "labels": ""
+  },
+  {
+    "id": "08-OpenMed-PII-Hindi-SuperMedical-Large-355M-v1-onn",
+    "repo": "OpenMed/OpenMed-PII-Hindi-SuperMedical-Large-355M-v1-onnx-android",
+    "weights": "model_fp16.onnx",
+    "test": "openmed_snapshot_external_103",
+    "text": "मरीज़ राहुल शर्मा का जन्म 12 मार्च 1980 को हुआ और उन्हें मधुमेह है।",
+    "labels": ""
+  },
+  {
+    "id": "09-OpenMed-PII-Hindi-mLiteClinical-Base-135M-v1",
+    "repo": "OpenMed/OpenMed-PII-Hindi-mLiteClinical-Base-135M-v1",
+    "weights": "model.safetensors",
+    "test": "safetensors_external_104",
+    "text": "मरीज़ राहुल शर्मा का जन्म 12 मार्च 1980 को हुआ और उन्हें मधुमेह है।",
+    "labels": ""
+  },
+  {
+    "id": "10-OpenMed-PII-Hindi-mLiteClinical-Base-135M-v1-onn",
+    "repo": "OpenMed/OpenMed-PII-Hindi-mLiteClinical-Base-135M-v1-onnx-android",
+    "weights": "model.onnx",
+    "test": "openmed_snapshot_external_103",
+    "text": "मरीज़ राहुल शर्मा का जन्म 12 मार्च 1980 को हुआ और उन्हें मधुमेह है।",
+    "labels": ""
+  },
+  {
+    "id": "11-OpenMed-PII-Italian-BigMed-Large-278M-v1-onnx-an",
+    "repo": "OpenMed/OpenMed-PII-Italian-BigMed-Large-278M-v1-onnx-android",
+    "weights": "model_fp16.onnx",
+    "test": "openmed_snapshot_external_103",
+    "text": "Il paziente Mario Rossi, nato il 12 marzo 1980, vive a Milano e ha il diabete.",
+    "labels": ""
+  },
+  {
+    "id": "12-OpenMed-PII-Italian-BioClinicalBERT-Base-110M-v1",
+    "repo": "OpenMed/OpenMed-PII-Italian-BioClinicalBERT-Base-110M-v1",
+    "weights": "model.safetensors",
+    "test": "safetensors_external_104",
+    "text": "Il paziente Mario Rossi, nato il 12 marzo 1980, vive a Milano e ha il diabete.",
+    "labels": ""
+  },
+  {
+    "id": "13-OpenMed-PII-Italian-BioClinicalBERT-Base-110M-v1",
+    "repo": "OpenMed/OpenMed-PII-Italian-BioClinicalBERT-Base-110M-v1-onnx-android",
+    "weights": "model.onnx",
+    "test": "openmed_snapshot_external_103",
+    "text": "Il paziente Mario Rossi, nato il 12 marzo 1980, vive a Milano e ha il diabete.",
+    "labels": ""
+  },
+  {
+    "id": "14-OpenMed-PII-Italian-BioClinicalModern-Base-149M-",
+    "repo": "OpenMed/OpenMed-PII-Italian-BioClinicalModern-Base-149M-v1",
+    "weights": "model.safetensors",
+    "test": "safetensors_external_104",
+    "text": "Il paziente Mario Rossi, nato il 12 marzo 1980, vive a Milano e ha il diabete.",
+    "labels": ""
+  },
+  {
+    "id": "15-OpenMed-PII-Italian-BioClinicalModern-Base-149M-",
+    "repo": "OpenMed/OpenMed-PII-Italian-BioClinicalModern-Base-149M-v1-onnx-android",
+    "weights": "model.onnx",
+    "test": "openmed_snapshot_external_103",
+    "text": "Il paziente Mario Rossi, nato il 12 marzo 1980, vive a Milano e ha il diabete.",
+    "labels": ""
+  },
+  {
+    "id": "16-OpenMed-PII-Italian-BioClinicalModern-Large-395M",
+    "repo": "OpenMed/OpenMed-PII-Italian-BioClinicalModern-Large-395M-v1-onnx-android",
+    "weights": "model_fp16.onnx",
+    "test": "openmed_snapshot_external_103",
+    "text": "Il paziente Mario Rossi, nato il 12 marzo 1980, vive a Milano e ha il diabete.",
+    "labels": ""
+  },
+  {
+    "id": "17-OpenMed-PII-Italian-BiomedBERT-Large-340M-v1-onn",
+    "repo": "OpenMed/OpenMed-PII-Italian-BiomedBERT-Large-340M-v1-onnx-android",
+    "weights": "model_fp16.onnx",
+    "test": "openmed_snapshot_external_103",
+    "text": "Il paziente Mario Rossi, nato il 12 marzo 1980, vive a Milano e ha il diabete.",
+    "labels": ""
+  },
+  {
+    "id": "18-OpenMed-PII-Italian-ClinicalE5-Small-33M-v1",
+    "repo": "OpenMed/OpenMed-PII-Italian-ClinicalE5-Small-33M-v1",
+    "weights": "model.safetensors",
+    "test": "safetensors_external_104",
+    "text": "Il paziente Mario Rossi, nato il 12 marzo 1980, vive a Milano e ha il diabete.",
+    "labels": ""
+  },
+  {
+    "id": "19-OpenMed-PII-Italian-ClinicalE5-Small-33M-v1-onnx",
+    "repo": "OpenMed/OpenMed-PII-Italian-ClinicalE5-Small-33M-v1-onnx-android",
+    "weights": "model.onnx",
+    "test": "openmed_snapshot_external_103",
+    "text": "Il paziente Mario Rossi, nato il 12 marzo 1980, vive a Milano e ha il diabete.",
+    "labels": ""
+  },
+  {
+    "id": "20-OpenMed-PII-Dutch-SuperClinical-Large-434M-v1-on",
+    "repo": "OpenMed/OpenMed-PII-Dutch-SuperClinical-Large-434M-v1-onnx-android",
+    "weights": "model_fp16.onnx",
+    "test": "openmed_snapshot_external_103",
+    "text": "Patiënt Jan de Vries, geboren op 12 maart 1980, woont in Utrecht en heeft diabetes.",
+    "labels": ""
+  },
+  {
+    "id": "21-OpenMed-PII-French-SuperClinical-Large-434M-v1-o",
+    "repo": "OpenMed/OpenMed-PII-French-SuperClinical-Large-434M-v1-onnx-android",
+    "weights": "model_fp16.onnx",
+    "test": "openmed_snapshot_external_103",
+    "text": "Le patient Jean Dupont, né le 12 mars 1980, habite à Lyon et souffre de diabète.",
+    "labels": ""
+  },
+  {
+    "id": "22-OpenMed-PII-German-SuperClinical-Large-434M-v1-o",
+    "repo": "OpenMed/OpenMed-PII-German-SuperClinical-Large-434M-v1-onnx-android",
+    "weights": "model_fp16.onnx",
+    "test": "openmed_snapshot_external_103",
+    "text": "Der Patient Hans Müller, geboren am 12. März 1980, wohnt in Berlin und hat Diabetes.",
+    "labels": ""
+  },
+  {
+    "id": "23-OpenMed-PII-Italian-SuperClinical-Large-434M-v1-",
+    "repo": "OpenMed/OpenMed-PII-Italian-SuperClinical-Large-434M-v1-onnx-android",
+    "weights": "model_fp16.onnx",
+    "test": "openmed_snapshot_external_103",
+    "text": "Patient John Smith, born 12 March 1980, has type 2 diabetes and pain in the left knee.",
+    "labels": ""
+  }
+]
