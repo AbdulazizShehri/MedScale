@@ -7,6 +7,7 @@ use std::fmt;
 use std::fs;
 use std::io::{Cursor, Read};
 use std::path::{Component, Path, PathBuf};
+use std::sync::atomic::{AtomicBool, Ordering};
 
 use medscale_contracts::objects::{DigestSha256, OpaqueId};
 use medscale_contracts::packs::{ModelSourceProvenance, PackArtifactKind, PackManifestV0};
@@ -72,6 +73,8 @@ pub enum OnnxRuntimeError {
     DegenerateTokenizer,
     #[error("model execution failed")]
     ModelExecution,
+    #[error("run cancelled by the caller")]
+    Cancelled,
     /// Preparing the model failed. Preparation happens before any input is
     /// seen, so the detail (tract's message) never contains user text.
     #[error("model preparation failed at {stage}: {detail}")]
@@ -554,6 +557,18 @@ impl PreparedOnnxTokenClassifier {
         input: &str,
         options: DocumentRunOptions,
     ) -> Result<OnnxRuntimeEvaluation, OnnxRuntimeError> {
+        self.run_document_cancellable(pack_id, input, options, &AtomicBool::new(false))
+    }
+
+    /// [`Self::run_document`] that stops between windows once `cancel` is
+    /// set, returning [`OnnxRuntimeError::Cancelled`] (no partial output).
+    pub fn run_document_cancellable(
+        &self,
+        pack_id: &OpaqueId,
+        input: &str,
+        options: DocumentRunOptions,
+        cancel: &AtomicBool,
+    ) -> Result<OnnxRuntimeEvaluation, OnnxRuntimeError> {
         if input.len() > MAX_INPUT_BYTES {
             return Err(OnnxRuntimeError::InputBound);
         }
@@ -581,6 +596,9 @@ impl PreparedOnnxTokenClassifier {
         let width = self.labels.len();
         let mut votes = BestContextVotes::new(content.len());
         for w in &windows {
+            if cancel.load(Ordering::Relaxed) {
+                return Err(OnnxRuntimeError::Cancelled);
+            }
             let mut ids_i64 = vec![i64::from(self.pad_id); window];
             let mut mask_i64 = vec![0i64; window];
             let mut types_i64 = vec![0i64; window];
