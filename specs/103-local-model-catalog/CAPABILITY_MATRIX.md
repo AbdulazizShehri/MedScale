@@ -220,3 +220,5 @@ Executed or expected runnable: **1,764 of 2,266** (was 1,702 on 2026-10-10). All
 **Batch 22** (run 38466509604, 48 rows, GenomicDetect and OncologyDetect NER, per-row): **39 of 48 executed**. The nine failures were Hugging Face errors during acquisition (seven `HTTP 500`, two `HTTP 429` that persisted through the retries), consistent with a temporary Hub incident; none is a runtime result, and the rows are retried.
 
 **Batch 23** (run 38473404618, 48 rows, GenomicDetect and OncologyDetect NER, per-row): **48 of 48 executed**, including the nine rows batch 22 lost to the Hub incident.
+
+**Batch 24** (run 38479600818, 48 rows, OncologyDetect and OrganismDetect NER, per-row): **48 of 48 executed**.
