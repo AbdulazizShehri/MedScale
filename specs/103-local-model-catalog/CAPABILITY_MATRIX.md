@@ -202,3 +202,9 @@ Executed or expected runnable: **1,764 of 2,266** (was 1,702 on 2026-10-10). All
 **Batch 13** (run 38373925933, 10 rows, Vietnamese PII and remaining groups): **10 of 10 executed**; the last rows in groups without a run (later batches use `--per-row`).
 
 **Batch 14** (run 38374107804, 48 rows, NER rows, first per-row batch): **48 of 48 executed**.
+
+**Batch 15** (run 38381786129, 48 rows, BloodCancerDetect NER, per-row): **48 of 48 executed**.
+
+**Batch 16** (run 38387956773, 48 rows, BloodCancerDetect and ChemicalDetect NER, per-row): **47 of 48 executed**. The one failure (`BloodCancerDetect-TinyMed-65M-mlx`) was a download transport error during acquisition, not a runtime result; the row is retried in a later batch.
+
+**Batch 17** (run 38393867391, 48 rows, BloodCancerDetect, ChemicalDetect and DNADetect NER, per-row): **48 of 48 executed**, including the `BloodCancerDetect-TinyMed-65M-mlx` retry from batch 16.
