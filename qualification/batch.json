@@ -1,0 +1,194 @@
+[
+ {
+  "id": "00-OpenMed-PII-Spanish-SuperMedical-Large-355M-v1-o",
+  "repo": "OpenMed/OpenMed-PII-Spanish-SuperMedical-Large-355M-v1-onnx-android",
+  "weights": "model_fp16.onnx",
+  "test": "openmed_snapshot_external_103",
+  "text": "La paciente María García, nacida el 3 de mayo de 1975, vive en Sevilla y tiene diabetes.",
+  "labels": ""
+ },
+ {
+  "id": "01-OpenMed-PII-Spanish-mLiteClinical-Base-135M-v1",
+  "repo": "OpenMed/OpenMed-PII-Spanish-mLiteClinical-Base-135M-v1",
+  "weights": "model.safetensors",
+  "test": "safetensors_external_104",
+  "text": "La paciente María García, nacida el 3 de mayo de 1975, vive en Sevilla y tiene diabetes.",
+  "labels": ""
+ },
+ {
+  "id": "02-OpenMed-PII-Spanish-mLiteClinical-Base-135M-v1-o",
+  "repo": "OpenMed/OpenMed-PII-Spanish-mLiteClinical-Base-135M-v1-onnx-android",
+  "weights": "model.onnx",
+  "test": "openmed_snapshot_external_103",
+  "text": "La paciente María García, nacida el 3 de mayo de 1975, vive en Sevilla y tiene diabetes.",
+  "labels": ""
+ },
+ {
+  "id": "03-OpenMed-PII-SuperClinical-Base-184M-v1",
+  "repo": "OpenMed/OpenMed-PII-SuperClinical-Base-184M-v1",
+  "weights": "model.safetensors",
+  "test": "safetensors_external_104",
+  "text": "Patient John Smith, born 12 March 1980, has type 2 diabetes and pain in the left knee.",
+  "labels": ""
+ },
+ {
+  "id": "04-OpenMed-PII-SuperClinical-Base-184M-v1-onnx-andr",
+  "repo": "OpenMed/OpenMed-PII-SuperClinical-Base-184M-v1-onnx-android",
+  "weights": "model.onnx",
+  "test": "openmed_snapshot_external_103",
+  "text": "Patient John Smith, born 12 March 1980, has type 2 diabetes and pain in the left knee.",
+  "labels": ""
+ },
+ {
+  "id": "05-OpenMed-PII-SuperClinical-Large-434M-v1-onnx-and",
+  "repo": "OpenMed/OpenMed-PII-SuperClinical-Large-434M-v1-onnx-android",
+  "weights": "model_fp16.onnx",
+  "test": "openmed_snapshot_external_103",
+  "text": "Patient John Smith, born 12 March 1980, has type 2 diabetes and pain in the left knee.",
+  "labels": ""
+ },
+ {
+  "id": "06-OpenMed-PII-SuperClinical-Small-44M-v1",
+  "repo": "OpenMed/OpenMed-PII-SuperClinical-Small-44M-v1",
+  "weights": "model.safetensors",
+  "test": "safetensors_external_104",
+  "text": "Patient John Smith, born 12 March 1980, has type 2 diabetes and pain in the left knee.",
+  "labels": ""
+ },
+ {
+  "id": "07-OpenMed-PII-SuperClinical-Small-44M-v1-onnx-andr",
+  "repo": "OpenMed/OpenMed-PII-SuperClinical-Small-44M-v1-onnx-android",
+  "weights": "model.onnx",
+  "test": "openmed_snapshot_external_103",
+  "text": "Patient John Smith, born 12 March 1980, has type 2 diabetes and pain in the left knee.",
+  "labels": ""
+ },
+ {
+  "id": "08-OpenMed-PII-SuperMedical-Base-125M-v1",
+  "repo": "OpenMed/OpenMed-PII-SuperMedical-Base-125M-v1",
+  "weights": "model.safetensors",
+  "test": "safetensors_external_104",
+  "text": "Patient John Smith, born 12 March 1980, has type 2 diabetes and pain in the left knee.",
+  "labels": ""
+ },
+ {
+  "id": "09-OpenMed-PII-SuperMedical-Base-125M-v1-onnx-andro",
+  "repo": "OpenMed/OpenMed-PII-SuperMedical-Base-125M-v1-onnx-android",
+  "weights": "model.onnx",
+  "test": "openmed_snapshot_external_103",
+  "text": "Patient John Smith, born 12 March 1980, has type 2 diabetes and pain in the left knee.",
+  "labels": ""
+ },
+ {
+  "id": "10-OpenMed-PII-SuperMedical-Large-355M-v1-onnx-andr",
+  "repo": "OpenMed/OpenMed-PII-SuperMedical-Large-355M-v1-onnx-android",
+  "weights": "model_fp16.onnx",
+  "test": "openmed_snapshot_external_103",
+  "text": "Patient John Smith, born 12 March 1980, has type 2 diabetes and pain in the left knee.",
+  "labels": ""
+ },
+ {
+  "id": "11-OpenMed-PII-Telugu-BigMed-Large-278M-v1-onnx-and",
+  "repo": "OpenMed/OpenMed-PII-Telugu-BigMed-Large-278M-v1-onnx-android",
+  "weights": "model_fp16.onnx",
+  "test": "openmed_snapshot_external_103",
+  "text": "రోగి రవి కుమార్ 1980 మార్చి 12న జన్మించారు మరియు హైదరాబాద్‌లో నివసిస్తున్నారు.",
+  "labels": ""
+ },
+ {
+  "id": "12-OpenMed-PII-Telugu-BioClinicalBERT-Base-110M-v1",
+  "repo": "OpenMed/OpenMed-PII-Telugu-BioClinicalBERT-Base-110M-v1",
+  "weights": "model.safetensors",
+  "test": "safetensors_external_104",
+  "text": "రోగి రవి కుమార్ 1980 మార్చి 12న జన్మించారు మరియు హైదరాబాద్‌లో నివసిస్తున్నారు.",
+  "labels": ""
+ },
+ {
+  "id": "13-OpenMed-PII-Telugu-BioClinicalBERT-Base-110M-v1-",
+  "repo": "OpenMed/OpenMed-PII-Telugu-BioClinicalBERT-Base-110M-v1-onnx-android",
+  "weights": "model.onnx",
+  "test": "openmed_snapshot_external_103",
+  "text": "రోగి రవి కుమార్ 1980 మార్చి 12న జన్మించారు మరియు హైదరాబాద్‌లో నివసిస్తున్నారు.",
+  "labels": ""
+ },
+ {
+  "id": "14-OpenMed-PII-Telugu-BioClinicalModern-Base-149M-v",
+  "repo": "OpenMed/OpenMed-PII-Telugu-BioClinicalModern-Base-149M-v1",
+  "weights": "model.safetensors",
+  "test": "safetensors_external_104",
+  "text": "రోగి రవి కుమార్ 1980 మార్చి 12న జన్మించారు మరియు హైదరాబాద్‌లో నివసిస్తున్నారు.",
+  "labels": ""
+ },
+ {
+  "id": "15-OpenMed-PII-Telugu-BioClinicalModern-Base-149M-v",
+  "repo": "OpenMed/OpenMed-PII-Telugu-BioClinicalModern-Base-149M-v1-onnx-android",
+  "weights": "model.onnx",
+  "test": "openmed_snapshot_external_103",
+  "text": "రోగి రవి కుమార్ 1980 మార్చి 12న జన్మించారు మరియు హైదరాబాద్‌లో నివసిస్తున్నారు.",
+  "labels": ""
+ },
+ {
+  "id": "16-OpenMed-PII-Telugu-BioClinicalModern-Large-395M-",
+  "repo": "OpenMed/OpenMed-PII-Telugu-BioClinicalModern-Large-395M-v1-onnx-android",
+  "weights": "model_fp16.onnx",
+  "test": "openmed_snapshot_external_103",
+  "text": "రోగి రవి కుమార్ 1980 మార్చి 12న జన్మించారు మరియు హైదరాబాద్‌లో నివసిస్తున్నారు.",
+  "labels": ""
+ },
+ {
+  "id": "17-OpenMed-PII-Telugu-BiomedBERT-Large-340M-v1-onnx",
+  "repo": "OpenMed/OpenMed-PII-Telugu-BiomedBERT-Large-340M-v1-onnx-android",
+  "weights": "model_fp16.onnx",
+  "test": "openmed_snapshot_external_103",
+  "text": "రోగి రవి కుమార్ 1980 మార్చి 12న జన్మించారు మరియు హైదరాబాద్‌లో నివసిస్తున్నారు.",
+  "labels": ""
+ },
+ {
+  "id": "18-OpenMed-PII-Telugu-ClinicalE5-Small-33M-v1",
+  "repo": "OpenMed/OpenMed-PII-Telugu-ClinicalE5-Small-33M-v1",
+  "weights": "model.safetensors",
+  "test": "safetensors_external_104",
+  "text": "రోగి రవి కుమార్ 1980 మార్చి 12న జన్మించారు మరియు హైదరాబాద్‌లో నివసిస్తున్నారు.",
+  "labels": ""
+ },
+ {
+  "id": "19-OpenMed-PII-Telugu-ClinicalE5-Small-33M-v1-onnx-",
+  "repo": "OpenMed/OpenMed-PII-Telugu-ClinicalE5-Small-33M-v1-onnx-android",
+  "weights": "model.onnx",
+  "test": "openmed_snapshot_external_103",
+  "text": "రోగి రవి కుమార్ 1980 మార్చి 12న జన్మించారు మరియు హైదరాబాద్‌లో నివసిస్తున్నారు.",
+  "labels": ""
+ },
+ {
+  "id": "20-OpenMed-PII-Telugu-ClinicalLongformer-Base-149M-",
+  "repo": "OpenMed/OpenMed-PII-Telugu-ClinicalLongformer-Base-149M-v1",
+  "weights": "model.safetensors",
+  "test": "safetensors_external_104",
+  "text": "రోగి రవి కుమార్ 1980 మార్చి 12న జన్మించారు మరియు హైదరాబాద్‌లో నివసిస్తున్నారు.",
+  "labels": ""
+ },
+ {
+  "id": "21-OpenMed-PII-Telugu-EuroMed-Large-210M-v1-onnx-an",
+  "repo": "OpenMed/OpenMed-PII-Telugu-EuroMed-Large-210M-v1-onnx-android",
+  "weights": "model.onnx",
+  "test": "openmed_snapshot_external_103",
+  "text": "రోగి రవి కుమార్ 1980 మార్చి 12న జన్మించారు మరియు హైదరాబాద్‌లో నివసిస్తున్నారు.",
+  "labels": ""
+ },
+ {
+  "id": "22-OpenMed-PII-Telugu-FastClinical-Small-82M-v1",
+  "repo": "OpenMed/OpenMed-PII-Telugu-FastClinical-Small-82M-v1",
+  "weights": "model.safetensors",
+  "test": "safetensors_external_104",
+  "text": "రోగి రవి కుమార్ 1980 మార్చి 12న జన్మించారు మరియు హైదరాబాద్‌లో నివసిస్తున్నారు.",
+  "labels": ""
+ },
+ {
+  "id": "23-OpenMed-PII-Telugu-FastClinical-Small-82M-v1-onn",
+  "repo": "OpenMed/OpenMed-PII-Telugu-FastClinical-Small-82M-v1-onnx-android",
+  "weights": "model.onnx",
+  "test": "openmed_snapshot_external_103",
+  "text": "రోగి రవి కుమార్ 1980 మార్చి 12న జన్మించారు మరియు హైదరాబాద్‌లో నివసిస్తున్నారు.",
+  "labels": ""
+ }
+]
