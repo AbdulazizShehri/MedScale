@@ -142,6 +142,19 @@ pub struct PackResidencyView {
     pub unloaded: Vec<DigestSha256>,
 }
 
+/// Bounded local text generation with an admitted generation Pack (Spec 105).
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct PackGenerationRequest {
+    pub pack_id: OpaqueId,
+    pub local_path: String,
+    pub prompt: String,
+    /// 1 to 256 generated tokens.
+    pub max_new_tokens: u32,
+    /// Synthetic input only; real PHI requires a later explicit gate.
+    pub synthetic_only: bool,
+}
+
 /// Evidence-only output from a local admitted model runtime.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
