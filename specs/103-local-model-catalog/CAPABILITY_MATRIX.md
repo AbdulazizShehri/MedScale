@@ -212,3 +212,5 @@ Executed or expected runnable: **1,764 of 2,266** (was 1,702 on 2026-10-10). All
 **Batch 18** (run 38434804059, 48 rows, DNADetect and DiseaseDetect NER, per-row): **48 of 48 executed**.
 
 **Batch 19** (run 38443895041, 48 rows, DiseaseDetect NER, per-row): **48 of 48 executed**.
+
+**Batch 20** (run 38451112364, 48 rows, DiseaseDetect and GenomeDetect NER, per-row): **45 of 48 executed**. The three failures (`GenomeDetect-BioMed-109M` ONNX, `GenomeDetect-BioMed-335M` safetensors and ONNX) were `HTTP 429` from the Hub metadata API during acquisition, not runtime results; acquisition now retries temporary refusals (#237) and the rows are retried.
