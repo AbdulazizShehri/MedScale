@@ -41,6 +41,155 @@ pub struct ExecutedModel {
 /// Per-model execution evidence (rows, not architectures). Synthetic text
 /// only: this records that the model runs, not task quality.
 pub const EXECUTED_MODELS: &[ExecutedModel] = &[
+    // Batch 03 (run 38320247418, 21 of 21 rows; includes the three
+    // Transformers 5 configs batch 02 could not load).
+    ExecutedModel {
+        repo_id: "OpenMed/OpenMed-PII-French-BiomedBERT-Large-340M-v1-onnx-android",
+        revision: "442c56729201d2492b6316249ab23cd525cc3c2d",
+        runtime: "tract_onnx",
+        weight_file: "model_fp16.onnx",
+        evidence_run: "38320247418",
+    },
+    ExecutedModel {
+        repo_id: "OpenMed/OpenMed-PII-Dutch-SuperMedical-Base-125M-v1",
+        revision: "8920d465158fb63d4d1e7c3ac9ef6a4082da8d9f",
+        runtime: "candle_safetensors",
+        weight_file: "model.safetensors",
+        evidence_run: "38320247418",
+    },
+    ExecutedModel {
+        repo_id: "OpenMed/OpenMed-PII-French-ClinicalE5-Small-33M-v1",
+        revision: "9b4b6504b77dd1d3f7ef5c40f719adb1a0e8f7d1",
+        runtime: "candle_safetensors",
+        weight_file: "model.safetensors",
+        evidence_run: "38320247418",
+    },
+    ExecutedModel {
+        repo_id: "OpenMed/OpenMed-PII-Dutch-BioClinicalModern-Base-149M-v1",
+        revision: "d21ec33f198e192a087535b6ec3b23704c42f7ae",
+        runtime: "candle_safetensors",
+        weight_file: "model.safetensors",
+        evidence_run: "38320247418",
+    },
+    ExecutedModel {
+        repo_id: "OpenMed/OpenMed-PII-French-BigMed-Large-278M-v1-onnx-android",
+        revision: "d41dd08c54da5cf3cb9519a0f3ceb27d7a8df41c",
+        runtime: "tract_onnx",
+        weight_file: "model_fp16.onnx",
+        evidence_run: "38320247418",
+    },
+    ExecutedModel {
+        repo_id: "OpenMed/OpenMed-PII-French-BioClinicalModern-Base-149M-v1-onnx-android",
+        revision: "4a131943b1125d188ad9c41d004a268b61138b18",
+        runtime: "tract_onnx",
+        weight_file: "model.onnx",
+        evidence_run: "38320247418",
+    },
+    ExecutedModel {
+        repo_id: "OpenMed/OpenMed-PII-French-ClinicalLongformer-Base-149M-v1",
+        revision: "ce00777b0a19bf18d57f430ff9fa404ab9502383",
+        runtime: "candle_safetensors",
+        weight_file: "model.safetensors",
+        evidence_run: "38320247418",
+    },
+    ExecutedModel {
+        repo_id: "OpenMed/OpenMed-PII-Dutch-ClinicalLongformer-Base-149M-v1",
+        revision: "a1237b365b6d4f399a11b48528d93c2b965e151d",
+        runtime: "candle_safetensors",
+        weight_file: "model.safetensors",
+        evidence_run: "38320247418",
+    },
+    ExecutedModel {
+        repo_id: "OpenMed/OpenMed-PII-French-BioClinicalModern-Base-149M-v1",
+        revision: "561a0eb232449d55dd11de52812cbb555163fb23",
+        runtime: "candle_safetensors",
+        weight_file: "model.safetensors",
+        evidence_run: "38320247418",
+    },
+    ExecutedModel {
+        repo_id: "OpenMed/OpenMed-PII-Dutch-FastClinical-Small-82M-v1",
+        revision: "cfb4de5f42e917a51684a0694e02f1f0506cc25f",
+        runtime: "candle_safetensors",
+        weight_file: "model.safetensors",
+        evidence_run: "38320247418",
+    },
+    ExecutedModel {
+        repo_id: "OpenMed/OpenMed-PII-French-BioClinicalBERT-Base-110M-v1",
+        revision: "11f77a4af1888daa928dccff3be6441b1e0eb880",
+        runtime: "candle_safetensors",
+        weight_file: "model.safetensors",
+        evidence_run: "38320247418",
+    },
+    ExecutedModel {
+        repo_id: "OpenMed/OpenMed-PII-French-ClinicalE5-Small-33M-v1-onnx-android",
+        revision: "1e2125663db5ada7936e79dd276cbe75c08a9bc2",
+        runtime: "tract_onnx",
+        weight_file: "model.onnx",
+        evidence_run: "38320247418",
+    },
+    ExecutedModel {
+        repo_id: "OpenMed/OpenMed-PII-French-BioClinicalModern-Large-395M-v1-onnx-android",
+        revision: "783ff5c2fdd37e79baa16985bb8f32944ec19b88",
+        runtime: "tract_onnx",
+        weight_file: "model_fp16.onnx",
+        evidence_run: "38320247418",
+    },
+    ExecutedModel {
+        repo_id: "OpenMed/OpenMed-PII-French-BioClinicalBERT-Base-110M-v1-onnx-android",
+        revision: "afe1521cadf478ade3635ed07ef6ec30754ddd36",
+        runtime: "tract_onnx",
+        weight_file: "model.onnx",
+        evidence_run: "38320247418",
+    },
+    ExecutedModel {
+        repo_id: "OpenMed/OpenMed-PII-French-FastClinical-Small-82M-v1",
+        revision: "04d79bfe5e5e21594f36e7ae079ea9bc8ce44452",
+        runtime: "candle_safetensors",
+        weight_file: "model.safetensors",
+        evidence_run: "38320247418",
+    },
+    ExecutedModel {
+        repo_id: "OpenMed/OpenMed-PII-French-EuroMed-Large-210M-v1-onnx-android",
+        revision: "c6348a95d88bc3ac950b58018358d73caadda150",
+        runtime: "tract_onnx",
+        weight_file: "model.onnx",
+        evidence_run: "38320247418",
+    },
+    ExecutedModel {
+        repo_id: "OpenMed/OpenMed-PII-French-LiteClinical-Small-66M-v1",
+        revision: "d068f2d8a231e0e11e34fa4fac216c345474a0da",
+        runtime: "candle_safetensors",
+        weight_file: "model.safetensors",
+        evidence_run: "38320247418",
+    },
+    ExecutedModel {
+        repo_id: "OpenMed/OpenMed-PII-French-SuperClinical-Base-184M-v1",
+        revision: "7464a44a6a35704309c3a17e49e0ebb1416d8f6a",
+        runtime: "candle_safetensors",
+        weight_file: "model.safetensors",
+        evidence_run: "38320247418",
+    },
+    ExecutedModel {
+        repo_id: "OpenMed/OpenMed-PII-French-LiteClinical-Small-66M-v1-onnx-android",
+        revision: "d3b631fe94f0e5ae070325f2ed0a216677121234",
+        runtime: "tract_onnx",
+        weight_file: "model.onnx",
+        evidence_run: "38320247418",
+    },
+    ExecutedModel {
+        repo_id: "OpenMed/OpenMed-PII-French-FastClinical-Small-82M-v1-onnx-android",
+        revision: "07af2f29060833c19ec0f77b8ffaec1bae919a79",
+        runtime: "tract_onnx",
+        weight_file: "model.onnx",
+        evidence_run: "38320247418",
+    },
+    ExecutedModel {
+        repo_id: "OpenMed/OpenMed-PII-French-SuperClinical-Base-184M-v1-onnx-android",
+        revision: "5f1dd294a8806577ee2a42939441e7f62dd9ab6c",
+        runtime: "tract_onnx",
+        weight_file: "model.onnx",
+        evidence_run: "38320247418",
+    },
     // Batch 02 (run 38314653881, 21 of 24 rows; includes the legacy
     // gamma/beta Dutch BioClinicalBERT requalified).
     ExecutedModel {
@@ -906,8 +1055,10 @@ mod tests {
             RuntimeExpectation::ExpectedRunnable
         );
         assert_eq!(
+            // An XLM-R export outside the exact defective list and without
+            // its own run (synthetic name).
             runtime_expectation(&named(
-                "OpenMed/OpenMed-PII-French-BigMed-Large-278M-v1-onnx-android",
+                "OpenMed/OpenMed-PII-Example-BigMed-Large-278M-v1-onnx-android",
                 "token-classification",
                 "xlm-roberta",
                 r#"["onnx"]"#

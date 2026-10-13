@@ -16,7 +16,7 @@ Merged 2026-10-13: #223 (india_clinical), #224 (Spec 105 phase A), #225 (Longfor
 
 ## Qualification runs
 
-- Batch 01: run 38301622121, 16 of 24 executed. Batch 02: run 38314653881, 21 of 24 executed. Failures: `CAPABILITY_MATRIX.md` section 7.
+- Batch 01: run 38301622121, 16 of 24 executed. Batch 02: run 38314653881, 21 of 24 executed. Batch 03: run 38320247418, 21 of 21 executed. Failures: `CAPABILITY_MATRIX.md` section 7.
 - Next batch: build the CLI from this head, regenerate catalog pages (`medscale packs catalog --limit 500 --offset N`), run `scripts/qualification/select_batch.py ... --count 24 --out qualification/batch.json` on a new `qual-batch/103-batch-NN` branch, then `record_results.py RUN`. Requalify the three batch 02 Transformers 5 rows.
 
 ## Next eligible repository work
