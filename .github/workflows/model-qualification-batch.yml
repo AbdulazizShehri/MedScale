@@ -1,0 +1,115 @@
+# Spec 103 (T103-09): batch per-row execution qualification on zero-cost
+# GitHub runners.
+#
+# A `qual-batch/**` branch commits `qualification/batch.json` (produced by
+# `scripts/qualification/select_batch.py` from MedScale's own runtime
+# expectations). Each entry acquires ONE pinned OpenMed v3.0.0 catalog row
+# through the product CLI and runs the matching ignored external test, which
+# verifies the snapshot against the catalog before building, admitting and
+# running a signed Pack. Sample text is synthetic. Weights are never committed
+# or uploaded; only logs are kept. `scripts/qualification/record_results.py`
+# turns a finished run into per-row evidence.
+#
+# Runs only on `qual-batch/**` branches, never on PRs or main.
+name: model-qualification-batch
+
+on:
+  push:
+    branches: ["qual-batch/**"]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: model-qualification-batch-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  CARGO_TERM_COLOR: always
+  CATALOG_COMMIT: ea920f36fadd7b45935247d639f0ffa1ef493b23
+
+jobs:
+  plan:
+    name: plan
+    runs-on: ubuntu-latest
+    outputs:
+      matrix: ${{ steps.matrix.outputs.matrix }}
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v4
+      - id: matrix
+        run: |
+          set -euo pipefail
+          python3 -c 'import json,sys; rows=json.load(open("qualification/batch.json")); assert 0 < len(rows) <= 64, "batch size"; print("matrix=" + json.dumps({"include": rows}))' >> "$GITHUB_OUTPUT"
+
+  qualify:
+    name: qualify (${{ matrix.id }})
+    needs: plan
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    strategy:
+      fail-fast: false
+      max-parallel: 4
+      matrix: ${{ fromJSON(needs.plan.outputs.matrix) }}
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v4
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@d1031067263f94b142dd6c0ce24c5eb9d02d52a0 # pinned master
+        with:
+          toolchain: "1.97.1"
+
+      - name: Cache cargo
+        uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2
+        with:
+          key: model-qualification
+
+      - name: Install Linux build dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends libfontconfig1-dev
+
+      - name: Acquire through the product CLI (catalog-pinned revision)
+        env:
+          REPO: ${{ matrix.repo }}
+          WEIGHTS: ${{ matrix.weights }}
+        run: |
+          set -euo pipefail
+          curl -sfL -A medscale-qualification \
+            "https://raw.githubusercontent.com/maziyarpanahi/openmed/$CATALOG_COMMIT/models.jsonl" \
+            -o "$RUNNER_TEMP/models.jsonl"
+          cargo build --release --locked -p medscale-cli
+          dir="$RUNNER_TEMP/snapshot"
+          target/release/medscale packs acquire --snapshot "$RUNNER_TEMP/models.jsonl" \
+            --commit "$CATALOG_COMMIT" --repo-id "$REPO" --onnx-file "$WEIGHTS" \
+            --approve-bytes 1100000000 --i-consent-to-download --out "$dir"
+          echo "SNAPSHOT_DIR=$dir" >> "$GITHUB_ENV"
+
+      - name: Verify, admit and execute
+        env:
+          MEDSCALE_CATALOG_SNAPSHOT: ${{ runner.temp }}/models.jsonl
+          MEDSCALE_CATALOG_COMMIT: ${{ env.CATALOG_COMMIT }}
+          MEDSCALE_HF_ONNX_FILE: ${{ matrix.weights }}
+          MEDSCALE_SAMPLE_TEXT: ${{ matrix.text }}
+          MEDSCALE_ZS_LABELS: ${{ matrix.labels }}
+          # Batch fields reach the shell only through the environment.
+          ENTRY_ID: ${{ matrix.id }}
+          ENTRY_TEST: ${{ matrix.test }}
+        run: |
+          set -o pipefail
+          case "$ENTRY_TEST" in
+            openmed_snapshot_external_103|safetensors_external_104|gliner_external_104) ;;
+            *) echo "unknown batch test: $ENTRY_TEST" >&2; exit 1 ;;
+          esac
+          export MEDSCALE_HF_SNAPSHOT_DIR="$SNAPSHOT_DIR"
+          cargo test --release --locked -p medscale-pack --test "$ENTRY_TEST" \
+            -- --ignored --nocapture 2>&1 | tee qualification.log
+          echo "BATCH_ENTRY id=$ENTRY_ID weights=$MEDSCALE_HF_ONNX_FILE test=$ENTRY_TEST" >> qualification.log
+          grep -E '^(SNAPSHOT_EVIDENCE|BATCH_ENTRY)' qualification.log >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Keep the log (no weights)
+        if: always()
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v4.6.2
+        with:
+          name: batch-${{ matrix.id }}
+          path: qualification.log
+          if-no-files-found: ignore

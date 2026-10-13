@@ -240,6 +240,7 @@ fn build(
     num_labels: usize,
     device: &Device,
 ) -> Result<(String, usize, Encoder, Linear), CandleRuntimeError> {
+    let config = &normalize_transformers_config(config)?;
     let model_type = candle_model_type(config)?;
     if crate::gliner_runtime::is_gliner_span_export(config) {
         return Err(CandleRuntimeError::InvalidConfig(
@@ -252,6 +253,7 @@ fn build(
             "quantized MLX exports are not supported".into(),
         ));
     }
+    let legacy_layer_norm = uses_legacy_layer_norm_names(&weights);
     let vb =
         VarBuilder::from_buffered_safetensors(weights, DType::F32, device).map_err(prepare_err)?;
     // OpenMed MLX exports store the same weights under renamed keys; the
@@ -259,6 +261,12 @@ fn build(
     let vb = if mlx {
         let layout_type = model_type.clone();
         vb.rename_f(move |name| crate::mlx_layout::mlx_key(name, &layout_type))
+    } else if legacy_layer_norm {
+        // Older (TensorFlow-era) BERT checkpoints name LayerNorm parameters
+        // `gamma`/`beta`; Transformers renames them to `weight`/`bias` on load
+        // and so does MedScale (batch run 38301622121,
+        // OpenMed-PII-Dutch-BioClinicalBERT-Base-110M-v1).
+        vb.rename_f(legacy_layer_norm_key)
     } else {
         vb
     };
@@ -349,6 +357,80 @@ fn build(
     let classifier =
         candle_nn::linear(hidden, num_labels, vb.pp("classifier")).map_err(prepare_err)?;
     Ok((model_type, window.clamp(8, MAX_WINDOW), encoder, classifier))
+}
+
+/// Restores fields that Transformers 5 no longer writes to `config.json`,
+/// with the values Transformers itself uses (batch run 38314653881):
+/// - `position_embedding_type` is omitted when it is the default
+///   `"absolute"`;
+/// - ModernBERT keeps its rotary bases in `rope_parameters` per layer type
+///   instead of `global_rope_theta` / `local_rope_theta`. Only the `default`
+///   rotary type maps onto those fields; any other type is refused.
+fn normalize_transformers_config(config: &Value) -> Result<Value, CandleRuntimeError> {
+    let mut config = config.clone();
+    let Some(fields) = config.as_object_mut() else {
+        return Ok(config);
+    };
+    fields
+        .entry("position_embedding_type")
+        .or_insert_with(|| json!("absolute"));
+    let modernbert = fields
+        .get("model_type")
+        .and_then(Value::as_str)
+        .is_some_and(|t| t.eq_ignore_ascii_case("modernbert"));
+    if modernbert
+        && !fields.contains_key("global_rope_theta")
+        && let Some(rope) = fields.get("rope_parameters").cloned()
+    {
+        for (layer_type, field) in [
+            ("full_attention", "global_rope_theta"),
+            ("sliding_attention", "local_rope_theta"),
+        ] {
+            let params = &rope[layer_type];
+            if params["rope_type"].as_str().is_some_and(|t| t != "default") {
+                return Err(CandleRuntimeError::InvalidConfig(format!(
+                    "modernbert: rope_type {} is not supported",
+                    params["rope_type"]
+                )));
+            }
+            let theta = params["rope_theta"].as_f64().ok_or_else(|| {
+                CandleRuntimeError::InvalidConfig(format!(
+                    "modernbert: rope_parameters.{layer_type}.rope_theta is missing"
+                ))
+            })?;
+            fields.insert(field.to_owned(), json!(theta));
+        }
+    }
+    Ok(config)
+}
+
+/// True when the safetensors header names LayerNorm parameters with the
+/// legacy `gamma`/`beta` suffixes. Reads only the bounded JSON header.
+fn uses_legacy_layer_norm_names(weights: &[u8]) -> bool {
+    let Some(len) = weights
+        .get(..8)
+        .and_then(|b| <[u8; 8]>::try_from(b).ok())
+        .map(u64::from_le_bytes)
+        .and_then(|n| usize::try_from(n).ok())
+    else {
+        return false;
+    };
+    weights
+        .get(8..8usize.saturating_add(len))
+        .and_then(|header| serde_json::from_slice::<serde_json::Map<String, Value>>(header).ok())
+        .is_some_and(|header| header.keys().any(|k| k.ends_with("LayerNorm.gamma")))
+}
+
+/// Maps a requested `*.LayerNorm.weight`/`bias` name to the legacy
+/// `gamma`/`beta` name; every other name is unchanged.
+fn legacy_layer_norm_key(name: &str) -> String {
+    if let Some(prefix) = name.strip_suffix("LayerNorm.weight") {
+        format!("{prefix}LayerNorm.gamma")
+    } else if let Some(prefix) = name.strip_suffix("LayerNorm.bias") {
+        format!("{prefix}LayerNorm.beta")
+    } else {
+        name.to_owned()
+    }
 }
 
 /// Longest sequence for which Longformer equals full self-attention.
@@ -897,6 +979,60 @@ mod tests {
     }
 
     #[test]
+    fn legacy_gamma_beta_layer_norm_checkpoints_load_like_current_ones() {
+        let config = tiny_bert_config();
+        let current = tiny_bert_weights(&config);
+        // The same tensors with LayerNorm parameters renamed gamma/beta.
+        let tensors = candle_core::safetensors::load_buffer(&current, &Device::Cpu).unwrap();
+        let legacy: std::collections::HashMap<String, Tensor> = tensors
+            .into_iter()
+            .map(|(k, v)| {
+                let k = k
+                    .replace("LayerNorm.weight", "LayerNorm.gamma")
+                    .replace("LayerNorm.bias", "LayerNorm.beta");
+                (k, v)
+            })
+            .collect();
+        let path = std::env::temp_dir().join(format!(
+            "medscale-103-legacy-{}.safetensors",
+            std::process::id()
+        ));
+        candle_core::safetensors::save(&legacy, &path).unwrap();
+        let legacy_bytes = std::fs::read(&path).unwrap();
+        let _ = std::fs::remove_file(path);
+        assert!(uses_legacy_layer_norm_names(&legacy_bytes));
+        assert!(!uses_legacy_layer_norm_names(&current));
+        assert!(!uses_legacy_layer_norm_names(b"short"));
+        let prepare = |weights: Vec<u8>| {
+            prepare_from_bytes(
+                DigestSha256::of(b"tiny"),
+                provenance(),
+                config.to_string().as_bytes(),
+                weights,
+                TOKENIZER.as_bytes(),
+                br#"["O","ENTITY"]"#,
+                CandleDevicePreference::Cpu,
+            )
+            .unwrap()
+        };
+        let text = "alice visited clinic today";
+        let run = |p: PreparedCandleTokenClassifier| {
+            p.run_document(&OpaqueId::new("p"), text, CandleRunOptions::default())
+                .unwrap()
+                .proposal_payload
+        };
+        assert_eq!(run(prepare(legacy_bytes)), run(prepare(current)));
+        assert_eq!(
+            legacy_layer_norm_key("bert.embeddings.LayerNorm.bias"),
+            "bert.embeddings.LayerNorm.beta"
+        );
+        assert_eq!(
+            legacy_layer_norm_key("classifier.weight"),
+            "classifier.weight"
+        );
+    }
+
+    #[test]
     fn a_cancelled_document_run_stops_without_output() {
         let config = tiny_bert_config();
         let prepared = prepare_from_bytes(
@@ -924,6 +1060,46 @@ mod tests {
             prepared
                 .run_document(&pid, &text, CandleRunOptions::default())
                 .unwrap()
+        );
+    }
+
+    #[test]
+    fn transformers_5_configs_are_normalized_like_transformers_does() {
+        // RoBERTa without `position_embedding_type` runs like the default.
+        let mut v5 = tiny_roberta_config("roberta");
+        v5.as_object_mut()
+            .unwrap()
+            .remove("position_embedding_type");
+        let normalized = normalize_transformers_config(&v5).unwrap();
+        assert_eq!(normalized, tiny_roberta_config("roberta"));
+        let _: xlm_roberta::Config = serde_json::from_value(normalized).unwrap();
+        // An explicit value is kept.
+        let mut relative = tiny_roberta_config("roberta");
+        relative["position_embedding_type"] = json!("relative_key");
+        assert_eq!(normalize_transformers_config(&relative).unwrap(), relative);
+
+        // ModernBERT rotary bases from `rope_parameters`.
+        let modern = json!({
+            "model_type": "modernbert",
+            "rope_parameters": {
+                "full_attention": {"rope_theta": 160000.0, "rope_type": "default"},
+                "sliding_attention": {"rope_theta": 10000.0, "rope_type": "default"}
+            }
+        });
+        let normalized = normalize_transformers_config(&modern).unwrap();
+        assert_eq!(normalized["global_rope_theta"], 160000.0);
+        assert_eq!(normalized["local_rope_theta"], 10000.0);
+        let mut scaled = modern.clone();
+        scaled["rope_parameters"]["full_attention"]["rope_type"] = json!("yarn");
+        assert!(matches!(
+            normalize_transformers_config(&scaled),
+            Err(CandleRuntimeError::InvalidConfig(_))
+        ));
+        let mut legacy = modern;
+        legacy["global_rope_theta"] = json!(1.0);
+        assert_eq!(
+            normalize_transformers_config(&legacy).unwrap()["global_rope_theta"],
+            1.0
         );
     }
 
