@@ -61,11 +61,13 @@ fn catalog_row_to_verified_pack_to_local_execution() {
         .expect("model must prepare locally");
     let prepare_ms = t0.elapsed().as_millis();
     let text = env("MEDSCALE_SAMPLE_TEXT");
-    let _ = prepared.run(&manifest.pack_id, &text).unwrap();
+    // The product's whole-document path: text longer than one window (for
+    // example Telugu under a byte-level tokenizer, batch 10) runs in
+    // overlapping windows instead of failing the single-window bound.
+    let run = || prepared.run_document(&manifest.pack_id, &text, DocumentRunOptions::default());
+    let _ = run().unwrap();
     let t1 = Instant::now();
-    let evaluation = prepared
-        .run(&manifest.pack_id, &text)
-        .expect("model must run locally");
+    let evaluation = run().expect("model must run locally");
     let run_ms = t1.elapsed().as_millis();
 
     assert!(evaluation.output.evidence_only);
