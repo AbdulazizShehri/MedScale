@@ -81,6 +81,9 @@ fn plan_cache_round_trip_matches_the_uncached_plan() {
         .expect("warm prepare");
     assert_eq!(outcome, PlanCacheOutcome::Hit);
     assert_eq!(payload(&warm), expected);
+    // A hit skips loading, typing and decluttering.
+    let stages = warm.stage_timings();
+    assert_eq!((stages.load_ms, stages.typed_and_decluttered_ms), (0, 0));
 
     // A corrupted plan fails its digest: the cache is rebuilt, never trusted.
     let plan = fs::read_dir(&cache)

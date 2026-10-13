@@ -10,16 +10,17 @@ LAUNCH_UI_FROZEN = FALSE
 
 The founder request promotes [095–100](PRODUCTIZATION_PROGRAM.md). Base 1e2b7d94, CI 36480424698 (6/6). Queue/closure supersede summaries ending 073/075. Drafts 124/125 stay separate. Release/privacy/multi-client readiness remains false and PHI remains unauthorized.
 
-## Spec 103 / 104 model execution — 2026-10-12 (updated after #211–#221)
+## Spec 103 / 104 / 105 model execution — 2026-10-13 (updated after #223–#230 and batches 01–03)
 
 ```text
 SPEC_103 = IMPLEMENTATION_IN_PROGRESS (repository-owned work done; remaining items are external)
 SPEC_104_NATIVE_SAFETENSORS_RUNTIME = CLOSED_CANONICAL (#198; extended by #203, #208)
-EXECUTED_TESTED_ARCHITECTURES = bert, distilbert, roberta, modernbert, deberta-v2, xlm-roberta, eurobert, qwen (int8 export)
+EXECUTED_TESTED_ARCHITECTURES = bert, distilbert, roberta, modernbert, deberta-v2, xlm-roberta, eurobert, qwen (int8 export), longformer (PyTorch rows, exact local-window path)
 EXECUTED_TESTED_ZERO_SHOT = GLiNER uni-encoder span (OpenMed ZeroShot MLX exports, Small and Medium)
-RUNTIMES = tract ONNX (CPU, integrity-checked plan cache); candle safetensors and OpenMed MLX exports (CPU; Apple GPU via Metal); candle GLiNER zero-shot
-EXECUTED_TESTED_CATALOG_ROWS = 37 (row-level recorded runs)
-EXPECTED_RUNNABLE_CATALOG_ROWS = 1727 more (1764 of 2266 executed or expected; architecture-level expectation, not per-row tests)
+RUNTIMES = tract ONNX (CPU, integrity-checked plan cache); candle safetensors and OpenMed MLX exports (CPU; Apple GPU via Metal); candle GLiNER zero-shot; candle text generation (qwen2, mistral, llama; synthetic only)
+EXECUTED_TESTED_CATALOG_ROWS = 96 (row-level recorded runs; batch harness runs 38301622121, 38314653881, 38320247418)
+EXPECTED_RUNNABLE_CATALOG_ROWS = 1632 more (1728 of 2266 executed or expected; architecture-level expectation, not per-row tests)
+ESTIMATED_OVER_BOUND_ROWS = 83 (even fp16 exceeds the unchanged 1 GiB bound)
 TASK_QUALIFIED_MODELS = 0
 CLINICALLY_VALIDATED_MODELS = 0
 RELEASE_READY = FALSE

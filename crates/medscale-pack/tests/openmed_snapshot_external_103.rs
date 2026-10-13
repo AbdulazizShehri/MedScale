@@ -75,6 +75,11 @@ fn catalog_row_to_verified_pack_to_local_execution() {
         "SNAPSHOT_EVIDENCE repo={} revision={} pack={} prepare_ms={} warm_run_ms={}",
         meta.id, meta.sha, pack_id, prepare_ms, run_ms
     );
+    let stages = prepared.stage_timings();
+    println!(
+        "PREPARE_STAGES load_ms={} typed_and_decluttered_ms={} optimized_ms={} runnable_ms={}",
+        stages.load_ms, stages.typed_and_decluttered_ms, stages.optimized_ms, stages.runnable_ms
+    );
     println!(
         "SNAPSHOT_OUTPUT {}",
         serde_json::to_string(&evaluation.output.proposal_payload).unwrap()
