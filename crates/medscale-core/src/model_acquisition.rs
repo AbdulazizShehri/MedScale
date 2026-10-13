@@ -76,6 +76,39 @@ const JSON_MAX_BYTES: u64 = 64 * 1024 * 1024;
 const ONNX_MAX_BYTES: u64 = 1024 * 1024 * 1024;
 const TIMEOUT: Duration = Duration::from_secs(600);
 
+/// Waits before retrying a request the Hub answered with `429 Too Many
+/// Requests` or `503 Service Unavailable` (temporary refusals; observed as
+/// 429 on the unauthenticated metadata API in batch run 38451112364). The
+/// retry count is bounded; the last refusal is returned as `Http`.
+#[cfg(not(test))]
+const RETRY_BACKOFF: [Duration; 3] = [
+    Duration::from_secs(5),
+    Duration::from_secs(20),
+    Duration::from_secs(60),
+];
+#[cfg(test)]
+const RETRY_BACKOFF: [Duration; 3] = [Duration::ZERO; 3];
+
+fn is_temporary_refusal(status: u16) -> bool {
+    matches!(status, 429 | 503)
+}
+
+/// Runs `request` again after each backoff while it returns a temporary
+/// refusal; transport errors and every other status return at once.
+fn with_retry<R>(
+    status: impl Fn(&R) -> u16,
+    mut request: impl FnMut() -> Result<R, AcquisitionError>,
+) -> Result<R, AcquisitionError> {
+    for wait in RETRY_BACKOFF {
+        let response = request()?;
+        if !is_temporary_refusal(status(&response)) {
+            return Ok(response);
+        }
+        std::thread::sleep(wait);
+    }
+    request()
+}
+
 /// The live Governed Browse transport (public addresses only, no redirects
 /// followed by the transport). Used only after explicit consent.
 pub fn live_transport() -> medscale_network::UreqBrowseTransport {
@@ -212,9 +245,14 @@ fn governed_get(
         if !is_hub_host(&validated.host) {
             return Err(AcquisitionError::HostNotAllowed(validated.host));
         }
-        let response = transport
-            .get(&validated, max, TIMEOUT)
-            .map_err(AcquisitionError::Transport)?;
+        let response = with_retry(
+            |r: &medscale_network::BrowseHttpResponse| r.status,
+            || {
+                transport
+                    .get(&validated, max, TIMEOUT)
+                    .map_err(AcquisitionError::Transport)
+            },
+        )?;
         match response.status {
             200 => {
                 if response.body.len() > max {
@@ -282,9 +320,14 @@ fn governed_download(
             let _ = std::fs::remove_file(part);
             0
         };
-        let response = transport
-            .get_to_file(&validated, resume, size, part, TIMEOUT)
-            .map_err(AcquisitionError::Transport)?;
+        let response = with_retry(
+            |r: &medscale_network::BrowseFileResponse| r.status,
+            || {
+                transport
+                    .get_to_file(&validated, resume, size, part, TIMEOUT)
+                    .map_err(AcquisitionError::Transport)
+            },
+        )?;
         match response.status {
             200 | 206 => {
                 if response.file_len > size {
@@ -503,6 +546,70 @@ pub fn acquire_snapshot(
 mod tests {
     use super::*;
     use medscale_network::ScriptedBrowseTransport;
+
+    /// Answers every GET with `status` for the first `refusals` calls, then
+    /// with `200` and a fixed body.
+    struct RefusingTransport {
+        status: u16,
+        refusals: usize,
+        calls: std::sync::atomic::AtomicUsize,
+    }
+
+    impl BrowseTransport for RefusingTransport {
+        fn get(
+            &self,
+            _url: &medscale_network::ValidatedUrl,
+            _max: usize,
+            _timeout: Duration,
+        ) -> Result<medscale_network::BrowseHttpResponse, medscale_network::BrowseTransportError>
+        {
+            let n = self.calls.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
+            let status = if n < self.refusals { self.status } else { 200 };
+            Ok(medscale_network::BrowseHttpResponse {
+                status,
+                location: None,
+                content_type: "application/json".into(),
+                www_authenticate: false,
+                body: b"{}".to_vec(),
+            })
+        }
+    }
+
+    #[test]
+    fn temporary_refusals_are_retried_a_bounded_number_of_times() {
+        let url = "https://huggingface.co/api/models/OpenMed/x";
+        for status in [429, 503] {
+            let t = RefusingTransport {
+                status,
+                refusals: RETRY_BACKOFF.len(),
+                calls: Default::default(),
+            };
+            assert_eq!(governed_get(&t, url, 1024).unwrap(), b"{}");
+            assert_eq!(t.calls.load(std::sync::atomic::Ordering::SeqCst), 4);
+        }
+        // Still refused after every retry: the refusal is reported.
+        let t = RefusingTransport {
+            status: 429,
+            refusals: usize::MAX,
+            calls: Default::default(),
+        };
+        assert!(matches!(
+            governed_get(&t, url, 1024),
+            Err(AcquisitionError::Http { status: 429, .. })
+        ));
+        assert_eq!(t.calls.load(std::sync::atomic::Ordering::SeqCst), 4);
+        // Other errors are not retried.
+        let t = RefusingTransport {
+            status: 404,
+            refusals: usize::MAX,
+            calls: Default::default(),
+        };
+        assert!(matches!(
+            governed_get(&t, url, 1024),
+            Err(AcquisitionError::Http { status: 404, .. })
+        ));
+        assert_eq!(t.calls.load(std::sync::atomic::Ordering::SeqCst), 1);
+    }
     use sha2::{Digest, Sha256};
 
     const COMMIT: &str = "ea920f36fadd7b45935247d639f0ffa1ef493b23";
