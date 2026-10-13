@@ -5,6 +5,7 @@ Input: the paged JSON output of `medscale packs catalog` (MedScale's own
 says should run. Rows already recorded as executed are skipped, and at most
 one row is taken per (family, architecture, runtime, language, size tier)
 group, so each batch widens coverage instead of repeating near-duplicates.
+Once every group has a run, `--per-row` takes the remaining rows in order.
 Weight files are chosen from Hub sizes so every artifact fits the unchanged
 1 GiB Pack bound (ONNX: `model.onnx`, else `model_fp16.onnx`, else
 `model_int8.onnx`).
@@ -91,6 +92,11 @@ def main() -> int:
     parser.add_argument("--count", type=int, default=24)
     parser.add_argument("--skip", nargs="*", default=[], help="repo ids to skip (for example earlier failures)")
     parser.add_argument("--out", default="qualification/batch.json", help="UTF-8 JSON output path")
+    parser.add_argument(
+        "--per-row",
+        action="store_true",
+        help="take every row without its own run, not one per group (once every group has one)",
+    )
     args = parser.parse_args()
 
     rows = []
@@ -120,7 +126,7 @@ def main() -> int:
             "expected_runnable_zero_shot": "candle_gliner",
         }.get(kind, "candle_mlx" if "mlx-fp" in [f.lower() for f in row["formats"]] else "candle_safetensors")
         group = (family, row.get("architecture"), runtime_guess, lang, row.get("tier"))
-        if group in executed_groups or group in taken:
+        if not args.per_row and (group in executed_groups or group in taken):
             continue
         picked = choose(row, kind, hub_sizes(row["repo_id"]))
         if picked is None:
