@@ -8,11 +8,10 @@ The live, repository-backed handoff for autonomous sessions. Each session verifi
 
 | PR | Scope | State at handoff |
 |---|---|---|
-| #228 | Text generation through Core (T105-03) | retargeted to main, main merged in |
-| #230 | `llama` decoder and cancellable generation (T105-04) | CI |
-| this PR | Batch harness, batches 01–02 evidence, size-aware expectations, exact defective-export list, legacy LayerNorm names, Transformers 5 config normalization | — |
+| #228 | Text generation through Core (T105-03) | main merged in; CI |
+| this PR | Batch 03 evidence, tract per-stage preparation timings, status reconciliation | — |
 
-Merged 2026-10-13: #223 (india_clinical), #224 (Spec 105 phase A), #225 (Longformer), #226 (cancellation), #227 (E2E lifecycle).
+Merged 2026-10-13: #223 (india_clinical), #224 (Spec 105 phase A), #225 (Longformer), #226 (cancellation), #227 (E2E lifecycle), #229 (batch harness, batches 01–02), #230 (`llama`, cancellable generation).
 
 ## Qualification runs
 
