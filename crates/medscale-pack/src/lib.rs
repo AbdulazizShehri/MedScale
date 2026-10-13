@@ -11,6 +11,7 @@ mod gliner_runtime;
 #[doc(hidden)]
 pub use gliner_runtime::fixtures as gliner_fixtures;
 mod hf_snapshot;
+mod hir_const_matmul;
 pub mod identifier_validators;
 mod mesc_verify;
 mod mlx_layout;

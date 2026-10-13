@@ -360,6 +360,9 @@ impl OnnxTokenClassifierRuntime {
             }
             relax_symbolic_value_info(&mut model);
             normalize_static_shape_ops(&mut model);
+            // Constant MatMuls are folded with optimized kernels during
+            // typing (DeBERTa-v2 relative-position projections; T103-15).
+            crate::hir_const_matmul::optimize_const_matmul_eval(&mut model);
             stage_timings.load_ms = elapsed_ms(load_started);
             let typed_started = Instant::now();
             let decluttered = model

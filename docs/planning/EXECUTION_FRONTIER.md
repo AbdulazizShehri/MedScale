@@ -8,20 +8,19 @@ The live, repository-backed handoff for autonomous sessions. Each session verifi
 
 | PR | Scope | State at handoff |
 |---|---|---|
-| #228 | Text generation through Core (T105-03) | main merged in; CI |
-| this PR | Batch 03 evidence, tract per-stage preparation timings, status reconciliation | — |
+| this PR | Batches 04–07 evidence; DeBERTa-v2 preparation fix (`hir_const_matmul`) | — |
 
-Merged 2026-10-13: #223 (india_clinical), #224 (Spec 105 phase A), #225 (Longformer), #226 (cancellation), #227 (E2E lifecycle), #229 (batch harness, batches 01–02), #230 (`llama`, cancellable generation).
+Merged 2026-10-13: #223, #224, #225, #226, #227, #228, #229, #230, #231.
 
 ## Qualification runs
 
-- Batch 01: run 38301622121, 16 of 24 executed. Batch 02: run 38314653881, 21 of 24 executed. Batch 03: run 38320247418, 21 of 21 executed. Failures: `CAPABILITY_MATRIX.md` section 7.
-- Next batch: build the CLI from this head, regenerate catalog pages (`medscale packs catalog --limit 500 --offset N`), run `scripts/qualification/select_batch.py ... --count 24 --out qualification/batch.json` on a new `qual-batch/103-batch-NN` branch, then `record_results.py RUN`. Requalify the three batch 02 Transformers 5 rows.
+- Batches 01–07 (runs 38301622121, 38314653881, 38320247418, 38331707946, 38335975188, 38343611678, 38347129440): 154 of 165 executed; 192 catalog rows executed in total. Batch 08: run 38350788210.
+- Next batch: build the CLI from this head, regenerate catalog pages (`medscale packs catalog --limit 500 --offset N`), run `scripts/qualification/select_batch.py ... --count 24 --out qualification/batch.json` on a new `qual-batch/103-batch-NN` branch (create `qualification/`), then `record_results.py RUN`.
 
 ## Next eligible repository work
 
 1. Batch 03 and later (T103-09).
-2. tract prepare of large DeBERTa-v2 fp16 exports exceeded 90 minutes (batch 01); investigate or prefer another fitting export.
+2. DeBERTa-v2 preparation is fixed (T103-15); keep watching `PREPARE_STAGES` in batches.
 3. Reconcile `BUILD_QUEUE.md`, `PROJECT_COMPLETION_STATUS.md` and the T103 classification table after the open PRs merge.
 
 ## Tooling status
