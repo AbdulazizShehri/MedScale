@@ -181,3 +181,5 @@ Executed or expected runnable: **1,764 of 2,266** (was 1,702 on 2026-10-10). All
 
 **Batch 04** (run 38331707946, 24 rows, French and German PII): **24 of 24 executed** (13 tract ONNX incl. 6 fp16 exports, 11 candle safetensors, among them a German Clinical Longformer row). The new `PREPARE_STAGES` line shows where tract spends its preparation time. For the two DeBERTa-v2 exports, typing and declutter took 791 s (`French-SuperClinical-Small-44M`) and 1,584 s (`French-mSuperClinical-Large-279M`, fp16), while load took 0.4–1.4 s and optimize under 0.1 s. Every other architecture prepared in 0.5–6.4 s. This is the T103-15 root cause (tract HIR type and shape inference) measured per stage; the plan cache (#214) pays it once per model.
 
+**Batch 05** (run 38335975188, 24 rows, German and Hindi PII): **24 of 24 executed**. The three DeBERTa-v2 ONNX exports again spent nearly all of their preparation in typing (582 s, 1,392 s, 1,575 s), while the same `German-SuperClinical-Small-44M` model in safetensors prepared on candle in 3.4 s.
+
