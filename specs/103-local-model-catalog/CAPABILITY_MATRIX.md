@@ -200,3 +200,5 @@ Executed or expected runnable: **1,764 of 2,266** (was 1,702 on 2026-10-10). All
 **Batch 12** (run 38368604917, 24 rows, Turkish and Vietnamese PII): **24 of 24 executed**.
 
 **Batch 13** (run 38373925933, 10 rows, Vietnamese PII and remaining groups): **10 of 10 executed**; the last rows in groups without a run (later batches use `--per-row`).
+
+**Batch 14** (run 38374107804, 48 rows, NER rows, first per-row batch): **48 of 48 executed**.
