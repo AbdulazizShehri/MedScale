@@ -216,3 +216,5 @@ Executed or expected runnable: **1,764 of 2,266** (was 1,702 on 2026-10-10). All
 **Batch 20** (run 38451112364, 48 rows, DiseaseDetect and GenomeDetect NER, per-row): **45 of 48 executed**. The three failures (`GenomeDetect-BioMed-109M` ONNX, `GenomeDetect-BioMed-335M` safetensors and ONNX) were `HTTP 429` from the Hub metadata API during acquisition, not runtime results; acquisition now retries temporary refusals (#237) and the rows are retried.
 
 **Batch 21** (run 38459163759, 48 rows, GenomeDetect and GenomicDetect NER, per-row): **48 of 48 executed**, including the three `GenomeDetect-BioMed` rows that batch 20 lost to HTTP 429; this run used the acquisition retry from #237.
+
+**Batch 22** (run 38466509604, 48 rows, GenomicDetect and OncologyDetect NER, per-row): **39 of 48 executed**. The nine failures were Hugging Face errors during acquisition (seven `HTTP 500`, two `HTTP 429` that persisted through the retries), consistent with a temporary Hub incident; none is a runtime result, and the rows are retried.
