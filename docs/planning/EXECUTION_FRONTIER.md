@@ -8,14 +8,14 @@ The live, repository-backed handoff for autonomous sessions. Each session verifi
 
 | PR | Scope | State at handoff |
 |---|---|---|
-| this PR | Batches 04–07 evidence; DeBERTa-v2 preparation fix (`hir_const_matmul`) | — |
+| this PR | Batches 11–14 evidence; `select_batch.py --per-row`; batch workflow 6 parallel row jobs | — |
 
-Merged 2026-10-13: #223, #224, #225, #226, #227, #228, #229, #230, #231.
+Merged 2026-10-13: #223–#233.
 
 ## Qualification runs
 
-- Batches 01–07 (runs 38301622121, 38314653881, 38320247418, 38331707946, 38335975188, 38343611678, 38347129440): 154 of 165 executed; 192 catalog rows executed in total. Batch 08: run 38350788210.
-- Next batch: build the CLI from this head, regenerate catalog pages (`medscale packs catalog --limit 500 --offset N`), run `scripts/qualification/select_batch.py ... --count 24 --out qualification/batch.json` on a new `qual-batch/103-batch-NN` branch (create `qualification/`), then `record_results.py RUN`.
+- Batches 01–14 executed 330 of 343 rows; 368 catalog rows executed in total. Batch 15: run 38381786129 (48 rows, per-row).
+- Every (family, architecture, runtime, language, tier) group now has a run, so later batches use `select_batch.py --per-row --count 48`. Build the CLI from this head, regenerate catalog pages, select on a new `qual-batch/103-batch-NN` branch (create `qualification/`), then `record_results.py RUN`.
 
 ## Next eligible repository work
 
