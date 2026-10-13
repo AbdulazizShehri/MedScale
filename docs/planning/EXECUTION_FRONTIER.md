@@ -8,13 +8,13 @@ The live, repository-backed handoff for autonomous sessions. Each session verifi
 
 | PR | Scope | State at handoff |
 |---|---|---|
-| this PR | Batches 15–17 evidence | — |
+| this PR | Batches 18–19 evidence | — |
 
-Merged 2026-10-13: #223–#234.
+Merged 2026-10-13: #223–#235.
 
 ## Qualification runs
 
-- Batches 01–17 executed 473 of 487 rows; 511 catalog rows executed in total.
+- Batches 01–19 executed 569 of 583 rows; 607 catalog rows executed in total.
 - Every (family, architecture, runtime, language, tier) group now has a run, so later batches use `select_batch.py --per-row --count 48`. Build the CLI from this head, regenerate catalog pages, select on a new `qual-batch/103-batch-NN` branch (create `qualification/`), then `record_results.py RUN`.
 
 ## Next eligible repository work
