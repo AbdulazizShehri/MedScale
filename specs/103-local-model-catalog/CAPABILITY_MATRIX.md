@@ -183,3 +183,5 @@ Executed or expected runnable: **1,764 of 2,266** (was 1,702 on 2026-10-10). All
 
 **Batch 05** (run 38335975188, 24 rows, German and Hindi PII): **24 of 24 executed**. The three DeBERTa-v2 ONNX exports again spent nearly all of their preparation in typing (582 s, 1,392 s, 1,575 s), while the same `German-SuperClinical-Small-44M` model in safetensors prepared on candle in 3.4 s.
 
+**DeBERTa-v2 preparation fix** (T103-15): the typing cost above came from tract eagerly evaluating the constant relative-position `MatMul`s with its reference loop. With `hir_const_matmul`, the same products run through tract's optimized kernels. Locally, typing dropped from 999 s to 1.7 s, and the logits matched the unwrapped graph to 1.14e-5 with identical labels. The next batch run measures it on CI.
+
