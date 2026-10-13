@@ -1,0 +1,194 @@
+[
+ {
+  "id": "00-OpenMed-PII-French-SuperClinical-Small-44M-v1",
+  "repo": "OpenMed/OpenMed-PII-French-SuperClinical-Small-44M-v1",
+  "weights": "model.safetensors",
+  "test": "safetensors_external_104",
+  "text": "Le patient Jean Dupont, né le 12 mars 1980, habite à Lyon et souffre de diabète.",
+  "labels": ""
+ },
+ {
+  "id": "01-OpenMed-PII-French-SuperClinical-Small-44M-v1-on",
+  "repo": "OpenMed/OpenMed-PII-French-SuperClinical-Small-44M-v1-onnx-android",
+  "weights": "model.onnx",
+  "test": "openmed_snapshot_external_103",
+  "text": "Le patient Jean Dupont, né le 12 mars 1980, habite à Lyon et souffre de diabète.",
+  "labels": ""
+ },
+ {
+  "id": "02-OpenMed-PII-French-SuperMedical-Base-125M-v1",
+  "repo": "OpenMed/OpenMed-PII-French-SuperMedical-Base-125M-v1",
+  "weights": "model.safetensors",
+  "test": "safetensors_external_104",
+  "text": "Le patient Jean Dupont, né le 12 mars 1980, habite à Lyon et souffre de diabète.",
+  "labels": ""
+ },
+ {
+  "id": "03-OpenMed-PII-French-SuperMedical-Base-125M-v1-onn",
+  "repo": "OpenMed/OpenMed-PII-French-SuperMedical-Base-125M-v1-onnx-android",
+  "weights": "model.onnx",
+  "test": "openmed_snapshot_external_103",
+  "text": "Le patient Jean Dupont, né le 12 mars 1980, habite à Lyon et souffre de diabète.",
+  "labels": ""
+ },
+ {
+  "id": "04-OpenMed-PII-French-SuperMedical-Large-355M-v1-on",
+  "repo": "OpenMed/OpenMed-PII-French-SuperMedical-Large-355M-v1-onnx-android",
+  "weights": "model_fp16.onnx",
+  "test": "openmed_snapshot_external_103",
+  "text": "Le patient Jean Dupont, né le 12 mars 1980, habite à Lyon et souffre de diabète.",
+  "labels": ""
+ },
+ {
+  "id": "05-OpenMed-PII-French-mLiteClinical-Base-135M-v1",
+  "repo": "OpenMed/OpenMed-PII-French-mLiteClinical-Base-135M-v1",
+  "weights": "model.safetensors",
+  "test": "safetensors_external_104",
+  "text": "Le patient Jean Dupont, né le 12 mars 1980, habite à Lyon et souffre de diabète.",
+  "labels": ""
+ },
+ {
+  "id": "06-OpenMed-PII-French-mLiteClinical-Base-135M-v1-on",
+  "repo": "OpenMed/OpenMed-PII-French-mLiteClinical-Base-135M-v1-onnx-android",
+  "weights": "model.onnx",
+  "test": "openmed_snapshot_external_103",
+  "text": "Le patient Jean Dupont, né le 12 mars 1980, habite à Lyon et souffre de diabète.",
+  "labels": ""
+ },
+ {
+  "id": "07-OpenMed-PII-French-mSuperClinical-Large-279M-v1-",
+  "repo": "OpenMed/OpenMed-PII-French-mSuperClinical-Large-279M-v1-onnx-android",
+  "weights": "model_fp16.onnx",
+  "test": "openmed_snapshot_external_103",
+  "text": "Le patient Jean Dupont, né le 12 mars 1980, habite à Lyon et souffre de diabète.",
+  "labels": ""
+ },
+ {
+  "id": "08-OpenMed-PII-German-BigMed-Large-278M-v1-onnx-and",
+  "repo": "OpenMed/OpenMed-PII-German-BigMed-Large-278M-v1-onnx-android",
+  "weights": "model_fp16.onnx",
+  "test": "openmed_snapshot_external_103",
+  "text": "Der Patient Hans Müller, geboren am 12. März 1980, wohnt in Berlin und hat Diabetes.",
+  "labels": ""
+ },
+ {
+  "id": "09-OpenMed-PII-German-BioClinicalBERT-Base-110M-v1",
+  "repo": "OpenMed/OpenMed-PII-German-BioClinicalBERT-Base-110M-v1",
+  "weights": "model.safetensors",
+  "test": "safetensors_external_104",
+  "text": "Der Patient Hans Müller, geboren am 12. März 1980, wohnt in Berlin und hat Diabetes.",
+  "labels": ""
+ },
+ {
+  "id": "10-OpenMed-PII-German-BioClinicalBERT-Base-110M-v1-",
+  "repo": "OpenMed/OpenMed-PII-German-BioClinicalBERT-Base-110M-v1-onnx-android",
+  "weights": "model.onnx",
+  "test": "openmed_snapshot_external_103",
+  "text": "Der Patient Hans Müller, geboren am 12. März 1980, wohnt in Berlin und hat Diabetes.",
+  "labels": ""
+ },
+ {
+  "id": "11-OpenMed-PII-German-BioClinicalModern-Base-149M-v",
+  "repo": "OpenMed/OpenMed-PII-German-BioClinicalModern-Base-149M-v1",
+  "weights": "model.safetensors",
+  "test": "safetensors_external_104",
+  "text": "Der Patient Hans Müller, geboren am 12. März 1980, wohnt in Berlin und hat Diabetes.",
+  "labels": ""
+ },
+ {
+  "id": "12-OpenMed-PII-German-BioClinicalModern-Base-149M-v",
+  "repo": "OpenMed/OpenMed-PII-German-BioClinicalModern-Base-149M-v1-onnx-android",
+  "weights": "model.onnx",
+  "test": "openmed_snapshot_external_103",
+  "text": "Der Patient Hans Müller, geboren am 12. März 1980, wohnt in Berlin und hat Diabetes.",
+  "labels": ""
+ },
+ {
+  "id": "13-OpenMed-PII-German-BioClinicalModern-Large-395M-",
+  "repo": "OpenMed/OpenMed-PII-German-BioClinicalModern-Large-395M-v1-onnx-android",
+  "weights": "model_fp16.onnx",
+  "test": "openmed_snapshot_external_103",
+  "text": "Der Patient Hans Müller, geboren am 12. März 1980, wohnt in Berlin und hat Diabetes.",
+  "labels": ""
+ },
+ {
+  "id": "14-OpenMed-PII-German-BiomedBERT-Large-340M-v1-onnx",
+  "repo": "OpenMed/OpenMed-PII-German-BiomedBERT-Large-340M-v1-onnx-android",
+  "weights": "model_fp16.onnx",
+  "test": "openmed_snapshot_external_103",
+  "text": "Der Patient Hans Müller, geboren am 12. März 1980, wohnt in Berlin und hat Diabetes.",
+  "labels": ""
+ },
+ {
+  "id": "15-OpenMed-PII-German-ClinicalE5-Small-33M-v1",
+  "repo": "OpenMed/OpenMed-PII-German-ClinicalE5-Small-33M-v1",
+  "weights": "model.safetensors",
+  "test": "safetensors_external_104",
+  "text": "Der Patient Hans Müller, geboren am 12. März 1980, wohnt in Berlin und hat Diabetes.",
+  "labels": ""
+ },
+ {
+  "id": "16-OpenMed-PII-German-ClinicalE5-Small-33M-v1-onnx-",
+  "repo": "OpenMed/OpenMed-PII-German-ClinicalE5-Small-33M-v1-onnx-android",
+  "weights": "model.onnx",
+  "test": "openmed_snapshot_external_103",
+  "text": "Der Patient Hans Müller, geboren am 12. März 1980, wohnt in Berlin und hat Diabetes.",
+  "labels": ""
+ },
+ {
+  "id": "17-OpenMed-PII-German-ClinicalLongformer-Base-149M-",
+  "repo": "OpenMed/OpenMed-PII-German-ClinicalLongformer-Base-149M-v1",
+  "weights": "model.safetensors",
+  "test": "safetensors_external_104",
+  "text": "Der Patient Hans Müller, geboren am 12. März 1980, wohnt in Berlin und hat Diabetes.",
+  "labels": ""
+ },
+ {
+  "id": "18-OpenMed-PII-German-EuroMed-Large-210M-v1-onnx-an",
+  "repo": "OpenMed/OpenMed-PII-German-EuroMed-Large-210M-v1-onnx-android",
+  "weights": "model.onnx",
+  "test": "openmed_snapshot_external_103",
+  "text": "Der Patient Hans Müller, geboren am 12. März 1980, wohnt in Berlin und hat Diabetes.",
+  "labels": ""
+ },
+ {
+  "id": "19-OpenMed-PII-German-FastClinical-Small-82M-v1",
+  "repo": "OpenMed/OpenMed-PII-German-FastClinical-Small-82M-v1",
+  "weights": "model.safetensors",
+  "test": "safetensors_external_104",
+  "text": "Der Patient Hans Müller, geboren am 12. März 1980, wohnt in Berlin und hat Diabetes.",
+  "labels": ""
+ },
+ {
+  "id": "20-OpenMed-PII-German-FastClinical-Small-82M-v1-onn",
+  "repo": "OpenMed/OpenMed-PII-German-FastClinical-Small-82M-v1-onnx-android",
+  "weights": "model.onnx",
+  "test": "openmed_snapshot_external_103",
+  "text": "Der Patient Hans Müller, geboren am 12. März 1980, wohnt in Berlin und hat Diabetes.",
+  "labels": ""
+ },
+ {
+  "id": "21-OpenMed-PII-German-LiteClinical-Small-66M-v1",
+  "repo": "OpenMed/OpenMed-PII-German-LiteClinical-Small-66M-v1",
+  "weights": "model.safetensors",
+  "test": "safetensors_external_104",
+  "text": "Der Patient Hans Müller, geboren am 12. März 1980, wohnt in Berlin und hat Diabetes.",
+  "labels": ""
+ },
+ {
+  "id": "22-OpenMed-PII-German-LiteClinical-Small-66M-v1-onn",
+  "repo": "OpenMed/OpenMed-PII-German-LiteClinical-Small-66M-v1-onnx-android",
+  "weights": "model.onnx",
+  "test": "openmed_snapshot_external_103",
+  "text": "Der Patient Hans Müller, geboren am 12. März 1980, wohnt in Berlin und hat Diabetes.",
+  "labels": ""
+ },
+ {
+  "id": "23-OpenMed-PII-German-SuperClinical-Base-184M-v1",
+  "repo": "OpenMed/OpenMed-PII-German-SuperClinical-Base-184M-v1",
+  "weights": "model.safetensors",
+  "test": "safetensors_external_104",
+  "text": "Der Patient Hans Müller, geboren am 12. März 1980, wohnt in Berlin und hat Diabetes.",
+  "labels": ""
+ }
+]
