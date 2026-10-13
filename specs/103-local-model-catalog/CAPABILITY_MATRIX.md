@@ -187,3 +187,5 @@ Executed or expected runnable: **1,764 of 2,266** (was 1,702 on 2026-10-10). All
 
 **Batch 06** (run 38343611678, 24 rows): **24 of 24 executed**. It includes seven `SuperClinical-Large-434M` DeBERTa-v2 fp16 exports, among them `ClinicalNER-SuperClinical-Large-434M`, which exceeded the 90-minute job limit in batch 01. With the constant-MatMul fix, the large exports prepared in 9.0–11.1 s (typing about 4.7 s), DeBERTa-v2 Base in 5.9 s and Small in 3.6 s. Batches 04–05 had measured 582–1,575 s of typing for the same architecture. The T103-15 fix is confirmed on CI.
 
+**Batch 07** (run 38347129440, 24 rows, Italian, Portuguese, Japanese and Korean PII): **24 of 24 executed**, including the Japanese and Korean `NomicMed-Large-395M` fp16 exports and a Portuguese MLX export.
+
