@@ -222,3 +222,5 @@ Executed or expected runnable: **1,764 of 2,266** (was 1,702 on 2026-10-10). All
 **Batch 23** (run 38473404618, 48 rows, GenomicDetect and OncologyDetect NER, per-row): **48 of 48 executed**, including the nine rows batch 22 lost to the Hub incident.
 
 **Batch 24** (run 38479600818, 48 rows, OncologyDetect and OrganismDetect NER, per-row): **48 of 48 executed**.
+
+**Batch 25** (run 38485176124, 48 rows, OrganismDetect and PathologyDetect NER, per-row): **48 of 48 executed**.
