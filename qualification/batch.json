@@ -1,0 +1,386 @@
+[
+ {
+  "id": "00-OpenMed-PII-German-BiomedELECTRA-Large-335M-v1-o",
+  "repo": "OpenMed/OpenMed-PII-German-BiomedELECTRA-Large-335M-v1-onnx-android",
+  "weights": "model_fp16.onnx",
+  "test": "openmed_snapshot_external_103",
+  "text": "Der Patient Hans Müller, geboren am 12. März 1980, wohnt in Berlin und hat Diabetes.",
+  "labels": ""
+ },
+ {
+  "id": "01-OpenMed-PII-German-ClinicDischarge-Base-110M-v1",
+  "repo": "OpenMed/OpenMed-PII-German-ClinicDischarge-Base-110M-v1",
+  "weights": "model.safetensors",
+  "test": "safetensors_external_104",
+  "text": "Der Patient Hans Müller, geboren am 12. März 1980, wohnt in Berlin und hat Diabetes.",
+  "labels": ""
+ },
+ {
+  "id": "02-OpenMed-PII-German-ClinicDischarge-Base-110M-v1-",
+  "repo": "OpenMed/OpenMed-PII-German-ClinicDischarge-Base-110M-v1-onnx-android",
+  "weights": "model.onnx",
+  "test": "openmed_snapshot_external_103",
+  "text": "Der Patient Hans Müller, geboren am 12. März 1980, wohnt in Berlin und hat Diabetes.",
+  "labels": ""
+ },
+ {
+  "id": "03-OpenMed-PII-German-ClinicalBGE-Large-335M-v1-onn",
+  "repo": "OpenMed/OpenMed-PII-German-ClinicalBGE-Large-335M-v1-onnx-android",
+  "weights": "model_fp16.onnx",
+  "test": "openmed_snapshot_external_103",
+  "text": "Der Patient Hans Müller, geboren am 12. März 1980, wohnt in Berlin und hat Diabetes.",
+  "labels": ""
+ },
+ {
+  "id": "04-OpenMed-PII-German-ClinicalE5-Base-109M-v1",
+  "repo": "OpenMed/OpenMed-PII-German-ClinicalE5-Base-109M-v1",
+  "weights": "model.safetensors",
+  "test": "safetensors_external_104",
+  "text": "Der Patient Hans Müller, geboren am 12. März 1980, wohnt in Berlin und hat Diabetes.",
+  "labels": ""
+ },
+ {
+  "id": "05-OpenMed-PII-German-ClinicalE5-Base-109M-v1-onnx-",
+  "repo": "OpenMed/OpenMed-PII-German-ClinicalE5-Base-109M-v1-onnx-android",
+  "weights": "model.onnx",
+  "test": "openmed_snapshot_external_103",
+  "text": "Der Patient Hans Müller, geboren am 12. März 1980, wohnt in Berlin und hat Diabetes.",
+  "labels": ""
+ },
+ {
+  "id": "06-OpenMed-PII-German-ClinicalE5-Large-335M-v1-onnx",
+  "repo": "OpenMed/OpenMed-PII-German-ClinicalE5-Large-335M-v1-onnx-android",
+  "weights": "model_fp16.onnx",
+  "test": "openmed_snapshot_external_103",
+  "text": "Der Patient Hans Müller, geboren am 12. März 1980, wohnt in Berlin und hat Diabetes.",
+  "labels": ""
+ },
+ {
+  "id": "07-OpenMed-PII-German-GTEMed-Base-149M-v1",
+  "repo": "OpenMed/OpenMed-PII-German-GTEMed-Base-149M-v1",
+  "weights": "model.safetensors",
+  "test": "safetensors_external_104",
+  "text": "Der Patient Hans Müller, geboren am 12. März 1980, wohnt in Berlin und hat Diabetes.",
+  "labels": ""
+ },
+ {
+  "id": "08-OpenMed-PII-German-GTEMed-Base-149M-v1-onnx-andr",
+  "repo": "OpenMed/OpenMed-PII-German-GTEMed-Base-149M-v1-onnx-android",
+  "weights": "model.onnx",
+  "test": "openmed_snapshot_external_103",
+  "text": "Der Patient Hans Müller, geboren am 12. März 1980, wohnt in Berlin und hat Diabetes.",
+  "labels": ""
+ },
+ {
+  "id": "09-OpenMed-PII-German-LiteClinicalU-Small-66M-v1",
+  "repo": "OpenMed/OpenMed-PII-German-LiteClinicalU-Small-66M-v1",
+  "weights": "model.safetensors",
+  "test": "safetensors_external_104",
+  "text": "Der Patient Hans Müller, geboren am 12. März 1980, wohnt in Berlin und hat Diabetes.",
+  "labels": ""
+ },
+ {
+  "id": "10-OpenMed-PII-German-LiteClinicalU-Small-66M-v1-on",
+  "repo": "OpenMed/OpenMed-PII-German-LiteClinicalU-Small-66M-v1-onnx-android",
+  "weights": "model.onnx",
+  "test": "openmed_snapshot_external_103",
+  "text": "Der Patient Hans Müller, geboren am 12. März 1980, wohnt in Berlin und hat Diabetes.",
+  "labels": ""
+ },
+ {
+  "id": "11-OpenMed-PII-German-ModernMed-Base-149M-v1",
+  "repo": "OpenMed/OpenMed-PII-German-ModernMed-Base-149M-v1",
+  "weights": "model.safetensors",
+  "test": "safetensors_external_104",
+  "text": "Der Patient Hans Müller, geboren am 12. März 1980, wohnt in Berlin und hat Diabetes.",
+  "labels": ""
+ },
+ {
+  "id": "12-OpenMed-PII-German-ModernMed-Base-149M-v1-onnx-a",
+  "repo": "OpenMed/OpenMed-PII-German-ModernMed-Base-149M-v1-onnx-android",
+  "weights": "model.onnx",
+  "test": "openmed_snapshot_external_103",
+  "text": "Der Patient Hans Müller, geboren am 12. März 1980, wohnt in Berlin und hat Diabetes.",
+  "labels": ""
+ },
+ {
+  "id": "13-OpenMed-PII-German-ModernMed-Large-395M-v1-onnx-",
+  "repo": "OpenMed/OpenMed-PII-German-ModernMed-Large-395M-v1-onnx-android",
+  "weights": "model_fp16.onnx",
+  "test": "openmed_snapshot_external_103",
+  "text": "Der Patient Hans Müller, geboren am 12. März 1980, wohnt in Berlin und hat Diabetes.",
+  "labels": ""
+ },
+ {
+  "id": "14-OpenMed-PII-German-NomicMed-Large-395M-v1-onnx-a",
+  "repo": "OpenMed/OpenMed-PII-German-NomicMed-Large-395M-v1-onnx-android",
+  "weights": "model_fp16.onnx",
+  "test": "openmed_snapshot_external_103",
+  "text": "Der Patient Hans Müller, geboren am 12. März 1980, wohnt in Berlin und hat Diabetes.",
+  "labels": ""
+ },
+ {
+  "id": "15-OpenMed-PII-Hindi-BiomedBERT-Base-110M-v1",
+  "repo": "OpenMed/OpenMed-PII-Hindi-BiomedBERT-Base-110M-v1",
+  "weights": "model.safetensors",
+  "test": "safetensors_external_104",
+  "text": "मरीज़ राहुल शर्मा का जन्म 12 मार्च 1980 को हुआ और उन्हें मधुमेह है।",
+  "labels": ""
+ },
+ {
+  "id": "16-OpenMed-PII-Hindi-BiomedBERT-Base-110M-v1-onnx-a",
+  "repo": "OpenMed/OpenMed-PII-Hindi-BiomedBERT-Base-110M-v1-onnx-android",
+  "weights": "model.onnx",
+  "test": "openmed_snapshot_external_103",
+  "text": "मरीज़ राहुल शर्मा का जन्म 12 मार्च 1980 को हुआ और उन्हें मधुमेह है।",
+  "labels": ""
+ },
+ {
+  "id": "17-OpenMed-PII-Hindi-BiomedBERTFull-Base-110M-v1",
+  "repo": "OpenMed/OpenMed-PII-Hindi-BiomedBERTFull-Base-110M-v1",
+  "weights": "model.safetensors",
+  "test": "safetensors_external_104",
+  "text": "मरीज़ राहुल शर्मा का जन्म 12 मार्च 1980 को हुआ और उन्हें मधुमेह है।",
+  "labels": ""
+ },
+ {
+  "id": "18-OpenMed-PII-Hindi-BiomedBERTFull-Base-110M-v1-on",
+  "repo": "OpenMed/OpenMed-PII-Hindi-BiomedBERTFull-Base-110M-v1-onnx-android",
+  "weights": "model.onnx",
+  "test": "openmed_snapshot_external_103",
+  "text": "मरीज़ राहुल शर्मा का जन्म 12 मार्च 1980 को हुआ और उन्हें मधुमेह है।",
+  "labels": ""
+ },
+ {
+  "id": "19-OpenMed-PII-Hindi-BiomedELECTRA-Base-110M-v1",
+  "repo": "OpenMed/OpenMed-PII-Hindi-BiomedELECTRA-Base-110M-v1",
+  "weights": "model.safetensors",
+  "test": "safetensors_external_104",
+  "text": "मरीज़ राहुल शर्मा का जन्म 12 मार्च 1980 को हुआ और उन्हें मधुमेह है।",
+  "labels": ""
+ },
+ {
+  "id": "20-OpenMed-PII-Hindi-BiomedELECTRA-Base-110M-v1-onn",
+  "repo": "OpenMed/OpenMed-PII-Hindi-BiomedELECTRA-Base-110M-v1-onnx-android",
+  "weights": "model.onnx",
+  "test": "openmed_snapshot_external_103",
+  "text": "मरीज़ राहुल शर्मा का जन्म 12 मार्च 1980 को हुआ और उन्हें मधुमेह है।",
+  "labels": ""
+ },
+ {
+  "id": "21-OpenMed-PII-Hindi-BiomedELECTRA-Large-335M-v1-on",
+  "repo": "OpenMed/OpenMed-PII-Hindi-BiomedELECTRA-Large-335M-v1-onnx-android",
+  "weights": "model_fp16.onnx",
+  "test": "openmed_snapshot_external_103",
+  "text": "मरीज़ राहुल शर्मा का जन्म 12 मार्च 1980 को हुआ और उन्हें मधुमेह है।",
+  "labels": ""
+ },
+ {
+  "id": "22-OpenMed-PII-Hindi-ClinicDischarge-Base-110M-v1",
+  "repo": "OpenMed/OpenMed-PII-Hindi-ClinicDischarge-Base-110M-v1",
+  "weights": "model.safetensors",
+  "test": "safetensors_external_104",
+  "text": "मरीज़ राहुल शर्मा का जन्म 12 मार्च 1980 को हुआ और उन्हें मधुमेह है।",
+  "labels": ""
+ },
+ {
+  "id": "23-OpenMed-PII-Hindi-ClinicDischarge-Base-110M-v1-o",
+  "repo": "OpenMed/OpenMed-PII-Hindi-ClinicDischarge-Base-110M-v1-onnx-android",
+  "weights": "model.onnx",
+  "test": "openmed_snapshot_external_103",
+  "text": "मरीज़ राहुल शर्मा का जन्म 12 मार्च 1980 को हुआ और उन्हें मधुमेह है।",
+  "labels": ""
+ },
+ {
+  "id": "24-OpenMed-PII-Hindi-ClinicalBGE-Large-335M-v1-onnx",
+  "repo": "OpenMed/OpenMed-PII-Hindi-ClinicalBGE-Large-335M-v1-onnx-android",
+  "weights": "model_fp16.onnx",
+  "test": "openmed_snapshot_external_103",
+  "text": "मरीज़ राहुल शर्मा का जन्म 12 मार्च 1980 को हुआ और उन्हें मधुमेह है।",
+  "labels": ""
+ },
+ {
+  "id": "25-OpenMed-PII-Hindi-ClinicalE5-Base-109M-v1",
+  "repo": "OpenMed/OpenMed-PII-Hindi-ClinicalE5-Base-109M-v1",
+  "weights": "model.safetensors",
+  "test": "safetensors_external_104",
+  "text": "मरीज़ राहुल शर्मा का जन्म 12 मार्च 1980 को हुआ और उन्हें मधुमेह है।",
+  "labels": ""
+ },
+ {
+  "id": "26-OpenMed-PII-Hindi-ClinicalE5-Base-109M-v1-onnx-a",
+  "repo": "OpenMed/OpenMed-PII-Hindi-ClinicalE5-Base-109M-v1-onnx-android",
+  "weights": "model.onnx",
+  "test": "openmed_snapshot_external_103",
+  "text": "मरीज़ राहुल शर्मा का जन्म 12 मार्च 1980 को हुआ और उन्हें मधुमेह है।",
+  "labels": ""
+ },
+ {
+  "id": "27-OpenMed-PII-Hindi-ClinicalE5-Large-335M-v1-onnx-",
+  "repo": "OpenMed/OpenMed-PII-Hindi-ClinicalE5-Large-335M-v1-onnx-android",
+  "weights": "model_fp16.onnx",
+  "test": "openmed_snapshot_external_103",
+  "text": "मरीज़ राहुल शर्मा का जन्म 12 मार्च 1980 को हुआ और उन्हें मधुमेह है।",
+  "labels": ""
+ },
+ {
+  "id": "28-OpenMed-PII-Hindi-GTEMed-Base-149M-v1",
+  "repo": "OpenMed/OpenMed-PII-Hindi-GTEMed-Base-149M-v1",
+  "weights": "model.safetensors",
+  "test": "safetensors_external_104",
+  "text": "मरीज़ राहुल शर्मा का जन्म 12 मार्च 1980 को हुआ और उन्हें मधुमेह है।",
+  "labels": ""
+ },
+ {
+  "id": "29-OpenMed-PII-Hindi-GTEMed-Base-149M-v1-onnx-andro",
+  "repo": "OpenMed/OpenMed-PII-Hindi-GTEMed-Base-149M-v1-onnx-android",
+  "weights": "model.onnx",
+  "test": "openmed_snapshot_external_103",
+  "text": "मरीज़ राहुल शर्मा का जन्म 12 मार्च 1980 को हुआ और उन्हें मधुमेह है।",
+  "labels": ""
+ },
+ {
+  "id": "30-OpenMed-PII-Hindi-LiteClinicalU-Small-66M-v1",
+  "repo": "OpenMed/OpenMed-PII-Hindi-LiteClinicalU-Small-66M-v1",
+  "weights": "model.safetensors",
+  "test": "safetensors_external_104",
+  "text": "मरीज़ राहुल शर्मा का जन्म 12 मार्च 1980 को हुआ और उन्हें मधुमेह है।",
+  "labels": ""
+ },
+ {
+  "id": "31-OpenMed-PII-Hindi-LiteClinicalU-Small-66M-v1-onn",
+  "repo": "OpenMed/OpenMed-PII-Hindi-LiteClinicalU-Small-66M-v1-onnx-android",
+  "weights": "model.onnx",
+  "test": "openmed_snapshot_external_103",
+  "text": "मरीज़ राहुल शर्मा का जन्म 12 मार्च 1980 को हुआ और उन्हें मधुमेह है।",
+  "labels": ""
+ },
+ {
+  "id": "32-OpenMed-PII-Hindi-ModernMed-Base-149M-v1",
+  "repo": "OpenMed/OpenMed-PII-Hindi-ModernMed-Base-149M-v1",
+  "weights": "model.safetensors",
+  "test": "safetensors_external_104",
+  "text": "मरीज़ राहुल शर्मा का जन्म 12 मार्च 1980 को हुआ और उन्हें मधुमेह है।",
+  "labels": ""
+ },
+ {
+  "id": "33-OpenMed-PII-Hindi-ModernMed-Base-149M-v1-onnx-an",
+  "repo": "OpenMed/OpenMed-PII-Hindi-ModernMed-Base-149M-v1-onnx-android",
+  "weights": "model.onnx",
+  "test": "openmed_snapshot_external_103",
+  "text": "मरीज़ राहुल शर्मा का जन्म 12 मार्च 1980 को हुआ और उन्हें मधुमेह है।",
+  "labels": ""
+ },
+ {
+  "id": "34-OpenMed-PII-Hindi-ModernMed-Large-395M-v1-onnx-a",
+  "repo": "OpenMed/OpenMed-PII-Hindi-ModernMed-Large-395M-v1-onnx-android",
+  "weights": "model_fp16.onnx",
+  "test": "openmed_snapshot_external_103",
+  "text": "मरीज़ राहुल शर्मा का जन्म 12 मार्च 1980 को हुआ और उन्हें मधुमेह है।",
+  "labels": ""
+ },
+ {
+  "id": "35-OpenMed-PII-Hindi-NomicMed-Large-395M-v1-onnx-an",
+  "repo": "OpenMed/OpenMed-PII-Hindi-NomicMed-Large-395M-v1-onnx-android",
+  "weights": "model_fp16.onnx",
+  "test": "openmed_snapshot_external_103",
+  "text": "मरीज़ राहुल शर्मा का जन्म 12 मार्च 1980 को हुआ और उन्हें मधुमेह है।",
+  "labels": ""
+ },
+ {
+  "id": "36-OpenMed-PII-Hindi-mSuperClinical-Large-279M-v1-o",
+  "repo": "OpenMed/OpenMed-PII-Hindi-mSuperClinical-Large-279M-v1-onnx-android",
+  "weights": "model_fp16.onnx",
+  "test": "openmed_snapshot_external_103",
+  "text": "मरीज़ राहुल शर्मा का जन्म 12 मार्च 1980 को हुआ और उन्हें मधुमेह है।",
+  "labels": ""
+ },
+ {
+  "id": "37-OpenMed-PII-Italian-BiomedBERT-Base-110M-v1",
+  "repo": "OpenMed/OpenMed-PII-Italian-BiomedBERT-Base-110M-v1",
+  "weights": "model.safetensors",
+  "test": "safetensors_external_104",
+  "text": "Il paziente Mario Rossi, nato il 12 marzo 1980, vive a Milano e ha il diabete.",
+  "labels": ""
+ },
+ {
+  "id": "38-OpenMed-PII-Italian-BiomedBERT-Base-110M-v1-onnx",
+  "repo": "OpenMed/OpenMed-PII-Italian-BiomedBERT-Base-110M-v1-onnx-android",
+  "weights": "model.onnx",
+  "test": "openmed_snapshot_external_103",
+  "text": "Il paziente Mario Rossi, nato il 12 marzo 1980, vive a Milano e ha il diabete.",
+  "labels": ""
+ },
+ {
+  "id": "39-OpenMed-PII-Italian-BiomedBERTFull-Base-110M-v1",
+  "repo": "OpenMed/OpenMed-PII-Italian-BiomedBERTFull-Base-110M-v1",
+  "weights": "model.safetensors",
+  "test": "safetensors_external_104",
+  "text": "Il paziente Mario Rossi, nato il 12 marzo 1980, vive a Milano e ha il diabete.",
+  "labels": ""
+ },
+ {
+  "id": "40-OpenMed-PII-Italian-BiomedBERTFull-Base-110M-v1-",
+  "repo": "OpenMed/OpenMed-PII-Italian-BiomedBERTFull-Base-110M-v1-onnx-android",
+  "weights": "model.onnx",
+  "test": "openmed_snapshot_external_103",
+  "text": "Il paziente Mario Rossi, nato il 12 marzo 1980, vive a Milano e ha il diabete.",
+  "labels": ""
+ },
+ {
+  "id": "41-OpenMed-PII-Italian-BiomedELECTRA-Base-110M-v1",
+  "repo": "OpenMed/OpenMed-PII-Italian-BiomedELECTRA-Base-110M-v1",
+  "weights": "model.safetensors",
+  "test": "safetensors_external_104",
+  "text": "Il paziente Mario Rossi, nato il 12 marzo 1980, vive a Milano e ha il diabete.",
+  "labels": ""
+ },
+ {
+  "id": "42-OpenMed-PII-Italian-BiomedELECTRA-Base-110M-v1-o",
+  "repo": "OpenMed/OpenMed-PII-Italian-BiomedELECTRA-Base-110M-v1-onnx-android",
+  "weights": "model.onnx",
+  "test": "openmed_snapshot_external_103",
+  "text": "Il paziente Mario Rossi, nato il 12 marzo 1980, vive a Milano e ha il diabete.",
+  "labels": ""
+ },
+ {
+  "id": "43-OpenMed-PII-Italian-BiomedELECTRA-Large-335M-v1-",
+  "repo": "OpenMed/OpenMed-PII-Italian-BiomedELECTRA-Large-335M-v1-onnx-android",
+  "weights": "model_fp16.onnx",
+  "test": "openmed_snapshot_external_103",
+  "text": "Il paziente Mario Rossi, nato il 12 marzo 1980, vive a Milano e ha il diabete.",
+  "labels": ""
+ },
+ {
+  "id": "44-OpenMed-PII-Italian-ClinicDischarge-Base-110M-v1",
+  "repo": "OpenMed/OpenMed-PII-Italian-ClinicDischarge-Base-110M-v1",
+  "weights": "model.safetensors",
+  "test": "safetensors_external_104",
+  "text": "Il paziente Mario Rossi, nato il 12 marzo 1980, vive a Milano e ha il diabete.",
+  "labels": ""
+ },
+ {
+  "id": "45-OpenMed-PII-Italian-ClinicDischarge-Base-110M-v1",
+  "repo": "OpenMed/OpenMed-PII-Italian-ClinicDischarge-Base-110M-v1-onnx-android",
+  "weights": "model.onnx",
+  "test": "openmed_snapshot_external_103",
+  "text": "Il paziente Mario Rossi, nato il 12 marzo 1980, vive a Milano e ha il diabete.",
+  "labels": ""
+ },
+ {
+  "id": "46-OpenMed-PII-Italian-ClinicalBGE-Large-335M-v1-on",
+  "repo": "OpenMed/OpenMed-PII-Italian-ClinicalBGE-Large-335M-v1-onnx-android",
+  "weights": "model_fp16.onnx",
+  "test": "openmed_snapshot_external_103",
+  "text": "Il paziente Mario Rossi, nato il 12 marzo 1980, vive a Milano e ha il diabete.",
+  "labels": ""
+ },
+ {
+  "id": "47-OpenMed-PII-Italian-ClinicalE5-Base-109M-v1",
+  "repo": "OpenMed/OpenMed-PII-Italian-ClinicalE5-Base-109M-v1",
+  "weights": "model.safetensors",
+  "test": "safetensors_external_104",
+  "text": "Il paziente Mario Rossi, nato il 12 marzo 1980, vive a Milano e ha il diabete.",
+  "labels": ""
+ }
+]
