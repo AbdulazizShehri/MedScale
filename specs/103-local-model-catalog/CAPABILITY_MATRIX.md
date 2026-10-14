@@ -238,3 +238,5 @@ Executed or expected runnable: **1,764 of 2,266** (was 1,702 on 2026-10-10). All
 **Batch 31** (run 38513044093, 48 rows, Dutch, French and German PII and GTEMed rows, per-row): **48 of 48 executed**.
 
 **Batch 32** (run 38517617668, 48 rows, German, Hindi and Italian PII, per-row): **48 of 48 executed**.
+
+**Batch 33** (run 38522642273, 48 rows, Italian, Portuguese and Spanish PII and ModernMed and NomicMed rows, per-row): **48 of 48 executed**.
