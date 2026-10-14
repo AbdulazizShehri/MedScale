@@ -230,3 +230,5 @@ Executed or expected runnable: **1,764 of 2,266** (was 1,702 on 2026-10-10). All
 **Batch 27** (run 38495015617, 48 rows, PharmaDetect NER, per-row): **48 of 48 executed**.
 
 **Batch 28** (run 38499607675, 48 rows, PharmaDetect and ProteinDetect NER, per-row): **48 of 48 executed**.
+
+**Batch 29** (run 38504166707, 48 rows, ProteinDetect and SpeciesDetect NER, per-row): **48 of 48 executed**.
