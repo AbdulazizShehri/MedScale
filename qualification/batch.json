@@ -1,0 +1,386 @@
+[
+ {
+  "id": "00-OpenMed-PII-Italian-ClinicalE5-Base-109M-v1-onnx",
+  "repo": "OpenMed/OpenMed-PII-Italian-ClinicalE5-Base-109M-v1-onnx-android",
+  "weights": "model.onnx",
+  "test": "openmed_snapshot_external_103",
+  "text": "Il paziente Mario Rossi, nato il 12 marzo 1980, vive a Milano e ha il diabete.",
+  "labels": ""
+ },
+ {
+  "id": "01-OpenMed-PII-Italian-ClinicalE5-Large-335M-v1-onn",
+  "repo": "OpenMed/OpenMed-PII-Italian-ClinicalE5-Large-335M-v1-onnx-android",
+  "weights": "model_fp16.onnx",
+  "test": "openmed_snapshot_external_103",
+  "text": "Il paziente Mario Rossi, nato il 12 marzo 1980, vive a Milano e ha il diabete.",
+  "labels": ""
+ },
+ {
+  "id": "02-OpenMed-PII-Italian-GTEMed-Base-149M-v1",
+  "repo": "OpenMed/OpenMed-PII-Italian-GTEMed-Base-149M-v1",
+  "weights": "model.safetensors",
+  "test": "safetensors_external_104",
+  "text": "Il paziente Mario Rossi, nato il 12 marzo 1980, vive a Milano e ha il diabete.",
+  "labels": ""
+ },
+ {
+  "id": "03-OpenMed-PII-Italian-GTEMed-Base-149M-v1-onnx-and",
+  "repo": "OpenMed/OpenMed-PII-Italian-GTEMed-Base-149M-v1-onnx-android",
+  "weights": "model.onnx",
+  "test": "openmed_snapshot_external_103",
+  "text": "Il paziente Mario Rossi, nato il 12 marzo 1980, vive a Milano e ha il diabete.",
+  "labels": ""
+ },
+ {
+  "id": "04-OpenMed-PII-Italian-LiteClinicalU-Small-66M-v1",
+  "repo": "OpenMed/OpenMed-PII-Italian-LiteClinicalU-Small-66M-v1",
+  "weights": "model.safetensors",
+  "test": "safetensors_external_104",
+  "text": "Il paziente Mario Rossi, nato il 12 marzo 1980, vive a Milano e ha il diabete.",
+  "labels": ""
+ },
+ {
+  "id": "05-OpenMed-PII-Italian-LiteClinicalU-Small-66M-v1-o",
+  "repo": "OpenMed/OpenMed-PII-Italian-LiteClinicalU-Small-66M-v1-onnx-android",
+  "weights": "model.onnx",
+  "test": "openmed_snapshot_external_103",
+  "text": "Il paziente Mario Rossi, nato il 12 marzo 1980, vive a Milano e ha il diabete.",
+  "labels": ""
+ },
+ {
+  "id": "06-OpenMed-PII-Italian-ModernMed-Base-149M-v1",
+  "repo": "OpenMed/OpenMed-PII-Italian-ModernMed-Base-149M-v1",
+  "weights": "model.safetensors",
+  "test": "safetensors_external_104",
+  "text": "Il paziente Mario Rossi, nato il 12 marzo 1980, vive a Milano e ha il diabete.",
+  "labels": ""
+ },
+ {
+  "id": "07-OpenMed-PII-Italian-ModernMed-Base-149M-v1-onnx-",
+  "repo": "OpenMed/OpenMed-PII-Italian-ModernMed-Base-149M-v1-onnx-android",
+  "weights": "model.onnx",
+  "test": "openmed_snapshot_external_103",
+  "text": "Il paziente Mario Rossi, nato il 12 marzo 1980, vive a Milano e ha il diabete.",
+  "labels": ""
+ },
+ {
+  "id": "08-OpenMed-PII-Italian-ModernMed-Large-395M-v1-onnx",
+  "repo": "OpenMed/OpenMed-PII-Italian-ModernMed-Large-395M-v1-onnx-android",
+  "weights": "model_fp16.onnx",
+  "test": "openmed_snapshot_external_103",
+  "text": "Il paziente Mario Rossi, nato il 12 marzo 1980, vive a Milano e ha il diabete.",
+  "labels": ""
+ },
+ {
+  "id": "09-OpenMed-PII-Italian-NomicMed-Large-395M-v1-onnx-",
+  "repo": "OpenMed/OpenMed-PII-Italian-NomicMed-Large-395M-v1-onnx-android",
+  "weights": "model_fp16.onnx",
+  "test": "openmed_snapshot_external_103",
+  "text": "Il paziente Mario Rossi, nato il 12 marzo 1980, vive a Milano e ha il diabete.",
+  "labels": ""
+ },
+ {
+  "id": "10-OpenMed-PII-Italian-mSuperClinical-Large-279M-v1",
+  "repo": "OpenMed/OpenMed-PII-Italian-mSuperClinical-Large-279M-v1-onnx-android",
+  "weights": "model_fp16.onnx",
+  "test": "openmed_snapshot_external_103",
+  "text": "Il paziente Mario Rossi, nato il 12 marzo 1980, vive a Milano e ha il diabete.",
+  "labels": ""
+ },
+ {
+  "id": "11-OpenMed-PII-ModernMed-Base-149M-v1",
+  "repo": "OpenMed/OpenMed-PII-ModernMed-Base-149M-v1",
+  "weights": "model.safetensors",
+  "test": "safetensors_external_104",
+  "text": "Patient John Smith, born 12 March 1980, has type 2 diabetes and pain in the left knee.",
+  "labels": ""
+ },
+ {
+  "id": "12-OpenMed-PII-ModernMed-Base-149M-v1-onnx-android",
+  "repo": "OpenMed/OpenMed-PII-ModernMed-Base-149M-v1-onnx-android",
+  "weights": "model.onnx",
+  "test": "openmed_snapshot_external_103",
+  "text": "Patient John Smith, born 12 March 1980, has type 2 diabetes and pain in the left knee.",
+  "labels": ""
+ },
+ {
+  "id": "13-OpenMed-PII-ModernMed-Large-395M-v1-onnx-android",
+  "repo": "OpenMed/OpenMed-PII-ModernMed-Large-395M-v1-onnx-android",
+  "weights": "model_fp16.onnx",
+  "test": "openmed_snapshot_external_103",
+  "text": "Patient John Smith, born 12 March 1980, has type 2 diabetes and pain in the left knee.",
+  "labels": ""
+ },
+ {
+  "id": "14-OpenMed-PII-NomicMed-Large-395M-v1-onnx-android",
+  "repo": "OpenMed/OpenMed-PII-NomicMed-Large-395M-v1-onnx-android",
+  "weights": "model_fp16.onnx",
+  "test": "openmed_snapshot_external_103",
+  "text": "Patient John Smith, born 12 March 1980, has type 2 diabetes and pain in the left knee.",
+  "labels": ""
+ },
+ {
+  "id": "15-OpenMed-PII-Portuguese-BiomedBERT-Base-110M-v1",
+  "repo": "OpenMed/OpenMed-PII-Portuguese-BiomedBERT-Base-110M-v1",
+  "weights": "model.safetensors",
+  "test": "safetensors_external_104",
+  "text": "O paciente João Silva, nascido em 12 de março de 1980, mora em Lisboa e tem diabetes.",
+  "labels": ""
+ },
+ {
+  "id": "16-OpenMed-PII-Portuguese-BiomedBERT-Base-110M-v1-m",
+  "repo": "OpenMed/OpenMed-PII-Portuguese-BiomedBERT-Base-110M-v1-mlx",
+  "weights": "weights.safetensors",
+  "test": "safetensors_external_104",
+  "text": "O paciente João Silva, nascido em 12 de março de 1980, mora em Lisboa e tem diabetes.",
+  "labels": ""
+ },
+ {
+  "id": "17-OpenMed-PII-Portuguese-BiomedBERT-Base-110M-v1-o",
+  "repo": "OpenMed/OpenMed-PII-Portuguese-BiomedBERT-Base-110M-v1-onnx-android",
+  "weights": "model.onnx",
+  "test": "openmed_snapshot_external_103",
+  "text": "O paciente João Silva, nascido em 12 de março de 1980, mora em Lisboa e tem diabetes.",
+  "labels": ""
+ },
+ {
+  "id": "18-OpenMed-PII-Portuguese-BiomedBERTFull-Base-110M-",
+  "repo": "OpenMed/OpenMed-PII-Portuguese-BiomedBERTFull-Base-110M-v1",
+  "weights": "model.safetensors",
+  "test": "safetensors_external_104",
+  "text": "O paciente João Silva, nascido em 12 de março de 1980, mora em Lisboa e tem diabetes.",
+  "labels": ""
+ },
+ {
+  "id": "19-OpenMed-PII-Portuguese-BiomedBERTFull-Base-110M-",
+  "repo": "OpenMed/OpenMed-PII-Portuguese-BiomedBERTFull-Base-110M-v1-mlx",
+  "weights": "weights.safetensors",
+  "test": "safetensors_external_104",
+  "text": "O paciente João Silva, nascido em 12 de março de 1980, mora em Lisboa e tem diabetes.",
+  "labels": ""
+ },
+ {
+  "id": "20-OpenMed-PII-Portuguese-BiomedBERTFull-Base-110M-",
+  "repo": "OpenMed/OpenMed-PII-Portuguese-BiomedBERTFull-Base-110M-v1-onnx-android",
+  "weights": "model.onnx",
+  "test": "openmed_snapshot_external_103",
+  "text": "O paciente João Silva, nascido em 12 de março de 1980, mora em Lisboa e tem diabetes.",
+  "labels": ""
+ },
+ {
+  "id": "21-OpenMed-PII-Portuguese-BiomedELECTRA-Base-110M-v",
+  "repo": "OpenMed/OpenMed-PII-Portuguese-BiomedELECTRA-Base-110M-v1",
+  "weights": "model.safetensors",
+  "test": "safetensors_external_104",
+  "text": "O paciente João Silva, nascido em 12 de março de 1980, mora em Lisboa e tem diabetes.",
+  "labels": ""
+ },
+ {
+  "id": "22-OpenMed-PII-Portuguese-BiomedELECTRA-Base-110M-v",
+  "repo": "OpenMed/OpenMed-PII-Portuguese-BiomedELECTRA-Base-110M-v1-mlx",
+  "weights": "weights.safetensors",
+  "test": "safetensors_external_104",
+  "text": "O paciente João Silva, nascido em 12 de março de 1980, mora em Lisboa e tem diabetes.",
+  "labels": ""
+ },
+ {
+  "id": "23-OpenMed-PII-Portuguese-BiomedELECTRA-Base-110M-v",
+  "repo": "OpenMed/OpenMed-PII-Portuguese-BiomedELECTRA-Base-110M-v1-onnx-android",
+  "weights": "model.onnx",
+  "test": "openmed_snapshot_external_103",
+  "text": "O paciente João Silva, nascido em 12 de março de 1980, mora em Lisboa e tem diabetes.",
+  "labels": ""
+ },
+ {
+  "id": "24-OpenMed-PII-Portuguese-BiomedELECTRA-Large-335M-",
+  "repo": "OpenMed/OpenMed-PII-Portuguese-BiomedELECTRA-Large-335M-v1-onnx-android",
+  "weights": "model_fp16.onnx",
+  "test": "openmed_snapshot_external_103",
+  "text": "O paciente João Silva, nascido em 12 de março de 1980, mora em Lisboa e tem diabetes.",
+  "labels": ""
+ },
+ {
+  "id": "25-OpenMed-PII-Portuguese-ClinicDischarge-Base-110M",
+  "repo": "OpenMed/OpenMed-PII-Portuguese-ClinicDischarge-Base-110M-v1",
+  "weights": "model.safetensors",
+  "test": "safetensors_external_104",
+  "text": "O paciente João Silva, nascido em 12 de março de 1980, mora em Lisboa e tem diabetes.",
+  "labels": ""
+ },
+ {
+  "id": "26-OpenMed-PII-Portuguese-ClinicDischarge-Base-110M",
+  "repo": "OpenMed/OpenMed-PII-Portuguese-ClinicDischarge-Base-110M-v1-mlx",
+  "weights": "weights.safetensors",
+  "test": "safetensors_external_104",
+  "text": "O paciente João Silva, nascido em 12 de março de 1980, mora em Lisboa e tem diabetes.",
+  "labels": ""
+ },
+ {
+  "id": "27-OpenMed-PII-Portuguese-ClinicDischarge-Base-110M",
+  "repo": "OpenMed/OpenMed-PII-Portuguese-ClinicDischarge-Base-110M-v1-onnx-android",
+  "weights": "model.onnx",
+  "test": "openmed_snapshot_external_103",
+  "text": "O paciente João Silva, nascido em 12 de março de 1980, mora em Lisboa e tem diabetes.",
+  "labels": ""
+ },
+ {
+  "id": "28-OpenMed-PII-Portuguese-ClinicalBGE-Large-335M-v1",
+  "repo": "OpenMed/OpenMed-PII-Portuguese-ClinicalBGE-Large-335M-v1-onnx-android",
+  "weights": "model_fp16.onnx",
+  "test": "openmed_snapshot_external_103",
+  "text": "O paciente João Silva, nascido em 12 de março de 1980, mora em Lisboa e tem diabetes.",
+  "labels": ""
+ },
+ {
+  "id": "29-OpenMed-PII-Portuguese-ClinicalE5-Base-109M-v1",
+  "repo": "OpenMed/OpenMed-PII-Portuguese-ClinicalE5-Base-109M-v1",
+  "weights": "model.safetensors",
+  "test": "safetensors_external_104",
+  "text": "O paciente João Silva, nascido em 12 de março de 1980, mora em Lisboa e tem diabetes.",
+  "labels": ""
+ },
+ {
+  "id": "30-OpenMed-PII-Portuguese-ClinicalE5-Base-109M-v1-m",
+  "repo": "OpenMed/OpenMed-PII-Portuguese-ClinicalE5-Base-109M-v1-mlx",
+  "weights": "weights.safetensors",
+  "test": "safetensors_external_104",
+  "text": "O paciente João Silva, nascido em 12 de março de 1980, mora em Lisboa e tem diabetes.",
+  "labels": ""
+ },
+ {
+  "id": "31-OpenMed-PII-Portuguese-ClinicalE5-Base-109M-v1-o",
+  "repo": "OpenMed/OpenMed-PII-Portuguese-ClinicalE5-Base-109M-v1-onnx-android",
+  "weights": "model.onnx",
+  "test": "openmed_snapshot_external_103",
+  "text": "O paciente João Silva, nascido em 12 de março de 1980, mora em Lisboa e tem diabetes.",
+  "labels": ""
+ },
+ {
+  "id": "32-OpenMed-PII-Portuguese-ClinicalE5-Large-335M-v1-",
+  "repo": "OpenMed/OpenMed-PII-Portuguese-ClinicalE5-Large-335M-v1-onnx-android",
+  "weights": "model_fp16.onnx",
+  "test": "openmed_snapshot_external_103",
+  "text": "O paciente João Silva, nascido em 12 de março de 1980, mora em Lisboa e tem diabetes.",
+  "labels": ""
+ },
+ {
+  "id": "33-OpenMed-PII-Portuguese-LiteClinicalU-Small-66M-v",
+  "repo": "OpenMed/OpenMed-PII-Portuguese-LiteClinicalU-Small-66M-v1",
+  "weights": "model.safetensors",
+  "test": "safetensors_external_104",
+  "text": "O paciente João Silva, nascido em 12 de março de 1980, mora em Lisboa e tem diabetes.",
+  "labels": ""
+ },
+ {
+  "id": "34-OpenMed-PII-Portuguese-LiteClinicalU-Small-66M-v",
+  "repo": "OpenMed/OpenMed-PII-Portuguese-LiteClinicalU-Small-66M-v1-mlx",
+  "weights": "weights.safetensors",
+  "test": "safetensors_external_104",
+  "text": "O paciente João Silva, nascido em 12 de março de 1980, mora em Lisboa e tem diabetes.",
+  "labels": ""
+ },
+ {
+  "id": "35-OpenMed-PII-Portuguese-LiteClinicalU-Small-66M-v",
+  "repo": "OpenMed/OpenMed-PII-Portuguese-LiteClinicalU-Small-66M-v1-onnx-android",
+  "weights": "model.onnx",
+  "test": "openmed_snapshot_external_103",
+  "text": "O paciente João Silva, nascido em 12 de março de 1980, mora em Lisboa e tem diabetes.",
+  "labels": ""
+ },
+ {
+  "id": "36-OpenMed-PII-Portuguese-ModernMed-Base-149M-v1",
+  "repo": "OpenMed/OpenMed-PII-Portuguese-ModernMed-Base-149M-v1",
+  "weights": "model.safetensors",
+  "test": "safetensors_external_104",
+  "text": "O paciente João Silva, nascido em 12 de março de 1980, mora em Lisboa e tem diabetes.",
+  "labels": ""
+ },
+ {
+  "id": "37-OpenMed-PII-Portuguese-ModernMed-Base-149M-v1-on",
+  "repo": "OpenMed/OpenMed-PII-Portuguese-ModernMed-Base-149M-v1-onnx-android",
+  "weights": "model.onnx",
+  "test": "openmed_snapshot_external_103",
+  "text": "O paciente João Silva, nascido em 12 de março de 1980, mora em Lisboa e tem diabetes.",
+  "labels": ""
+ },
+ {
+  "id": "38-OpenMed-PII-Portuguese-ModernMed-Large-395M-v1-o",
+  "repo": "OpenMed/OpenMed-PII-Portuguese-ModernMed-Large-395M-v1-onnx-android",
+  "weights": "model_fp16.onnx",
+  "test": "openmed_snapshot_external_103",
+  "text": "O paciente João Silva, nascido em 12 de março de 1980, mora em Lisboa e tem diabetes.",
+  "labels": ""
+ },
+ {
+  "id": "39-OpenMed-PII-Portuguese-NomicMed-Large-395M-v1-on",
+  "repo": "OpenMed/OpenMed-PII-Portuguese-NomicMed-Large-395M-v1-onnx-android",
+  "weights": "model_fp16.onnx",
+  "test": "openmed_snapshot_external_103",
+  "text": "O paciente João Silva, nascido em 12 de março de 1980, mora em Lisboa e tem diabetes.",
+  "labels": ""
+ },
+ {
+  "id": "40-OpenMed-PII-Portuguese-mSuperClinical-Large-279M",
+  "repo": "OpenMed/OpenMed-PII-Portuguese-mSuperClinical-Large-279M-v1-onnx-android",
+  "weights": "model_fp16.onnx",
+  "test": "openmed_snapshot_external_103",
+  "text": "O paciente João Silva, nascido em 12 de março de 1980, mora em Lisboa e tem diabetes.",
+  "labels": ""
+ },
+ {
+  "id": "41-OpenMed-PII-Spanish-BiomedBERT-Base-110M-v1",
+  "repo": "OpenMed/OpenMed-PII-Spanish-BiomedBERT-Base-110M-v1",
+  "weights": "model.safetensors",
+  "test": "safetensors_external_104",
+  "text": "La paciente María García, nacida el 3 de mayo de 1975, vive en Sevilla y tiene diabetes.",
+  "labels": ""
+ },
+ {
+  "id": "42-OpenMed-PII-Spanish-BiomedBERT-Base-110M-v1-onnx",
+  "repo": "OpenMed/OpenMed-PII-Spanish-BiomedBERT-Base-110M-v1-onnx-android",
+  "weights": "model.onnx",
+  "test": "openmed_snapshot_external_103",
+  "text": "La paciente María García, nacida el 3 de mayo de 1975, vive en Sevilla y tiene diabetes.",
+  "labels": ""
+ },
+ {
+  "id": "43-OpenMed-PII-Spanish-BiomedBERTFull-Base-110M-v1",
+  "repo": "OpenMed/OpenMed-PII-Spanish-BiomedBERTFull-Base-110M-v1",
+  "weights": "model.safetensors",
+  "test": "safetensors_external_104",
+  "text": "La paciente María García, nacida el 3 de mayo de 1975, vive en Sevilla y tiene diabetes.",
+  "labels": ""
+ },
+ {
+  "id": "44-OpenMed-PII-Spanish-BiomedBERTFull-Base-110M-v1-",
+  "repo": "OpenMed/OpenMed-PII-Spanish-BiomedBERTFull-Base-110M-v1-onnx-android",
+  "weights": "model.onnx",
+  "test": "openmed_snapshot_external_103",
+  "text": "La paciente María García, nacida el 3 de mayo de 1975, vive en Sevilla y tiene diabetes.",
+  "labels": ""
+ },
+ {
+  "id": "45-OpenMed-PII-Spanish-BiomedELECTRA-Base-110M-v1",
+  "repo": "OpenMed/OpenMed-PII-Spanish-BiomedELECTRA-Base-110M-v1",
+  "weights": "model.safetensors",
+  "test": "safetensors_external_104",
+  "text": "La paciente María García, nacida el 3 de mayo de 1975, vive en Sevilla y tiene diabetes.",
+  "labels": ""
+ },
+ {
+  "id": "46-OpenMed-PII-Spanish-BiomedELECTRA-Base-110M-v1-o",
+  "repo": "OpenMed/OpenMed-PII-Spanish-BiomedELECTRA-Base-110M-v1-onnx-android",
+  "weights": "model.onnx",
+  "test": "openmed_snapshot_external_103",
+  "text": "La paciente María García, nacida el 3 de mayo de 1975, vive en Sevilla y tiene diabetes.",
+  "labels": ""
+ },
+ {
+  "id": "47-OpenMed-PII-Spanish-BiomedELECTRA-Large-335M-v1-",
+  "repo": "OpenMed/OpenMed-PII-Spanish-BiomedELECTRA-Large-335M-v1-onnx-android",
+  "weights": "model_fp16.onnx",
+  "test": "openmed_snapshot_external_103",
+  "text": "La paciente María García, nacida el 3 de mayo de 1975, vive en Sevilla y tiene diabetes.",
+  "labels": ""
+ }
+]
