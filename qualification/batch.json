@@ -1,0 +1,386 @@
+[
+ {
+  "id": "00-OpenMed-PII-Spanish-ClinicDischarge-Base-110M-v1",
+  "repo": "OpenMed/OpenMed-PII-Spanish-ClinicDischarge-Base-110M-v1",
+  "weights": "model.safetensors",
+  "test": "safetensors_external_104",
+  "text": "La paciente María García, nacida el 3 de mayo de 1975, vive en Sevilla y tiene diabetes.",
+  "labels": ""
+ },
+ {
+  "id": "01-OpenMed-PII-Spanish-ClinicDischarge-Base-110M-v1",
+  "repo": "OpenMed/OpenMed-PII-Spanish-ClinicDischarge-Base-110M-v1-onnx-android",
+  "weights": "model.onnx",
+  "test": "openmed_snapshot_external_103",
+  "text": "La paciente María García, nacida el 3 de mayo de 1975, vive en Sevilla y tiene diabetes.",
+  "labels": ""
+ },
+ {
+  "id": "02-OpenMed-PII-Spanish-ClinicalBGE-Large-335M-v1-on",
+  "repo": "OpenMed/OpenMed-PII-Spanish-ClinicalBGE-Large-335M-v1-onnx-android",
+  "weights": "model_fp16.onnx",
+  "test": "openmed_snapshot_external_103",
+  "text": "La paciente María García, nacida el 3 de mayo de 1975, vive en Sevilla y tiene diabetes.",
+  "labels": ""
+ },
+ {
+  "id": "03-OpenMed-PII-Spanish-ClinicalE5-Base-109M-v1",
+  "repo": "OpenMed/OpenMed-PII-Spanish-ClinicalE5-Base-109M-v1",
+  "weights": "model.safetensors",
+  "test": "safetensors_external_104",
+  "text": "La paciente María García, nacida el 3 de mayo de 1975, vive en Sevilla y tiene diabetes.",
+  "labels": ""
+ },
+ {
+  "id": "04-OpenMed-PII-Spanish-ClinicalE5-Base-109M-v1-onnx",
+  "repo": "OpenMed/OpenMed-PII-Spanish-ClinicalE5-Base-109M-v1-onnx-android",
+  "weights": "model.onnx",
+  "test": "openmed_snapshot_external_103",
+  "text": "La paciente María García, nacida el 3 de mayo de 1975, vive en Sevilla y tiene diabetes.",
+  "labels": ""
+ },
+ {
+  "id": "05-OpenMed-PII-Spanish-ClinicalE5-Large-335M-v1-onn",
+  "repo": "OpenMed/OpenMed-PII-Spanish-ClinicalE5-Large-335M-v1-onnx-android",
+  "weights": "model_fp16.onnx",
+  "test": "openmed_snapshot_external_103",
+  "text": "La paciente María García, nacida el 3 de mayo de 1975, vive en Sevilla y tiene diabetes.",
+  "labels": ""
+ },
+ {
+  "id": "06-OpenMed-PII-Spanish-GTEMed-Base-149M-v1",
+  "repo": "OpenMed/OpenMed-PII-Spanish-GTEMed-Base-149M-v1",
+  "weights": "model.safetensors",
+  "test": "safetensors_external_104",
+  "text": "La paciente María García, nacida el 3 de mayo de 1975, vive en Sevilla y tiene diabetes.",
+  "labels": ""
+ },
+ {
+  "id": "07-OpenMed-PII-Spanish-GTEMed-Base-149M-v1-onnx-and",
+  "repo": "OpenMed/OpenMed-PII-Spanish-GTEMed-Base-149M-v1-onnx-android",
+  "weights": "model.onnx",
+  "test": "openmed_snapshot_external_103",
+  "text": "La paciente María García, nacida el 3 de mayo de 1975, vive en Sevilla y tiene diabetes.",
+  "labels": ""
+ },
+ {
+  "id": "08-OpenMed-PII-Spanish-LiteClinicalU-Small-66M-v1",
+  "repo": "OpenMed/OpenMed-PII-Spanish-LiteClinicalU-Small-66M-v1",
+  "weights": "model.safetensors",
+  "test": "safetensors_external_104",
+  "text": "La paciente María García, nacida el 3 de mayo de 1975, vive en Sevilla y tiene diabetes.",
+  "labels": ""
+ },
+ {
+  "id": "09-OpenMed-PII-Spanish-LiteClinicalU-Small-66M-v1-o",
+  "repo": "OpenMed/OpenMed-PII-Spanish-LiteClinicalU-Small-66M-v1-onnx-android",
+  "weights": "model.onnx",
+  "test": "openmed_snapshot_external_103",
+  "text": "La paciente María García, nacida el 3 de mayo de 1975, vive en Sevilla y tiene diabetes.",
+  "labels": ""
+ },
+ {
+  "id": "10-OpenMed-PII-Spanish-ModernMed-Base-149M-v1",
+  "repo": "OpenMed/OpenMed-PII-Spanish-ModernMed-Base-149M-v1",
+  "weights": "model.safetensors",
+  "test": "safetensors_external_104",
+  "text": "La paciente María García, nacida el 3 de mayo de 1975, vive en Sevilla y tiene diabetes.",
+  "labels": ""
+ },
+ {
+  "id": "11-OpenMed-PII-Spanish-ModernMed-Base-149M-v1-onnx-",
+  "repo": "OpenMed/OpenMed-PII-Spanish-ModernMed-Base-149M-v1-onnx-android",
+  "weights": "model.onnx",
+  "test": "openmed_snapshot_external_103",
+  "text": "La paciente María García, nacida el 3 de mayo de 1975, vive en Sevilla y tiene diabetes.",
+  "labels": ""
+ },
+ {
+  "id": "12-OpenMed-PII-Spanish-ModernMed-Large-395M-v1-onnx",
+  "repo": "OpenMed/OpenMed-PII-Spanish-ModernMed-Large-395M-v1-onnx-android",
+  "weights": "model_fp16.onnx",
+  "test": "openmed_snapshot_external_103",
+  "text": "La paciente María García, nacida el 3 de mayo de 1975, vive en Sevilla y tiene diabetes.",
+  "labels": ""
+ },
+ {
+  "id": "13-OpenMed-PII-Spanish-NomicMed-Large-395M-v1-onnx-",
+  "repo": "OpenMed/OpenMed-PII-Spanish-NomicMed-Large-395M-v1-onnx-android",
+  "weights": "model_fp16.onnx",
+  "test": "openmed_snapshot_external_103",
+  "text": "La paciente María García, nacida el 3 de mayo de 1975, vive en Sevilla y tiene diabetes.",
+  "labels": ""
+ },
+ {
+  "id": "14-OpenMed-PII-Spanish-mSuperClinical-Large-279M-v1",
+  "repo": "OpenMed/OpenMed-PII-Spanish-mSuperClinical-Large-279M-v1-onnx-android",
+  "weights": "model_fp16.onnx",
+  "test": "openmed_snapshot_external_103",
+  "text": "La paciente María García, nacida el 3 de mayo de 1975, vive en Sevilla y tiene diabetes.",
+  "labels": ""
+ },
+ {
+  "id": "15-OpenMed-PII-Telugu-BiomedBERT-Base-110M-v1",
+  "repo": "OpenMed/OpenMed-PII-Telugu-BiomedBERT-Base-110M-v1",
+  "weights": "model.safetensors",
+  "test": "safetensors_external_104",
+  "text": "రోగి రవి కుమార్ 1980 మార్చి 12న జన్మించారు మరియు హైదరాబాద్‌లో నివసిస్తున్నారు.",
+  "labels": ""
+ },
+ {
+  "id": "16-OpenMed-PII-Telugu-BiomedBERT-Base-110M-v1-onnx-",
+  "repo": "OpenMed/OpenMed-PII-Telugu-BiomedBERT-Base-110M-v1-onnx-android",
+  "weights": "model.onnx",
+  "test": "openmed_snapshot_external_103",
+  "text": "రోగి రవి కుమార్ 1980 మార్చి 12న జన్మించారు మరియు హైదరాబాద్‌లో నివసిస్తున్నారు.",
+  "labels": ""
+ },
+ {
+  "id": "17-OpenMed-PII-Telugu-BiomedBERTFull-Base-110M-v1",
+  "repo": "OpenMed/OpenMed-PII-Telugu-BiomedBERTFull-Base-110M-v1",
+  "weights": "model.safetensors",
+  "test": "safetensors_external_104",
+  "text": "రోగి రవి కుమార్ 1980 మార్చి 12న జన్మించారు మరియు హైదరాబాద్‌లో నివసిస్తున్నారు.",
+  "labels": ""
+ },
+ {
+  "id": "18-OpenMed-PII-Telugu-BiomedBERTFull-Base-110M-v1-o",
+  "repo": "OpenMed/OpenMed-PII-Telugu-BiomedBERTFull-Base-110M-v1-onnx-android",
+  "weights": "model.onnx",
+  "test": "openmed_snapshot_external_103",
+  "text": "రోగి రవి కుమార్ 1980 మార్చి 12న జన్మించారు మరియు హైదరాబాద్‌లో నివసిస్తున్నారు.",
+  "labels": ""
+ },
+ {
+  "id": "19-OpenMed-PII-Telugu-BiomedELECTRA-Base-110M-v1",
+  "repo": "OpenMed/OpenMed-PII-Telugu-BiomedELECTRA-Base-110M-v1",
+  "weights": "model.safetensors",
+  "test": "safetensors_external_104",
+  "text": "రోగి రవి కుమార్ 1980 మార్చి 12న జన్మించారు మరియు హైదరాబాద్‌లో నివసిస్తున్నారు.",
+  "labels": ""
+ },
+ {
+  "id": "20-OpenMed-PII-Telugu-BiomedELECTRA-Base-110M-v1-on",
+  "repo": "OpenMed/OpenMed-PII-Telugu-BiomedELECTRA-Base-110M-v1-onnx-android",
+  "weights": "model.onnx",
+  "test": "openmed_snapshot_external_103",
+  "text": "రోగి రవి కుమార్ 1980 మార్చి 12న జన్మించారు మరియు హైదరాబాద్‌లో నివసిస్తున్నారు.",
+  "labels": ""
+ },
+ {
+  "id": "21-OpenMed-PII-Telugu-BiomedELECTRA-Large-335M-v1-o",
+  "repo": "OpenMed/OpenMed-PII-Telugu-BiomedELECTRA-Large-335M-v1-onnx-android",
+  "weights": "model_fp16.onnx",
+  "test": "openmed_snapshot_external_103",
+  "text": "రోగి రవి కుమార్ 1980 మార్చి 12న జన్మించారు మరియు హైదరాబాద్‌లో నివసిస్తున్నారు.",
+  "labels": ""
+ },
+ {
+  "id": "22-OpenMed-PII-Telugu-ClinicDischarge-Base-110M-v1",
+  "repo": "OpenMed/OpenMed-PII-Telugu-ClinicDischarge-Base-110M-v1",
+  "weights": "model.safetensors",
+  "test": "safetensors_external_104",
+  "text": "రోగి రవి కుమార్ 1980 మార్చి 12న జన్మించారు మరియు హైదరాబాద్‌లో నివసిస్తున్నారు.",
+  "labels": ""
+ },
+ {
+  "id": "23-OpenMed-PII-Telugu-ClinicDischarge-Base-110M-v1-",
+  "repo": "OpenMed/OpenMed-PII-Telugu-ClinicDischarge-Base-110M-v1-onnx-android",
+  "weights": "model.onnx",
+  "test": "openmed_snapshot_external_103",
+  "text": "రోగి రవి కుమార్ 1980 మార్చి 12న జన్మించారు మరియు హైదరాబాద్‌లో నివసిస్తున్నారు.",
+  "labels": ""
+ },
+ {
+  "id": "24-OpenMed-PII-Telugu-ClinicalBGE-Large-335M-v1-onn",
+  "repo": "OpenMed/OpenMed-PII-Telugu-ClinicalBGE-Large-335M-v1-onnx-android",
+  "weights": "model_fp16.onnx",
+  "test": "openmed_snapshot_external_103",
+  "text": "రోగి రవి కుమార్ 1980 మార్చి 12న జన్మించారు మరియు హైదరాబాద్‌లో నివసిస్తున్నారు.",
+  "labels": ""
+ },
+ {
+  "id": "25-OpenMed-PII-Telugu-ClinicalE5-Base-109M-v1",
+  "repo": "OpenMed/OpenMed-PII-Telugu-ClinicalE5-Base-109M-v1",
+  "weights": "model.safetensors",
+  "test": "safetensors_external_104",
+  "text": "రోగి రవి కుమార్ 1980 మార్చి 12న జన్మించారు మరియు హైదరాబాద్‌లో నివసిస్తున్నారు.",
+  "labels": ""
+ },
+ {
+  "id": "26-OpenMed-PII-Telugu-ClinicalE5-Base-109M-v1-onnx-",
+  "repo": "OpenMed/OpenMed-PII-Telugu-ClinicalE5-Base-109M-v1-onnx-android",
+  "weights": "model.onnx",
+  "test": "openmed_snapshot_external_103",
+  "text": "రోగి రవి కుమార్ 1980 మార్చి 12న జన్మించారు మరియు హైదరాబాద్‌లో నివసిస్తున్నారు.",
+  "labels": ""
+ },
+ {
+  "id": "27-OpenMed-PII-Telugu-ClinicalE5-Large-335M-v1-onnx",
+  "repo": "OpenMed/OpenMed-PII-Telugu-ClinicalE5-Large-335M-v1-onnx-android",
+  "weights": "model_fp16.onnx",
+  "test": "openmed_snapshot_external_103",
+  "text": "రోగి రవి కుమార్ 1980 మార్చి 12న జన్మించారు మరియు హైదరాబాద్‌లో నివసిస్తున్నారు.",
+  "labels": ""
+ },
+ {
+  "id": "28-OpenMed-PII-Telugu-GTEMed-Base-149M-v1",
+  "repo": "OpenMed/OpenMed-PII-Telugu-GTEMed-Base-149M-v1",
+  "weights": "model.safetensors",
+  "test": "safetensors_external_104",
+  "text": "రోగి రవి కుమార్ 1980 మార్చి 12న జన్మించారు మరియు హైదరాబాద్‌లో నివసిస్తున్నారు.",
+  "labels": ""
+ },
+ {
+  "id": "29-OpenMed-PII-Telugu-GTEMed-Base-149M-v1-onnx-andr",
+  "repo": "OpenMed/OpenMed-PII-Telugu-GTEMed-Base-149M-v1-onnx-android",
+  "weights": "model.onnx",
+  "test": "openmed_snapshot_external_103",
+  "text": "రోగి రవి కుమార్ 1980 మార్చి 12న జన్మించారు మరియు హైదరాబాద్‌లో నివసిస్తున్నారు.",
+  "labels": ""
+ },
+ {
+  "id": "30-OpenMed-PII-Telugu-LiteClinicalU-Small-66M-v1",
+  "repo": "OpenMed/OpenMed-PII-Telugu-LiteClinicalU-Small-66M-v1",
+  "weights": "model.safetensors",
+  "test": "safetensors_external_104",
+  "text": "రోగి రవి కుమార్ 1980 మార్చి 12న జన్మించారు మరియు హైదరాబాద్‌లో నివసిస్తున్నారు.",
+  "labels": ""
+ },
+ {
+  "id": "31-OpenMed-PII-Telugu-LiteClinicalU-Small-66M-v1-on",
+  "repo": "OpenMed/OpenMed-PII-Telugu-LiteClinicalU-Small-66M-v1-onnx-android",
+  "weights": "model.onnx",
+  "test": "openmed_snapshot_external_103",
+  "text": "రోగి రవి కుమార్ 1980 మార్చి 12న జన్మించారు మరియు హైదరాబాద్‌లో నివసిస్తున్నారు.",
+  "labels": ""
+ },
+ {
+  "id": "32-OpenMed-PII-Telugu-ModernMed-Base-149M-v1",
+  "repo": "OpenMed/OpenMed-PII-Telugu-ModernMed-Base-149M-v1",
+  "weights": "model.safetensors",
+  "test": "safetensors_external_104",
+  "text": "రోగి రవి కుమార్ 1980 మార్చి 12న జన్మించారు మరియు హైదరాబాద్‌లో నివసిస్తున్నారు.",
+  "labels": ""
+ },
+ {
+  "id": "33-OpenMed-PII-Telugu-ModernMed-Base-149M-v1-onnx-a",
+  "repo": "OpenMed/OpenMed-PII-Telugu-ModernMed-Base-149M-v1-onnx-android",
+  "weights": "model.onnx",
+  "test": "openmed_snapshot_external_103",
+  "text": "రోగి రవి కుమార్ 1980 మార్చి 12న జన్మించారు మరియు హైదరాబాద్‌లో నివసిస్తున్నారు.",
+  "labels": ""
+ },
+ {
+  "id": "34-OpenMed-PII-Telugu-ModernMed-Large-395M-v1-onnx-",
+  "repo": "OpenMed/OpenMed-PII-Telugu-ModernMed-Large-395M-v1-onnx-android",
+  "weights": "model_fp16.onnx",
+  "test": "openmed_snapshot_external_103",
+  "text": "రోగి రవి కుమార్ 1980 మార్చి 12న జన్మించారు మరియు హైదరాబాద్‌లో నివసిస్తున్నారు.",
+  "labels": ""
+ },
+ {
+  "id": "35-OpenMed-PII-Telugu-NomicMed-Large-395M-v1-onnx-a",
+  "repo": "OpenMed/OpenMed-PII-Telugu-NomicMed-Large-395M-v1-onnx-android",
+  "weights": "model_fp16.onnx",
+  "test": "openmed_snapshot_external_103",
+  "text": "రోగి రవి కుమార్ 1980 మార్చి 12న జన్మించారు మరియు హైదరాబాద్‌లో నివసిస్తున్నారు.",
+  "labels": ""
+ },
+ {
+  "id": "36-OpenMed-PII-Telugu-mSuperClinical-Large-279M-v1-",
+  "repo": "OpenMed/OpenMed-PII-Telugu-mSuperClinical-Large-279M-v1-onnx-android",
+  "weights": "model_fp16.onnx",
+  "test": "openmed_snapshot_external_103",
+  "text": "రోగి రవి కుమార్ 1980 మార్చి 12న జన్మించారు మరియు హైదరాబాద్‌లో నివసిస్తున్నారు.",
+  "labels": ""
+ },
+ {
+  "id": "37-OpenMed-PII-Turkish-BiomedBERT-Base-110M-v1",
+  "repo": "OpenMed/OpenMed-PII-Turkish-BiomedBERT-Base-110M-v1",
+  "weights": "model.safetensors",
+  "test": "safetensors_external_104",
+  "text": "Hasta Ahmet Yılmaz, 12 Mart 1980 doğumlu ve İstanbul'da yaşıyor.",
+  "labels": ""
+ },
+ {
+  "id": "38-OpenMed-PII-Turkish-BiomedBERT-Base-110M-v1-mlx",
+  "repo": "OpenMed/OpenMed-PII-Turkish-BiomedBERT-Base-110M-v1-mlx",
+  "weights": "weights.safetensors",
+  "test": "safetensors_external_104",
+  "text": "Hasta Ahmet Yılmaz, 12 Mart 1980 doğumlu ve İstanbul'da yaşıyor.",
+  "labels": ""
+ },
+ {
+  "id": "39-OpenMed-PII-Turkish-BiomedBERT-Base-110M-v1-onnx",
+  "repo": "OpenMed/OpenMed-PII-Turkish-BiomedBERT-Base-110M-v1-onnx-android",
+  "weights": "model.onnx",
+  "test": "openmed_snapshot_external_103",
+  "text": "Hasta Ahmet Yılmaz, 12 Mart 1980 doğumlu ve İstanbul'da yaşıyor.",
+  "labels": ""
+ },
+ {
+  "id": "40-OpenMed-PII-Turkish-BiomedBERTFull-Base-110M-v1",
+  "repo": "OpenMed/OpenMed-PII-Turkish-BiomedBERTFull-Base-110M-v1",
+  "weights": "model.safetensors",
+  "test": "safetensors_external_104",
+  "text": "Hasta Ahmet Yılmaz, 12 Mart 1980 doğumlu ve İstanbul'da yaşıyor.",
+  "labels": ""
+ },
+ {
+  "id": "41-OpenMed-PII-Turkish-BiomedBERTFull-Base-110M-v1-",
+  "repo": "OpenMed/OpenMed-PII-Turkish-BiomedBERTFull-Base-110M-v1-mlx",
+  "weights": "weights.safetensors",
+  "test": "safetensors_external_104",
+  "text": "Hasta Ahmet Yılmaz, 12 Mart 1980 doğumlu ve İstanbul'da yaşıyor.",
+  "labels": ""
+ },
+ {
+  "id": "42-OpenMed-PII-Turkish-BiomedBERTFull-Base-110M-v1-",
+  "repo": "OpenMed/OpenMed-PII-Turkish-BiomedBERTFull-Base-110M-v1-onnx-android",
+  "weights": "model.onnx",
+  "test": "openmed_snapshot_external_103",
+  "text": "Hasta Ahmet Yılmaz, 12 Mart 1980 doğumlu ve İstanbul'da yaşıyor.",
+  "labels": ""
+ },
+ {
+  "id": "43-OpenMed-PII-Turkish-BiomedELECTRA-Base-110M-v1",
+  "repo": "OpenMed/OpenMed-PII-Turkish-BiomedELECTRA-Base-110M-v1",
+  "weights": "model.safetensors",
+  "test": "safetensors_external_104",
+  "text": "Hasta Ahmet Yılmaz, 12 Mart 1980 doğumlu ve İstanbul'da yaşıyor.",
+  "labels": ""
+ },
+ {
+  "id": "44-OpenMed-PII-Turkish-BiomedELECTRA-Base-110M-v1-m",
+  "repo": "OpenMed/OpenMed-PII-Turkish-BiomedELECTRA-Base-110M-v1-mlx",
+  "weights": "weights.safetensors",
+  "test": "safetensors_external_104",
+  "text": "Hasta Ahmet Yılmaz, 12 Mart 1980 doğumlu ve İstanbul'da yaşıyor.",
+  "labels": ""
+ },
+ {
+  "id": "45-OpenMed-PII-Turkish-BiomedELECTRA-Base-110M-v1-o",
+  "repo": "OpenMed/OpenMed-PII-Turkish-BiomedELECTRA-Base-110M-v1-onnx-android",
+  "weights": "model.onnx",
+  "test": "openmed_snapshot_external_103",
+  "text": "Hasta Ahmet Yılmaz, 12 Mart 1980 doğumlu ve İstanbul'da yaşıyor.",
+  "labels": ""
+ },
+ {
+  "id": "46-OpenMed-PII-Turkish-BiomedELECTRA-Large-335M-v1-",
+  "repo": "OpenMed/OpenMed-PII-Turkish-BiomedELECTRA-Large-335M-v1-onnx-android",
+  "weights": "model_fp16.onnx",
+  "test": "openmed_snapshot_external_103",
+  "text": "Hasta Ahmet Yılmaz, 12 Mart 1980 doğumlu ve İstanbul'da yaşıyor.",
+  "labels": ""
+ },
+ {
+  "id": "47-OpenMed-PII-Turkish-ClinicDischarge-Base-110M-v1",
+  "repo": "OpenMed/OpenMed-PII-Turkish-ClinicDischarge-Base-110M-v1",
+  "weights": "model.safetensors",
+  "test": "safetensors_external_104",
+  "text": "Hasta Ahmet Yılmaz, 12 Mart 1980 doğumlu ve İstanbul'da yaşıyor.",
+  "labels": ""
+ }
+]
