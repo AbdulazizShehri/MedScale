@@ -236,3 +236,5 @@ Executed or expected runnable: **1,764 of 2,266** (was 1,702 on 2026-10-10). All
 **Batch 30** (run 38508572181, 48 rows, SpeciesDetect NER and PII rows, per-row): **48 of 48 executed**.
 
 **Batch 31** (run 38513044093, 48 rows, Dutch, French and German PII and GTEMed rows, per-row): **48 of 48 executed**.
+
+**Batch 32** (run 38517617668, 48 rows, German, Hindi and Italian PII, per-row): **48 of 48 executed**.
