@@ -455,6 +455,133 @@ pub fn build_text_generation_pack(
     Ok(pack_id)
 }
 
+/// Verifies a pinned Whisper snapshot against its Hub metadata and writes a
+/// signed Audio Pack (weights, config, tokenizer, provenance) for the candle
+/// Whisper ASR runtime (Spec 106). Only the repositories and revisions in
+/// [`crate::ASR_SOURCES`] are admitted (their model cards declare
+/// Apache-2.0); weights must be `model.safetensors` under the same
+/// per-artifact bound as every Pack. Signed with the synthetic qualification
+/// trust root.
+pub fn build_asr_pack(
+    meta: &HfRepoMetadata,
+    snapshot_dir: &Path,
+    out_dir: &Path,
+) -> Result<String, SnapshotError> {
+    if !crate::asr_runtime::ASR_SOURCES
+        .iter()
+        .any(|(repo, sha)| *repo == meta.id && *sha == meta.sha)
+    {
+        return Err(SnapshotError::Metadata(format!(
+            "{}@{} is not an admitted ASR source",
+            meta.id, meta.sha
+        )));
+    }
+    if meta.private || meta.gated.as_bool().unwrap_or(false) || meta.gated.is_string() {
+        return Err(SnapshotError::Gated);
+    }
+    let read = |name: &str| -> Result<Vec<u8>, SnapshotError> {
+        fs::read(snapshot_dir.join(safe_relative(name)?)).map_err(|e| io(&e))
+    };
+    let runtime_id = crate::asr_runtime::CANDLE_WHISPER_ASR_RUNTIME_ID;
+    let weight_file = "model.safetensors";
+    let model = read(weight_file)?;
+    let model_sha = verify_file(meta, weight_file, &model)?;
+    let tokenizer = read("tokenizer.json")?;
+    verify_file(meta, "tokenizer.json", &tokenizer)?;
+    let config = read("config.json")?;
+    verify_file(meta, "config.json", &config)?;
+    let target = serde_json::from_slice::<Value>(&config)
+        .ok()
+        .and_then(|c| c["max_target_positions"].as_u64())
+        .and_then(|v| u32::try_from(v).ok())
+        .ok_or_else(|| SnapshotError::Metadata("config.json has no max_target_positions".into()))?;
+
+    let revision = meta.sha.clone();
+    let rights_uri = format!(
+        "https://huggingface.co/{}/blob/{revision}/README.md",
+        meta.id
+    );
+    let provenance = ModelSourceProvenance {
+        source_kind: "hugging_face".into(),
+        repository: meta.id.clone(),
+        revision: revision.clone(),
+        original_file: weight_file.to_string(),
+        source_sha256: model_sha,
+        transform: "none".into(),
+        fixed_sequence_length: target,
+        task: "automatic-speech-recognition".into(),
+        export_format: "safetensors".into(),
+        runtime_family: runtime_id.into(),
+        license_id: "Apache-2.0".into(),
+        upstream_rights_uri: rights_uri.clone(),
+    };
+    fs::create_dir_all(out_dir).map_err(|e| io(&e))?;
+    let write = |name: &str, bytes: &[u8]| fs::write(out_dir.join(name), bytes).map_err(|e| io(&e));
+    write("model.safetensors", &model)?;
+    write("config.json", &config)?;
+    write("tokenizer.json", &tokenizer)?;
+    write(
+        "model.meta.json",
+        (serde_json::to_string_pretty(&provenance)
+            .map_err(|e| SnapshotError::Io(e.to_string()))?
+            + "\n")
+            .as_bytes(),
+    )?;
+    let mut rows = Vec::new();
+    for (name, kind, text) in [
+        ("config.json", "model_metadata", true),
+        ("model.meta.json", "model_metadata", true),
+        ("model.safetensors", "safetensors_model", false),
+        ("tokenizer.json", "tokenizer_meta", true),
+    ] {
+        let bytes = fs::read(out_dir.join(name)).map_err(|e| io(&e))?;
+        let bytes = if text { normalized_text(&bytes) } else { bytes };
+        rows.push(json!({"relative_path": name, "kind": kind, "digest": DigestSha256::of(&bytes).to_hex()}));
+    }
+    let digest_lines: String = rows
+        .iter()
+        .map(|r| format!("{}\n", r["digest"].as_str().unwrap_or_default()))
+        .collect();
+    let content_digest = DigestSha256::of(digest_lines.as_bytes()).to_hex();
+    let short = meta
+        .id
+        .rsplit('/')
+        .next()
+        .unwrap_or("model")
+        .to_ascii_lowercase();
+    let pack_id = format!("hf-{short}-asr");
+    let sbom_ref = format!("hf:{}@{revision}#{weight_file}", meta.id);
+    let payload = pack_signing_payload(
+        &pack_id,
+        "1.0.0",
+        1,
+        &content_digest,
+        &rights_uri,
+        &sbom_ref,
+    );
+    let manifest = json!({
+        "pack_id": pack_id,
+        "version": "1.0.0",
+        "pack_epoch": 1,
+        "content_digest": content_digest,
+        "artifacts": rows,
+        "rights_uri": rights_uri,
+        "sbom_ref": sbom_ref,
+        "runtime_requirements": format!("{runtime_id};synthetic_only=true"),
+        "benchmark_links": ["specs/106-local-asr/spec.md"],
+        "promotion_state": "candidate",
+        "trust_root_id": SYNTHETIC_PACK_TRUST_ROOT_ID,
+        "signature_hex": sign_pack_payload(&payload),
+    });
+    write(
+        "pack.manifest.json",
+        (serde_json::to_string_pretty(&manifest).map_err(|e| SnapshotError::Io(e.to_string()))?
+            + "\n")
+            .as_bytes(),
+    )?;
+    Ok(pack_id)
+}
+
 /// The catalog repository a snapshot borrows `tokenizer.json` from.
 ///
 /// OpenMed's MLX exports ship no tokenizer; OpenMed and OpenMedKit fall back

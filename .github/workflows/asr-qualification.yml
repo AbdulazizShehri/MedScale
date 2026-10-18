@@ -1,0 +1,126 @@
+# Spec 106 (AudioFlow local ASR) qualification on zero-cost GitHub runners.
+#
+# Downloads each pinned Whisper checkpoint (crates/medscale-pack ASR_SOURCES)
+# with its Hub metadata, generates synthetic English speech with espeak-ng
+# (a test tool on the runner only, never shipped), builds and admits a signed
+# Audio Pack, and transcribes on the CPU. It also checks MedScale's mel filter
+# bank against OpenAI's published reference (MIT, pinned commit). Weights are
+# never committed or uploaded; only logs are kept. Synthetic speech only: the
+# word error rate is evaluation evidence, not a medical-accuracy claim.
+#
+# Runs only on `qual-asr/**` branches, never on PRs or main.
+name: asr-qualification
+
+on:
+  push:
+    branches: ["qual-asr/**"]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: asr-qualification-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  CARGO_TERM_COLOR: always
+  WHISPER_ASSETS_COMMIT: c5d42560760a05584c1c79546a098287e5a771eb
+
+jobs:
+  qualify:
+    name: qualify (${{ matrix.repo }})
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - repo: openai/whisper-tiny.en
+            revision: 87c7102498dcde7456f24cfd30239ca606ed9063
+          - repo: openai/whisper-base.en
+            revision: 911407f4214e0e1d82085af863093ec0b66f9cd6
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v4
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@d1031067263f94b142dd6c0ce24c5eb9d02d52a0 # pinned master
+        with:
+          toolchain: "1.97.1"
+
+      - name: Cache cargo
+        uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2
+        with:
+          key: asr-qualification
+
+      - name: Install speech synthesis (test tool only) and build dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends espeak-ng ffmpeg libfontconfig1-dev
+
+      - name: Download the pinned checkpoint and metadata
+        env:
+          REPO: ${{ matrix.repo }}
+          REVISION: ${{ matrix.revision }}
+        run: |
+          set -euo pipefail
+          dir="$RUNNER_TEMP/snapshot"
+          mkdir -p "$dir"
+          curl -sfL -A medscale-qualification \
+            "https://huggingface.co/api/models/$REPO/revision/$REVISION?blobs=true" -o "$dir/metadata.json"
+          for f in config.json tokenizer.json model.safetensors; do
+            curl -sfL -A medscale-qualification --retry 3 \
+              "https://huggingface.co/$REPO/resolve/$REVISION/$f" -o "$dir/$f"
+          done
+          curl -sfL -A medscale-qualification \
+            "https://raw.githubusercontent.com/openai/whisper/$WHISPER_ASSETS_COMMIT/whisper/assets/mel_filters.npz" \
+            -o "$RUNNER_TEMP/mel_filters.npz"
+          echo "SNAPSHOT_DIR=$dir" >> "$GITHUB_ENV"
+
+      - name: Generate synthetic speech
+        run: |
+          set -euo pipefail
+          out="$RUNNER_TEMP/speech"
+          mkdir -p "$out"
+          python3 - "$out" <<'PY'
+          import json, subprocess, sys
+          out = sys.argv[1]
+          texts = [
+              "The patient reports chest pain since Monday morning.",
+              "Blood pressure is 140 over 90.",
+              "She was started on metformin for type 2 diabetes.",
+              "No known drug allergies. Follow up in 2 weeks.",
+              "The child has a fever and a dry cough for 3 days.",
+              "The wound on the left leg is healing well.",
+              "He denies shortness of breath or nausea.",
+              "Please repeat the blood test next month.",
+          ]
+          cases = []
+          for i, text in enumerate(texts):
+              raw = f"{out}/case{i}-raw.wav"
+              wav = f"{out}/case{i}.wav"
+              subprocess.run(["espeak-ng", "-v", "en-us", "-s", "150", "-w", raw, text], check=True)
+              subprocess.run(["ffmpeg", "-loglevel", "error", "-y", "-i", raw, "-ar", "16000", "-ac", "1",
+                              "-c:a", "pcm_s16le", wav], check=True)
+              cases.append({"wav": wav, "text": text})
+          json.dump(cases, open(f"{out}/cases.json", "w"), indent=1)
+          PY
+          echo "CASES=$out/cases.json" >> "$GITHUB_ENV"
+
+      - name: Build, admit and transcribe
+        env:
+          MEDSCALE_ASR_SNAPSHOT_DIR: ${{ env.SNAPSHOT_DIR }}
+          MEDSCALE_ASR_CASES: ${{ env.CASES }}
+          MEDSCALE_MEL_FILTERS_NPZ: ${{ runner.temp }}/mel_filters.npz
+        run: |
+          set -o pipefail
+          cargo test --release --locked -p medscale-pack --test whisper_external_106 \
+            -- --ignored --nocapture --test-threads 1 2>&1 | tee asr.log
+          grep -E '^(ASR_METRICS|MEL_FILTERS)' asr.log >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Keep the log (no weights)
+        if: always()
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v4.6.2
+        with:
+          name: asr-${{ strategy.job-index }}
+          path: asr.log
+          if-no-files-found: ignore

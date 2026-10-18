@@ -1,5 +1,9 @@
 //! Offline Pack v0 admission (Spec 008) + MESC synthetic verifier (Spec 036).
 
+mod asr_runtime;
+#[cfg(feature = "synthetic-fixtures")]
+#[doc(hidden)]
+pub use asr_runtime::fixtures as asr_fixtures;
 mod candle_runtime;
 mod catalog;
 mod compatibility;
@@ -26,6 +30,11 @@ mod store;
 mod token_windows;
 mod variant_selection;
 
+pub use asr_runtime::{
+    ASR_SOURCES, AsrRuntimeError, CANDLE_WHISPER_ASR_RUNTIME_ID, MAX_ASR_SAMPLES,
+    PreparedWhisperAsr, mel_filters, pcm16_to_mono_f32, prepare_whisper_asr,
+    prepare_whisper_from_bytes,
+};
 pub use candle_runtime::{
     CANDLE_ARCHITECTURES, CANDLE_TOKEN_CLASSIFIER_RUNTIME_ID, CandleDevicePreference,
     CandleRunOptions, CandleRuntimeError, PreparedCandleTokenClassifier, candle_model_type,
@@ -56,9 +65,9 @@ pub use gliner_runtime::{
 };
 pub use hf_snapshot::{
     HfRepoMetadata, HfSibling, SnapshotError, TextGenerationSnapshot, TokenClassifierSnapshot,
-    TokenizerSource, build_text_generation_pack, build_token_classifier_pack, labels_from_config,
-    reproducibility_hash, snapshot_tokenizer_source, tokenizer_source_repo, verify_against_catalog,
-    verify_file,
+    TokenizerSource, build_asr_pack, build_text_generation_pack, build_token_classifier_pack,
+    labels_from_config, reproducibility_hash, snapshot_tokenizer_source, tokenizer_source_repo,
+    verify_against_catalog, verify_file,
 };
 pub use mesc_verify::{MescEpochStore, MescVerifyError, verify_mesc_release_dir};
 pub use mlx_layout::{is_mlx_export, mlx_key};

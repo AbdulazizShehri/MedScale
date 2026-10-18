@@ -3356,6 +3356,36 @@ impl CliSession {
             .set_asr_engine(Box::new(crate::authority::FixtureAsrEngine));
     }
 
+    /// Spec 106: prepares local speech recognition from an Audio Pack folder
+    /// and installs it behind the `LocalAsrPack` route. The Pack must already
+    /// be admitted in this session's vault with the same content digest.
+    pub fn use_local_asr_pack(&mut self, pack_dir: &str) -> Result<(), AuthorityError> {
+        let path = std::path::Path::new(pack_dir);
+        let manifest =
+            medscale_pack::admit_pack_dir(path).map_err(|e| AuthorityError::InvalidArgument {
+                message: format!("pack admission failed: {e}"),
+            })?;
+        let admitted = self
+            .packs_list()?
+            .into_iter()
+            .any(|p| p.pack_id == manifest.pack_id && p.content_digest == manifest.content_digest);
+        if !admitted {
+            return Err(AuthorityError::Unauthorized);
+        }
+        let asr = medscale_pack::prepare_whisper_asr(path, &manifest).map_err(|e| {
+            AuthorityError::InvalidArgument {
+                message: format!("ASR Pack preparation failed: {e}"),
+            }
+        })?;
+        self.facade
+            .set_local_asr_engine(Box::new(crate::authority::PackAsrEngine::new(
+                asr,
+                manifest.pack_id.as_str().to_owned(),
+                manifest.version.clone(),
+            )));
+        Ok(())
+    }
+
     /// A synthetic WAV file (440 Hz tone and silence parts, never speech)
     /// for fixtures and demos.
     #[must_use]
