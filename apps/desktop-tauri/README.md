@@ -63,7 +63,8 @@ CI builds **unsigned** engineering packages from the exact PR head (`specs/101-t
 |---|---|---|
 | Windows | NSIS `MedScale_<version>_x64-setup.exe`, per-user install | The installer never downloads WebView2 (`webviewInstallMode=skip`). The **Microsoft Edge WebView2 Evergreen Runtime is a prerequisite**: it ships with Windows 11 and is serviced on supported Windows 10. Without it, MedScale fails to start rather than downloading anything. Unsigned, so Windows SmartScreen may warn on first run. |
 | macOS | `MedScale.app` and `MedScale_<version>_<arch>.dmg` | Unsigned and not notarized, so Gatekeeper blocks it by default. Opening the DMG shows the Apache-2.0 license as a click-through agreement (from `bundle.licenseFile`). |
-| Linux | `.deb` (package `med-scale`) | Depends on `libwebkit2gtk-4.1-0` and `libgtk-3-0`. No AppImage is produced, because its build tooling is a floating, unverified download. |
+
+The desktop is built for Windows and macOS only. A Linux desktop is not built: every Tauri 2.12 Linux webview path needs GTK 3 / `glib` 0.18, which is affected by RUSTSEC-2024-0429 (gate `TAURI_LINUX_DESKTOP_GTK3` in `docs/planning/EXTERNAL_GATES.md`). The Linux CLI and Core stay supported.
 
 Each package ships in a verified release set:
 - `package-manifest.json`, which binds the source and tree SHAs, both `Cargo.lock` files, `package-lock.json`, the toolchain, and the installer, SBOM and NOTICE digests;
@@ -96,6 +97,6 @@ Whether an uninstall removes app data is measured per platform in the Spec 101 e
 ## Qualification status
 
 - Real PHI is not authorized.
-- Dependency policy is FAILED on an inherited Linux finding: `glib` 0.18.5 is affected by RUSTSEC-2024-0429. It comes from Tauri 2.x's GTK3/WebKitGTK stack, and no stable Tauri release allows a patched `glib`. The advisory is not ignored. See F096-T01 in `specs/096-tauri-foundation/findings.md`.
+- Dependency policy runs the repository `deny.toml` unchanged, with the graph limited to the shipped Windows and macOS targets (`scripts/ci/tauri_deny_config.py`); it also fails if any GTK or `glib` crate enters a shipped graph. F096-T01 (`glib` 0.18.5, RUSTSEC-2024-0429) is Linux-only and not ignored; it is why there is no Linux desktop. See `specs/096-tauri-foundation/findings.md`.
 - Signing, installers, cross-platform behavior, physical keyboard and screen-reader passes, performance and privacy containment are not qualified.
 - Do not infer product or private-data readiness from this desktop.

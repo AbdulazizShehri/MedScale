@@ -15,6 +15,10 @@ on:
       - assets/brand/**
       - crates/medscale-desktop/ui/assets/**
       - deny.toml
+      - scripts/ci/tauri_deny_config.py
+      - vendor/**
+      - crates/**
+      - Cargo.lock
       - .github/workflows/tauri-preview.yml
       - .github/workflows/ci.yml
       - specs/096-tauri-foundation/**
@@ -41,7 +45,10 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-latest, windows-latest, macos-latest]
+        # Shipped desktop platforms only. A Linux desktop waits on an upstream
+        # Tauri move off GTK 3 / glib 0.18 (EXTERNAL_GATES.md,
+        # TAURI_GLIB_ADVISORY_F096_T01); the Linux CLI and Core are covered by ci.yml.
+        os: [windows-latest, macos-latest]
     steps:
       - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v4
         with:
@@ -58,11 +65,6 @@ jobs:
       - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2
         with:
           workspaces: apps/desktop-tauri/src-tauri -> target
-      - name: Linux WebView development dependencies
-        if: runner.os == 'Linux'
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y --no-install-recommends libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf xvfb
       - name: Install locked frontend without lifecycle scripts
         working-directory: apps/desktop-tauri
         run: npm ci --ignore-scripts --no-audit --no-fund
@@ -89,7 +91,6 @@ jobs:
           case "$RUNNER_OS" in
             Windows) bundles=nsis ;;
             macOS) bundles=app,dmg ;;
-            Linux) bundles=deb ;;
           esac
           npm run tauri -- build --bundles "$bundles" --no-sign --ci --features custom-protocol -- --locked
       - name: Record build-time tool hashes (Spec 101 FR-003)
@@ -103,7 +104,7 @@ jobs:
         shell: pwsh
         run: |
           ./scripts/package-tauri-release.ps1
-          $platform = if ($IsWindows) { 'windows' } elseif ($IsMacOS) { 'macos' } else { 'linux' }
+          $platform = if ($IsWindows) { 'windows' } else { 'macos' }
           ./scripts/verify-tauri-release.ps1 -Root "target/tauri-release/$platform" -ExpectedSourceSha '${{ github.event.pull_request.head.sha }}'
           ./scripts/test-verify-tauri-release.ps1
       - name: Install, launch and uninstall qualification (Spec 101 T101-07)
@@ -114,10 +115,6 @@ jobs:
         if: runner.os == 'macOS'
         shell: pwsh
         run: ./scripts/qualify-tauri-package-macos.ps1 -ReleaseRoot target/tauri-release/macos -ReportPath target/tauri-release-qualification/macos.json
-      - name: Package install, launch and removal qualification (Spec 101 T101-09)
-        if: runner.os == 'Linux'
-        shell: pwsh
-        run: ./scripts/qualify-tauri-package-linux.ps1 -ReleaseRoot target/tauri-release/linux -ReportPath target/tauri-release-qualification/linux.json
       - uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v4.6.2
         if: ${{ !cancelled() }}
         with:
@@ -143,8 +140,23 @@ jobs:
       - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v4
         with:
           ref: ${{ github.event.pull_request.head.sha }}
+      - uses: dtolnay/rust-toolchain@d1031067263f94b142dd6c0ce24c5eb9d02d52a0
+        with:
+          toolchain: "1.97.1"
+      - name: Scope the repository policy to the shipped desktop targets
+        # Same advisories, licenses, bans and sources as deny.toml; only the
+        # graph is limited to Windows and macOS. No advisory is ignored.
+        run: python3 scripts/ci/tauri_deny_config.py deny.toml deny-tauri.toml
+      - name: Shipped desktop graphs contain no GTK or glib crate
+        run: |
+          set -euo pipefail
+          for target in x86_64-pc-windows-msvc aarch64-pc-windows-msvc x86_64-apple-darwin aarch64-apple-darwin; do
+            found=$(cargo tree -q --locked --all-features --manifest-path apps/desktop-tauri/src-tauri/Cargo.toml               --target "$target" -e normal,build --prefix none               | grep -E '^(glib|gtk|gdk|gio|webkit2gtk|javascriptcore-rs|soup3)[a-z0-9-]* ' || true)
+            if [ -n "$found" ]; then echo "::error::$target graph contains: $found"; exit 1; fi
+            echo "$target: no GTK/glib crates"
+          done
       - uses: EmbarkStudios/cargo-deny-action@3c6349835b2b7b196a839186cb8b78e02f7b5f25 # v2
         with:
           command: check
           manifest-path: apps/desktop-tauri/src-tauri/Cargo.toml
-          arguments: --config deny.toml --locked --features custom-protocol
+          arguments: --config deny-tauri.toml --locked --features custom-protocol

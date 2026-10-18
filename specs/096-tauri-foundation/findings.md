@@ -62,3 +62,13 @@ Checked against crates.io at that date, with `cargo tree -i glib@0.18.5 --target
 Result: F096-T01 stays OPEN and the `tauri dependency policy` (cargo-deny advisories) gate stays honestly FAILED. No advisory ignore is added (`deny.toml` keeps `ignore = []`). Re-check when a stable Tauri 2.x release moves `webkit2gtk`/`wry`/`tao`/`muda` to `gtk >= 0.19`.
 
 The first 2.12 all-platform cargo-deny run reported advisories FAILED, licenses FAILED, bans/sources OK. A subsequent license-only check passed after exact-version admissions. The advisory finding remains a failing qualification gate. Duplicate-version warnings remain informational. The six canonical CI jobs and new native preview checks still need a final committed head.
+
+### F096-T01 resolution by platform scope (2026-10-18)
+
+No supported upgrade exists: every Tauri 2.12 Linux webview path (wry 0.57, tao 0.37, webkit2gtk 2.0.2) still requires `gtk` 0.18 / `glib` 0.18. The desktop is therefore scoped to the platforms whose graphs do not contain the affected crate. `cargo tree --all-features --target <triple> -e normal,build` lists 0 GTK/`glib` crates for `x86_64-pc-windows-msvc`, `aarch64-pc-windows-msvc`, `x86_64-apple-darwin` and `aarch64-apple-darwin`, and 74 for `x86_64-unknown-linux-gnu`.
+
+- `tauri-preview` builds, packages and qualifies on Windows and macOS only.
+- The `tauri dependency policy` job runs the repository `deny.toml` unchanged (`unsound = "all"`, `ignore = []`); `scripts/ci/tauri_deny_config.py` adds only `[graph] targets` for the four shipped triples and refuses a base config that ignores advisories. A separate step fails if a GTK/`glib` crate enters a shipped graph.
+- Local run, cargo-deny 0.20.2: scoped `advisories ok, bans ok, licenses ok, sources ok`; unscoped still `advisories FAILED` on RUSTSEC-2024-0429 alone.
+
+F096-T01 is resolved for the shipped desktop. The risk is not accepted and no advisory is ignored. The Linux desktop is not built; it is gate `TAURI_LINUX_DESKTOP_GTK3` until a Tauri release on `gtk` ≥ 0.19 / `glib` ≥ 0.20.

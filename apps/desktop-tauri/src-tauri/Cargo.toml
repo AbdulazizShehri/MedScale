@@ -33,3 +33,9 @@ unsafe_code = "deny"
 [lints.clippy]
 all = { level = "deny", priority = -1 }
 pedantic = { level = "allow", priority = -1 }
+
+# The repository's pinned candle-core 0.9.1 backport to zip 9.0.3
+# (vendor/candle-core-0.9.1/MEDSCALE_PATCH.md). This crate is its own
+# workspace, so the root patch must be repeated here.
+[patch.crates-io]
+candle-core = { path = "../../../vendor/candle-core-0.9.1" }
