@@ -226,11 +226,15 @@ fn pack_dir(state: &mut State, pack_id: &str) -> CmdResult<String> {
         return Ok(fixture_dir);
     }
     let root = state.workspace()?.vault_root.clone();
-    host::load_pack_dirs(&root).remove(pack_id).ok_or_else(|| {
+    let dir = host::load_pack_dirs(&root).remove(pack_id).ok_or_else(|| {
         CmdError::unavailable(
             "Unavailable: this Pack's folder is not known to this desktop; admit it again",
         )
-    })
+    })?;
+    // Core's Pack registry is per session: admit the remembered folder again
+    // (idempotent; Core re-verifies it) so runs resume after a restart.
+    state.session()?.packs_install_local(&dir)?;
+    Ok(dir)
 }
 
 /// Models an agent can use: Packs admitted in the open vault. The bundled
@@ -887,6 +891,149 @@ pub fn audio_overview(host: tauri::State<'_, Host>, project_id: String) -> CmdRe
         "routes": o.routes,
         "native_capture": o.native_capture,
     }))
+}
+
+/// Audio routes and the installed local speech recognition, if any.
+#[tauri::command(async)]
+pub fn audio_asr_status(host: tauri::State<'_, Host>) -> CmdResult<Value> {
+    let mut state = lock(&host)?;
+    let root = state.workspace()?.vault_root.clone();
+    let routes = state.session()?.audio_routes()?;
+    Ok(json!({
+        "routes": routes,
+        "asr_pack_dir": host::load_asr_pack(&root),
+    }))
+}
+
+/// Admits an Audio Pack folder (Spec 106) and installs its Whisper engine
+/// behind the local ASR route. Core verifies the Pack; nothing is downloaded.
+#[tauri::command(async)]
+pub fn audio_admit_asr_pack(host: tauri::State<'_, Host>, path: String) -> CmdResult<Value> {
+    let path = host::bounded_text(&path, 1024)?;
+    let dir = std::path::Path::new(&path);
+    if !dir.is_absolute() || !dir.is_dir() {
+        return Err(CmdError::invalid(
+            "Invalid: choose an existing absolute Audio Pack folder",
+        ));
+    }
+    let mut state = lock(&host)?;
+    let session = state.session()?;
+    let admitted = session.packs_install_local(&path)?;
+    let Some(pack_id) = admitted.pack_id.clone().filter(|_| admitted.admitted) else {
+        return Err(CmdError::new(
+            "denied",
+            format!("Denied: Pack not admitted ({:?})", admitted.reason),
+        ));
+    };
+    session.use_local_asr_pack(&path)?;
+    let root = state.workspace()?.vault_root.clone();
+    host::save_asr_pack(&root, &path)?;
+    Ok(json!({ "id": pack_id.as_str(), "installed": true }))
+}
+
+/// Largest WAV file the desktop imports (64 MiB).
+const WAV_IMPORT_MAX_BYTES: u64 = 64 << 20;
+
+/// Imports a synthetic WAV recording (absolute path) into a project.
+#[tauri::command(async)]
+pub fn audio_import_wav(
+    host: tauri::State<'_, Host>,
+    project_id: String,
+    path: String,
+) -> CmdResult<Value> {
+    let project_id = host::bounded_id(&project_id)?.to_owned();
+    let path = host::bounded_text(&path, 1024)?;
+    let file = std::path::Path::new(&path);
+    let meta =
+        std::fs::metadata(file).map_err(|_| CmdError::new("missing", "Missing: file not found"))?;
+    if !file.is_absolute()
+        || !meta.is_file()
+        || meta.len() == 0
+        || meta.len() > WAV_IMPORT_MAX_BYTES
+        || !path.to_ascii_lowercase().ends_with(".wav")
+    {
+        return Err(CmdError::invalid(
+            "Invalid: choose an absolute .wav file of at most 64 MiB",
+        ));
+    }
+    let wav =
+        std::fs::read(file).map_err(|_| CmdError::unavailable("Unavailable: file not readable"))?;
+    let label = file
+        .file_name()
+        .map(|n| n.to_string_lossy().into_owned())
+        .unwrap_or_else(|| "recording.wav".to_owned());
+    let mut state = lock(&host)?;
+    let source = state
+        .session()?
+        .audio_import(OpaqueId::new(&project_id), label, wav)?;
+    Ok(json!({ "source_id": source.header.id.as_str() }))
+}
+
+fn transcript_json(revision: &medscale_contracts::audio::TranscriptRevision) -> Value {
+    json!({
+        "revision_id": revision.header.id.as_str(),
+        "revision_no": revision.revision_no,
+        "state": revision.state,
+        "origin": revision.origin,
+        "segments": revision.segments.iter().map(|s| json!({
+            "seq": s.seq, "start_ms": s.start_ms, "end_ms": s.end_ms,
+            "status": s.status, "text": s.text,
+        })).collect::<Vec<_>>(),
+    })
+}
+
+/// Transcribes one source on a route (`local_asr_pack`, `fixture_asr` or
+/// `segmentation_only`). The transcript is a draft for review.
+#[tauri::command(async)]
+pub fn audio_transcribe(
+    host: tauri::State<'_, Host>,
+    project_id: String,
+    source_id: String,
+    route: String,
+) -> CmdResult<Value> {
+    use medscale_contracts::audio::{AudioRoute, AudioRouteRequest, VoiceInputMode};
+    let route = match route.as_str() {
+        "local_asr_pack" => AudioRoute::LocalAsrPack,
+        "fixture_asr" => AudioRoute::FixtureAsr,
+        "segmentation_only" => AudioRoute::SegmentationOnly,
+        _ => return Err(CmdError::invalid("Invalid: unknown audio route")),
+    };
+    let mut state = lock(&host)?;
+    let view = state.session()?.audio_transcribe(AudioRouteRequest {
+        project_id: OpaqueId::new(host::bounded_id(&project_id)?),
+        source_id: OpaqueId::new(host::bounded_id(&source_id)?),
+        route,
+        mode: VoiceInputMode::Dictation,
+        language: Some("en".to_owned()),
+        diarization_required: false,
+    })?;
+    Ok(json!({
+        "decision": view.receipt.decision,
+        "engine": view.receipt.engine,
+        "limitations": view.receipt.limitations,
+        "transcript": view.revision.as_ref().map(transcript_json),
+    }))
+}
+
+/// Records a person's correction of one segment as a new revision.
+#[tauri::command(async)]
+pub fn audio_correct(
+    host: tauri::State<'_, Host>,
+    revision_id: String,
+    seq: u32,
+    text: String,
+    reason: String,
+) -> CmdResult<Value> {
+    let revision_id = host::bounded_id(&revision_id)?.to_owned();
+    let text = host::bounded_text(&text, 2000)?;
+    let reason = host::bounded_text(&reason, 200)?;
+    let mut state = lock(&host)?;
+    let revision = state.session()?.audio_transcript_correct(
+        OpaqueId::new(&revision_id),
+        vec![(seq, text)],
+        reason,
+    )?;
+    Ok(transcript_json(&revision))
 }
 
 /// Imports a generated synthetic tone/silence WAV (no microphone, no person).

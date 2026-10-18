@@ -319,6 +319,45 @@ pub fn save_pack_dirs(
         .map_err(|_| CmdError::unavailable("Unavailable: pack folders not writable"))
 }
 
+fn asr_pack_path(vault_root: &Path) -> PathBuf {
+    let mut name = vault_root
+        .file_name()
+        .map(|n| n.to_string_lossy().into_owned())
+        .unwrap_or_else(|| "workspace".to_owned());
+    name.push_str(".desktop-asr.json");
+    vault_root.with_file_name(name)
+}
+
+/// The Audio Pack folder this desktop installed for a vault (Spec 106).
+pub fn load_asr_pack(vault_root: &Path) -> Option<String> {
+    std::fs::read(asr_pack_path(vault_root))
+        .ok()
+        .and_then(|bytes| serde_json::from_slice::<serde_json::Value>(&bytes).ok())
+        .and_then(|v| v["dir"].as_str().map(str::to_owned))
+}
+
+pub fn save_asr_pack(vault_root: &Path, dir: &str) -> CmdResult<()> {
+    let bytes = serde_json::to_vec_pretty(&serde_json::json!({ "dir": dir }))
+        .map_err(|_| CmdError::new("internal", "Internal: audio pack record"))?;
+    std::fs::write(asr_pack_path(vault_root), bytes)
+        .map_err(|_| CmdError::unavailable("Unavailable: audio pack record not writable"))
+}
+
+/// Reinstalls the remembered Audio Pack engine after the vault opens, so
+/// local speech recognition resumes after a restart. Core's Pack registry is
+/// per session, so the folder is admitted again first (Core re-verifies the
+/// manifest, digests and signature); a failure leaves the route unavailable.
+fn restore_asr(workspace: &mut Workspace) {
+    if let Some(dir) = load_asr_pack(&workspace.vault_root)
+        && workspace
+            .session
+            .packs_install_local(&dir)
+            .is_ok_and(|r| r.admitted)
+    {
+        let _ = workspace.session.use_local_asr_pack(&dir);
+    }
+}
+
 /// Ingests and promotes the synthetic fixtures through Core, once per vault.
 pub fn seed_synthetic(workspace: &mut Workspace, data_dir: &Path) -> CmdResult<()> {
     if !workspace.seed.subjects.is_empty() {
@@ -457,6 +496,7 @@ pub fn open_synthetic(state: &mut State) -> CmdResult<()> {
         seed,
     };
     seed_synthetic(&mut workspace, &data_dir)?;
+    restore_asr(&mut workspace);
     state.workspace = Some(workspace);
     Ok(())
 }

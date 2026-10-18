@@ -81,6 +81,11 @@ fn main() {
             "audio_overview",
             "audio_import_synthetic",
             "audio_segment",
+            "audio_asr_status",
+            "audio_admit_asr_pack",
+            "audio_import_wav",
+            "audio_transcribe",
+            "audio_correct",
         ]));
     tauri_build::try_build(attributes).expect("failed to build the constrained Tauri manifest");
 }

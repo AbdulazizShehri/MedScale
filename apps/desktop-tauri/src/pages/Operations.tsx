@@ -170,13 +170,37 @@ export function Audio() {
   return <ProjectScope title="Audio" sub="Local audio lineage. Segmentation and transcripts are drafts, never clinical truth.">{(pid) => <AudioBody projectId={pid} />}</ProjectScope>;
 }
 
+type AsrStatus = { routes: Array<{ route: string; available: boolean; reason: string | null }>; asr_pack_dir: string | null };
+type Segment = { seq: number; start_ms: number; end_ms: number; status: string; text: string | null };
+type Transcript = { revision_id: string; revision_no: number; state: string; segments: Segment[] };
+type TranscribeResult = { decision: { outcome: string; reason?: string | null }; engine: { engine_id: string; is_fixture: boolean } | null; limitations: string[]; transcript: Transcript | null };
+
 function AudioBody({ projectId }: { projectId: string }) {
   const o = useCommand<AudioVm>("audio_overview", { projectId });
+  const asr = useCommand<AsrStatus>("audio_asr_status");
   const [seg, setSeg] = useState<{ summary: string; lines: string[] } | null>(null);
+  const [packPath, setPackPath] = useState("");
+  const [wavPath, setWavPath] = useState("");
+  const [route, setRoute] = useState("local_asr_pack");
+  const [result, setResult] = useState<TranscribeResult | null>(null);
+  const [edit, setEdit] = useState<{ seq: number; text: string; reason: string } | null>(null);
   const { pending, run } = useAction();
   const outcome = useOutcome();
+  const local = asr.state.status === "ready" ? asr.state.data.routes.find((r) => r.route === "local_asr_pack") : undefined;
   async function importSynthetic() { const r = await run("import", "audio_import_synthetic", { projectId }); if (outcome(r, "Synthetic tone imported")) await o.reload(); }
   async function segment(id: string) { const r = await run<{ summary: string; lines: string[] }>(id, "audio_segment", { projectId, sourceId: id }); if (outcome(r, "Segmentation recorded")) setSeg(r.data); }
+  async function admitPack(e: FormEvent) { e.preventDefault(); const r = await run("pack", "audio_admit_asr_pack", { path: packPath }); if (outcome(r, "Audio Pack admitted · local recognition on")) { setPackPath(""); await asr.reload(); } }
+  async function importWav(e: FormEvent) { e.preventDefault(); const r = await run("wav", "audio_import_wav", { projectId, path: wavPath }); if (outcome(r, "Recording imported")) { setWavPath(""); await o.reload(); } }
+  async function transcribe(id: string) {
+    const r = await run<TranscribeResult>(`t-${id}`, "audio_transcribe", { projectId, sourceId: id, route });
+    if (outcome(r, "Transcription recorded · draft")) { setResult(r.data); setEdit(null); }
+  }
+  async function correct(e: FormEvent) {
+    e.preventDefault();
+    if (!edit || !result?.transcript) return;
+    const r = await run<Transcript>("correct", "audio_correct", { revisionId: result.transcript.revision_id, seq: edit.seq, text: edit.text, reason: edit.reason });
+    if (outcome(r, "Correction recorded as a new revision")) { setResult({ ...result, transcript: r.data }); setEdit(null); }
+  }
   if (o.state.status === "loading") return <Skeleton />;
   if (o.state.status === "error") return <ErrorState error={o.state.error} onRetry={o.reload} />;
   const v = o.state.data;
@@ -184,14 +208,56 @@ function AudioBody({ projectId }: { projectId: string }) {
     <>
       <div className="row-gap" style={{ gap: 8, marginBottom: 14 }}><button type="button" className="btn btn-s" onClick={importSynthetic} disabled={!!pending}>{pending === "import" ? <Glyph kind="running" /> : null}Import synthetic tone sample</button><span className="t-sm i3">Generated tone and silence; no microphone, no person.</span></div>
       <Ledger items={[{ k: "routes", v: v.routes }, { k: "native capture", v: v.native_capture }]} />
-      <Section title="Sources" count={v.sources.length}>
-        {v.sources.length ? v.sources.map((s) => <div key={s.id} className="lr" style={{ gridTemplateColumns: "minmax(0,1fr) minmax(0,1.4fr) 120px auto" }}><span style={{ display: "flex", flexDirection: "column", minWidth: 0 }}><span className="trunc" style={{ fontWeight: 600 }}>{s.label}</span><span className="mono t-mono-sm i3 trunc">{s.id}</span></span><span className="t-sm i3 trunc">{s.kind} · {s.detail}</span><Status kind={glyphFor(s.health)} weight="weak">{s.health}</Status><button type="button" className="btn btn-g" disabled={!!pending} onClick={() => segment(s.id)}>Segment</button></div>) : <p className="t-sm i3">No audio sources in this project.</p>}
+      <Section title="Local speech recognition" count={local?.available ? "on" : "off"}>
+        <div className="row-gap" style={{ gap: 10, marginBottom: 8 }}>
+          <Status kind={local?.available ? "available" : "unavailable"} weight="strong">{local?.available ? "Local Whisper engine installed" : (local?.reason ?? "Not installed")}</Status>
+          {asr.state.status === "ready" && asr.state.data.asr_pack_dir && <span className="mono t-mono-sm i3 trunc">{asr.state.data.asr_pack_dir}</span>}
+        </div>
+        <div className="grid-2">
+          <form onSubmit={admitPack} className="stack" style={{ gap: 6 }}>
+            <label className="lbl" htmlFor="ap1">Admit an Audio Pack folder</label>
+            <input id="ap1" value={packPath} maxLength={1024} placeholder="Absolute folder path" onChange={(e) => setPackPath(e.target.value)} />
+            <div><button type="submit" className="btn btn-s" disabled={!packPath.trim() || !!pending}>Admit and install</button></div>
+          </form>
+          <form onSubmit={importWav} className="stack" style={{ gap: 6 }}>
+            <label className="lbl" htmlFor="wp1">Import a synthetic WAV recording</label>
+            <input id="wp1" value={wavPath} maxLength={1024} placeholder="Absolute .wav path (16 kHz, 16-bit)" onChange={(e) => setWavPath(e.target.value)} />
+            <div><button type="submit" className="btn btn-s" disabled={!wavPath.trim() || !!pending}>Import</button></div>
+          </form>
+        </div>
+        <p className="t-sm i3" style={{ marginTop: 6 }}>Core verifies the Pack and runs recognition on this device; audio never leaves it. Synthetic recordings only.</p>
+      </Section>
+      <Section title="Sources" count={v.sources.length} actions={
+        <select aria-label="Transcription route" value={route} onChange={(e) => setRoute(e.target.value)} style={{ height: 26 }}>
+          <option value="local_asr_pack">Local Whisper (Audio Pack)</option>
+          <option value="fixture_asr">Fixture engine (not recognition)</option>
+          <option value="segmentation_only">Segmentation only</option>
+        </select>}>
+        {v.sources.length ? v.sources.map((s) => <div key={s.id} className="lr" style={{ gridTemplateColumns: "minmax(0,1fr) minmax(0,1.4fr) 120px auto auto" }}><span style={{ display: "flex", flexDirection: "column", minWidth: 0 }}><span className="trunc" style={{ fontWeight: 600 }}>{s.label}</span><span className="mono t-mono-sm i3 trunc">{s.id}</span></span><span className="t-sm i3 trunc">{s.kind} · {s.detail}</span><Status kind={glyphFor(s.health)} weight="weak">{s.health}</Status><button type="button" className="btn btn-g" disabled={!!pending} onClick={() => segment(s.id)}>Segment</button><button type="button" className="btn btn-s" disabled={!!pending} onClick={() => transcribe(s.id)}>{pending === `t-${s.id}` ? <Glyph kind="running" /> : null}Transcribe</button></div>) : <p className="t-sm i3">No audio sources in this project.</p>}
       </Section>
       {seg && <Section title="Segmentation" count="draft"><p className="t-sm" style={{ marginBottom: 8 }}>{seg.summary}</p><pre className="pre">{seg.lines.join("\n") || "No segments."}</pre></Section>}
+      {result && <Section title="Transcript" count={result.transcript ? `revision ${result.transcript.revision_no} · ${result.transcript.state}` : result.decision.outcome}>
+        <Ledger items={[{ k: "decision", v: `${result.decision.outcome}${result.decision.reason ? ` · ${result.decision.reason}` : ""}` }, { k: "engine", v: result.engine ? `${result.engine.engine_id}${result.engine.is_fixture ? " (fixture)" : ""}` : "none", mono: true }, { k: "limitations", v: result.limitations.join(", ") }]} />
+        {result.transcript?.segments.map((x) => (
+          <div key={x.seq} className="lr" style={{ gridTemplateColumns: "36px 130px minmax(0,1fr) auto", alignItems: "start", padding: "8px 12px" }}>
+            <span className="mono t-mono-sm i3">{x.seq}</span>
+            <span className="mono t-mono-sm i3">{x.start_ms}–{x.end_ms} ms</span>
+            <span className="t-sm">{x.text ?? <span className="i3">(untranscribed)</span>}</span>
+            <button type="button" className="btn btn-g" onClick={() => setEdit({ seq: x.seq, text: x.text ?? "", reason: "" })}>Correct</button>
+          </div>
+        ))}
+        {edit && <form onSubmit={correct} className="stack" style={{ gap: 6, marginTop: 10, maxWidth: 640 }}>
+          <label className="lbl" htmlFor="ct">Segment {edit.seq} text</label>
+          <input id="ct" value={edit.text} maxLength={2000} onChange={(e) => setEdit({ ...edit, text: e.target.value })} />
+          <label className="lbl" htmlFor="cr">Reason</label>
+          <input id="cr" value={edit.reason} maxLength={200} placeholder="For example: reviewed against the recording" onChange={(e) => setEdit({ ...edit, reason: e.target.value })} />
+          <div className="row-gap" style={{ gap: 8 }}><button type="submit" className="btn btn-p" disabled={!edit.text.trim() || !edit.reason.trim() || !!pending}>Record correction</button><button type="button" className="btn btn-g" onClick={() => setEdit(null)}>Cancel</button></div>
+        </form>}
+      </Section>}
       <Section title="Captures" count={v.captures.length}>
         {v.captures.length ? v.captures.map((c) => <div key={c.id} className="lr" style={{ gridTemplateColumns: "minmax(0,1fr) 140px minmax(0,1.4fr)" }}><span className="trunc">{c.label}</span><Status kind={glyphFor(c.state)}>{c.state}</Status><span className="t-sm i3 trunc">{c.detail}</span></div>) : <p className="t-sm i3">No captures. Native capture requires an admitted backend.</p>}
       </Section>
-      <Notice kind="proposal" title="Drafts only.">Segments and transcripts carry a receipt and stay drafts until a person corrects and accepts them.</Notice>
+      <Notice kind="proposal" title="Drafts only.">Segments and transcripts carry a receipt and stay drafts until a person corrects and accepts them. Medical accuracy is unmeasured.</Notice>
       <Authority>Audio never becomes a clinical fact on its own. Lineage is kept for every derived artifact.</Authority>
     </>
   );

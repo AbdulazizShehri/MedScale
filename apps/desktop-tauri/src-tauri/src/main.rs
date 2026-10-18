@@ -108,6 +108,11 @@ fn presentation_builder<R: tauri::Runtime>(builder: tauri::Builder<R>) -> tauri:
             cmd_ops::audio_overview,
             cmd_ops::audio_import_synthetic,
             cmd_ops::audio_segment,
+            cmd_ops::audio_asr_status,
+            cmd_ops::audio_admit_asr_pack,
+            cmd_ops::audio_import_wav,
+            cmd_ops::audio_transcribe,
+            cmd_ops::audio_correct,
         ])
 }
 
