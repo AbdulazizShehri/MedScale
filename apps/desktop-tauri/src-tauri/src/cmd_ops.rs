@@ -226,11 +226,15 @@ fn pack_dir(state: &mut State, pack_id: &str) -> CmdResult<String> {
         return Ok(fixture_dir);
     }
     let root = state.workspace()?.vault_root.clone();
-    host::load_pack_dirs(&root).remove(pack_id).ok_or_else(|| {
+    let dir = host::load_pack_dirs(&root).remove(pack_id).ok_or_else(|| {
         CmdError::unavailable(
             "Unavailable: this Pack's folder is not known to this desktop; admit it again",
         )
-    })
+    })?;
+    // Core's Pack registry is per session: admit the remembered folder again
+    // (idempotent; Core re-verifies it) so runs resume after a restart.
+    state.session()?.packs_install_local(&dir)?;
+    Ok(dir)
 }
 
 /// Models an agent can use: Packs admitted in the open vault. The bundled
