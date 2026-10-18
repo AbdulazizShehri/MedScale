@@ -11,6 +11,8 @@ members = [
     "crates/medscale-network",
     "crates/medscale-pack",
 ]
+# Vendored, patched third-party sources are not workspace members.
+exclude = ["vendor"]
 default-members = [
     "crates/medscale-contracts",
     "crates/medscale-core",
@@ -80,3 +82,10 @@ unsafe_code = "deny"
 [workspace.lints.clippy]
 all = { level = "deny", priority = -1 }
 pedantic = { level = "allow", priority = -1 }
+
+# Security backport (RUSTSEC-2026-0367/0368/0369): candle-core 0.9.1 exactly
+# as published, with only its ZIP dependency moved to 9.0.3 and the ZIP 9 API
+# changes from upstream huggingface/candle#4041. Remove when a candle release
+# on ZIP >= 9 is adopted. Provenance: vendor/candle-core-0.9.1/MEDSCALE_PATCH.md.
+[patch.crates-io]
+candle-core = { path = "vendor/candle-core-0.9.1" }
