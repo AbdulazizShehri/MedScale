@@ -242,3 +242,5 @@ Executed or expected runnable: **1,764 of 2,266** (was 1,702 on 2026-10-10). All
 **Batch 33** (run 38522642273, 48 rows, Italian, Portuguese and Spanish PII and ModernMed and NomicMed rows, per-row): **48 of 48 executed**.
 
 **Batch 34** (run 38528146442, 48 rows, Spanish, Telugu and Turkish PII, per-row): **48 of 48 executed**.
+
+**Batch 35** (run 39096111998, 41 rows, remaining fitting rows, per-row): **41 of 41 executed**; these were the last expected-runnable rows with a fitting weight file and a shipped tokenizer, including 24 GLiNER zero-shot MLX rows.
