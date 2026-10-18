@@ -840,6 +840,22 @@ fn medagent_workbench_agent_context_evidence_and_resume() {
     );
     assert_eq!(corrected["revision_no"], 2, "{corrected}");
     assert_eq!(corrected["segments"][0]["text"], "patient has fever");
+    // Draft note from the corrected revision with the fixture Pack: items
+    // cite their segment; the draft stays a proposal.
+    let draft = h.ok(
+        "audio_draft_note",
+        json!({ "revisionId": corrected["revision_id"], "packId": fixture_id }),
+    );
+    assert_eq!(draft["status"], "proposal", "{draft}");
+    assert_eq!(draft["segments_evaluated"], 1, "{draft}");
+    let items: Vec<&Value> = draft["sections"]
+        .as_object()
+        .unwrap()
+        .values()
+        .flat_map(|v| v.as_array().unwrap())
+        .collect();
+    assert!(!items.is_empty(), "{draft}");
+    assert!(items.iter().all(|i| i["segment_seq"] == 1), "{draft}");
     assert_eq!(
         h.call(
             "audio_transcribe",

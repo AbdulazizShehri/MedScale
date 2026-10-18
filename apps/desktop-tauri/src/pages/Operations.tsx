@@ -184,6 +184,16 @@ function AudioBody({ projectId }: { projectId: string }) {
   const [route, setRoute] = useState("local_asr_pack");
   const [result, setResult] = useState<TranscribeResult | null>(null);
   const [edit, setEdit] = useState<{ seq: number; text: string; reason: string } | null>(null);
+  const models = useCommand<Array<{ id: string; runnable: boolean; fixture: boolean }>>("medagent_models");
+  const [notePack, setNotePack] = useState("");
+  const [draft, setDraft] = useState<{ sections: Record<string, Array<{ text: string; segment_seq: number; start_ms: number; end_ms: number }>>; segments_evaluated: number; note: string } | null>(null);
+  const runnable = models.state.status === "ready" ? models.state.data.filter((m) => m.runnable) : [];
+  useEffect(() => { if (!notePack && runnable[0]) setNotePack(runnable[0].id); }, [runnable, notePack]);
+  async function draftNote() {
+    if (!result?.transcript || !notePack) return;
+    const r = await run<NonNullable<typeof draft>>("draft", "audio_draft_note", { revisionId: result.transcript.revision_id, packId: notePack });
+    if (outcome(r, "Draft note created · proposal")) setDraft(r.data);
+  }
   const { pending, run } = useAction();
   const outcome = useOutcome();
   const local = asr.state.status === "ready" ? asr.state.data.routes.find((r) => r.route === "local_asr_pack") : undefined;
@@ -246,6 +256,20 @@ function AudioBody({ projectId }: { projectId: string }) {
             <button type="button" className="btn btn-g" onClick={() => setEdit({ seq: x.seq, text: x.text ?? "", reason: "" })}>Correct</button>
           </div>
         ))}
+        {result.transcript && <div className="row-gap" style={{ gap: 8, marginTop: 12 }}>
+          <select aria-label="Pack for the draft note" value={notePack} onChange={(e) => setNotePack(e.target.value)}>{runnable.map((m) => <option key={m.id} value={m.id}>{m.id}</option>)}</select>
+          <button type="button" className="btn btn-s" disabled={!notePack || !!pending} onClick={draftNote}>{pending === "draft" ? <Glyph kind="running" /> : null}Draft note from this revision</button>
+        </div>}
+        {draft && <div style={{ border: "1px dashed var(--line-strong)", borderRadius: "var(--r-2)", padding: "12px 14px", marginTop: 12 }}>
+          <Status kind="proposal" weight="strong">Draft note · proposal</Status>
+          <p className="t-sm i3" style={{ margin: "6px 0 10px" }}>{draft.note} Segments evaluated: {draft.segments_evaluated}.</p>
+          {Object.keys(draft.sections).length ? Object.entries(draft.sections).map(([label, items]) => (
+            <div key={label} style={{ marginBottom: 8 }}>
+              <div className="lbl">{label}</div>
+              {items.map((i, k) => <div key={k} className="row-gap t-sm" style={{ gap: 8 }}><span>{i.text}</span><span className="mono t-mono-sm i3">segment {i.segment_seq} · {i.start_ms}–{i.end_ms} ms</span></div>)}
+            </div>
+          )) : <p className="t-sm i3">No entities found in the transcribed segments.</p>}
+        </div>}
         {edit && <form onSubmit={correct} className="stack" style={{ gap: 6, marginTop: 10, maxWidth: 640 }}>
           <label className="lbl" htmlFor="ct">Segment {edit.seq} text</label>
           <input id="ct" value={edit.text} maxLength={2000} onChange={(e) => setEdit({ ...edit, text: e.target.value })} />

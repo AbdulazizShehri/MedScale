@@ -1036,6 +1036,73 @@ pub fn audio_correct(
     Ok(transcript_json(&revision))
 }
 
+/// Drafts a note from a transcript revision: an admitted token-classification
+/// Pack runs on each transcribed segment, and the entities it finds are
+/// grouped by label. Every item cites its segment and time span. The draft is
+/// a proposal for review; nothing is written to a record (Spec 106 T106-06).
+#[tauri::command(async)]
+pub fn audio_draft_note(
+    host: tauri::State<'_, Host>,
+    revision_id: String,
+    pack_id: String,
+) -> CmdResult<Value> {
+    let revision_id = host::bounded_id(&revision_id)?.to_owned();
+    let pack_id = host::bounded_id(&pack_id)?.to_owned();
+    let mut state = lock(&host)?;
+    let local_path = pack_dir(&mut state, &pack_id)?;
+    let session = state.session()?;
+    let revision = session.audio_transcript_get(OpaqueId::new(&revision_id))?;
+    let mut sections: std::collections::BTreeMap<String, Vec<Value>> =
+        std::collections::BTreeMap::new();
+    let mut evaluated = 0usize;
+    for segment in &revision.segments {
+        let Some(text) = segment.text.as_deref().filter(|t| !t.trim().is_empty()) else {
+            continue;
+        };
+        let result =
+            session.packs_evaluate_local(medscale_contracts::packs::PackEvaluationRequest {
+                pack_id: OpaqueId::new(&pack_id),
+                local_path: local_path.clone(),
+                input: text.to_owned(),
+                max_tokens: 512,
+                synthetic_only: true,
+                zero_shot_labels: None,
+                decoding: Some(medscale_contracts::packs::EntityDecoding::WordFirst),
+            })?;
+        evaluated += 1;
+        let entities = result.proposal_payload["entities"]
+            .as_array()
+            .cloned()
+            .unwrap_or_default();
+        for e in entities {
+            let (Some(start), Some(end)) = (e["start"].as_u64(), e["end"].as_u64()) else {
+                continue;
+            };
+            let label = e["label"].as_str().unwrap_or("ENTITY").to_owned();
+            let span: String = text
+                .chars()
+                .skip(usize::try_from(start).unwrap_or(0))
+                .take(usize::try_from(end.saturating_sub(start)).unwrap_or(0))
+                .collect();
+            sections.entry(label).or_default().push(json!({
+                "text": span,
+                "segment_seq": segment.seq,
+                "start_ms": segment.start_ms,
+                "end_ms": segment.end_ms,
+            }));
+        }
+    }
+    Ok(json!({
+        "revision_id": revision_id,
+        "revision_no": revision.revision_no,
+        "pack_id": pack_id,
+        "segments_evaluated": evaluated,
+        "sections": sections,
+        "status": "proposal",
+        "note": "Draft from a transcript; each item cites its segment. Not a record and not clinical truth.",
+    }))
+}
+
 /// Imports a generated synthetic tone/silence WAV (no microphone, no person).
 #[tauri::command(async)]
 pub fn audio_import_synthetic(

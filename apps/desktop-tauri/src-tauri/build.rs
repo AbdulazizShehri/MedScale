@@ -86,6 +86,7 @@ fn main() {
             "audio_import_wav",
             "audio_transcribe",
             "audio_correct",
+            "audio_draft_note",
         ]));
     tauri_build::try_build(attributes).expect("failed to build the constrained Tauri manifest");
 }
