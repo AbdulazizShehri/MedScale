@@ -212,3 +212,7 @@ The founder explicitly rejected the prior product-level visual direction and mod
 ```
 
 Specs 000–067 retain their historical canonical evidence. `MEDSCALE_IMPLEMENTATION_COMPLETE` returns to false until 068–072 close. This sequence does not authorize real PHI, bypass the Core Host authority model, or make MESC release-blocking.
+
+## 2026-09-30 desktop presentation amendment
+
+The founder selected staged Tauri 2 + React/TypeScript/Vite/Tailwind migration for future Desktop presentation. See `TAURI_DESKTOP_MIGRATION_DECISION_2026-09-30.md`, `PRODUCTIZATION_PROGRAM.md`, live `BUILD_QUEUE.md` and preparatory `specs/096-tauri-foundation/`. Specs 096–100 retain their product outcomes and dependency order with the new presentation medium. Spec 095 remains Slint-era brand evidence. Existing Slint, the Rust authority path, privacy gates, PHI exclusion and release limits remain in force; retirement requires a separate decision after parity.

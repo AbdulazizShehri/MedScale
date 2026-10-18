@@ -1,0 +1,15 @@
+{
+  "status": "UNQUALIFIED_PREVIEW",
+  "synthetic_only": true,
+  "core_connected": false,
+  "head": "76e9fe31c2611f1abc02a9575641988e27784486",
+  "tree": "cd7251fdbc142ba61de1ccc1a4b1993ff6935df0",
+  "platform": "Microsoft Windows 10.0.26100",
+  "rustc": "rustc 1.97.1 (8bab26f4f 2026-07-14)",
+  "node": "v24.19.0",
+  "executable_sha256": "9f006846d4ff998bbbbbd75e6b18ae81b6bfefa6f16dfcbb94ac44f1fa2822cb",
+  "executable_bytes": 8488448,
+  "native_visual_evidence": "NOT_CAPTURED",
+  "privacy_qualified": false,
+  "release_ready": false
+}

@@ -1,0 +1,3 @@
+# Consistency analysis — Spec 096
+
+The migration changes presentation technology only. Rust Core semantics, vault ownership, external effects, network policy, source/proposal distinctions and synthetic-only constraints remain canonical. A separate Tauri package makes rollback possible; retaining Slint protects existing behavior. Tauri/WebView private-data admission remains unresolved from Spec 006, so preparatory code cannot establish privacy readiness or 096 closure. The dependency on 095 is explicit in the queue and spec. T096-02–09 cover R096-01–07; unchecked evidence blocks completion. No historical 095 evidence is relabelled as Tauri evidence.

@@ -33,4 +33,4 @@ Merged 2026-10-18: #244 (security: rustls 0.23.46 and the pinned candle-core 0.9
 
 ## External gates (unchanged)
 
-F096-T01 (`glib`, Tauri chain), the 1 GiB Pack artifact bound, real PHI, clinical validation, production signing, training-dataset terms. See `EXTERNAL_GATES.md`.
+the Linux desktop (`TAURI_LINUX_DESKTOP_GTK3`; F096-T01 is resolved for the shipped Windows/macOS desktop by platform scope), the 1 GiB Pack artifact bound, real PHI, clinical validation, production signing, training-dataset terms. See `EXTERNAL_GATES.md`.
