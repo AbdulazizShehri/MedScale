@@ -8,7 +8,9 @@
 # verifies the snapshot against the catalog before building, admitting and
 # running a signed Pack. Sample text is synthetic. Weights are never committed
 # or uploaded; only logs are kept. `scripts/qualification/record_results.py`
-# turns a finished run into per-row evidence.
+# turns a finished run into per-row evidence. Rows with "openmed": "true"
+# and an "eval" gold set also run pinned OpenMed 3.0.0 on the same snapshot
+# for a same-runner head-to-head scored by MedScale's scorer.
 #
 # Runs only on `qual-batch/**` branches, never on PRs or main.
 name: model-qualification-batch
@@ -107,6 +109,26 @@ jobs:
             -- --ignored --nocapture 2>&1 | tee qualification.log
           echo "BATCH_ENTRY id=$ENTRY_ID weights=$MEDSCALE_HF_ONNX_FILE test=$ENTRY_TEST" >> qualification.log
           grep -E '^(SNAPSHOT_EVIDENCE|BATCH_ENTRY)' qualification.log >> "$GITHUB_STEP_SUMMARY"
+
+      # Optional head-to-head: pinned OpenMed (PyPI openmed==3.0.0, CPU torch)
+      # runs the same snapshot and gold set on the same runner; MedScale's
+      # scorer scores its spans. Rows opt in with "openmed": "true".
+      - name: OpenMed v3.0.0 head-to-head (same runner)
+        if: matrix.openmed == 'true' && matrix.eval != ''
+        env:
+          MEDSCALE_EVAL_SET: ${{ matrix.eval }}
+          REPO: ${{ matrix.repo }}
+        run: |
+          set -euo pipefail
+          revision=$(grep -m1 '^EVAL_METRICS ' qualification.log | sed 's/^EVAL_METRICS //' | python3 -c 'import json,sys; print(json.load(sys.stdin)["revision"])')
+          python3 -m venv "$RUNNER_TEMP/openmed"
+          py="$RUNNER_TEMP/openmed/bin/python"
+          "$py" -m pip install --quiet --upgrade pip
+          "$py" -m pip install --quiet --index-url https://download.pytorch.org/whl/cpu "torch>=2.13.0"
+          "$py" -m pip install --quiet "openmed[hf]==3.0.0"
+          "$py" -m pip freeze | grep -iE '^(openmed|torch|transformers|tokenizers)==' | tee -a qualification.log
+          "$py" scripts/evaluation/openmed_predict.py "$MEDSCALE_EVAL_SET" "$SNAPSHOT_DIR" "$REPO" "$revision" "$RUNNER_TEMP/openmed-predictions.json" | tee -a qualification.log
+          MEDSCALE_OPENMED_PREDICTIONS="$RUNNER_TEMP/openmed-predictions.json"             cargo test --release --locked -p medscale-pack --test openmed_python_external_103             -- --ignored --nocapture 2>&1 | tee -a qualification.log
 
       - name: Keep the log (no weights)
         if: always()
