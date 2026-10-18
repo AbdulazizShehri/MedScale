@@ -1,0 +1,514 @@
+[
+ {
+  "id": "00-OpenMed-PII-BioClinicalBERT-Base-110M-v1-mlx",
+  "repo": "OpenMed/OpenMed-PII-BioClinicalBERT-Base-110M-v1-mlx",
+  "weights": "weights.safetensors",
+  "test": "safetensors_external_104",
+  "text": "Patient John Smith, born 12 March 1980, has type 2 diabetes and pain in the left knee.",
+  "labels": ""
+ },
+ {
+  "id": "01-OpenMed-PII-BiomedBERT-Base-110M-v1-mlx",
+  "repo": "OpenMed/OpenMed-PII-BiomedBERT-Base-110M-v1-mlx",
+  "weights": "weights.safetensors",
+  "test": "safetensors_external_104",
+  "text": "Patient John Smith, born 12 March 1980, has type 2 diabetes and pain in the left knee.",
+  "labels": ""
+ },
+ {
+  "id": "02-OpenMed-PII-BiomedELECTRA-Base-110M-v1-mlx",
+  "repo": "OpenMed/OpenMed-PII-BiomedELECTRA-Base-110M-v1-mlx",
+  "weights": "weights.safetensors",
+  "test": "safetensors_external_104",
+  "text": "Patient John Smith, born 12 March 1980, has type 2 diabetes and pain in the left knee.",
+  "labels": ""
+ },
+ {
+  "id": "03-OpenMed-PII-ClinicDischarge-Base-110M-v1-mlx",
+  "repo": "OpenMed/OpenMed-PII-ClinicDischarge-Base-110M-v1-mlx",
+  "weights": "weights.safetensors",
+  "test": "safetensors_external_104",
+  "text": "Patient John Smith, born 12 March 1980, has type 2 diabetes and pain in the left knee.",
+  "labels": ""
+ },
+ {
+  "id": "04-OpenMed-PII-ClinicalE5-Base-109M-v1-mlx",
+  "repo": "OpenMed/OpenMed-PII-ClinicalE5-Base-109M-v1-mlx",
+  "weights": "weights.safetensors",
+  "test": "safetensors_external_104",
+  "text": "Patient John Smith, born 12 March 1980, has type 2 diabetes and pain in the left knee.",
+  "labels": ""
+ },
+ {
+  "id": "05-OpenMed-PII-ClinicalE5-Small-33M-v1-mlx",
+  "repo": "OpenMed/OpenMed-PII-ClinicalE5-Small-33M-v1-mlx",
+  "weights": "weights.safetensors",
+  "test": "safetensors_external_104",
+  "text": "Patient John Smith, born 12 March 1980, has type 2 diabetes and pain in the left knee.",
+  "labels": ""
+ },
+ {
+  "id": "06-OpenMed-PII-Dutch-BioClinicalBERT-Base-110M-v1-m",
+  "repo": "OpenMed/OpenMed-PII-Dutch-BioClinicalBERT-Base-110M-v1-mlx",
+  "weights": "weights.safetensors",
+  "test": "safetensors_external_104",
+  "text": "Patiënt Jan de Vries, geboren op 12 maart 1980, woont in Utrecht en heeft diabetes.",
+  "labels": ""
+ },
+ {
+  "id": "07-OpenMed-PII-Dutch-BiomedBERT-Base-110M-v1-mlx",
+  "repo": "OpenMed/OpenMed-PII-Dutch-BiomedBERT-Base-110M-v1-mlx",
+  "weights": "weights.safetensors",
+  "test": "safetensors_external_104",
+  "text": "Patiënt Jan de Vries, geboren op 12 maart 1980, woont in Utrecht en heeft diabetes.",
+  "labels": ""
+ },
+ {
+  "id": "08-OpenMed-PII-Dutch-BiomedBERTFull-Base-110M-v1-ml",
+  "repo": "OpenMed/OpenMed-PII-Dutch-BiomedBERTFull-Base-110M-v1-mlx",
+  "weights": "weights.safetensors",
+  "test": "safetensors_external_104",
+  "text": "Patiënt Jan de Vries, geboren op 12 maart 1980, woont in Utrecht en heeft diabetes.",
+  "labels": ""
+ },
+ {
+  "id": "09-OpenMed-PII-Dutch-BiomedELECTRA-Base-110M-v1-mlx",
+  "repo": "OpenMed/OpenMed-PII-Dutch-BiomedELECTRA-Base-110M-v1-mlx",
+  "weights": "weights.safetensors",
+  "test": "safetensors_external_104",
+  "text": "Patiënt Jan de Vries, geboren op 12 maart 1980, woont in Utrecht en heeft diabetes.",
+  "labels": ""
+ },
+ {
+  "id": "10-OpenMed-PII-Dutch-ClinicDischarge-Base-110M-v1-m",
+  "repo": "OpenMed/OpenMed-PII-Dutch-ClinicDischarge-Base-110M-v1-mlx",
+  "weights": "weights.safetensors",
+  "test": "safetensors_external_104",
+  "text": "Patiënt Jan de Vries, geboren op 12 maart 1980, woont in Utrecht en heeft diabetes.",
+  "labels": ""
+ },
+ {
+  "id": "11-OpenMed-PII-Dutch-ClinicalE5-Base-109M-v1-mlx",
+  "repo": "OpenMed/OpenMed-PII-Dutch-ClinicalE5-Base-109M-v1-mlx",
+  "weights": "weights.safetensors",
+  "test": "safetensors_external_104",
+  "text": "Patiënt Jan de Vries, geboren op 12 maart 1980, woont in Utrecht en heeft diabetes.",
+  "labels": ""
+ },
+ {
+  "id": "12-OpenMed-PII-Dutch-ClinicalE5-Small-33M-v1-mlx",
+  "repo": "OpenMed/OpenMed-PII-Dutch-ClinicalE5-Small-33M-v1-mlx",
+  "weights": "weights.safetensors",
+  "test": "safetensors_external_104",
+  "text": "Patiënt Jan de Vries, geboren op 12 maart 1980, woont in Utrecht en heeft diabetes.",
+  "labels": ""
+ },
+ {
+  "id": "13-OpenMed-PII-Dutch-FastClinical-Small-82M-v1-mlx",
+  "repo": "OpenMed/OpenMed-PII-Dutch-FastClinical-Small-82M-v1-mlx",
+  "weights": "weights.safetensors",
+  "test": "safetensors_external_104",
+  "text": "Patiënt Jan de Vries, geboren op 12 maart 1980, woont in Utrecht en heeft diabetes.",
+  "labels": ""
+ },
+ {
+  "id": "14-OpenMed-PII-Dutch-LiteClinical-Small-66M-v1-mlx",
+  "repo": "OpenMed/OpenMed-PII-Dutch-LiteClinical-Small-66M-v1-mlx",
+  "weights": "weights.safetensors",
+  "test": "safetensors_external_104",
+  "text": "Patiënt Jan de Vries, geboren op 12 maart 1980, woont in Utrecht en heeft diabetes.",
+  "labels": ""
+ },
+ {
+  "id": "15-OpenMed-PII-Dutch-LiteClinicalU-Small-66M-v1-mlx",
+  "repo": "OpenMed/OpenMed-PII-Dutch-LiteClinicalU-Small-66M-v1-mlx",
+  "weights": "weights.safetensors",
+  "test": "safetensors_external_104",
+  "text": "Patiënt Jan de Vries, geboren op 12 maart 1980, woont in Utrecht en heeft diabetes.",
+  "labels": ""
+ },
+ {
+  "id": "16-OpenMed-PII-Dutch-SuperClinical-Base-184M-v1-mlx",
+  "repo": "OpenMed/OpenMed-PII-Dutch-SuperClinical-Base-184M-v1-mlx",
+  "weights": "weights.safetensors",
+  "test": "safetensors_external_104",
+  "text": "Patiënt Jan de Vries, geboren op 12 maart 1980, woont in Utrecht en heeft diabetes.",
+  "labels": ""
+ },
+ {
+  "id": "17-OpenMed-PII-Dutch-SuperClinical-Small-44M-v1-mlx",
+  "repo": "OpenMed/OpenMed-PII-Dutch-SuperClinical-Small-44M-v1-mlx",
+  "weights": "weights.safetensors",
+  "test": "safetensors_external_104",
+  "text": "Patiënt Jan de Vries, geboren op 12 maart 1980, woont in Utrecht en heeft diabetes.",
+  "labels": ""
+ },
+ {
+  "id": "18-OpenMed-PII-Dutch-SuperMedical-Base-125M-v1-mlx",
+  "repo": "OpenMed/OpenMed-PII-Dutch-SuperMedical-Base-125M-v1-mlx",
+  "weights": "weights.safetensors",
+  "test": "safetensors_external_104",
+  "text": "Patiënt Jan de Vries, geboren op 12 maart 1980, woont in Utrecht en heeft diabetes.",
+  "labels": ""
+ },
+ {
+  "id": "19-OpenMed-PII-Dutch-mLiteClinical-Base-135M-v1-mlx",
+  "repo": "OpenMed/OpenMed-PII-Dutch-mLiteClinical-Base-135M-v1-mlx",
+  "weights": "weights.safetensors",
+  "test": "safetensors_external_104",
+  "text": "Patiënt Jan de Vries, geboren op 12 maart 1980, woont in Utrecht en heeft diabetes.",
+  "labels": ""
+ },
+ {
+  "id": "20-OpenMed-PII-FastClinical-Small-82M-v1-mlx",
+  "repo": "OpenMed/OpenMed-PII-FastClinical-Small-82M-v1-mlx",
+  "weights": "weights.safetensors",
+  "test": "safetensors_external_104",
+  "text": "Patient John Smith, born 12 March 1980, has type 2 diabetes and pain in the left knee.",
+  "labels": ""
+ },
+ {
+  "id": "21-OpenMed-PII-French-BioClinicalBERT-Base-110M-v1-",
+  "repo": "OpenMed/OpenMed-PII-French-BioClinicalBERT-Base-110M-v1-mlx",
+  "weights": "weights.safetensors",
+  "test": "safetensors_external_104",
+  "text": "Le patient Jean Dupont, né le 12 mars 1980, habite à Lyon et souffre de diabète.",
+  "labels": ""
+ },
+ {
+  "id": "22-OpenMed-PII-French-BiomedBERT-Base-110M-v1-mlx",
+  "repo": "OpenMed/OpenMed-PII-French-BiomedBERT-Base-110M-v1-mlx",
+  "weights": "weights.safetensors",
+  "test": "safetensors_external_104",
+  "text": "Le patient Jean Dupont, né le 12 mars 1980, habite à Lyon et souffre de diabète.",
+  "labels": ""
+ },
+ {
+  "id": "23-OpenMed-PII-French-BiomedBERTFull-Base-110M-v1-m",
+  "repo": "OpenMed/OpenMed-PII-French-BiomedBERTFull-Base-110M-v1-mlx",
+  "weights": "weights.safetensors",
+  "test": "safetensors_external_104",
+  "text": "Le patient Jean Dupont, né le 12 mars 1980, habite à Lyon et souffre de diabète.",
+  "labels": ""
+ },
+ {
+  "id": "24-OpenMed-PII-French-BiomedELECTRA-Base-110M-v1-ml",
+  "repo": "OpenMed/OpenMed-PII-French-BiomedELECTRA-Base-110M-v1-mlx",
+  "weights": "weights.safetensors",
+  "test": "safetensors_external_104",
+  "text": "Le patient Jean Dupont, né le 12 mars 1980, habite à Lyon et souffre de diabète.",
+  "labels": ""
+ },
+ {
+  "id": "25-OpenMed-PII-French-ClinicDischarge-Base-110M-v1-",
+  "repo": "OpenMed/OpenMed-PII-French-ClinicDischarge-Base-110M-v1-mlx",
+  "weights": "weights.safetensors",
+  "test": "safetensors_external_104",
+  "text": "Le patient Jean Dupont, né le 12 mars 1980, habite à Lyon et souffre de diabète.",
+  "labels": ""
+ },
+ {
+  "id": "26-OpenMed-PII-French-ClinicalE5-Base-109M-v1-mlx",
+  "repo": "OpenMed/OpenMed-PII-French-ClinicalE5-Base-109M-v1-mlx",
+  "weights": "weights.safetensors",
+  "test": "safetensors_external_104",
+  "text": "Le patient Jean Dupont, né le 12 mars 1980, habite à Lyon et souffre de diabète.",
+  "labels": ""
+ },
+ {
+  "id": "27-OpenMed-PII-French-ClinicalE5-Small-33M-v1-mlx",
+  "repo": "OpenMed/OpenMed-PII-French-ClinicalE5-Small-33M-v1-mlx",
+  "weights": "weights.safetensors",
+  "test": "safetensors_external_104",
+  "text": "Le patient Jean Dupont, né le 12 mars 1980, habite à Lyon et souffre de diabète.",
+  "labels": ""
+ },
+ {
+  "id": "28-OpenMed-PII-French-FastClinical-Small-82M-v1-mlx",
+  "repo": "OpenMed/OpenMed-PII-French-FastClinical-Small-82M-v1-mlx",
+  "weights": "weights.safetensors",
+  "test": "safetensors_external_104",
+  "text": "Le patient Jean Dupont, né le 12 mars 1980, habite à Lyon et souffre de diabète.",
+  "labels": ""
+ },
+ {
+  "id": "29-OpenMed-PII-French-LiteClinical-Small-66M-v1-mlx",
+  "repo": "OpenMed/OpenMed-PII-French-LiteClinical-Small-66M-v1-mlx",
+  "weights": "weights.safetensors",
+  "test": "safetensors_external_104",
+  "text": "Le patient Jean Dupont, né le 12 mars 1980, habite à Lyon et souffre de diabète.",
+  "labels": ""
+ },
+ {
+  "id": "30-OpenMed-PII-French-LiteClinicalU-Small-66M-v1-ml",
+  "repo": "OpenMed/OpenMed-PII-French-LiteClinicalU-Small-66M-v1-mlx",
+  "weights": "weights.safetensors",
+  "test": "safetensors_external_104",
+  "text": "Le patient Jean Dupont, né le 12 mars 1980, habite à Lyon et souffre de diabète.",
+  "labels": ""
+ },
+ {
+  "id": "31-OpenMed-PII-French-SuperClinical-Base-184M-v1-ml",
+  "repo": "OpenMed/OpenMed-PII-French-SuperClinical-Base-184M-v1-mlx",
+  "weights": "weights.safetensors",
+  "test": "safetensors_external_104",
+  "text": "Le patient Jean Dupont, né le 12 mars 1980, habite à Lyon et souffre de diabète.",
+  "labels": ""
+ },
+ {
+  "id": "32-OpenMed-PII-French-SuperClinical-Small-44M-v1-ml",
+  "repo": "OpenMed/OpenMed-PII-French-SuperClinical-Small-44M-v1-mlx",
+  "weights": "weights.safetensors",
+  "test": "safetensors_external_104",
+  "text": "Le patient Jean Dupont, né le 12 mars 1980, habite à Lyon et souffre de diabète.",
+  "labels": ""
+ },
+ {
+  "id": "33-OpenMed-PII-French-SuperMedical-Base-125M-v1-mlx",
+  "repo": "OpenMed/OpenMed-PII-French-SuperMedical-Base-125M-v1-mlx",
+  "weights": "weights.safetensors",
+  "test": "safetensors_external_104",
+  "text": "Le patient Jean Dupont, né le 12 mars 1980, habite à Lyon et souffre de diabète.",
+  "labels": ""
+ },
+ {
+  "id": "34-OpenMed-PII-French-mLiteClinical-Base-135M-v1-ml",
+  "repo": "OpenMed/OpenMed-PII-French-mLiteClinical-Base-135M-v1-mlx",
+  "weights": "weights.safetensors",
+  "test": "safetensors_external_104",
+  "text": "Le patient Jean Dupont, né le 12 mars 1980, habite à Lyon et souffre de diabète.",
+  "labels": ""
+ },
+ {
+  "id": "35-OpenMed-PII-German-BioClinicalBERT-Base-110M-v1-",
+  "repo": "OpenMed/OpenMed-PII-German-BioClinicalBERT-Base-110M-v1-mlx",
+  "weights": "weights.safetensors",
+  "test": "safetensors_external_104",
+  "text": "Der Patient Hans Müller, geboren am 12. März 1980, wohnt in Berlin und hat Diabetes.",
+  "labels": ""
+ },
+ {
+  "id": "36-OpenMed-PII-German-BiomedBERT-Base-110M-v1-mlx",
+  "repo": "OpenMed/OpenMed-PII-German-BiomedBERT-Base-110M-v1-mlx",
+  "weights": "weights.safetensors",
+  "test": "safetensors_external_104",
+  "text": "Der Patient Hans Müller, geboren am 12. März 1980, wohnt in Berlin und hat Diabetes.",
+  "labels": ""
+ },
+ {
+  "id": "37-OpenMed-PII-German-BiomedBERTFull-Base-110M-v1-m",
+  "repo": "OpenMed/OpenMed-PII-German-BiomedBERTFull-Base-110M-v1-mlx",
+  "weights": "weights.safetensors",
+  "test": "safetensors_external_104",
+  "text": "Der Patient Hans Müller, geboren am 12. März 1980, wohnt in Berlin und hat Diabetes.",
+  "labels": ""
+ },
+ {
+  "id": "38-OpenMed-PII-German-BiomedELECTRA-Base-110M-v1-ml",
+  "repo": "OpenMed/OpenMed-PII-German-BiomedELECTRA-Base-110M-v1-mlx",
+  "weights": "weights.safetensors",
+  "test": "safetensors_external_104",
+  "text": "Der Patient Hans Müller, geboren am 12. März 1980, wohnt in Berlin und hat Diabetes.",
+  "labels": ""
+ },
+ {
+  "id": "39-OpenMed-PII-German-ClinicDischarge-Base-110M-v1-",
+  "repo": "OpenMed/OpenMed-PII-German-ClinicDischarge-Base-110M-v1-mlx",
+  "weights": "weights.safetensors",
+  "test": "safetensors_external_104",
+  "text": "Der Patient Hans Müller, geboren am 12. März 1980, wohnt in Berlin und hat Diabetes.",
+  "labels": ""
+ },
+ {
+  "id": "40-OpenMed-PII-German-ClinicalE5-Base-109M-v1-mlx",
+  "repo": "OpenMed/OpenMed-PII-German-ClinicalE5-Base-109M-v1-mlx",
+  "weights": "weights.safetensors",
+  "test": "safetensors_external_104",
+  "text": "Der Patient Hans Müller, geboren am 12. März 1980, wohnt in Berlin und hat Diabetes.",
+  "labels": ""
+ },
+ {
+  "id": "41-OpenMed-PII-German-ClinicalE5-Small-33M-v1-mlx",
+  "repo": "OpenMed/OpenMed-PII-German-ClinicalE5-Small-33M-v1-mlx",
+  "weights": "weights.safetensors",
+  "test": "safetensors_external_104",
+  "text": "Der Patient Hans Müller, geboren am 12. März 1980, wohnt in Berlin und hat Diabetes.",
+  "labels": ""
+ },
+ {
+  "id": "42-OpenMed-PII-German-FastClinical-Small-82M-v1-mlx",
+  "repo": "OpenMed/OpenMed-PII-German-FastClinical-Small-82M-v1-mlx",
+  "weights": "weights.safetensors",
+  "test": "safetensors_external_104",
+  "text": "Der Patient Hans Müller, geboren am 12. März 1980, wohnt in Berlin und hat Diabetes.",
+  "labels": ""
+ },
+ {
+  "id": "43-OpenMed-PII-German-LiteClinical-Small-66M-v1-mlx",
+  "repo": "OpenMed/OpenMed-PII-German-LiteClinical-Small-66M-v1-mlx",
+  "weights": "weights.safetensors",
+  "test": "safetensors_external_104",
+  "text": "Der Patient Hans Müller, geboren am 12. März 1980, wohnt in Berlin und hat Diabetes.",
+  "labels": ""
+ },
+ {
+  "id": "44-OpenMed-PII-German-LiteClinicalU-Small-66M-v1-ml",
+  "repo": "OpenMed/OpenMed-PII-German-LiteClinicalU-Small-66M-v1-mlx",
+  "weights": "weights.safetensors",
+  "test": "safetensors_external_104",
+  "text": "Der Patient Hans Müller, geboren am 12. März 1980, wohnt in Berlin und hat Diabetes.",
+  "labels": ""
+ },
+ {
+  "id": "45-OpenMed-PII-German-SuperClinical-Base-184M-v1-ml",
+  "repo": "OpenMed/OpenMed-PII-German-SuperClinical-Base-184M-v1-mlx",
+  "weights": "weights.safetensors",
+  "test": "safetensors_external_104",
+  "text": "Der Patient Hans Müller, geboren am 12. März 1980, wohnt in Berlin und hat Diabetes.",
+  "labels": ""
+ },
+ {
+  "id": "46-OpenMed-PII-German-SuperClinical-Small-44M-v1-ml",
+  "repo": "OpenMed/OpenMed-PII-German-SuperClinical-Small-44M-v1-mlx",
+  "weights": "weights.safetensors",
+  "test": "safetensors_external_104",
+  "text": "Der Patient Hans Müller, geboren am 12. März 1980, wohnt in Berlin und hat Diabetes.",
+  "labels": ""
+ },
+ {
+  "id": "47-OpenMed-PII-German-SuperMedical-Base-125M-v1-mlx",
+  "repo": "OpenMed/OpenMed-PII-German-SuperMedical-Base-125M-v1-mlx",
+  "weights": "weights.safetensors",
+  "test": "safetensors_external_104",
+  "text": "Der Patient Hans Müller, geboren am 12. März 1980, wohnt in Berlin und hat Diabetes.",
+  "labels": ""
+ },
+ {
+  "id": "48-OpenMed-PII-German-mLiteClinical-Base-135M-v1-ml",
+  "repo": "OpenMed/OpenMed-PII-German-mLiteClinical-Base-135M-v1-mlx",
+  "weights": "weights.safetensors",
+  "test": "safetensors_external_104",
+  "text": "Der Patient Hans Müller, geboren am 12. März 1980, wohnt in Berlin und hat Diabetes.",
+  "labels": ""
+ },
+ {
+  "id": "49-OpenMed-PII-Hindi-BioClinicalBERT-Base-110M-v1-m",
+  "repo": "OpenMed/OpenMed-PII-Hindi-BioClinicalBERT-Base-110M-v1-mlx",
+  "weights": "weights.safetensors",
+  "test": "safetensors_external_104",
+  "text": "मरीज़ राहुल शर्मा का जन्म 12 मार्च 1980 को हुआ और उन्हें मधुमेह है।",
+  "labels": ""
+ },
+ {
+  "id": "50-OpenMed-PII-Hindi-BiomedBERT-Base-110M-v1-mlx",
+  "repo": "OpenMed/OpenMed-PII-Hindi-BiomedBERT-Base-110M-v1-mlx",
+  "weights": "weights.safetensors",
+  "test": "safetensors_external_104",
+  "text": "मरीज़ राहुल शर्मा का जन्म 12 मार्च 1980 को हुआ और उन्हें मधुमेह है।",
+  "labels": ""
+ },
+ {
+  "id": "51-OpenMed-PII-Hindi-BiomedBERTFull-Base-110M-v1-ml",
+  "repo": "OpenMed/OpenMed-PII-Hindi-BiomedBERTFull-Base-110M-v1-mlx",
+  "weights": "weights.safetensors",
+  "test": "safetensors_external_104",
+  "text": "मरीज़ राहुल शर्मा का जन्म 12 मार्च 1980 को हुआ और उन्हें मधुमेह है।",
+  "labels": ""
+ },
+ {
+  "id": "52-OpenMed-PII-Hindi-BiomedELECTRA-Base-110M-v1-mlx",
+  "repo": "OpenMed/OpenMed-PII-Hindi-BiomedELECTRA-Base-110M-v1-mlx",
+  "weights": "weights.safetensors",
+  "test": "safetensors_external_104",
+  "text": "मरीज़ राहुल शर्मा का जन्म 12 मार्च 1980 को हुआ और उन्हें मधुमेह है।",
+  "labels": ""
+ },
+ {
+  "id": "53-OpenMed-PII-Hindi-ClinicDischarge-Base-110M-v1-m",
+  "repo": "OpenMed/OpenMed-PII-Hindi-ClinicDischarge-Base-110M-v1-mlx",
+  "weights": "weights.safetensors",
+  "test": "safetensors_external_104",
+  "text": "मरीज़ राहुल शर्मा का जन्म 12 मार्च 1980 को हुआ और उन्हें मधुमेह है।",
+  "labels": ""
+ },
+ {
+  "id": "54-OpenMed-PII-Hindi-ClinicalE5-Base-109M-v1-mlx",
+  "repo": "OpenMed/OpenMed-PII-Hindi-ClinicalE5-Base-109M-v1-mlx",
+  "weights": "weights.safetensors",
+  "test": "safetensors_external_104",
+  "text": "मरीज़ राहुल शर्मा का जन्म 12 मार्च 1980 को हुआ और उन्हें मधुमेह है।",
+  "labels": ""
+ },
+ {
+  "id": "55-OpenMed-PII-Hindi-ClinicalE5-Small-33M-v1-mlx",
+  "repo": "OpenMed/OpenMed-PII-Hindi-ClinicalE5-Small-33M-v1-mlx",
+  "weights": "weights.safetensors",
+  "test": "safetensors_external_104",
+  "text": "मरीज़ राहुल शर्मा का जन्म 12 मार्च 1980 को हुआ और उन्हें मधुमेह है।",
+  "labels": ""
+ },
+ {
+  "id": "56-OpenMed-PII-Hindi-FastClinical-Small-82M-v1-mlx",
+  "repo": "OpenMed/OpenMed-PII-Hindi-FastClinical-Small-82M-v1-mlx",
+  "weights": "weights.safetensors",
+  "test": "safetensors_external_104",
+  "text": "मरीज़ राहुल शर्मा का जन्म 12 मार्च 1980 को हुआ और उन्हें मधुमेह है।",
+  "labels": ""
+ },
+ {
+  "id": "57-OpenMed-PII-Hindi-LiteClinical-Small-66M-v1-mlx",
+  "repo": "OpenMed/OpenMed-PII-Hindi-LiteClinical-Small-66M-v1-mlx",
+  "weights": "weights.safetensors",
+  "test": "safetensors_external_104",
+  "text": "मरीज़ राहुल शर्मा का जन्म 12 मार्च 1980 को हुआ और उन्हें मधुमेह है।",
+  "labels": ""
+ },
+ {
+  "id": "58-OpenMed-PII-Hindi-LiteClinicalU-Small-66M-v1-mlx",
+  "repo": "OpenMed/OpenMed-PII-Hindi-LiteClinicalU-Small-66M-v1-mlx",
+  "weights": "weights.safetensors",
+  "test": "safetensors_external_104",
+  "text": "मरीज़ राहुल शर्मा का जन्म 12 मार्च 1980 को हुआ और उन्हें मधुमेह है।",
+  "labels": ""
+ },
+ {
+  "id": "59-OpenMed-PII-Hindi-SuperClinical-Base-184M-v1-mlx",
+  "repo": "OpenMed/OpenMed-PII-Hindi-SuperClinical-Base-184M-v1-mlx",
+  "weights": "weights.safetensors",
+  "test": "safetensors_external_104",
+  "text": "मरीज़ राहुल शर्मा का जन्म 12 मार्च 1980 को हुआ और उन्हें मधुमेह है।",
+  "labels": ""
+ },
+ {
+  "id": "60-OpenMed-PII-Hindi-SuperClinical-Small-44M-v1-mlx",
+  "repo": "OpenMed/OpenMed-PII-Hindi-SuperClinical-Small-44M-v1-mlx",
+  "weights": "weights.safetensors",
+  "test": "safetensors_external_104",
+  "text": "मरीज़ राहुल शर्मा का जन्म 12 मार्च 1980 को हुआ और उन्हें मधुमेह है।",
+  "labels": ""
+ },
+ {
+  "id": "61-OpenMed-PII-Hindi-SuperMedical-Base-125M-v1-mlx",
+  "repo": "OpenMed/OpenMed-PII-Hindi-SuperMedical-Base-125M-v1-mlx",
+  "weights": "weights.safetensors",
+  "test": "safetensors_external_104",
+  "text": "मरीज़ राहुल शर्मा का जन्म 12 मार्च 1980 को हुआ और उन्हें मधुमेह है।",
+  "labels": ""
+ },
+ {
+  "id": "62-OpenMed-PII-Hindi-mLiteClinical-Base-135M-v1-mlx",
+  "repo": "OpenMed/OpenMed-PII-Hindi-mLiteClinical-Base-135M-v1-mlx",
+  "weights": "weights.safetensors",
+  "test": "safetensors_external_104",
+  "text": "मरीज़ राहुल शर्मा का जन्म 12 मार्च 1980 को हुआ और उन्हें मधुमेह है।",
+  "labels": ""
+ },
+ {
+  "id": "63-OpenMed-PII-Italian-BioClinicalBERT-Base-110M-v1",
+  "repo": "OpenMed/OpenMed-PII-Italian-BioClinicalBERT-Base-110M-v1-mlx",
+  "weights": "weights.safetensors",
+  "test": "safetensors_external_104",
+  "text": "Il paziente Mario Rossi, nato il 12 marzo 1980, vive a Milano e ha il diabete.",
+  "labels": ""
+ }
+]
