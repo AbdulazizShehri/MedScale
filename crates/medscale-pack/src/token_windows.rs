@@ -303,8 +303,12 @@ pub fn decode_entities(
 /// sub-token starts a new entity. The `Word*` strategies follow Hugging Face's
 /// word-level strategies: sub-tokens are grouped by the tokenizer's own word
 /// ids (its pre-tokenizer words), each word gets one label, and words are then
-/// grouped. They never create spans beyond the tokens' offsets, and a better
-/// score on any benchmark is not claimed for them.
+/// grouped; a punctuation-only token is its own word. They never create spans
+/// beyond the tokens' offsets. On MedScale's synthetic PII gold set (24 OpenMed
+/// PII models, `evidence/103-local-model-catalog/eval/`), `WordFirst` with the
+/// PII entity merger had a mean strict F1 of 0.893 against 0.487 for
+/// `OpenMedOnnx`; that is evaluation evidence on a small synthetic set, not a
+/// clinical claim.
 #[derive(Clone, Copy, Debug, Default, Eq, PartialEq, serde::Serialize, serde::Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum EntityAggregation {

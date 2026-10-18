@@ -228,3 +228,17 @@ Executed or expected runnable: **1,764 of 2,266** (was 1,702 on 2026-10-10). All
 **Batch 26** (run 38490332415, 48 rows, PathologyDetect and PharmaDetect NER, per-row): **48 of 48 executed**.
 
 **Measured over the bound (2026-10-18).** After batch 34, the selector found no fitting weight file for 372 expected-runnable rows. Measured Hub file sizes show 262 of them have a runnable weight file over the unchanged 1 GiB bound: 110 `model.safetensors` and 152 MLX `weights.safetensors`, 1.11–1.74 GB. They are now reported as `measured_over_bound` from an exact list (`MEASURED_OVER_BOUND`). The parameter count cannot decide this, because 103 executed safetensors rows above 268M parameters are stored at half precision and fit. The remaining 110 rows are OpenMed MLX exports without a tokenizer; #242 takes their tokenizer from the verified catalog source.
+
+## 8. Accuracy on a synthetic PII gold set (2026-10-18)
+
+MedScale now measures how well a model tags text, not only that it runs. `medscale_pack::entity_eval` scores entities against `evidence/103-local-model-catalog/eval/pii-synthetic-en-v1.json` (40 synthetic English sentences, 130 spans, CC0). Accuracy batch 04 (run 39116785152) ran 24 OpenMed PII models through the product path:
+
+| Decoding | Mean strict F1 | Mean overlap F1 |
+|---|---|---|
+| OpenMed-compatible (default) | 0.487 | 0.797 |
+| `word_first` | 0.829 | 0.937 |
+| `word_average` | 0.833 | 0.943 |
+| `pii_merge` | 0.544 | 0.850 |
+| `word_first_pii_merge` | **0.893** | **0.990** |
+
+Each model's ONNX (tract) and safetensors (candle) exports score identically. The evaluation found a word-grouping defect on SentencePiece (DeBERTa-v3) tokenizers, which is now fixed. Core keeps the OpenMed-compatible decoding as the default and accepts `PackEvaluationRequest.decoding`. Per-model results: `eval/pii-synthetic-en-v1-results.md`. This is synthetic evaluation evidence, not clinical validation.
