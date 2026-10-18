@@ -882,6 +882,36 @@ fn medagent_workbench_agent_context_evidence_and_resume() {
     }
     h.ok("workspace_open_synthetic", json!({}));
 
+    // Exports: a subject's loss-aware FHIR export appends its disclosure.
+    let before = h.ok("governance_overview", json!({}))["audit_rows"]
+        .as_array()
+        .map_or(0, Vec::len);
+    let exported = h.ok(
+        "exports_subject",
+        json!({ "subjectRef": "synthetic-subject-ada", "purpose": "synthetic interchange review" }),
+    );
+    assert!(
+        !exported["exports"].as_array().unwrap().is_empty(),
+        "{exported}"
+    );
+    assert_eq!(exported["disclosure"]["scope"], "fhir_r4_loss_aware_export");
+    let after = h.ok("governance_overview", json!({}))["audit_rows"]
+        .as_array()
+        .map_or(0, Vec::len);
+    assert_eq!(
+        after,
+        before + 1,
+        "the disclosure appears in the Audit Trail"
+    );
+    assert_eq!(
+        h.call(
+            "exports_subject",
+            json!({ "subjectRef": "nobody", "purpose": "x" })
+        )
+        .unwrap_err()["kind"],
+        "missing"
+    );
+
     // Reads the MedAgent page makes, recorded for visual QA replay.
     for (cmd, args) in [
         ("workspace_status", json!({})),

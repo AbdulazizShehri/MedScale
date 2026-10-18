@@ -40,6 +40,7 @@ fn presentation_builder<R: tauri::Runtime>(builder: tauri::Builder<R>) -> tauri:
             cmd_core::patient_detail,
             cmd_core::documents_list,
             cmd_core::documents_import_fhir,
+            cmd_core::exports_subject,
             cmd_core::evidence_corpus,
             cmd_core::evidence_search,
             cmd_core::insights_overview,

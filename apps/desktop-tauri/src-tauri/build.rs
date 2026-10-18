@@ -13,6 +13,7 @@ fn main() {
             "patient_detail",
             "documents_list",
             "documents_import_fhir",
+            "exports_subject",
             "evidence_corpus",
             "evidence_search",
             "insights_overview",
