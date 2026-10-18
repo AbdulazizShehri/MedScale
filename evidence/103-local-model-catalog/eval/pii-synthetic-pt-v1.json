@@ -1,0 +1,1098 @@
+{
+ "name": "medscale-pii-synthetic-pt",
+ "version": "1",
+ "provenance": "Synthetic sentences and identifiers authored for MedScale by scripts/evaluation/generate_pii_gold.py; no real person or record.",
+ "license": "CC0-1.0",
+ "labels": [
+  "AGE",
+  "DATE",
+  "EMAIL",
+  "ID",
+  "LOCATION",
+  "NAME",
+  "PHONE"
+ ],
+ "label_map": {
+  "first_name": "NAME",
+  "last_name": "NAME",
+  "date": "DATE",
+  "date_of_birth": "DATE",
+  "date_time": "DATE",
+  "city": "LOCATION",
+  "state": "LOCATION",
+  "country": "LOCATION",
+  "county": "LOCATION",
+  "street_address": "LOCATION",
+  "postcode": "LOCATION",
+  "phone_number": "PHONE",
+  "fax_number": "PHONE",
+  "email": "EMAIL",
+  "medical_record_number": "ID",
+  "health_plan_beneficiary_number": "ID",
+  "ssn": "ID",
+  "account_number": "ID",
+  "unique_id": "ID",
+  "customer_id": "ID",
+  "age": "AGE",
+  "firstname": "NAME",
+  "lastname": "NAME",
+  "middlename": "NAME",
+  "dateofbirth": "DATE",
+  "street": "LOCATION",
+  "zipcode": "LOCATION",
+  "buildingnumber": "LOCATION",
+  "secondaryaddress": "LOCATION",
+  "phone": "PHONE",
+  "maskednumber": "ID"
+ },
+ "documents": [
+  {
+   "id": "pii-pt-00",
+   "language": "pt",
+   "text": "A paciente Beatriz Silva, nascida em 12 de março de 1980, mora em Porto.",
+   "spans": [
+    {
+     "start": 11,
+     "end": 18,
+     "label": "NAME",
+     "text": "Beatriz"
+    },
+    {
+     "start": 19,
+     "end": 24,
+     "label": "NAME",
+     "text": "Silva"
+    },
+    {
+     "start": 37,
+     "end": 56,
+     "label": "DATE",
+     "text": "12 de março de 1980"
+    },
+    {
+     "start": 66,
+     "end": 71,
+     "label": "LOCATION",
+     "text": "Porto"
+    }
+   ]
+  },
+  {
+   "id": "pii-pt-01",
+   "language": "pt",
+   "text": "João Santos foi consultado em 3 de julho de 1975 para controlo da diabetes tipo 2.",
+   "spans": [
+    {
+     "start": 0,
+     "end": 4,
+     "label": "NAME",
+     "text": "João"
+    },
+    {
+     "start": 5,
+     "end": 11,
+     "label": "NAME",
+     "text": "Santos"
+    },
+    {
+     "start": 30,
+     "end": 48,
+     "label": "DATE",
+     "text": "3 de julho de 1975"
+    }
+   ]
+  },
+  {
+   "id": "pii-pt-02",
+   "language": "pt",
+   "text": "Contacte Mariana pelo +31 20 555 0193 ou pelo e-mail praman@example.com.",
+   "spans": [
+    {
+     "start": 9,
+     "end": 16,
+     "label": "NAME",
+     "text": "Mariana"
+    },
+    {
+     "start": 22,
+     "end": 37,
+     "label": "PHONE",
+     "text": "+31 20 555 0193"
+    },
+    {
+     "start": 53,
+     "end": 71,
+     "label": "EMAIL",
+     "text": "praman@example.com"
+    }
+   ]
+  },
+  {
+   "id": "pii-pt-03",
+   "language": "pt",
+   "text": "O processo 3358846 pertence a Tiago Pereira.",
+   "spans": [
+    {
+     "start": 11,
+     "end": 18,
+     "label": "ID",
+     "text": "3358846"
+    },
+    {
+     "start": 30,
+     "end": 35,
+     "label": "NAME",
+     "text": "Tiago"
+    },
+    {
+     "start": 36,
+     "end": 43,
+     "label": "NAME",
+     "text": "Pereira"
+    }
+   ]
+  },
+  {
+   "id": "pii-pt-04",
+   "language": "pt",
+   "text": "O paciente de 72 anos de Lisboa referiu dor torácica em 30 de maio de 2001.",
+   "spans": [
+    {
+     "start": 14,
+     "end": 16,
+     "label": "AGE",
+     "text": "72"
+    },
+    {
+     "start": 25,
+     "end": 31,
+     "label": "LOCATION",
+     "text": "Lisboa"
+    },
+    {
+     "start": 56,
+     "end": 74,
+     "label": "DATE",
+     "text": "30 de maio de 2001"
+    }
+   ]
+  },
+  {
+   "id": "pii-pt-05",
+   "language": "pt",
+   "text": "A paciente Rafael Martins, nascida em 14 de fevereiro de 1959, mora em Porto.",
+   "spans": [
+    {
+     "start": 11,
+     "end": 17,
+     "label": "NAME",
+     "text": "Rafael"
+    },
+    {
+     "start": 18,
+     "end": 25,
+     "label": "NAME",
+     "text": "Martins"
+    },
+    {
+     "start": 38,
+     "end": 61,
+     "label": "DATE",
+     "text": "14 de fevereiro de 1959"
+    },
+    {
+     "start": 71,
+     "end": 76,
+     "label": "LOCATION",
+     "text": "Porto"
+    }
+   ]
+  },
+  {
+   "id": "pii-pt-06",
+   "language": "pt",
+   "text": "Carolina Sousa foi consultado em 2 de setembro de 1987 para controlo da diabetes tipo 2.",
+   "spans": [
+    {
+     "start": 0,
+     "end": 8,
+     "label": "NAME",
+     "text": "Carolina"
+    },
+    {
+     "start": 9,
+     "end": 14,
+     "label": "NAME",
+     "text": "Sousa"
+    },
+    {
+     "start": 33,
+     "end": 54,
+     "label": "DATE",
+     "text": "2 de setembro de 1987"
+    }
+   ]
+  },
+  {
+   "id": "pii-pt-07",
+   "language": "pt",
+   "text": "Contacte Miguel pelo +31 20 555 0193 ou pelo e-mail praman@example.com.",
+   "spans": [
+    {
+     "start": 9,
+     "end": 15,
+     "label": "NAME",
+     "text": "Miguel"
+    },
+    {
+     "start": 21,
+     "end": 36,
+     "label": "PHONE",
+     "text": "+31 20 555 0193"
+    },
+    {
+     "start": 52,
+     "end": 70,
+     "label": "EMAIL",
+     "text": "praman@example.com"
+    }
+   ]
+  },
+  {
+   "id": "pii-pt-08",
+   "language": "pt",
+   "text": "O processo 3358846 pertence a Beatriz Silva.",
+   "spans": [
+    {
+     "start": 11,
+     "end": 18,
+     "label": "ID",
+     "text": "3358846"
+    },
+    {
+     "start": 30,
+     "end": 37,
+     "label": "NAME",
+     "text": "Beatriz"
+    },
+    {
+     "start": 38,
+     "end": 43,
+     "label": "NAME",
+     "text": "Silva"
+    }
+   ]
+  },
+  {
+   "id": "pii-pt-09",
+   "language": "pt",
+   "text": "O paciente de 72 anos de Lisboa referiu dor torácica em 19 de junho de 1983.",
+   "spans": [
+    {
+     "start": 14,
+     "end": 16,
+     "label": "AGE",
+     "text": "72"
+    },
+    {
+     "start": 25,
+     "end": 31,
+     "label": "LOCATION",
+     "text": "Lisboa"
+    },
+    {
+     "start": 56,
+     "end": 75,
+     "label": "DATE",
+     "text": "19 de junho de 1983"
+    }
+   ]
+  },
+  {
+   "id": "pii-pt-10",
+   "language": "pt",
+   "text": "A paciente Mariana Costa, nascida em 12 de março de 1980, mora em Porto.",
+   "spans": [
+    {
+     "start": 11,
+     "end": 18,
+     "label": "NAME",
+     "text": "Mariana"
+    },
+    {
+     "start": 19,
+     "end": 24,
+     "label": "NAME",
+     "text": "Costa"
+    },
+    {
+     "start": 37,
+     "end": 56,
+     "label": "DATE",
+     "text": "12 de março de 1980"
+    },
+    {
+     "start": 66,
+     "end": 71,
+     "label": "LOCATION",
+     "text": "Porto"
+    }
+   ]
+  },
+  {
+   "id": "pii-pt-11",
+   "language": "pt",
+   "text": "Tiago Pereira foi consultado em 3 de julho de 1975 para controlo da diabetes tipo 2.",
+   "spans": [
+    {
+     "start": 0,
+     "end": 5,
+     "label": "NAME",
+     "text": "Tiago"
+    },
+    {
+     "start": 6,
+     "end": 13,
+     "label": "NAME",
+     "text": "Pereira"
+    },
+    {
+     "start": 32,
+     "end": 50,
+     "label": "DATE",
+     "text": "3 de julho de 1975"
+    }
+   ]
+  },
+  {
+   "id": "pii-pt-12",
+   "language": "pt",
+   "text": "Contacte Inês pelo +31 20 555 0193 ou pelo e-mail praman@example.com.",
+   "spans": [
+    {
+     "start": 9,
+     "end": 13,
+     "label": "NAME",
+     "text": "Inês"
+    },
+    {
+     "start": 19,
+     "end": 34,
+     "label": "PHONE",
+     "text": "+31 20 555 0193"
+    },
+    {
+     "start": 50,
+     "end": 68,
+     "label": "EMAIL",
+     "text": "praman@example.com"
+    }
+   ]
+  },
+  {
+   "id": "pii-pt-13",
+   "language": "pt",
+   "text": "O processo 3358846 pertence a Rafael Martins.",
+   "spans": [
+    {
+     "start": 11,
+     "end": 18,
+     "label": "ID",
+     "text": "3358846"
+    },
+    {
+     "start": 30,
+     "end": 36,
+     "label": "NAME",
+     "text": "Rafael"
+    },
+    {
+     "start": 37,
+     "end": 44,
+     "label": "NAME",
+     "text": "Martins"
+    }
+   ]
+  },
+  {
+   "id": "pii-pt-14",
+   "language": "pt",
+   "text": "O paciente de 72 anos de Lisboa referiu dor torácica em 30 de maio de 2001.",
+   "spans": [
+    {
+     "start": 14,
+     "end": 16,
+     "label": "AGE",
+     "text": "72"
+    },
+    {
+     "start": 25,
+     "end": 31,
+     "label": "LOCATION",
+     "text": "Lisboa"
+    },
+    {
+     "start": 56,
+     "end": 74,
+     "label": "DATE",
+     "text": "30 de maio de 2001"
+    }
+   ]
+  },
+  {
+   "id": "pii-pt-15",
+   "language": "pt",
+   "text": "A paciente Miguel Rodrigues, nascida em 14 de fevereiro de 1959, mora em Porto.",
+   "spans": [
+    {
+     "start": 11,
+     "end": 17,
+     "label": "NAME",
+     "text": "Miguel"
+    },
+    {
+     "start": 18,
+     "end": 27,
+     "label": "NAME",
+     "text": "Rodrigues"
+    },
+    {
+     "start": 40,
+     "end": 63,
+     "label": "DATE",
+     "text": "14 de fevereiro de 1959"
+    },
+    {
+     "start": 73,
+     "end": 78,
+     "label": "LOCATION",
+     "text": "Porto"
+    }
+   ]
+  },
+  {
+   "id": "pii-pt-16",
+   "language": "pt",
+   "text": "Beatriz Silva foi consultado em 2 de setembro de 1987 para controlo da diabetes tipo 2.",
+   "spans": [
+    {
+     "start": 0,
+     "end": 7,
+     "label": "NAME",
+     "text": "Beatriz"
+    },
+    {
+     "start": 8,
+     "end": 13,
+     "label": "NAME",
+     "text": "Silva"
+    },
+    {
+     "start": 32,
+     "end": 53,
+     "label": "DATE",
+     "text": "2 de setembro de 1987"
+    }
+   ]
+  },
+  {
+   "id": "pii-pt-17",
+   "language": "pt",
+   "text": "Contacte João pelo +31 20 555 0193 ou pelo e-mail praman@example.com.",
+   "spans": [
+    {
+     "start": 9,
+     "end": 13,
+     "label": "NAME",
+     "text": "João"
+    },
+    {
+     "start": 19,
+     "end": 34,
+     "label": "PHONE",
+     "text": "+31 20 555 0193"
+    },
+    {
+     "start": 50,
+     "end": 68,
+     "label": "EMAIL",
+     "text": "praman@example.com"
+    }
+   ]
+  },
+  {
+   "id": "pii-pt-18",
+   "language": "pt",
+   "text": "O processo 3358846 pertence a Mariana Costa.",
+   "spans": [
+    {
+     "start": 11,
+     "end": 18,
+     "label": "ID",
+     "text": "3358846"
+    },
+    {
+     "start": 30,
+     "end": 37,
+     "label": "NAME",
+     "text": "Mariana"
+    },
+    {
+     "start": 38,
+     "end": 43,
+     "label": "NAME",
+     "text": "Costa"
+    }
+   ]
+  },
+  {
+   "id": "pii-pt-19",
+   "language": "pt",
+   "text": "O paciente de 72 anos de Lisboa referiu dor torácica em 19 de junho de 1983.",
+   "spans": [
+    {
+     "start": 14,
+     "end": 16,
+     "label": "AGE",
+     "text": "72"
+    },
+    {
+     "start": 25,
+     "end": 31,
+     "label": "LOCATION",
+     "text": "Lisboa"
+    },
+    {
+     "start": 56,
+     "end": 75,
+     "label": "DATE",
+     "text": "19 de junho de 1983"
+    }
+   ]
+  },
+  {
+   "id": "pii-pt-20",
+   "language": "pt",
+   "text": "A paciente Inês Oliveira, nascida em 12 de março de 1980, mora em Porto.",
+   "spans": [
+    {
+     "start": 11,
+     "end": 15,
+     "label": "NAME",
+     "text": "Inês"
+    },
+    {
+     "start": 16,
+     "end": 24,
+     "label": "NAME",
+     "text": "Oliveira"
+    },
+    {
+     "start": 37,
+     "end": 56,
+     "label": "DATE",
+     "text": "12 de março de 1980"
+    },
+    {
+     "start": 66,
+     "end": 71,
+     "label": "LOCATION",
+     "text": "Porto"
+    }
+   ]
+  },
+  {
+   "id": "pii-pt-21",
+   "language": "pt",
+   "text": "Rafael Martins foi consultado em 3 de julho de 1975 para controlo da diabetes tipo 2.",
+   "spans": [
+    {
+     "start": 0,
+     "end": 6,
+     "label": "NAME",
+     "text": "Rafael"
+    },
+    {
+     "start": 7,
+     "end": 14,
+     "label": "NAME",
+     "text": "Martins"
+    },
+    {
+     "start": 33,
+     "end": 51,
+     "label": "DATE",
+     "text": "3 de julho de 1975"
+    }
+   ]
+  },
+  {
+   "id": "pii-pt-22",
+   "language": "pt",
+   "text": "Contacte Carolina pelo +31 20 555 0193 ou pelo e-mail praman@example.com.",
+   "spans": [
+    {
+     "start": 9,
+     "end": 17,
+     "label": "NAME",
+     "text": "Carolina"
+    },
+    {
+     "start": 23,
+     "end": 38,
+     "label": "PHONE",
+     "text": "+31 20 555 0193"
+    },
+    {
+     "start": 54,
+     "end": 72,
+     "label": "EMAIL",
+     "text": "praman@example.com"
+    }
+   ]
+  },
+  {
+   "id": "pii-pt-23",
+   "language": "pt",
+   "text": "O processo 3358846 pertence a Miguel Rodrigues.",
+   "spans": [
+    {
+     "start": 11,
+     "end": 18,
+     "label": "ID",
+     "text": "3358846"
+    },
+    {
+     "start": 30,
+     "end": 36,
+     "label": "NAME",
+     "text": "Miguel"
+    },
+    {
+     "start": 37,
+     "end": 46,
+     "label": "NAME",
+     "text": "Rodrigues"
+    }
+   ]
+  },
+  {
+   "id": "pii-pt-24",
+   "language": "pt",
+   "text": "O paciente de 72 anos de Lisboa referiu dor torácica em 30 de maio de 2001.",
+   "spans": [
+    {
+     "start": 14,
+     "end": 16,
+     "label": "AGE",
+     "text": "72"
+    },
+    {
+     "start": 25,
+     "end": 31,
+     "label": "LOCATION",
+     "text": "Lisboa"
+    },
+    {
+     "start": 56,
+     "end": 74,
+     "label": "DATE",
+     "text": "30 de maio de 2001"
+    }
+   ]
+  },
+  {
+   "id": "pii-pt-25",
+   "language": "pt",
+   "text": "A paciente João Santos, nascida em 14 de fevereiro de 1959, mora em Porto.",
+   "spans": [
+    {
+     "start": 11,
+     "end": 15,
+     "label": "NAME",
+     "text": "João"
+    },
+    {
+     "start": 16,
+     "end": 22,
+     "label": "NAME",
+     "text": "Santos"
+    },
+    {
+     "start": 35,
+     "end": 58,
+     "label": "DATE",
+     "text": "14 de fevereiro de 1959"
+    },
+    {
+     "start": 68,
+     "end": 73,
+     "label": "LOCATION",
+     "text": "Porto"
+    }
+   ]
+  },
+  {
+   "id": "pii-pt-26",
+   "language": "pt",
+   "text": "Mariana Costa foi consultado em 2 de setembro de 1987 para controlo da diabetes tipo 2.",
+   "spans": [
+    {
+     "start": 0,
+     "end": 7,
+     "label": "NAME",
+     "text": "Mariana"
+    },
+    {
+     "start": 8,
+     "end": 13,
+     "label": "NAME",
+     "text": "Costa"
+    },
+    {
+     "start": 32,
+     "end": 53,
+     "label": "DATE",
+     "text": "2 de setembro de 1987"
+    }
+   ]
+  },
+  {
+   "id": "pii-pt-27",
+   "language": "pt",
+   "text": "Contacte Tiago pelo +31 20 555 0193 ou pelo e-mail praman@example.com.",
+   "spans": [
+    {
+     "start": 9,
+     "end": 14,
+     "label": "NAME",
+     "text": "Tiago"
+    },
+    {
+     "start": 20,
+     "end": 35,
+     "label": "PHONE",
+     "text": "+31 20 555 0193"
+    },
+    {
+     "start": 51,
+     "end": 69,
+     "label": "EMAIL",
+     "text": "praman@example.com"
+    }
+   ]
+  },
+  {
+   "id": "pii-pt-28",
+   "language": "pt",
+   "text": "O processo 3358846 pertence a Inês Oliveira.",
+   "spans": [
+    {
+     "start": 11,
+     "end": 18,
+     "label": "ID",
+     "text": "3358846"
+    },
+    {
+     "start": 30,
+     "end": 34,
+     "label": "NAME",
+     "text": "Inês"
+    },
+    {
+     "start": 35,
+     "end": 43,
+     "label": "NAME",
+     "text": "Oliveira"
+    }
+   ]
+  },
+  {
+   "id": "pii-pt-29",
+   "language": "pt",
+   "text": "O paciente de 72 anos de Lisboa referiu dor torácica em 19 de junho de 1983.",
+   "spans": [
+    {
+     "start": 14,
+     "end": 16,
+     "label": "AGE",
+     "text": "72"
+    },
+    {
+     "start": 25,
+     "end": 31,
+     "label": "LOCATION",
+     "text": "Lisboa"
+    },
+    {
+     "start": 56,
+     "end": 75,
+     "label": "DATE",
+     "text": "19 de junho de 1983"
+    }
+   ]
+  },
+  {
+   "id": "pii-pt-30",
+   "language": "pt",
+   "text": "A paciente Carolina Sousa, nascida em 12 de março de 1980, mora em Porto.",
+   "spans": [
+    {
+     "start": 11,
+     "end": 19,
+     "label": "NAME",
+     "text": "Carolina"
+    },
+    {
+     "start": 20,
+     "end": 25,
+     "label": "NAME",
+     "text": "Sousa"
+    },
+    {
+     "start": 38,
+     "end": 57,
+     "label": "DATE",
+     "text": "12 de março de 1980"
+    },
+    {
+     "start": 67,
+     "end": 72,
+     "label": "LOCATION",
+     "text": "Porto"
+    }
+   ]
+  },
+  {
+   "id": "pii-pt-31",
+   "language": "pt",
+   "text": "Miguel Rodrigues foi consultado em 3 de julho de 1975 para controlo da diabetes tipo 2.",
+   "spans": [
+    {
+     "start": 0,
+     "end": 6,
+     "label": "NAME",
+     "text": "Miguel"
+    },
+    {
+     "start": 7,
+     "end": 16,
+     "label": "NAME",
+     "text": "Rodrigues"
+    },
+    {
+     "start": 35,
+     "end": 53,
+     "label": "DATE",
+     "text": "3 de julho de 1975"
+    }
+   ]
+  },
+  {
+   "id": "pii-pt-32",
+   "language": "pt",
+   "text": "Contacte Beatriz pelo +31 20 555 0193 ou pelo e-mail praman@example.com.",
+   "spans": [
+    {
+     "start": 9,
+     "end": 16,
+     "label": "NAME",
+     "text": "Beatriz"
+    },
+    {
+     "start": 22,
+     "end": 37,
+     "label": "PHONE",
+     "text": "+31 20 555 0193"
+    },
+    {
+     "start": 53,
+     "end": 71,
+     "label": "EMAIL",
+     "text": "praman@example.com"
+    }
+   ]
+  },
+  {
+   "id": "pii-pt-33",
+   "language": "pt",
+   "text": "O processo 3358846 pertence a João Santos.",
+   "spans": [
+    {
+     "start": 11,
+     "end": 18,
+     "label": "ID",
+     "text": "3358846"
+    },
+    {
+     "start": 30,
+     "end": 34,
+     "label": "NAME",
+     "text": "João"
+    },
+    {
+     "start": 35,
+     "end": 41,
+     "label": "NAME",
+     "text": "Santos"
+    }
+   ]
+  },
+  {
+   "id": "pii-pt-34",
+   "language": "pt",
+   "text": "O paciente de 72 anos de Lisboa referiu dor torácica em 30 de maio de 2001.",
+   "spans": [
+    {
+     "start": 14,
+     "end": 16,
+     "label": "AGE",
+     "text": "72"
+    },
+    {
+     "start": 25,
+     "end": 31,
+     "label": "LOCATION",
+     "text": "Lisboa"
+    },
+    {
+     "start": 56,
+     "end": 74,
+     "label": "DATE",
+     "text": "30 de maio de 2001"
+    }
+   ]
+  },
+  {
+   "id": "pii-pt-35",
+   "language": "pt",
+   "text": "A paciente Tiago Pereira, nascida em 14 de fevereiro de 1959, mora em Porto.",
+   "spans": [
+    {
+     "start": 11,
+     "end": 16,
+     "label": "NAME",
+     "text": "Tiago"
+    },
+    {
+     "start": 17,
+     "end": 24,
+     "label": "NAME",
+     "text": "Pereira"
+    },
+    {
+     "start": 37,
+     "end": 60,
+     "label": "DATE",
+     "text": "14 de fevereiro de 1959"
+    },
+    {
+     "start": 70,
+     "end": 75,
+     "label": "LOCATION",
+     "text": "Porto"
+    }
+   ]
+  },
+  {
+   "id": "pii-pt-36",
+   "language": "pt",
+   "text": "Inês Oliveira foi consultado em 2 de setembro de 1987 para controlo da diabetes tipo 2.",
+   "spans": [
+    {
+     "start": 0,
+     "end": 4,
+     "label": "NAME",
+     "text": "Inês"
+    },
+    {
+     "start": 5,
+     "end": 13,
+     "label": "NAME",
+     "text": "Oliveira"
+    },
+    {
+     "start": 32,
+     "end": 53,
+     "label": "DATE",
+     "text": "2 de setembro de 1987"
+    }
+   ]
+  },
+  {
+   "id": "pii-pt-37",
+   "language": "pt",
+   "text": "Contacte Rafael pelo +31 20 555 0193 ou pelo e-mail praman@example.com.",
+   "spans": [
+    {
+     "start": 9,
+     "end": 15,
+     "label": "NAME",
+     "text": "Rafael"
+    },
+    {
+     "start": 21,
+     "end": 36,
+     "label": "PHONE",
+     "text": "+31 20 555 0193"
+    },
+    {
+     "start": 52,
+     "end": 70,
+     "label": "EMAIL",
+     "text": "praman@example.com"
+    }
+   ]
+  },
+  {
+   "id": "pii-pt-38",
+   "language": "pt",
+   "text": "O processo 3358846 pertence a Carolina Sousa.",
+   "spans": [
+    {
+     "start": 11,
+     "end": 18,
+     "label": "ID",
+     "text": "3358846"
+    },
+    {
+     "start": 30,
+     "end": 38,
+     "label": "NAME",
+     "text": "Carolina"
+    },
+    {
+     "start": 39,
+     "end": 44,
+     "label": "NAME",
+     "text": "Sousa"
+    }
+   ]
+  },
+  {
+   "id": "pii-pt-39",
+   "language": "pt",
+   "text": "O paciente de 72 anos de Lisboa referiu dor torácica em 19 de junho de 1983.",
+   "spans": [
+    {
+     "start": 14,
+     "end": 16,
+     "label": "AGE",
+     "text": "72"
+    },
+    {
+     "start": 25,
+     "end": 31,
+     "label": "LOCATION",
+     "text": "Lisboa"
+    },
+    {
+     "start": 56,
+     "end": 75,
+     "label": "DATE",
+     "text": "19 de junho de 1983"
+    }
+   ]
+  }
+ ]
+}

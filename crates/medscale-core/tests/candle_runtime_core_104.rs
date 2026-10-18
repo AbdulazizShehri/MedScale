@@ -59,6 +59,7 @@ fn candle_pack_evaluates_through_core_with_a_resident_cache() {
                         max_tokens: 16,
                         synthetic_only: true,
                         zero_shot_labels: None,
+                        decoding: None,
                     },
                 },
             ))
@@ -85,6 +86,30 @@ fn candle_pack_evaluates_through_core_with_a_resident_cache() {
         "prepared candle model stays resident"
     );
 
+    // An explicit decoding is applied and recorded in the payload.
+    let decoded = facade
+        .dispatch(request(
+            Capability::PacksEvaluateLocal,
+            RequestBody::PacksEvaluateLocal {
+                request: PackEvaluationRequest {
+                    pack_id: OpaqueId::new(&pack_id),
+                    local_path: out.display().to_string(),
+                    input: "alice visited clinic today".to_owned(),
+                    max_tokens: 16,
+                    synthetic_only: true,
+                    zero_shot_labels: None,
+                    decoding: Some(medscale_contracts::packs::EntityDecoding::WordFirstPiiMerge),
+                },
+            },
+        ))
+        .result
+        .expect("candle Pack evaluates with a decoding");
+    let ResponseBody::PackEvaluation { result: decoded } = decoded else {
+        panic!("evaluation");
+    };
+    assert_eq!(decoded.proposal_payload["aggregation"], "word_first");
+    assert!(decoded.proposal_payload["pii_merged_entities"].is_array());
+
     let real_phi = facade.dispatch(request(
         Capability::PacksEvaluateLocal,
         RequestBody::PacksEvaluateLocal {
@@ -95,6 +120,7 @@ fn candle_pack_evaluates_through_core_with_a_resident_cache() {
                 max_tokens: 16,
                 synthetic_only: false,
                 zero_shot_labels: None,
+                decoding: None,
             },
         },
     ));

@@ -45,6 +45,7 @@ fn evaluate(
                     max_tokens: 64,
                     synthetic_only: true,
                     zero_shot_labels: labels,
+                    decoding: None,
                 },
             },
         ))

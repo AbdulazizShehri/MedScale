@@ -1,0 +1,1098 @@
+{
+ "name": "medscale-pii-synthetic-it",
+ "version": "1",
+ "provenance": "Synthetic sentences and identifiers authored for MedScale by scripts/evaluation/generate_pii_gold.py; no real person or record.",
+ "license": "CC0-1.0",
+ "labels": [
+  "AGE",
+  "DATE",
+  "EMAIL",
+  "ID",
+  "LOCATION",
+  "NAME",
+  "PHONE"
+ ],
+ "label_map": {
+  "first_name": "NAME",
+  "last_name": "NAME",
+  "date": "DATE",
+  "date_of_birth": "DATE",
+  "date_time": "DATE",
+  "city": "LOCATION",
+  "state": "LOCATION",
+  "country": "LOCATION",
+  "county": "LOCATION",
+  "street_address": "LOCATION",
+  "postcode": "LOCATION",
+  "phone_number": "PHONE",
+  "fax_number": "PHONE",
+  "email": "EMAIL",
+  "medical_record_number": "ID",
+  "health_plan_beneficiary_number": "ID",
+  "ssn": "ID",
+  "account_number": "ID",
+  "unique_id": "ID",
+  "customer_id": "ID",
+  "age": "AGE",
+  "firstname": "NAME",
+  "lastname": "NAME",
+  "middlename": "NAME",
+  "dateofbirth": "DATE",
+  "street": "LOCATION",
+  "zipcode": "LOCATION",
+  "buildingnumber": "LOCATION",
+  "secondaryaddress": "LOCATION",
+  "phone": "PHONE",
+  "maskednumber": "ID"
+ },
+ "documents": [
+  {
+   "id": "pii-it-00",
+   "language": "it",
+   "text": "Il paziente Giulia Rossi, nato il 12 marzo 1980, vive a Torino.",
+   "spans": [
+    {
+     "start": 12,
+     "end": 18,
+     "label": "NAME",
+     "text": "Giulia"
+    },
+    {
+     "start": 19,
+     "end": 24,
+     "label": "NAME",
+     "text": "Rossi"
+    },
+    {
+     "start": 34,
+     "end": 47,
+     "label": "DATE",
+     "text": "12 marzo 1980"
+    },
+    {
+     "start": 56,
+     "end": 62,
+     "label": "LOCATION",
+     "text": "Torino"
+    }
+   ]
+  },
+  {
+   "id": "pii-it-01",
+   "language": "it",
+   "text": "Lorenzo Bianchi è stato visitato il 3 luglio 1975 per il controllo del diabete di tipo 2.",
+   "spans": [
+    {
+     "start": 0,
+     "end": 7,
+     "label": "NAME",
+     "text": "Lorenzo"
+    },
+    {
+     "start": 8,
+     "end": 15,
+     "label": "NAME",
+     "text": "Bianchi"
+    },
+    {
+     "start": 36,
+     "end": 49,
+     "label": "DATE",
+     "text": "3 luglio 1975"
+    }
+   ]
+  },
+  {
+   "id": "pii-it-02",
+   "language": "it",
+   "text": "Contattare Chiara al +31 20 555 0193 o all'indirizzo praman@example.com.",
+   "spans": [
+    {
+     "start": 11,
+     "end": 17,
+     "label": "NAME",
+     "text": "Chiara"
+    },
+    {
+     "start": 21,
+     "end": 36,
+     "label": "PHONE",
+     "text": "+31 20 555 0193"
+    },
+    {
+     "start": 53,
+     "end": 71,
+     "label": "EMAIL",
+     "text": "praman@example.com"
+    }
+   ]
+  },
+  {
+   "id": "pii-it-03",
+   "language": "it",
+   "text": "La cartella 3358846 appartiene a Matteo Ricci.",
+   "spans": [
+    {
+     "start": 12,
+     "end": 19,
+     "label": "ID",
+     "text": "3358846"
+    },
+    {
+     "start": 33,
+     "end": 39,
+     "label": "NAME",
+     "text": "Matteo"
+    },
+    {
+     "start": 40,
+     "end": 45,
+     "label": "NAME",
+     "text": "Ricci"
+    }
+   ]
+  },
+  {
+   "id": "pii-it-04",
+   "language": "it",
+   "text": "Il paziente di 72 anni di Parma ha riferito dolore toracico il 30 maggio 2001.",
+   "spans": [
+    {
+     "start": 15,
+     "end": 17,
+     "label": "AGE",
+     "text": "72"
+    },
+    {
+     "start": 26,
+     "end": 31,
+     "label": "LOCATION",
+     "text": "Parma"
+    },
+    {
+     "start": 63,
+     "end": 77,
+     "label": "DATE",
+     "text": "30 maggio 2001"
+    }
+   ]
+  },
+  {
+   "id": "pii-it-05",
+   "language": "it",
+   "text": "Il paziente Andrea Greco, nato il 14 febbraio 1959, vive a Torino.",
+   "spans": [
+    {
+     "start": 12,
+     "end": 18,
+     "label": "NAME",
+     "text": "Andrea"
+    },
+    {
+     "start": 19,
+     "end": 24,
+     "label": "NAME",
+     "text": "Greco"
+    },
+    {
+     "start": 34,
+     "end": 50,
+     "label": "DATE",
+     "text": "14 febbraio 1959"
+    },
+    {
+     "start": 59,
+     "end": 65,
+     "label": "LOCATION",
+     "text": "Torino"
+    }
+   ]
+  },
+  {
+   "id": "pii-it-06",
+   "language": "it",
+   "text": "Elena Marino è stato visitato il 2 settembre 1987 per il controllo del diabete di tipo 2.",
+   "spans": [
+    {
+     "start": 0,
+     "end": 5,
+     "label": "NAME",
+     "text": "Elena"
+    },
+    {
+     "start": 6,
+     "end": 12,
+     "label": "NAME",
+     "text": "Marino"
+    },
+    {
+     "start": 33,
+     "end": 49,
+     "label": "DATE",
+     "text": "2 settembre 1987"
+    }
+   ]
+  },
+  {
+   "id": "pii-it-07",
+   "language": "it",
+   "text": "Contattare Luca al +31 20 555 0193 o all'indirizzo praman@example.com.",
+   "spans": [
+    {
+     "start": 11,
+     "end": 15,
+     "label": "NAME",
+     "text": "Luca"
+    },
+    {
+     "start": 19,
+     "end": 34,
+     "label": "PHONE",
+     "text": "+31 20 555 0193"
+    },
+    {
+     "start": 51,
+     "end": 69,
+     "label": "EMAIL",
+     "text": "praman@example.com"
+    }
+   ]
+  },
+  {
+   "id": "pii-it-08",
+   "language": "it",
+   "text": "La cartella 3358846 appartiene a Giulia Rossi.",
+   "spans": [
+    {
+     "start": 12,
+     "end": 19,
+     "label": "ID",
+     "text": "3358846"
+    },
+    {
+     "start": 33,
+     "end": 39,
+     "label": "NAME",
+     "text": "Giulia"
+    },
+    {
+     "start": 40,
+     "end": 45,
+     "label": "NAME",
+     "text": "Rossi"
+    }
+   ]
+  },
+  {
+   "id": "pii-it-09",
+   "language": "it",
+   "text": "Il paziente di 72 anni di Parma ha riferito dolore toracico il 19 giugno 1983.",
+   "spans": [
+    {
+     "start": 15,
+     "end": 17,
+     "label": "AGE",
+     "text": "72"
+    },
+    {
+     "start": 26,
+     "end": 31,
+     "label": "LOCATION",
+     "text": "Parma"
+    },
+    {
+     "start": 63,
+     "end": 77,
+     "label": "DATE",
+     "text": "19 giugno 1983"
+    }
+   ]
+  },
+  {
+   "id": "pii-it-10",
+   "language": "it",
+   "text": "Il paziente Chiara Romano, nato il 12 marzo 1980, vive a Torino.",
+   "spans": [
+    {
+     "start": 12,
+     "end": 18,
+     "label": "NAME",
+     "text": "Chiara"
+    },
+    {
+     "start": 19,
+     "end": 25,
+     "label": "NAME",
+     "text": "Romano"
+    },
+    {
+     "start": 35,
+     "end": 48,
+     "label": "DATE",
+     "text": "12 marzo 1980"
+    },
+    {
+     "start": 57,
+     "end": 63,
+     "label": "LOCATION",
+     "text": "Torino"
+    }
+   ]
+  },
+  {
+   "id": "pii-it-11",
+   "language": "it",
+   "text": "Matteo Ricci è stato visitato il 3 luglio 1975 per il controllo del diabete di tipo 2.",
+   "spans": [
+    {
+     "start": 0,
+     "end": 6,
+     "label": "NAME",
+     "text": "Matteo"
+    },
+    {
+     "start": 7,
+     "end": 12,
+     "label": "NAME",
+     "text": "Ricci"
+    },
+    {
+     "start": 33,
+     "end": 46,
+     "label": "DATE",
+     "text": "3 luglio 1975"
+    }
+   ]
+  },
+  {
+   "id": "pii-it-12",
+   "language": "it",
+   "text": "Contattare Sara al +31 20 555 0193 o all'indirizzo praman@example.com.",
+   "spans": [
+    {
+     "start": 11,
+     "end": 15,
+     "label": "NAME",
+     "text": "Sara"
+    },
+    {
+     "start": 19,
+     "end": 34,
+     "label": "PHONE",
+     "text": "+31 20 555 0193"
+    },
+    {
+     "start": 51,
+     "end": 69,
+     "label": "EMAIL",
+     "text": "praman@example.com"
+    }
+   ]
+  },
+  {
+   "id": "pii-it-13",
+   "language": "it",
+   "text": "La cartella 3358846 appartiene a Andrea Greco.",
+   "spans": [
+    {
+     "start": 12,
+     "end": 19,
+     "label": "ID",
+     "text": "3358846"
+    },
+    {
+     "start": 33,
+     "end": 39,
+     "label": "NAME",
+     "text": "Andrea"
+    },
+    {
+     "start": 40,
+     "end": 45,
+     "label": "NAME",
+     "text": "Greco"
+    }
+   ]
+  },
+  {
+   "id": "pii-it-14",
+   "language": "it",
+   "text": "Il paziente di 72 anni di Parma ha riferito dolore toracico il 30 maggio 2001.",
+   "spans": [
+    {
+     "start": 15,
+     "end": 17,
+     "label": "AGE",
+     "text": "72"
+    },
+    {
+     "start": 26,
+     "end": 31,
+     "label": "LOCATION",
+     "text": "Parma"
+    },
+    {
+     "start": 63,
+     "end": 77,
+     "label": "DATE",
+     "text": "30 maggio 2001"
+    }
+   ]
+  },
+  {
+   "id": "pii-it-15",
+   "language": "it",
+   "text": "Il paziente Luca Gallo, nato il 14 febbraio 1959, vive a Torino.",
+   "spans": [
+    {
+     "start": 12,
+     "end": 16,
+     "label": "NAME",
+     "text": "Luca"
+    },
+    {
+     "start": 17,
+     "end": 22,
+     "label": "NAME",
+     "text": "Gallo"
+    },
+    {
+     "start": 32,
+     "end": 48,
+     "label": "DATE",
+     "text": "14 febbraio 1959"
+    },
+    {
+     "start": 57,
+     "end": 63,
+     "label": "LOCATION",
+     "text": "Torino"
+    }
+   ]
+  },
+  {
+   "id": "pii-it-16",
+   "language": "it",
+   "text": "Giulia Rossi è stato visitato il 2 settembre 1987 per il controllo del diabete di tipo 2.",
+   "spans": [
+    {
+     "start": 0,
+     "end": 6,
+     "label": "NAME",
+     "text": "Giulia"
+    },
+    {
+     "start": 7,
+     "end": 12,
+     "label": "NAME",
+     "text": "Rossi"
+    },
+    {
+     "start": 33,
+     "end": 49,
+     "label": "DATE",
+     "text": "2 settembre 1987"
+    }
+   ]
+  },
+  {
+   "id": "pii-it-17",
+   "language": "it",
+   "text": "Contattare Lorenzo al +31 20 555 0193 o all'indirizzo praman@example.com.",
+   "spans": [
+    {
+     "start": 11,
+     "end": 18,
+     "label": "NAME",
+     "text": "Lorenzo"
+    },
+    {
+     "start": 22,
+     "end": 37,
+     "label": "PHONE",
+     "text": "+31 20 555 0193"
+    },
+    {
+     "start": 54,
+     "end": 72,
+     "label": "EMAIL",
+     "text": "praman@example.com"
+    }
+   ]
+  },
+  {
+   "id": "pii-it-18",
+   "language": "it",
+   "text": "La cartella 3358846 appartiene a Chiara Romano.",
+   "spans": [
+    {
+     "start": 12,
+     "end": 19,
+     "label": "ID",
+     "text": "3358846"
+    },
+    {
+     "start": 33,
+     "end": 39,
+     "label": "NAME",
+     "text": "Chiara"
+    },
+    {
+     "start": 40,
+     "end": 46,
+     "label": "NAME",
+     "text": "Romano"
+    }
+   ]
+  },
+  {
+   "id": "pii-it-19",
+   "language": "it",
+   "text": "Il paziente di 72 anni di Parma ha riferito dolore toracico il 19 giugno 1983.",
+   "spans": [
+    {
+     "start": 15,
+     "end": 17,
+     "label": "AGE",
+     "text": "72"
+    },
+    {
+     "start": 26,
+     "end": 31,
+     "label": "LOCATION",
+     "text": "Parma"
+    },
+    {
+     "start": 63,
+     "end": 77,
+     "label": "DATE",
+     "text": "19 giugno 1983"
+    }
+   ]
+  },
+  {
+   "id": "pii-it-20",
+   "language": "it",
+   "text": "Il paziente Sara Conti, nato il 12 marzo 1980, vive a Torino.",
+   "spans": [
+    {
+     "start": 12,
+     "end": 16,
+     "label": "NAME",
+     "text": "Sara"
+    },
+    {
+     "start": 17,
+     "end": 22,
+     "label": "NAME",
+     "text": "Conti"
+    },
+    {
+     "start": 32,
+     "end": 45,
+     "label": "DATE",
+     "text": "12 marzo 1980"
+    },
+    {
+     "start": 54,
+     "end": 60,
+     "label": "LOCATION",
+     "text": "Torino"
+    }
+   ]
+  },
+  {
+   "id": "pii-it-21",
+   "language": "it",
+   "text": "Andrea Greco è stato visitato il 3 luglio 1975 per il controllo del diabete di tipo 2.",
+   "spans": [
+    {
+     "start": 0,
+     "end": 6,
+     "label": "NAME",
+     "text": "Andrea"
+    },
+    {
+     "start": 7,
+     "end": 12,
+     "label": "NAME",
+     "text": "Greco"
+    },
+    {
+     "start": 33,
+     "end": 46,
+     "label": "DATE",
+     "text": "3 luglio 1975"
+    }
+   ]
+  },
+  {
+   "id": "pii-it-22",
+   "language": "it",
+   "text": "Contattare Elena al +31 20 555 0193 o all'indirizzo praman@example.com.",
+   "spans": [
+    {
+     "start": 11,
+     "end": 16,
+     "label": "NAME",
+     "text": "Elena"
+    },
+    {
+     "start": 20,
+     "end": 35,
+     "label": "PHONE",
+     "text": "+31 20 555 0193"
+    },
+    {
+     "start": 52,
+     "end": 70,
+     "label": "EMAIL",
+     "text": "praman@example.com"
+    }
+   ]
+  },
+  {
+   "id": "pii-it-23",
+   "language": "it",
+   "text": "La cartella 3358846 appartiene a Luca Gallo.",
+   "spans": [
+    {
+     "start": 12,
+     "end": 19,
+     "label": "ID",
+     "text": "3358846"
+    },
+    {
+     "start": 33,
+     "end": 37,
+     "label": "NAME",
+     "text": "Luca"
+    },
+    {
+     "start": 38,
+     "end": 43,
+     "label": "NAME",
+     "text": "Gallo"
+    }
+   ]
+  },
+  {
+   "id": "pii-it-24",
+   "language": "it",
+   "text": "Il paziente di 72 anni di Parma ha riferito dolore toracico il 30 maggio 2001.",
+   "spans": [
+    {
+     "start": 15,
+     "end": 17,
+     "label": "AGE",
+     "text": "72"
+    },
+    {
+     "start": 26,
+     "end": 31,
+     "label": "LOCATION",
+     "text": "Parma"
+    },
+    {
+     "start": 63,
+     "end": 77,
+     "label": "DATE",
+     "text": "30 maggio 2001"
+    }
+   ]
+  },
+  {
+   "id": "pii-it-25",
+   "language": "it",
+   "text": "Il paziente Lorenzo Bianchi, nato il 14 febbraio 1959, vive a Torino.",
+   "spans": [
+    {
+     "start": 12,
+     "end": 19,
+     "label": "NAME",
+     "text": "Lorenzo"
+    },
+    {
+     "start": 20,
+     "end": 27,
+     "label": "NAME",
+     "text": "Bianchi"
+    },
+    {
+     "start": 37,
+     "end": 53,
+     "label": "DATE",
+     "text": "14 febbraio 1959"
+    },
+    {
+     "start": 62,
+     "end": 68,
+     "label": "LOCATION",
+     "text": "Torino"
+    }
+   ]
+  },
+  {
+   "id": "pii-it-26",
+   "language": "it",
+   "text": "Chiara Romano è stato visitato il 2 settembre 1987 per il controllo del diabete di tipo 2.",
+   "spans": [
+    {
+     "start": 0,
+     "end": 6,
+     "label": "NAME",
+     "text": "Chiara"
+    },
+    {
+     "start": 7,
+     "end": 13,
+     "label": "NAME",
+     "text": "Romano"
+    },
+    {
+     "start": 34,
+     "end": 50,
+     "label": "DATE",
+     "text": "2 settembre 1987"
+    }
+   ]
+  },
+  {
+   "id": "pii-it-27",
+   "language": "it",
+   "text": "Contattare Matteo al +31 20 555 0193 o all'indirizzo praman@example.com.",
+   "spans": [
+    {
+     "start": 11,
+     "end": 17,
+     "label": "NAME",
+     "text": "Matteo"
+    },
+    {
+     "start": 21,
+     "end": 36,
+     "label": "PHONE",
+     "text": "+31 20 555 0193"
+    },
+    {
+     "start": 53,
+     "end": 71,
+     "label": "EMAIL",
+     "text": "praman@example.com"
+    }
+   ]
+  },
+  {
+   "id": "pii-it-28",
+   "language": "it",
+   "text": "La cartella 3358846 appartiene a Sara Conti.",
+   "spans": [
+    {
+     "start": 12,
+     "end": 19,
+     "label": "ID",
+     "text": "3358846"
+    },
+    {
+     "start": 33,
+     "end": 37,
+     "label": "NAME",
+     "text": "Sara"
+    },
+    {
+     "start": 38,
+     "end": 43,
+     "label": "NAME",
+     "text": "Conti"
+    }
+   ]
+  },
+  {
+   "id": "pii-it-29",
+   "language": "it",
+   "text": "Il paziente di 72 anni di Parma ha riferito dolore toracico il 19 giugno 1983.",
+   "spans": [
+    {
+     "start": 15,
+     "end": 17,
+     "label": "AGE",
+     "text": "72"
+    },
+    {
+     "start": 26,
+     "end": 31,
+     "label": "LOCATION",
+     "text": "Parma"
+    },
+    {
+     "start": 63,
+     "end": 77,
+     "label": "DATE",
+     "text": "19 giugno 1983"
+    }
+   ]
+  },
+  {
+   "id": "pii-it-30",
+   "language": "it",
+   "text": "Il paziente Elena Marino, nato il 12 marzo 1980, vive a Torino.",
+   "spans": [
+    {
+     "start": 12,
+     "end": 17,
+     "label": "NAME",
+     "text": "Elena"
+    },
+    {
+     "start": 18,
+     "end": 24,
+     "label": "NAME",
+     "text": "Marino"
+    },
+    {
+     "start": 34,
+     "end": 47,
+     "label": "DATE",
+     "text": "12 marzo 1980"
+    },
+    {
+     "start": 56,
+     "end": 62,
+     "label": "LOCATION",
+     "text": "Torino"
+    }
+   ]
+  },
+  {
+   "id": "pii-it-31",
+   "language": "it",
+   "text": "Luca Gallo è stato visitato il 3 luglio 1975 per il controllo del diabete di tipo 2.",
+   "spans": [
+    {
+     "start": 0,
+     "end": 4,
+     "label": "NAME",
+     "text": "Luca"
+    },
+    {
+     "start": 5,
+     "end": 10,
+     "label": "NAME",
+     "text": "Gallo"
+    },
+    {
+     "start": 31,
+     "end": 44,
+     "label": "DATE",
+     "text": "3 luglio 1975"
+    }
+   ]
+  },
+  {
+   "id": "pii-it-32",
+   "language": "it",
+   "text": "Contattare Giulia al +31 20 555 0193 o all'indirizzo praman@example.com.",
+   "spans": [
+    {
+     "start": 11,
+     "end": 17,
+     "label": "NAME",
+     "text": "Giulia"
+    },
+    {
+     "start": 21,
+     "end": 36,
+     "label": "PHONE",
+     "text": "+31 20 555 0193"
+    },
+    {
+     "start": 53,
+     "end": 71,
+     "label": "EMAIL",
+     "text": "praman@example.com"
+    }
+   ]
+  },
+  {
+   "id": "pii-it-33",
+   "language": "it",
+   "text": "La cartella 3358846 appartiene a Lorenzo Bianchi.",
+   "spans": [
+    {
+     "start": 12,
+     "end": 19,
+     "label": "ID",
+     "text": "3358846"
+    },
+    {
+     "start": 33,
+     "end": 40,
+     "label": "NAME",
+     "text": "Lorenzo"
+    },
+    {
+     "start": 41,
+     "end": 48,
+     "label": "NAME",
+     "text": "Bianchi"
+    }
+   ]
+  },
+  {
+   "id": "pii-it-34",
+   "language": "it",
+   "text": "Il paziente di 72 anni di Parma ha riferito dolore toracico il 30 maggio 2001.",
+   "spans": [
+    {
+     "start": 15,
+     "end": 17,
+     "label": "AGE",
+     "text": "72"
+    },
+    {
+     "start": 26,
+     "end": 31,
+     "label": "LOCATION",
+     "text": "Parma"
+    },
+    {
+     "start": 63,
+     "end": 77,
+     "label": "DATE",
+     "text": "30 maggio 2001"
+    }
+   ]
+  },
+  {
+   "id": "pii-it-35",
+   "language": "it",
+   "text": "Il paziente Matteo Ricci, nato il 14 febbraio 1959, vive a Torino.",
+   "spans": [
+    {
+     "start": 12,
+     "end": 18,
+     "label": "NAME",
+     "text": "Matteo"
+    },
+    {
+     "start": 19,
+     "end": 24,
+     "label": "NAME",
+     "text": "Ricci"
+    },
+    {
+     "start": 34,
+     "end": 50,
+     "label": "DATE",
+     "text": "14 febbraio 1959"
+    },
+    {
+     "start": 59,
+     "end": 65,
+     "label": "LOCATION",
+     "text": "Torino"
+    }
+   ]
+  },
+  {
+   "id": "pii-it-36",
+   "language": "it",
+   "text": "Sara Conti è stato visitato il 2 settembre 1987 per il controllo del diabete di tipo 2.",
+   "spans": [
+    {
+     "start": 0,
+     "end": 4,
+     "label": "NAME",
+     "text": "Sara"
+    },
+    {
+     "start": 5,
+     "end": 10,
+     "label": "NAME",
+     "text": "Conti"
+    },
+    {
+     "start": 31,
+     "end": 47,
+     "label": "DATE",
+     "text": "2 settembre 1987"
+    }
+   ]
+  },
+  {
+   "id": "pii-it-37",
+   "language": "it",
+   "text": "Contattare Andrea al +31 20 555 0193 o all'indirizzo praman@example.com.",
+   "spans": [
+    {
+     "start": 11,
+     "end": 17,
+     "label": "NAME",
+     "text": "Andrea"
+    },
+    {
+     "start": 21,
+     "end": 36,
+     "label": "PHONE",
+     "text": "+31 20 555 0193"
+    },
+    {
+     "start": 53,
+     "end": 71,
+     "label": "EMAIL",
+     "text": "praman@example.com"
+    }
+   ]
+  },
+  {
+   "id": "pii-it-38",
+   "language": "it",
+   "text": "La cartella 3358846 appartiene a Elena Marino.",
+   "spans": [
+    {
+     "start": 12,
+     "end": 19,
+     "label": "ID",
+     "text": "3358846"
+    },
+    {
+     "start": 33,
+     "end": 38,
+     "label": "NAME",
+     "text": "Elena"
+    },
+    {
+     "start": 39,
+     "end": 45,
+     "label": "NAME",
+     "text": "Marino"
+    }
+   ]
+  },
+  {
+   "id": "pii-it-39",
+   "language": "it",
+   "text": "Il paziente di 72 anni di Parma ha riferito dolore toracico il 19 giugno 1983.",
+   "spans": [
+    {
+     "start": 15,
+     "end": 17,
+     "label": "AGE",
+     "text": "72"
+    },
+    {
+     "start": 26,
+     "end": 31,
+     "label": "LOCATION",
+     "text": "Parma"
+    },
+    {
+     "start": 63,
+     "end": 77,
+     "label": "DATE",
+     "text": "19 giugno 1983"
+    }
+   ]
+  }
+ ]
+}

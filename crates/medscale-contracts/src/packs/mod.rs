@@ -115,6 +115,35 @@ pub struct PackEvaluationRequest {
     /// for zero-shot Packs and refused for token-classification Packs.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub zero_shot_labels: Option<Vec<String>>,
+    /// Spec 103: how token predictions become entities, for token-
+    /// classification Packs. Absent: the OpenMed-compatible decoding on the
+    /// request's single window, exactly as before. Present: the whole input
+    /// runs in overlapping windows with this decoding. Refused for zero-shot
+    /// Packs.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub decoding: Option<EntityDecoding>,
+}
+
+/// Entity decoding for token-classification Packs (Spec 103). Measured on
+/// MedScale's synthetic PII gold set (24 OpenMed PII models): mean strict F1
+/// 0.487 for `openmed_compatible` and 0.893 for `word_first_pii_merge`
+/// (`evidence/103-local-model-catalog/eval/`). Evaluation evidence only.
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum EntityDecoding {
+    /// OpenMed's ONNX decoder (token-level), the parity reference.
+    #[default]
+    OpenmedCompatible,
+    /// Each word takes its first sub-token's label.
+    WordFirst,
+    /// Each word takes its sub-tokens' averaged probabilities.
+    WordAverage,
+    /// Each word takes its most confident sub-token's label.
+    WordMax,
+    /// OpenMed-compatible decoding plus OpenMed's PII entity merger.
+    PiiMerge,
+    /// `word_first` plus OpenMed's PII entity merger.
+    WordFirstPiiMerge,
 }
 
 /// One prepared model held in a Core residency pool (Spec 103).

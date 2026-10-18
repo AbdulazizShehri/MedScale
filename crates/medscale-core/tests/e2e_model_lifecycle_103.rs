@@ -135,6 +135,7 @@ fn evaluate(
                     max_tokens: 16,
                     synthetic_only,
                     zero_shot_labels: None,
+                    decoding: None,
                 },
             },
         ))

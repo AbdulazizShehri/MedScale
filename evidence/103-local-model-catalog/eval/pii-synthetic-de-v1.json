@@ -1,0 +1,1098 @@
+{
+ "name": "medscale-pii-synthetic-de",
+ "version": "1",
+ "provenance": "Synthetic sentences and identifiers authored for MedScale by scripts/evaluation/generate_pii_gold.py; no real person or record.",
+ "license": "CC0-1.0",
+ "labels": [
+  "AGE",
+  "DATE",
+  "EMAIL",
+  "ID",
+  "LOCATION",
+  "NAME",
+  "PHONE"
+ ],
+ "label_map": {
+  "first_name": "NAME",
+  "last_name": "NAME",
+  "date": "DATE",
+  "date_of_birth": "DATE",
+  "date_time": "DATE",
+  "city": "LOCATION",
+  "state": "LOCATION",
+  "country": "LOCATION",
+  "county": "LOCATION",
+  "street_address": "LOCATION",
+  "postcode": "LOCATION",
+  "phone_number": "PHONE",
+  "fax_number": "PHONE",
+  "email": "EMAIL",
+  "medical_record_number": "ID",
+  "health_plan_beneficiary_number": "ID",
+  "ssn": "ID",
+  "account_number": "ID",
+  "unique_id": "ID",
+  "customer_id": "ID",
+  "age": "AGE",
+  "firstname": "NAME",
+  "lastname": "NAME",
+  "middlename": "NAME",
+  "dateofbirth": "DATE",
+  "street": "LOCATION",
+  "zipcode": "LOCATION",
+  "buildingnumber": "LOCATION",
+  "secondaryaddress": "LOCATION",
+  "phone": "PHONE",
+  "maskednumber": "ID"
+ },
+ "documents": [
+  {
+   "id": "pii-de-00",
+   "language": "de",
+   "text": "Patient Lena Hoffmann, geboren am 12. März 1980, wohnt in Freiburg.",
+   "spans": [
+    {
+     "start": 8,
+     "end": 12,
+     "label": "NAME",
+     "text": "Lena"
+    },
+    {
+     "start": 13,
+     "end": 21,
+     "label": "NAME",
+     "text": "Hoffmann"
+    },
+    {
+     "start": 34,
+     "end": 47,
+     "label": "DATE",
+     "text": "12. März 1980"
+    },
+    {
+     "start": 58,
+     "end": 66,
+     "label": "LOCATION",
+     "text": "Freiburg"
+    }
+   ]
+  },
+  {
+   "id": "pii-de-01",
+   "language": "de",
+   "text": "Jonas Schäfer kam am 3. Juli 1975 zur Kontrolle des Typ-2-Diabetes.",
+   "spans": [
+    {
+     "start": 0,
+     "end": 5,
+     "label": "NAME",
+     "text": "Jonas"
+    },
+    {
+     "start": 6,
+     "end": 13,
+     "label": "NAME",
+     "text": "Schäfer"
+    },
+    {
+     "start": 21,
+     "end": 33,
+     "label": "DATE",
+     "text": "3. Juli 1975"
+    }
+   ]
+  },
+  {
+   "id": "pii-de-02",
+   "language": "de",
+   "text": "Mia ist unter +31 20 555 0193 oder per E-Mail unter praman@example.com erreichbar.",
+   "spans": [
+    {
+     "start": 0,
+     "end": 3,
+     "label": "NAME",
+     "text": "Mia"
+    },
+    {
+     "start": 14,
+     "end": 29,
+     "label": "PHONE",
+     "text": "+31 20 555 0193"
+    },
+    {
+     "start": 52,
+     "end": 70,
+     "label": "EMAIL",
+     "text": "praman@example.com"
+    }
+   ]
+  },
+  {
+   "id": "pii-de-03",
+   "language": "de",
+   "text": "Die Akte 3358846 gehört zu Felix Wagner.",
+   "spans": [
+    {
+     "start": 9,
+     "end": 16,
+     "label": "ID",
+     "text": "3358846"
+    },
+    {
+     "start": 27,
+     "end": 32,
+     "label": "NAME",
+     "text": "Felix"
+    },
+    {
+     "start": 33,
+     "end": 39,
+     "label": "NAME",
+     "text": "Wagner"
+    }
+   ]
+  },
+  {
+   "id": "pii-de-04",
+   "language": "de",
+   "text": "Der 72 Jahre alte Patient aus Graz klagte am 30. Mai 2001 über Brustschmerzen.",
+   "spans": [
+    {
+     "start": 4,
+     "end": 6,
+     "label": "AGE",
+     "text": "72"
+    },
+    {
+     "start": 30,
+     "end": 34,
+     "label": "LOCATION",
+     "text": "Graz"
+    },
+    {
+     "start": 45,
+     "end": 57,
+     "label": "DATE",
+     "text": "30. Mai 2001"
+    }
+   ]
+  },
+  {
+   "id": "pii-de-05",
+   "language": "de",
+   "text": "Patient Paul Krüger, geboren am 14. Februar 1959, wohnt in Freiburg.",
+   "spans": [
+    {
+     "start": 8,
+     "end": 12,
+     "label": "NAME",
+     "text": "Paul"
+    },
+    {
+     "start": 13,
+     "end": 19,
+     "label": "NAME",
+     "text": "Krüger"
+    },
+    {
+     "start": 32,
+     "end": 48,
+     "label": "DATE",
+     "text": "14. Februar 1959"
+    },
+    {
+     "start": 59,
+     "end": 67,
+     "label": "LOCATION",
+     "text": "Freiburg"
+    }
+   ]
+  },
+  {
+   "id": "pii-de-06",
+   "language": "de",
+   "text": "Hannah Zimmermann kam am 2. September 1987 zur Kontrolle des Typ-2-Diabetes.",
+   "spans": [
+    {
+     "start": 0,
+     "end": 6,
+     "label": "NAME",
+     "text": "Hannah"
+    },
+    {
+     "start": 7,
+     "end": 17,
+     "label": "NAME",
+     "text": "Zimmermann"
+    },
+    {
+     "start": 25,
+     "end": 42,
+     "label": "DATE",
+     "text": "2. September 1987"
+    }
+   ]
+  },
+  {
+   "id": "pii-de-07",
+   "language": "de",
+   "text": "Leon ist unter +31 20 555 0193 oder per E-Mail unter praman@example.com erreichbar.",
+   "spans": [
+    {
+     "start": 0,
+     "end": 4,
+     "label": "NAME",
+     "text": "Leon"
+    },
+    {
+     "start": 15,
+     "end": 30,
+     "label": "PHONE",
+     "text": "+31 20 555 0193"
+    },
+    {
+     "start": 53,
+     "end": 71,
+     "label": "EMAIL",
+     "text": "praman@example.com"
+    }
+   ]
+  },
+  {
+   "id": "pii-de-08",
+   "language": "de",
+   "text": "Die Akte 3358846 gehört zu Lena Hoffmann.",
+   "spans": [
+    {
+     "start": 9,
+     "end": 16,
+     "label": "ID",
+     "text": "3358846"
+    },
+    {
+     "start": 27,
+     "end": 31,
+     "label": "NAME",
+     "text": "Lena"
+    },
+    {
+     "start": 32,
+     "end": 40,
+     "label": "NAME",
+     "text": "Hoffmann"
+    }
+   ]
+  },
+  {
+   "id": "pii-de-09",
+   "language": "de",
+   "text": "Der 72 Jahre alte Patient aus Graz klagte am 19. Juni 1983 über Brustschmerzen.",
+   "spans": [
+    {
+     "start": 4,
+     "end": 6,
+     "label": "AGE",
+     "text": "72"
+    },
+    {
+     "start": 30,
+     "end": 34,
+     "label": "LOCATION",
+     "text": "Graz"
+    },
+    {
+     "start": 45,
+     "end": 58,
+     "label": "DATE",
+     "text": "19. Juni 1983"
+    }
+   ]
+  },
+  {
+   "id": "pii-de-10",
+   "language": "de",
+   "text": "Patient Mia Becker, geboren am 12. März 1980, wohnt in Freiburg.",
+   "spans": [
+    {
+     "start": 8,
+     "end": 11,
+     "label": "NAME",
+     "text": "Mia"
+    },
+    {
+     "start": 12,
+     "end": 18,
+     "label": "NAME",
+     "text": "Becker"
+    },
+    {
+     "start": 31,
+     "end": 44,
+     "label": "DATE",
+     "text": "12. März 1980"
+    },
+    {
+     "start": 55,
+     "end": 63,
+     "label": "LOCATION",
+     "text": "Freiburg"
+    }
+   ]
+  },
+  {
+   "id": "pii-de-11",
+   "language": "de",
+   "text": "Felix Wagner kam am 3. Juli 1975 zur Kontrolle des Typ-2-Diabetes.",
+   "spans": [
+    {
+     "start": 0,
+     "end": 5,
+     "label": "NAME",
+     "text": "Felix"
+    },
+    {
+     "start": 6,
+     "end": 12,
+     "label": "NAME",
+     "text": "Wagner"
+    },
+    {
+     "start": 20,
+     "end": 32,
+     "label": "DATE",
+     "text": "3. Juli 1975"
+    }
+   ]
+  },
+  {
+   "id": "pii-de-12",
+   "language": "de",
+   "text": "Emma ist unter +31 20 555 0193 oder per E-Mail unter praman@example.com erreichbar.",
+   "spans": [
+    {
+     "start": 0,
+     "end": 4,
+     "label": "NAME",
+     "text": "Emma"
+    },
+    {
+     "start": 15,
+     "end": 30,
+     "label": "PHONE",
+     "text": "+31 20 555 0193"
+    },
+    {
+     "start": 53,
+     "end": 71,
+     "label": "EMAIL",
+     "text": "praman@example.com"
+    }
+   ]
+  },
+  {
+   "id": "pii-de-13",
+   "language": "de",
+   "text": "Die Akte 3358846 gehört zu Paul Krüger.",
+   "spans": [
+    {
+     "start": 9,
+     "end": 16,
+     "label": "ID",
+     "text": "3358846"
+    },
+    {
+     "start": 27,
+     "end": 31,
+     "label": "NAME",
+     "text": "Paul"
+    },
+    {
+     "start": 32,
+     "end": 38,
+     "label": "NAME",
+     "text": "Krüger"
+    }
+   ]
+  },
+  {
+   "id": "pii-de-14",
+   "language": "de",
+   "text": "Der 72 Jahre alte Patient aus Graz klagte am 30. Mai 2001 über Brustschmerzen.",
+   "spans": [
+    {
+     "start": 4,
+     "end": 6,
+     "label": "AGE",
+     "text": "72"
+    },
+    {
+     "start": 30,
+     "end": 34,
+     "label": "LOCATION",
+     "text": "Graz"
+    },
+    {
+     "start": 45,
+     "end": 57,
+     "label": "DATE",
+     "text": "30. Mai 2001"
+    }
+   ]
+  },
+  {
+   "id": "pii-de-15",
+   "language": "de",
+   "text": "Patient Leon Braun, geboren am 14. Februar 1959, wohnt in Freiburg.",
+   "spans": [
+    {
+     "start": 8,
+     "end": 12,
+     "label": "NAME",
+     "text": "Leon"
+    },
+    {
+     "start": 13,
+     "end": 18,
+     "label": "NAME",
+     "text": "Braun"
+    },
+    {
+     "start": 31,
+     "end": 47,
+     "label": "DATE",
+     "text": "14. Februar 1959"
+    },
+    {
+     "start": 58,
+     "end": 66,
+     "label": "LOCATION",
+     "text": "Freiburg"
+    }
+   ]
+  },
+  {
+   "id": "pii-de-16",
+   "language": "de",
+   "text": "Lena Hoffmann kam am 2. September 1987 zur Kontrolle des Typ-2-Diabetes.",
+   "spans": [
+    {
+     "start": 0,
+     "end": 4,
+     "label": "NAME",
+     "text": "Lena"
+    },
+    {
+     "start": 5,
+     "end": 13,
+     "label": "NAME",
+     "text": "Hoffmann"
+    },
+    {
+     "start": 21,
+     "end": 38,
+     "label": "DATE",
+     "text": "2. September 1987"
+    }
+   ]
+  },
+  {
+   "id": "pii-de-17",
+   "language": "de",
+   "text": "Jonas ist unter +31 20 555 0193 oder per E-Mail unter praman@example.com erreichbar.",
+   "spans": [
+    {
+     "start": 0,
+     "end": 5,
+     "label": "NAME",
+     "text": "Jonas"
+    },
+    {
+     "start": 16,
+     "end": 31,
+     "label": "PHONE",
+     "text": "+31 20 555 0193"
+    },
+    {
+     "start": 54,
+     "end": 72,
+     "label": "EMAIL",
+     "text": "praman@example.com"
+    }
+   ]
+  },
+  {
+   "id": "pii-de-18",
+   "language": "de",
+   "text": "Die Akte 3358846 gehört zu Mia Becker.",
+   "spans": [
+    {
+     "start": 9,
+     "end": 16,
+     "label": "ID",
+     "text": "3358846"
+    },
+    {
+     "start": 27,
+     "end": 30,
+     "label": "NAME",
+     "text": "Mia"
+    },
+    {
+     "start": 31,
+     "end": 37,
+     "label": "NAME",
+     "text": "Becker"
+    }
+   ]
+  },
+  {
+   "id": "pii-de-19",
+   "language": "de",
+   "text": "Der 72 Jahre alte Patient aus Graz klagte am 19. Juni 1983 über Brustschmerzen.",
+   "spans": [
+    {
+     "start": 4,
+     "end": 6,
+     "label": "AGE",
+     "text": "72"
+    },
+    {
+     "start": 30,
+     "end": 34,
+     "label": "LOCATION",
+     "text": "Graz"
+    },
+    {
+     "start": 45,
+     "end": 58,
+     "label": "DATE",
+     "text": "19. Juni 1983"
+    }
+   ]
+  },
+  {
+   "id": "pii-de-20",
+   "language": "de",
+   "text": "Patient Emma Schulz, geboren am 12. März 1980, wohnt in Freiburg.",
+   "spans": [
+    {
+     "start": 8,
+     "end": 12,
+     "label": "NAME",
+     "text": "Emma"
+    },
+    {
+     "start": 13,
+     "end": 19,
+     "label": "NAME",
+     "text": "Schulz"
+    },
+    {
+     "start": 32,
+     "end": 45,
+     "label": "DATE",
+     "text": "12. März 1980"
+    },
+    {
+     "start": 56,
+     "end": 64,
+     "label": "LOCATION",
+     "text": "Freiburg"
+    }
+   ]
+  },
+  {
+   "id": "pii-de-21",
+   "language": "de",
+   "text": "Paul Krüger kam am 3. Juli 1975 zur Kontrolle des Typ-2-Diabetes.",
+   "spans": [
+    {
+     "start": 0,
+     "end": 4,
+     "label": "NAME",
+     "text": "Paul"
+    },
+    {
+     "start": 5,
+     "end": 11,
+     "label": "NAME",
+     "text": "Krüger"
+    },
+    {
+     "start": 19,
+     "end": 31,
+     "label": "DATE",
+     "text": "3. Juli 1975"
+    }
+   ]
+  },
+  {
+   "id": "pii-de-22",
+   "language": "de",
+   "text": "Hannah ist unter +31 20 555 0193 oder per E-Mail unter praman@example.com erreichbar.",
+   "spans": [
+    {
+     "start": 0,
+     "end": 6,
+     "label": "NAME",
+     "text": "Hannah"
+    },
+    {
+     "start": 17,
+     "end": 32,
+     "label": "PHONE",
+     "text": "+31 20 555 0193"
+    },
+    {
+     "start": 55,
+     "end": 73,
+     "label": "EMAIL",
+     "text": "praman@example.com"
+    }
+   ]
+  },
+  {
+   "id": "pii-de-23",
+   "language": "de",
+   "text": "Die Akte 3358846 gehört zu Leon Braun.",
+   "spans": [
+    {
+     "start": 9,
+     "end": 16,
+     "label": "ID",
+     "text": "3358846"
+    },
+    {
+     "start": 27,
+     "end": 31,
+     "label": "NAME",
+     "text": "Leon"
+    },
+    {
+     "start": 32,
+     "end": 37,
+     "label": "NAME",
+     "text": "Braun"
+    }
+   ]
+  },
+  {
+   "id": "pii-de-24",
+   "language": "de",
+   "text": "Der 72 Jahre alte Patient aus Graz klagte am 30. Mai 2001 über Brustschmerzen.",
+   "spans": [
+    {
+     "start": 4,
+     "end": 6,
+     "label": "AGE",
+     "text": "72"
+    },
+    {
+     "start": 30,
+     "end": 34,
+     "label": "LOCATION",
+     "text": "Graz"
+    },
+    {
+     "start": 45,
+     "end": 57,
+     "label": "DATE",
+     "text": "30. Mai 2001"
+    }
+   ]
+  },
+  {
+   "id": "pii-de-25",
+   "language": "de",
+   "text": "Patient Jonas Schäfer, geboren am 14. Februar 1959, wohnt in Freiburg.",
+   "spans": [
+    {
+     "start": 8,
+     "end": 13,
+     "label": "NAME",
+     "text": "Jonas"
+    },
+    {
+     "start": 14,
+     "end": 21,
+     "label": "NAME",
+     "text": "Schäfer"
+    },
+    {
+     "start": 34,
+     "end": 50,
+     "label": "DATE",
+     "text": "14. Februar 1959"
+    },
+    {
+     "start": 61,
+     "end": 69,
+     "label": "LOCATION",
+     "text": "Freiburg"
+    }
+   ]
+  },
+  {
+   "id": "pii-de-26",
+   "language": "de",
+   "text": "Mia Becker kam am 2. September 1987 zur Kontrolle des Typ-2-Diabetes.",
+   "spans": [
+    {
+     "start": 0,
+     "end": 3,
+     "label": "NAME",
+     "text": "Mia"
+    },
+    {
+     "start": 4,
+     "end": 10,
+     "label": "NAME",
+     "text": "Becker"
+    },
+    {
+     "start": 18,
+     "end": 35,
+     "label": "DATE",
+     "text": "2. September 1987"
+    }
+   ]
+  },
+  {
+   "id": "pii-de-27",
+   "language": "de",
+   "text": "Felix ist unter +31 20 555 0193 oder per E-Mail unter praman@example.com erreichbar.",
+   "spans": [
+    {
+     "start": 0,
+     "end": 5,
+     "label": "NAME",
+     "text": "Felix"
+    },
+    {
+     "start": 16,
+     "end": 31,
+     "label": "PHONE",
+     "text": "+31 20 555 0193"
+    },
+    {
+     "start": 54,
+     "end": 72,
+     "label": "EMAIL",
+     "text": "praman@example.com"
+    }
+   ]
+  },
+  {
+   "id": "pii-de-28",
+   "language": "de",
+   "text": "Die Akte 3358846 gehört zu Emma Schulz.",
+   "spans": [
+    {
+     "start": 9,
+     "end": 16,
+     "label": "ID",
+     "text": "3358846"
+    },
+    {
+     "start": 27,
+     "end": 31,
+     "label": "NAME",
+     "text": "Emma"
+    },
+    {
+     "start": 32,
+     "end": 38,
+     "label": "NAME",
+     "text": "Schulz"
+    }
+   ]
+  },
+  {
+   "id": "pii-de-29",
+   "language": "de",
+   "text": "Der 72 Jahre alte Patient aus Graz klagte am 19. Juni 1983 über Brustschmerzen.",
+   "spans": [
+    {
+     "start": 4,
+     "end": 6,
+     "label": "AGE",
+     "text": "72"
+    },
+    {
+     "start": 30,
+     "end": 34,
+     "label": "LOCATION",
+     "text": "Graz"
+    },
+    {
+     "start": 45,
+     "end": 58,
+     "label": "DATE",
+     "text": "19. Juni 1983"
+    }
+   ]
+  },
+  {
+   "id": "pii-de-30",
+   "language": "de",
+   "text": "Patient Hannah Zimmermann, geboren am 12. März 1980, wohnt in Freiburg.",
+   "spans": [
+    {
+     "start": 8,
+     "end": 14,
+     "label": "NAME",
+     "text": "Hannah"
+    },
+    {
+     "start": 15,
+     "end": 25,
+     "label": "NAME",
+     "text": "Zimmermann"
+    },
+    {
+     "start": 38,
+     "end": 51,
+     "label": "DATE",
+     "text": "12. März 1980"
+    },
+    {
+     "start": 62,
+     "end": 70,
+     "label": "LOCATION",
+     "text": "Freiburg"
+    }
+   ]
+  },
+  {
+   "id": "pii-de-31",
+   "language": "de",
+   "text": "Leon Braun kam am 3. Juli 1975 zur Kontrolle des Typ-2-Diabetes.",
+   "spans": [
+    {
+     "start": 0,
+     "end": 4,
+     "label": "NAME",
+     "text": "Leon"
+    },
+    {
+     "start": 5,
+     "end": 10,
+     "label": "NAME",
+     "text": "Braun"
+    },
+    {
+     "start": 18,
+     "end": 30,
+     "label": "DATE",
+     "text": "3. Juli 1975"
+    }
+   ]
+  },
+  {
+   "id": "pii-de-32",
+   "language": "de",
+   "text": "Lena ist unter +31 20 555 0193 oder per E-Mail unter praman@example.com erreichbar.",
+   "spans": [
+    {
+     "start": 0,
+     "end": 4,
+     "label": "NAME",
+     "text": "Lena"
+    },
+    {
+     "start": 15,
+     "end": 30,
+     "label": "PHONE",
+     "text": "+31 20 555 0193"
+    },
+    {
+     "start": 53,
+     "end": 71,
+     "label": "EMAIL",
+     "text": "praman@example.com"
+    }
+   ]
+  },
+  {
+   "id": "pii-de-33",
+   "language": "de",
+   "text": "Die Akte 3358846 gehört zu Jonas Schäfer.",
+   "spans": [
+    {
+     "start": 9,
+     "end": 16,
+     "label": "ID",
+     "text": "3358846"
+    },
+    {
+     "start": 27,
+     "end": 32,
+     "label": "NAME",
+     "text": "Jonas"
+    },
+    {
+     "start": 33,
+     "end": 40,
+     "label": "NAME",
+     "text": "Schäfer"
+    }
+   ]
+  },
+  {
+   "id": "pii-de-34",
+   "language": "de",
+   "text": "Der 72 Jahre alte Patient aus Graz klagte am 30. Mai 2001 über Brustschmerzen.",
+   "spans": [
+    {
+     "start": 4,
+     "end": 6,
+     "label": "AGE",
+     "text": "72"
+    },
+    {
+     "start": 30,
+     "end": 34,
+     "label": "LOCATION",
+     "text": "Graz"
+    },
+    {
+     "start": 45,
+     "end": 57,
+     "label": "DATE",
+     "text": "30. Mai 2001"
+    }
+   ]
+  },
+  {
+   "id": "pii-de-35",
+   "language": "de",
+   "text": "Patient Felix Wagner, geboren am 14. Februar 1959, wohnt in Freiburg.",
+   "spans": [
+    {
+     "start": 8,
+     "end": 13,
+     "label": "NAME",
+     "text": "Felix"
+    },
+    {
+     "start": 14,
+     "end": 20,
+     "label": "NAME",
+     "text": "Wagner"
+    },
+    {
+     "start": 33,
+     "end": 49,
+     "label": "DATE",
+     "text": "14. Februar 1959"
+    },
+    {
+     "start": 60,
+     "end": 68,
+     "label": "LOCATION",
+     "text": "Freiburg"
+    }
+   ]
+  },
+  {
+   "id": "pii-de-36",
+   "language": "de",
+   "text": "Emma Schulz kam am 2. September 1987 zur Kontrolle des Typ-2-Diabetes.",
+   "spans": [
+    {
+     "start": 0,
+     "end": 4,
+     "label": "NAME",
+     "text": "Emma"
+    },
+    {
+     "start": 5,
+     "end": 11,
+     "label": "NAME",
+     "text": "Schulz"
+    },
+    {
+     "start": 19,
+     "end": 36,
+     "label": "DATE",
+     "text": "2. September 1987"
+    }
+   ]
+  },
+  {
+   "id": "pii-de-37",
+   "language": "de",
+   "text": "Paul ist unter +31 20 555 0193 oder per E-Mail unter praman@example.com erreichbar.",
+   "spans": [
+    {
+     "start": 0,
+     "end": 4,
+     "label": "NAME",
+     "text": "Paul"
+    },
+    {
+     "start": 15,
+     "end": 30,
+     "label": "PHONE",
+     "text": "+31 20 555 0193"
+    },
+    {
+     "start": 53,
+     "end": 71,
+     "label": "EMAIL",
+     "text": "praman@example.com"
+    }
+   ]
+  },
+  {
+   "id": "pii-de-38",
+   "language": "de",
+   "text": "Die Akte 3358846 gehört zu Hannah Zimmermann.",
+   "spans": [
+    {
+     "start": 9,
+     "end": 16,
+     "label": "ID",
+     "text": "3358846"
+    },
+    {
+     "start": 27,
+     "end": 33,
+     "label": "NAME",
+     "text": "Hannah"
+    },
+    {
+     "start": 34,
+     "end": 44,
+     "label": "NAME",
+     "text": "Zimmermann"
+    }
+   ]
+  },
+  {
+   "id": "pii-de-39",
+   "language": "de",
+   "text": "Der 72 Jahre alte Patient aus Graz klagte am 19. Juni 1983 über Brustschmerzen.",
+   "spans": [
+    {
+     "start": 4,
+     "end": 6,
+     "label": "AGE",
+     "text": "72"
+    },
+    {
+     "start": 30,
+     "end": 34,
+     "label": "LOCATION",
+     "text": "Graz"
+    },
+    {
+     "start": 45,
+     "end": 58,
+     "label": "DATE",
+     "text": "19. Juni 1983"
+    }
+   ]
+  }
+ ]
+}

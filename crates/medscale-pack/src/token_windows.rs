@@ -303,8 +303,12 @@ pub fn decode_entities(
 /// sub-token starts a new entity. The `Word*` strategies follow Hugging Face's
 /// word-level strategies: sub-tokens are grouped by the tokenizer's own word
 /// ids (its pre-tokenizer words), each word gets one label, and words are then
-/// grouped. They never create spans beyond the tokens' offsets, and a better
-/// score on any benchmark is not claimed for them.
+/// grouped; a punctuation-only token is its own word. They never create spans
+/// beyond the tokens' offsets. On MedScale's synthetic PII gold set (24 OpenMed
+/// PII models, `evidence/103-local-model-catalog/eval/`), `WordFirst` with the
+/// PII entity merger had a mean strict F1 of 0.893 against 0.487 for
+/// `OpenMedOnnx`; that is evaluation evidence on a small synthetic set, not a
+/// clinical claim.
 #[derive(Clone, Copy, Debug, Default, Eq, PartialEq, serde::Serialize, serde::Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum EntityAggregation {
@@ -353,11 +357,30 @@ pub fn decode_entities_by_word(
     }
     let mut chars: Vec<usize> = text.char_indices().map(|(b, _)| b).collect();
     chars.push(text.len());
+    // A token whose text is only punctuation ("-", ".", ",") is a word of its
+    // own, as BERT-style pre-tokenizers already make it. SentencePiece
+    // (DeBERTa-v3) word ids split on whitespace only, so "72-year-old" or
+    // "2001." would otherwise be one word and take one label; measured on the
+    // synthetic PII gold set (accuracy batch 03, run 39110859422), word-level
+    // decoding fell from 0.82 to 0.56 strict F1 on DeBERTa-v3 because of it.
+    // Contiguous entities still join through their B-/I- labels.
+    let punctuation_only = |&((start, end), _): &TokenLogits| {
+        start < end
+            && end < chars.len()
+            && text[chars[start]..chars[end]]
+                .chars()
+                .all(|c| !c.is_alphanumeric() && !c.is_whitespace())
+    };
     // Consecutive tokens with the same word id form one word.
     let mut words: Vec<std::ops::Range<usize>> = Vec::new();
     for i in 0..tokens.len() {
         match words.last_mut() {
-            Some(last) if word_ids[i].is_some() && word_ids[i] == word_ids[last.end - 1] => {
+            Some(last)
+                if word_ids[i].is_some()
+                    && word_ids[i] == word_ids[last.end - 1]
+                    && !punctuation_only(&tokens[i])
+                    && !punctuation_only(&tokens[last.end - 1]) =>
+            {
                 last.end = i + 1;
             }
             _ => words.push(i..i + 1),
@@ -608,6 +631,74 @@ mod tests {
                 ("metformin", 5, 14)
             );
         }
+    }
+
+    #[test]
+    fn punctuation_tokens_split_words_from_whitespace_only_tokenizers() {
+        // DeBERTa-v3 (SentencePiece) gives "72-year-old" one word id and
+        // offsets that include the word-start space: the U+2581 "72" piece is (3, 6).
+        let text = "The 72-year-old came 30 May 2001.";
+        let l = labels(&["O", "B-AGE", "B-DATE", "I-DATE"]);
+        let tokens = vec![
+            ((0, 3), hot(4, 0, 9.0)),   // The
+            ((3, 6), hot(4, 1, 9.0)),   // " 72"  B-AGE
+            ((6, 7), hot(4, 0, 9.0)),   // "-"
+            ((7, 11), hot(4, 0, 9.0)),  // year
+            ((11, 12), hot(4, 0, 9.0)), // "-"
+            ((12, 15), hot(4, 0, 9.0)), // old
+            ((15, 20), hot(4, 0, 9.0)), // " came"
+            ((20, 23), hot(4, 2, 9.0)), // " 30"  B-DATE
+            ((23, 27), hot(4, 3, 9.0)), // " May" I-DATE
+            ((27, 32), hot(4, 3, 9.0)), // " 2001" I-DATE
+            ((32, 33), hot(4, 0, 9.0)), // "."
+        ];
+        let words = [
+            Some(0),
+            Some(1),
+            Some(1),
+            Some(1),
+            Some(1),
+            Some(1),
+            Some(2),
+            Some(3),
+            Some(4),
+            Some(5),
+            Some(5),
+        ];
+        for strategy in [
+            EntityAggregation::WordFirst,
+            EntityAggregation::WordAverage,
+            EntityAggregation::WordMax,
+        ] {
+            let e = decode_entities_by_word(&tokens, &words, &l, text, 0.0, strategy);
+            let got: Vec<(&str, &str, usize, usize)> = e
+                .iter()
+                .map(|x| (x.label.as_str(), x.text.as_str(), x.start, x.end))
+                .collect();
+            assert_eq!(
+                got,
+                [("AGE", "72", 4, 6), ("DATE", "30 May 2001", 21, 32)],
+                "{strategy:?}"
+            );
+        }
+        // A hyphenated entity still joins through its I- labels.
+        let text = "Jean-Paul";
+        let l = labels(&["O", "B-NAME", "I-NAME"]);
+        let tokens = vec![
+            ((0, 4), hot(3, 1, 9.0)),
+            ((4, 5), hot(3, 2, 9.0)),
+            ((5, 9), hot(3, 2, 9.0)),
+        ];
+        let e = decode_entities_by_word(
+            &tokens,
+            &[Some(0); 3],
+            &l,
+            text,
+            0.0,
+            EntityAggregation::WordFirst,
+        );
+        assert_eq!(e.len(), 1);
+        assert_eq!(e[0].text, "Jean-Paul");
     }
 
     #[test]

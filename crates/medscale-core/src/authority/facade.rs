@@ -729,6 +729,7 @@ impl CoreFacade {
         path: &std::path::Path,
         manifest: &medscale_contracts::packs::PackManifestV0,
         input: &str,
+        decoding: Option<medscale_contracts::packs::EntityDecoding>,
         realm_id: medscale_contracts::objects::RealmId,
         authority_scope_id: medscale_contracts::objects::AuthorityScopeId,
     ) -> Result<ResponseBody, AuthorityError> {
@@ -760,11 +761,16 @@ impl CoreFacade {
                 (candidate, false)
             }
         };
+        let (aggregation, pii_semantic_merge) = decoding_options(decoding.unwrap_or_default());
         let output = prepared
             .run_document(
                 &manifest.pack_id,
                 input,
-                medscale_pack::CandleRunOptions::default(),
+                medscale_pack::CandleRunOptions {
+                    aggregation,
+                    pii_semantic_merge,
+                    ..medscale_pack::CandleRunOptions::default()
+                },
             )
             .map_err(|err| AuthorityError::InvalidArgument {
                 message: format!("pack runtime evaluation failed: {err}"),
@@ -786,6 +792,7 @@ impl CoreFacade {
             payload_digest: None,
             detail: Some(serde_json::json!({
                 "runtime": medscale_pack::CANDLE_TOKEN_CLASSIFIER_RUNTIME_ID,
+                "decoding": decoding.unwrap_or_default(),
                 "input_bytes": input.len(),
                 "evidence_only": true,
                 "synthetic_only": true,
@@ -2027,6 +2034,12 @@ impl CoreFacade {
                                 },
                             )?));
                 match (zero_shot, &request.zero_shot_labels) {
+                    (true, Some(_)) if request.decoding.is_some() => {
+                        return Err(AuthorityError::InvalidArgument {
+                            message: "decoding applies only to token-classification Packs"
+                                .to_owned(),
+                        });
+                    }
                     (true, Some(labels)) => {
                         return self.evaluate_gliner_pack(
                             path,
@@ -2054,6 +2067,7 @@ impl CoreFacade {
                         path,
                         &manifest,
                         &request.input,
+                        request.decoding,
                         req.realm_id,
                         req.authority_scope_id,
                     );
@@ -2112,12 +2126,26 @@ impl CoreFacade {
                         (candidate, false)
                     }
                 };
-                let evaluation =
-                    prepared
-                        .run(&manifest.pack_id, &request.input)
-                        .map_err(|err| AuthorityError::InvalidArgument {
-                            message: format!("pack runtime evaluation failed: {err}"),
-                        })?;
+                // Without `decoding`, the established single-window run; with
+                // it, the whole input in overlapping windows.
+                let evaluation = match request.decoding {
+                    None => prepared.run(&manifest.pack_id, &request.input),
+                    Some(decoding) => {
+                        let (aggregation, pii_semantic_merge) = decoding_options(decoding);
+                        prepared.run_document(
+                            &manifest.pack_id,
+                            &request.input,
+                            medscale_pack::DocumentRunOptions {
+                                aggregation,
+                                pii_semantic_merge,
+                                ..medscale_pack::DocumentRunOptions::default()
+                            },
+                        )
+                    }
+                }
+                .map_err(|err| AuthorityError::InvalidArgument {
+                    message: format!("pack runtime evaluation failed: {err}"),
+                })?;
                 let mut store = self.store();
                 let audit_id = store.alloc_id("audit");
                 store.insert(StoredObject::Audit(ActionAuditRecord {
@@ -2135,6 +2163,7 @@ impl CoreFacade {
                     payload_digest: None,
                     detail: Some(serde_json::json!({
                         "runtime": medscale_pack::ONNX_TOKEN_CLASSIFIER_RUNTIME_ID,
+                        "decoding": request.decoding.unwrap_or_default(),
                         "input_bytes": request.input.len(),
                         "evidence_only": true,
                         "synthetic_only": true,
@@ -6299,4 +6328,20 @@ fn digest_from_hex(hex: &str) -> Option<medscale_contracts::objects::DigestSha25
         *byte = u8::from_str_radix(hex.get(2 * i..2 * i + 2)?, 16).ok()?;
     }
     Some(medscale_contracts::objects::DigestSha256::from_bytes(bytes))
+}
+
+/// Runtime options for a contract-level entity decoding (Spec 103).
+fn decoding_options(
+    decoding: medscale_contracts::packs::EntityDecoding,
+) -> (medscale_pack::EntityAggregation, bool) {
+    use medscale_contracts::packs::EntityDecoding as D;
+    use medscale_pack::EntityAggregation as A;
+    match decoding {
+        D::OpenmedCompatible => (A::OpenMedOnnx, false),
+        D::WordFirst => (A::WordFirst, false),
+        D::WordAverage => (A::WordAverage, false),
+        D::WordMax => (A::WordMax, false),
+        D::PiiMerge => (A::OpenMedOnnx, true),
+        D::WordFirstPiiMerge => (A::WordFirst, true),
+    }
 }

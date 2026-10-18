@@ -41,6 +41,17 @@ fn evaluate(
     labels: Option<&[&str]>,
     synthetic_only: bool,
 ) -> Result<ResponseBody, String> {
+    evaluate_with(facade, pack_id, path, labels, synthetic_only, None)
+}
+
+fn evaluate_with(
+    facade: &CoreFacade,
+    pack_id: &str,
+    path: &std::path::Path,
+    labels: Option<&[&str]>,
+    synthetic_only: bool,
+    decoding: Option<medscale_contracts::packs::EntityDecoding>,
+) -> Result<ResponseBody, String> {
     facade
         .dispatch(request(
             Capability::PacksEvaluateLocal,
@@ -52,6 +63,7 @@ fn evaluate(
                     max_tokens: 64,
                     synthetic_only,
                     zero_shot_labels: labels.map(|l| l.iter().map(|x| (*x).to_owned()).collect()),
+                    decoding,
                 },
             },
         ))
@@ -108,6 +120,20 @@ fn gliner_pack_evaluates_zero_shot_through_core() {
     assert!(
         evaluate(&facade, &pack_id, &out, Some(labels), false).is_err(),
         "non-synthetic input stays gated"
+    );
+    // Entity decoding applies to token-classification Packs only.
+    let decoding = evaluate_with(
+        &facade,
+        &pack_id,
+        &out,
+        Some(labels),
+        true,
+        Some(medscale_contracts::packs::EntityDecoding::WordFirst),
+    )
+    .unwrap_err();
+    assert!(
+        decoding.contains("only to token-classification Packs"),
+        "{decoding}"
     );
 
     // Labels are refused for a token-classification Pack.
