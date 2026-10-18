@@ -264,3 +264,14 @@ MedScale now measures how well a model tags text, not only that it runs. `medsca
 | `word_first_pii_merge` | **0.893** | **0.990** |
 
 Each model's ONNX (tract) and safetensors (candle) exports score identically. The evaluation found a word-grouping defect on SentencePiece (DeBERTa-v3) tokenizers, which is now fixed. Core keeps the OpenMed-compatible decoding as the default and accepts `PackEvaluationRequest.decoding`. Per-model results: `eval/pii-synthetic-en-v1-results.md`. This is synthetic evaluation evidence, not clinical validation.
+
+**Multilingual PII and biomedical NER (2026-10-18).** The same evaluation covers six more languages and the three NER families. Mean strict F1, OpenMed-compatible versus best decoding:
+
+| Gold set | Rows | OpenMed-compatible | Best decoding |
+|---|---|---|---|
+| PII nl / fr / de / es / it / pt (ai4privacy-style schema) | 163 | 0.318 | 0.678 (`word_first_pii_merge`) |
+| NER PharmaDetect (`CHEM`) | 21 | 0.290 | 0.992 (`word_first`) |
+| NER DiseaseDetect (`DISEASE`) | 21 | 0.500 | 0.756 (`word_first`) |
+| NER AnatomyDetect (`Anatomy`) | 21 | 0.803 | 0.847 (`word_first`) |
+
+The multilingual schema has no medical record number label, and the multilingual models do not tag age in this phrasing. The Spanish models split dates at the connector `de`. In 53 of 54 groups with more than one export, the exports score identically across runtimes; the one exception is recorded. Details: `eval/pii-synthetic-multilingual-v1-results.md` and `eval/ner-synthetic-en-v1-results.md`. This is synthetic evaluation evidence, not clinical validation.

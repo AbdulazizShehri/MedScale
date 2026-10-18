@@ -514,6 +514,38 @@ mod tests {
     }
 
     #[test]
+    fn the_committed_biomedical_ner_gold_sets_are_valid() {
+        let sets: [(&[u8], &str, &str); 3] = [
+            (
+                include_bytes!(
+                    "../../../evidence/103-local-model-catalog/eval/ner-disease-synthetic-en-v1.json"
+                ),
+                "B-DISEASE",
+                "DISEASE",
+            ),
+            (
+                include_bytes!(
+                    "../../../evidence/103-local-model-catalog/eval/ner-chemical-synthetic-en-v1.json"
+                ),
+                "B-CHEM",
+                "CHEMICAL",
+            ),
+            (
+                include_bytes!(
+                    "../../../evidence/103-local-model-catalog/eval/ner-anatomy-synthetic-en-v1.json"
+                ),
+                "B-Anatomy",
+                "ANATOMY",
+            ),
+        ];
+        for (bytes, model_label, canonical) in sets {
+            let set = EvalSet::from_json(bytes).unwrap();
+            assert_eq!(set.documents.len(), 40);
+            assert_eq!(set.canonical(model_label), Some(canonical));
+        }
+    }
+
+    #[test]
     fn predicted_spans_are_read_from_runtime_payloads() {
         let payload = json!({"entities": [
             {"label": "first_name", "score": 0.9, "start": 0, "end": 4, "text": "Anna"},
