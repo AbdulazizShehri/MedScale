@@ -741,6 +741,12 @@ pub enum RequestBody {
     ExportFhirLossAware {
         resource: Value,
     },
+    /// Spec 021: loss-aware FHIR export of every assertion for one subject,
+    /// with its disclosure record appended in the same Core step.
+    ExportSubjectLossAware {
+        subject_ref: OpaqueId,
+        purpose: String,
+    },
     RejectProposal {
         proposal_id: OpaqueId,
         actor: OpaqueId,
@@ -1847,6 +1853,10 @@ pub enum ResponseBody {
     },
     FhirLossAwareExport {
         export: crate::fhir::FhirLossAwareExport,
+    },
+    SubjectFhirExport {
+        exports: Vec<crate::fhir::FhirLossAwareExport>,
+        record: DisclosureRecord,
     },
     Rejected {
         proposal_id: OpaqueId,

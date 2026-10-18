@@ -405,6 +405,32 @@ impl CliSession {
     }
 
     /// Read append-only disclosure records through the authority facade.
+    /// Spec 021: loss-aware FHIR export of a subject's assertions; Core
+    /// appends the disclosure record in the same step.
+    pub fn export_subject_fhir(
+        &mut self,
+        subject_ref: OpaqueId,
+        purpose: String,
+    ) -> Result<
+        (
+            Vec<medscale_contracts::fhir::FhirLossAwareExport>,
+            medscale_contracts::workflow::DisclosureRecord,
+        ),
+        AuthorityError,
+    > {
+        let resp = self.dispatch(
+            Capability::ExportFhirLossAware,
+            RequestBody::ExportSubjectLossAware {
+                subject_ref,
+                purpose,
+            },
+        )?;
+        let ResponseBody::SubjectFhirExport { exports, record } = resp else {
+            return Err(Self::unexpected("subject FHIR export"));
+        };
+        Ok((exports, record))
+    }
+
     pub fn disclosures(
         &mut self,
     ) -> Result<Vec<medscale_contracts::workflow::DisclosureRecord>, AuthorityError> {
