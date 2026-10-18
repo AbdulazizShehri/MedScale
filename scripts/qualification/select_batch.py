@@ -60,9 +60,10 @@ def hub_sizes(repo: str) -> dict[str, int]:
 
 def choose(row: dict, kind: str, sizes: dict[str, int]):
     formats = [f.lower() for f in row["formats"]]
-    # Every runtime needs the repository's tokenizer.json (batch 01: three
-    # MLX repositories ship none).
-    if "tokenizer.json" not in sizes:
+    # Every runtime needs a tokenizer.json. OpenMed MLX exports ship none;
+    # acquisition then takes it from the catalog source row (the repository
+    # without "-mlx"), verified against that row's own pinned digest.
+    if "tokenizer.json" not in sizes and not row["repo_id"].endswith("-mlx"):
         return None
     if kind == "expected_runnable":
         for name in ("model.onnx", "model_fp16.onnx", "model_int8.onnx"):
