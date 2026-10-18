@@ -42,7 +42,8 @@ use std::time::Duration;
 
 use medscale_network::{BrowseTransport, BrowseTransportError, resolve_redirect, validate_url};
 use medscale_pack::{
-    CatalogRow, HfRepoMetadata, ModelCatalog, SnapshotError, verify_against_catalog, verify_file,
+    CatalogRow, HfRepoMetadata, ModelCatalog, SnapshotError, tokenizer_source_repo,
+    verify_against_catalog, verify_file,
 };
 use serde::Serialize;
 
@@ -145,6 +146,9 @@ pub struct AcquisitionReport {
     pub total_bytes: u64,
     /// Bytes reused from verified staging rather than downloaded.
     pub resumed_bytes: u64,
+    /// `repo@revision` the tokenizer came from when the repository ships none
+    /// (OpenMed MLX exports); `None` when it is the repository's own.
+    pub tokenizer_source: Option<String>,
 }
 
 /// Name of the marker that binds a staging directory to one pinned commit.
@@ -436,11 +440,38 @@ pub fn acquire_snapshot(
     //    at the catalog-pinned revision even if the repository moved on.
     let (meta, meta_bytes) = pinned_metadata(transport, row)?;
 
+    // OpenMed MLX exports ship no tokenizer; OpenMed falls back to the source
+    // checkpoint named in `config.json`. Here the source is chosen before any
+    // download (the catalog row without the `-mlx` suffix), its metadata is
+    // pinned to its own catalog row, and `config.json` must name it.
+    let ships_tokenizer = meta
+        .siblings
+        .iter()
+        .any(|s| s.rfilename == "tokenizer.json");
+    let source = if ships_tokenizer {
+        None
+    } else {
+        let name = row.repo_id.strip_suffix("-mlx").ok_or_else(|| {
+            AcquisitionError::Snapshot(SnapshotError::NotInSnapshot("tokenizer.json".into()))
+        })?;
+        let source_row = catalog.get(name).ok_or_else(|| {
+            AcquisitionError::Snapshot(SnapshotError::TokenizerSource(format!(
+                "{name} is not in the catalog"
+            )))
+        })?;
+        Some(pinned_metadata(transport, source_row)?)
+    };
+    let tokenizer_meta = source.as_ref().map_or(&meta, |(m, _)| m);
+
     // 2. Exact sizes and the consent bound, before any file download.
-    let files = ["config.json", "tokenizer.json", consent.onnx_file.as_str()];
+    let files = [
+        (&meta, "config.json"),
+        (tokenizer_meta, "tokenizer.json"),
+        (&meta, consent.onnx_file.as_str()),
+    ];
     let mut total = 0u64;
-    for name in files {
-        let bytes = expected_size(&meta, name)?;
+    for (file_meta, name) in files {
+        let bytes = expected_size(file_meta, name)?;
         let limit = if name == consent.onnx_file {
             ONNX_MAX_BYTES
         } else {
@@ -468,9 +499,9 @@ pub fn acquire_snapshot(
     open_staging(&staging, &meta.id, &meta.sha)?;
     let result: Result<Vec<AcquiredFile>, AcquisitionError> = (|| {
         let mut acquired = Vec::new();
-        for name in files {
-            let size = expected_size(&meta, name)?;
-            if let Some(sha256) = staged_file(&meta, &staging, name, size) {
+        for (file_meta, name) in files {
+            let size = expected_size(file_meta, name)?;
+            if let Some(sha256) = staged_file(file_meta, &staging, name, size) {
                 acquired.push(AcquiredFile {
                     name: name.to_string(),
                     bytes: size,
@@ -482,7 +513,7 @@ pub fn acquire_snapshot(
             }
             let url = format!(
                 "https://huggingface.co/{}/resolve/{}/{name}",
-                meta.id, meta.sha
+                file_meta.id, file_meta.sha
             );
             // Streamed into `<name>.part`, resuming from any bytes left by an
             // interrupted attempt; it becomes the staged file only after the
@@ -496,7 +527,7 @@ pub fn acquire_snapshot(
                     path: name.to_string(),
                 }));
             }
-            let sha256 = match verify_file(&meta, name, &body) {
+            let sha256 = match verify_file(file_meta, name, &body) {
                 Ok(sha256) => sha256,
                 Err(e) => {
                     let _ = std::fs::remove_file(&part);
@@ -512,6 +543,18 @@ pub fn acquire_snapshot(
                 resumed: false,
                 resumed_from,
             });
+        }
+        if let Some((source_meta, source_bytes)) = &source {
+            let config = std::fs::read(staging.join("config.json")).map_err(|e| io(&e))?;
+            if tokenizer_source_repo(&config, &meta.id).as_deref() != Some(source_meta.id.as_str())
+            {
+                return Err(AcquisitionError::Snapshot(SnapshotError::TokenizerSource(
+                    format!("config.json does not name {} as its source", source_meta.id),
+                )));
+            }
+            let dir = staging.join("tokenizer_source");
+            std::fs::create_dir_all(&dir).map_err(|e| io(&e))?;
+            std::fs::write(dir.join("metadata.json"), source_bytes).map_err(|e| io(&e))?;
         }
         std::fs::write(staging.join("metadata.json"), &meta_bytes).map_err(|e| io(&e))?;
         Ok(acquired)
@@ -539,6 +582,7 @@ pub fn acquire_snapshot(
         files: acquired,
         total_bytes: total,
         resumed_bytes,
+        tokenizer_source: source.map(|(m, _)| format!("{}@{}", m.id, m.sha)),
     })
 }
 
@@ -624,6 +668,130 @@ mod tests {
         h.update(format!("blob {}\0", b.len()).as_bytes());
         h.update(b);
         hex(&h.finalize())
+    }
+
+    /// An OpenMed MLX export without a tokenizer and the catalog row it was
+    /// made from, which ships one.
+    struct MlxFixture {
+        config: Vec<u8>,
+        tokenizer: Vec<u8>,
+        weights: Vec<u8>,
+        mlx_meta: String,
+        source_meta: String,
+        catalog: ModelCatalog,
+    }
+
+    const MLX: &str = "OpenMed/Synthetic-NER-mlx";
+    const SOURCE: &str = "OpenMed/Synthetic-NER";
+    const MLX_SHA: &str = "1111111111111111111111111111111111111111";
+
+    fn mlx_fixture(names: &str) -> MlxFixture {
+        let config = format!(r#"{{"id2label":{{"0":"O","1":"B-X"}},"_name_or_path":"{names}"}}"#)
+            .into_bytes();
+        let tokenizer = br#"{"version":"1.0"}"#.to_vec();
+        let weights = vec![7u8; 2048];
+        let mlx_meta = format!(
+            r#"{{"id":"{MLX}","sha":"{MLX_SHA}","lastModified":"2026-07-13T07:43:16.000Z","gated":false,"private":false,"siblings":[{{"rfilename":"config.json","size":{},"blobId":"{}"}},{{"rfilename":"weights.safetensors","size":2048,"lfs":{{"sha256":"{}","size":2048}}}}]}}"#,
+            config.len(),
+            git_blob(&config),
+            hex(&Sha256::digest(&weights)),
+        );
+        let source_meta = format!(
+            r#"{{"id":"{SOURCE}","sha":"{SHA}","lastModified":"2026-07-13T07:43:16.000Z","gated":false,"private":false,"siblings":[{{"rfilename":"config.json","size":2,"blobId":"{}"}},{{"rfilename":"tokenizer.json","size":{},"blobId":"{}"}}]}}"#,
+            git_blob(b"{}"),
+            tokenizer.len(),
+            git_blob(&tokenizer),
+        );
+        let hash = |m: &str| {
+            medscale_pack::reproducibility_hash(&serde_json::from_str::<HfRepoMetadata>(m).unwrap())
+        };
+        let rows = format!(
+            "{}\n{}",
+            format_args!(
+                r#"{{"repo_id":"{MLX}","family":"NER","task":"token-classification","formats":["mlx-fp"],"license":"apache-2.0","reproducibility_hash":"{}"}}"#,
+                hash(&mlx_meta)
+            ),
+            format_args!(
+                r#"{{"repo_id":"{SOURCE}","family":"NER","task":"token-classification","formats":["pytorch"],"license":"apache-2.0","reproducibility_hash":"{}"}}"#,
+                hash(&source_meta)
+            ),
+        );
+        let catalog = ModelCatalog::import("s/f", COMMIT, rows.as_bytes()).unwrap();
+        MlxFixture {
+            config,
+            tokenizer,
+            weights,
+            mlx_meta,
+            source_meta,
+            catalog,
+        }
+    }
+
+    fn mlx_transport(f: &MlxFixture) -> ScriptedBrowseTransport {
+        ScriptedBrowseTransport::new()
+            .route(
+                &format!("https://huggingface.co/api/models/{MLX}?blobs=true"),
+                ScriptedBrowseTransport::ok("application/json", f.mlx_meta.as_bytes()),
+            )
+            .route(
+                &format!("https://huggingface.co/api/models/{SOURCE}?blobs=true"),
+                ScriptedBrowseTransport::ok("application/json", f.source_meta.as_bytes()),
+            )
+            .route(
+                &format!("https://huggingface.co/{MLX}/resolve/{MLX_SHA}/config.json"),
+                ScriptedBrowseTransport::ok("application/json", &f.config),
+            )
+            .route(
+                &format!("https://huggingface.co/{MLX}/resolve/{MLX_SHA}/weights.safetensors"),
+                ScriptedBrowseTransport::ok("application/octet-stream", &f.weights),
+            )
+            .route(
+                &format!("https://huggingface.co/{SOURCE}/resolve/{SHA}/tokenizer.json"),
+                ScriptedBrowseTransport::ok("application/json", &f.tokenizer),
+            )
+    }
+
+    fn mlx_consent() -> AcquisitionConsent {
+        AcquisitionConsent {
+            repo_id: MLX.into(),
+            onnx_file: "weights.safetensors".into(),
+            approved_bytes: 1_000_000,
+        }
+    }
+
+    #[test]
+    fn mlx_exports_take_the_tokenizer_from_their_verified_catalog_source() {
+        let f = mlx_fixture(SOURCE);
+        let d = dest("mlx-ok");
+        let report = acquire_snapshot(&mlx_transport(&f), &f.catalog, &mlx_consent(), &d).unwrap();
+        assert_eq!(
+            report.tokenizer_source.as_deref(),
+            Some(format!("{SOURCE}@{SHA}").as_str())
+        );
+        assert_eq!(
+            std::fs::read(d.join("tokenizer.json")).unwrap(),
+            f.tokenizer
+        );
+        assert_eq!(
+            std::fs::read(d.join("tokenizer_source").join("metadata.json")).unwrap(),
+            f.source_meta.as_bytes()
+        );
+        assert!(d.join("weights.safetensors").is_file());
+    }
+
+    #[test]
+    fn a_tokenizer_source_not_named_by_the_config_is_refused() {
+        let f = mlx_fixture("OpenMed/Some-Other-Model");
+        let d = dest("mlx-other");
+        let err = acquire_snapshot(&mlx_transport(&f), &f.catalog, &mlx_consent(), &d).unwrap_err();
+        assert!(
+            matches!(
+                err,
+                AcquisitionError::Snapshot(SnapshotError::TokenizerSource(_))
+            ),
+            "{err}"
+        );
+        assert!(!d.exists());
     }
 
     struct Fixture {

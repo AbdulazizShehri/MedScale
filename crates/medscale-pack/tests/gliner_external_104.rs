@@ -45,6 +45,7 @@ fn gliner_catalog_row_to_local_zero_shot_run() {
             snapshot_dir: &snapshot,
             onnx_file: &weight_file,
             fixed_sequence_length: 512,
+            tokenizer_source: None,
         },
         &out,
     )
