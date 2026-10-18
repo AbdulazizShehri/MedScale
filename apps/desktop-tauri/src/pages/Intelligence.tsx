@@ -396,6 +396,17 @@ function FleetBody({ projectId }: { projectId: string }) {
   const v = o.state.status === "ready" ? o.state.data : null;
   useEffect(() => { if (v && !sel && v.fleets[0]) setSel(v.fleets[0].id); }, [v, sel]);
 
+  const agentsQ = useCommand<{ runs: Run[]; agents: Agent[] }>("medagent_runs", { projectId });
+  const sourcesQ = useCommand<Source[]>("medagent_sources");
+  const fleetAgents = agentsQ.state.status === "ready" ? agentsQ.state.data.agents.filter((a) => a.status === "active") : [];
+  const fleetSources = sourcesQ.state.status === "ready" ? sourcesQ.state.data : [];
+  const [lane, setLane] = useState<{ role: string; agentId: string; sourceId: string } | null>(null);
+  async function addLane(e: FormEvent) {
+    e.preventDefault();
+    if (!lane) return;
+    const r = await run("lane", "fleet_create_lane", { projectId, role: lane.role, agentId: lane.agentId, sourceIds: [lane.sourceId] });
+    if (outcome(r, "Lane created")) { setLane(null); await o.reload(); }
+  }
   const after = async () => { await o.reload(); await detail.reload(); };
   async function setup() { const r = await run("setup", "fleet_setup_lanes", { projectId }); if (outcome(r, "Two reviewer lanes created")) await o.reload(); }
   async function create(e: FormEvent) { e.preventDefault(); const r = await run<{ id: string }>("create", "fleet_create", { projectId, prompt }); if (outcome(r, "Fleet run created")) { setPrompt(""); await o.reload(); setSel(r.data.id); } }
@@ -411,6 +422,19 @@ function FleetBody({ projectId }: { projectId: string }) {
     <div style={{ display: "grid", gridTemplateColumns: "300px minmax(0,1fr)", gap: 24 }}>
       <div>
         <Section title="Lanes" count={v!.lanes.length} actions={<button type="button" className="btn btn-g" style={{ height: 24 }} onClick={setup} disabled={!!pending}>Add two lanes</button>}>
+          {lane ? (
+            <form onSubmit={addLane} className="stack" style={{ gap: 6, marginBottom: 10 }}>
+              <label className="lbl" htmlFor="lr">Role</label>
+              <input id="lr" value={lane.role} maxLength={80} onChange={(e) => setLane({ ...lane, role: e.target.value })} />
+              <label className="lbl" htmlFor="la">Agent (its Pack is the lane's model)</label>
+              <select id="la" value={lane.agentId} onChange={(e) => setLane({ ...lane, agentId: e.target.value })}>{fleetAgents.map((a) => <option key={a.id} value={a.id}>{a.label}</option>)}</select>
+              <label className="lbl" htmlFor="ls">Source</label>
+              <select id="ls" value={lane.sourceId} onChange={(e) => setLane({ ...lane, sourceId: e.target.value })}>{fleetSources.map((s) => <option key={s.id} value={s.id}>{s.resource_type} · {s.fixture}</option>)}</select>
+              <div className="row-gap" style={{ gap: 8 }}><button type="submit" className="btn btn-p" disabled={!lane.role.trim() || !lane.agentId || !lane.sourceId || !!pending}>Create lane</button><button type="button" className="btn btn-g" onClick={() => setLane(null)}>Cancel</button></div>
+            </form>
+          ) : (
+            <button type="button" className="btn btn-s" style={{ marginBottom: 10 }} disabled={!fleetAgents.length || !fleetSources.length} title={fleetAgents.length ? undefined : "Register an agent in MedAgent first"} onClick={() => setLane({ role: "", agentId: fleetAgents[0]?.id ?? "", sourceId: fleetSources[0]?.id ?? "" })}>New lane</button>
+          )}
           {v!.lanes.length ? v!.lanes.map((l) => <div key={l.id} className="lr" style={{ gridTemplateColumns: "minmax(0,1fr) auto" }}><span style={{ display: "flex", flexDirection: "column", minWidth: 0 }}><span className="t-sm">{l.role_label}</span><span className="mono t-mono-sm i3 trunc">{l.id}</span></span><Status kind={glyphFor(l.status)} weight="weak">{l.status}</Status></div>) : <p className="t-sm i3">No lanes. Each lane is an agent on the fixture pack bound to a different ingested source.</p>}
         </Section>
         <Section title="Fleet runs" count={v!.fleets.length}>

@@ -62,6 +62,7 @@ fn main() {
             "models_evaluate",
             "fleet_overview",
             "fleet_setup_lanes",
+            "fleet_create_lane",
             "fleet_create",
             "fleet_dispatch",
             "fleet_execute_lane",

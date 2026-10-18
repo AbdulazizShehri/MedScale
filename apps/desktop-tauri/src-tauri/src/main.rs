@@ -89,6 +89,7 @@ fn presentation_builder<R: tauri::Runtime>(builder: tauri::Builder<R>) -> tauri:
             cmd_ops::models_evaluate,
             cmd_ops::fleet_overview,
             cmd_ops::fleet_setup_lanes,
+            cmd_ops::fleet_create_lane,
             cmd_ops::fleet_create,
             cmd_ops::fleet_dispatch,
             cmd_ops::fleet_execute_lane,

@@ -63,6 +63,7 @@
     "allow-models-evaluate",
     "allow-fleet-overview",
     "allow-fleet-setup-lanes",
+    "allow-fleet-create-lane",
     "allow-fleet-create",
     "allow-fleet-dispatch",
     "allow-fleet-execute-lane",

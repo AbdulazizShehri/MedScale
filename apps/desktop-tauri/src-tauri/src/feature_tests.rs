@@ -706,6 +706,37 @@ fn medagent_workbench_agent_context_evidence_and_resume() {
         "invalid"
     );
 
+    // Model Fleet: a lane on a chosen agent (and Pack) and sources executes
+    // on that agent's Pack.
+    let lane_agent = h.ok(
+        "medagent_create_agent",
+        json!({ "projectId": pid, "name": "Fleet reviewer", "packId": fixture_id, "tools": ["read_context_artifact"] }),
+    );
+    let fleet_sources = h.ok("medagent_sources", json!({}));
+    let lane = h.ok(
+        "fleet_create_lane",
+        json!({ "projectId": pid, "role": "primary reviewer", "agentId": lane_agent["id"], "sourceIds": [fleet_sources[0]["id"]] }),
+    );
+    assert_eq!(lane["role_label"], "primary reviewer", "{lane}");
+    let second = h.ok(
+        "fleet_create_lane",
+        json!({ "projectId": pid, "role": "second reviewer", "agentId": lane_agent["id"], "sourceIds": [fleet_sources[1]["id"]] }),
+    );
+    let fleet = h.ok(
+        "fleet_create",
+        json!({ "projectId": pid, "prompt": "review the bound source" }),
+    );
+    let dispatched = h.ok(
+        "fleet_dispatch",
+        json!({ "fleetId": fleet["id"], "revision": fleet["revision"], "laneIds": [lane["id"], second["id"]] }),
+    );
+    assert_eq!(dispatched["status"], "running", "{dispatched}");
+    let executed = h.ok(
+        "fleet_execute_lane",
+        json!({ "fleetId": fleet["id"], "laneId": lane["id"] }),
+    );
+    assert!(executed["status"].is_string(), "{executed}");
+
     // Documents: import a synthetic FHIR file for a new subject through Core.
     let dir = std::env::temp_dir().join(format!("medscale-tauri-import-{}", std::process::id()));
     std::fs::create_dir_all(&dir).unwrap();

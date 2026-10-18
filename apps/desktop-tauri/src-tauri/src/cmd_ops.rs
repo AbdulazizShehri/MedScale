@@ -570,6 +570,39 @@ pub fn fleet_overview(host: tauri::State<'_, Host>, project_id: String) -> CmdRe
     }))
 }
 
+/// Creates one lane: an existing agent (and so its Pack) with a role and a
+/// context bound to the chosen ingested sources.
+#[tauri::command(async)]
+pub fn fleet_create_lane(
+    host: tauri::State<'_, Host>,
+    project_id: String,
+    role: String,
+    agent_id: String,
+    source_ids: Vec<String>,
+) -> CmdResult<Value> {
+    let project_id = host::bounded_id(&project_id)?.to_owned();
+    let agent_id = host::bounded_id(&agent_id)?.to_owned();
+    let role = host::bounded_text(&role, 80)?;
+    let mut state = lock(&host)?;
+    let artifacts = selected_sources(&mut state, &source_ids)?;
+    let session = state.session()?;
+    let (context, _) = session.medagent_context_create(OpaqueId::new(&project_id), artifacts)?;
+    let lane = session.model_fleet_lane_create(
+        OpaqueId::new(&project_id),
+        OpaqueId::new(&agent_id),
+        context.header.id,
+        role,
+        None,
+        None,
+    )?;
+    Ok(json!({
+        "id": lane.header.id.as_str(),
+        "role_label": lane.role_label,
+        "agent_id": agent_id,
+        "status": lane.status,
+    }))
+}
+
 /// Creates two independent reviewer lanes on the fixture pack, each bound to a
 /// different ingested source.
 #[tauri::command(async)]
@@ -654,7 +687,11 @@ pub fn fleet_execute_lane(
     let fleet_id = host::bounded_id(&fleet_id)?.to_owned();
     let lane_id = host::bounded_id(&lane_id)?.to_owned();
     let mut state = lock(&host)?;
-    let (_, dir) = workspace_pack(&mut state)?;
+    // Each lane runs on its own agent's Pack, so a fleet can compare models.
+    let session = state.session()?;
+    let lane = session.model_fleet_lane_get(OpaqueId::new(&lane_id))?;
+    let (identity, _) = session.medagent_identity_get(lane.agent_identity_id)?;
+    let dir = pack_dir(&mut state, identity.pack_id.as_str())?;
     let r = model_fleet_workspace::execute_lane(state.session()?, &fleet_id, &lane_id, &dir)?;
     Ok(crate::obj!(r => id, status, revision))
 }
