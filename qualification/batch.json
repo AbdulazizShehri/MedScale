@@ -1,0 +1,344 @@
+[
+ {
+  "id": "00-OpenMed-PII-French-ClinicalE5-Small-33M-v1-onnx-",
+  "repo": "OpenMed/OpenMed-PII-French-ClinicalE5-Small-33M-v1-onnx-android",
+  "weights": "model.onnx",
+  "test": "openmed_snapshot_external_103",
+  "text": "Le patient Jean Dupont, né le 12 mars 1980, habite à Lyon et souffre de diabète.",
+  "labels": "",
+  "eval": "evidence/103-local-model-catalog/eval/pii-synthetic-fr-v1.json"
+ },
+ {
+  "id": "01-OpenMed-PII-French-BioClinicalModern-Large-395M-",
+  "repo": "OpenMed/OpenMed-PII-French-BioClinicalModern-Large-395M-v1-onnx-android",
+  "weights": "model_fp16.onnx",
+  "test": "openmed_snapshot_external_103",
+  "text": "Le patient Jean Dupont, né le 12 mars 1980, habite à Lyon et souffre de diabète.",
+  "labels": "",
+  "eval": "evidence/103-local-model-catalog/eval/pii-synthetic-fr-v1.json"
+ },
+ {
+  "id": "02-OpenMed-PII-French-BioClinicalBERT-Base-110M-v1-",
+  "repo": "OpenMed/OpenMed-PII-French-BioClinicalBERT-Base-110M-v1-onnx-android",
+  "weights": "model.onnx",
+  "test": "openmed_snapshot_external_103",
+  "text": "Le patient Jean Dupont, né le 12 mars 1980, habite à Lyon et souffre de diabète.",
+  "labels": "",
+  "eval": "evidence/103-local-model-catalog/eval/pii-synthetic-fr-v1.json"
+ },
+ {
+  "id": "03-OpenMed-PII-French-FastClinical-Small-82M-v1",
+  "repo": "OpenMed/OpenMed-PII-French-FastClinical-Small-82M-v1",
+  "weights": "model.safetensors",
+  "test": "safetensors_external_104",
+  "text": "Le patient Jean Dupont, né le 12 mars 1980, habite à Lyon et souffre de diabète.",
+  "labels": "",
+  "eval": "evidence/103-local-model-catalog/eval/pii-synthetic-fr-v1.json"
+ },
+ {
+  "id": "04-OpenMed-PII-French-EuroMed-Large-210M-v1-onnx-an",
+  "repo": "OpenMed/OpenMed-PII-French-EuroMed-Large-210M-v1-onnx-android",
+  "weights": "model.onnx",
+  "test": "openmed_snapshot_external_103",
+  "text": "Le patient Jean Dupont, né le 12 mars 1980, habite à Lyon et souffre de diabète.",
+  "labels": "",
+  "eval": "evidence/103-local-model-catalog/eval/pii-synthetic-fr-v1.json"
+ },
+ {
+  "id": "05-OpenMed-PII-French-LiteClinical-Small-66M-v1",
+  "repo": "OpenMed/OpenMed-PII-French-LiteClinical-Small-66M-v1",
+  "weights": "model.safetensors",
+  "test": "safetensors_external_104",
+  "text": "Le patient Jean Dupont, né le 12 mars 1980, habite à Lyon et souffre de diabète.",
+  "labels": "",
+  "eval": "evidence/103-local-model-catalog/eval/pii-synthetic-fr-v1.json"
+ },
+ {
+  "id": "06-OpenMed-PII-French-SuperClinical-Base-184M-v1",
+  "repo": "OpenMed/OpenMed-PII-French-SuperClinical-Base-184M-v1",
+  "weights": "model.safetensors",
+  "test": "safetensors_external_104",
+  "text": "Le patient Jean Dupont, né le 12 mars 1980, habite à Lyon et souffre de diabète.",
+  "labels": "",
+  "eval": "evidence/103-local-model-catalog/eval/pii-synthetic-fr-v1.json"
+ },
+ {
+  "id": "07-OpenMed-PII-French-LiteClinical-Small-66M-v1-onn",
+  "repo": "OpenMed/OpenMed-PII-French-LiteClinical-Small-66M-v1-onnx-android",
+  "weights": "model.onnx",
+  "test": "openmed_snapshot_external_103",
+  "text": "Le patient Jean Dupont, né le 12 mars 1980, habite à Lyon et souffre de diabète.",
+  "labels": "",
+  "eval": "evidence/103-local-model-catalog/eval/pii-synthetic-fr-v1.json"
+ },
+ {
+  "id": "08-OpenMed-PII-French-FastClinical-Small-82M-v1-onn",
+  "repo": "OpenMed/OpenMed-PII-French-FastClinical-Small-82M-v1-onnx-android",
+  "weights": "model.onnx",
+  "test": "openmed_snapshot_external_103",
+  "text": "Le patient Jean Dupont, né le 12 mars 1980, habite à Lyon et souffre de diabète.",
+  "labels": "",
+  "eval": "evidence/103-local-model-catalog/eval/pii-synthetic-fr-v1.json"
+ },
+ {
+  "id": "09-OpenMed-PII-French-SuperClinical-Base-184M-v1-on",
+  "repo": "OpenMed/OpenMed-PII-French-SuperClinical-Base-184M-v1-onnx-android",
+  "weights": "model.onnx",
+  "test": "openmed_snapshot_external_103",
+  "text": "Le patient Jean Dupont, né le 12 mars 1980, habite à Lyon et souffre de diabète.",
+  "labels": "",
+  "eval": "evidence/103-local-model-catalog/eval/pii-synthetic-fr-v1.json"
+ },
+ {
+  "id": "10-OpenMed-PII-Dutch-BioClinicalModern-Base-149M-v1",
+  "repo": "OpenMed/OpenMed-PII-Dutch-BioClinicalModern-Base-149M-v1-onnx-android",
+  "weights": "model.onnx",
+  "test": "openmed_snapshot_external_103",
+  "text": "Patiënt Jan de Vries, geboren op 12 maart 1980, woont in Utrecht en heeft diabetes.",
+  "labels": "",
+  "eval": "evidence/103-local-model-catalog/eval/pii-synthetic-nl-v1.json"
+ },
+ {
+  "id": "11-OpenMed-PII-Dutch-BiomedBERT-Large-340M-v1-onnx-",
+  "repo": "OpenMed/OpenMed-PII-Dutch-BiomedBERT-Large-340M-v1-onnx-android",
+  "weights": "model_fp16.onnx",
+  "test": "openmed_snapshot_external_103",
+  "text": "Patiënt Jan de Vries, geboren op 12 maart 1980, woont in Utrecht en heeft diabetes.",
+  "labels": "",
+  "eval": "evidence/103-local-model-catalog/eval/pii-synthetic-nl-v1.json"
+ },
+ {
+  "id": "12-OpenMed-PII-Dutch-ClinicalE5-Small-33M-v1",
+  "repo": "OpenMed/OpenMed-PII-Dutch-ClinicalE5-Small-33M-v1",
+  "weights": "model.safetensors",
+  "test": "safetensors_external_104",
+  "text": "Patiënt Jan de Vries, geboren op 12 maart 1980, woont in Utrecht en heeft diabetes.",
+  "labels": "",
+  "eval": "evidence/103-local-model-catalog/eval/pii-synthetic-nl-v1.json"
+ },
+ {
+  "id": "13-OpenMed-PII-Dutch-EuroMed-Large-210M-v1-onnx-and",
+  "repo": "OpenMed/OpenMed-PII-Dutch-EuroMed-Large-210M-v1-onnx-android",
+  "weights": "model.onnx",
+  "test": "openmed_snapshot_external_103",
+  "text": "Patiënt Jan de Vries, geboren op 12 maart 1980, woont in Utrecht en heeft diabetes.",
+  "labels": "",
+  "eval": "evidence/103-local-model-catalog/eval/pii-synthetic-nl-v1.json"
+ },
+ {
+  "id": "14-OpenMed-PII-Dutch-BioClinicalBERT-Base-110M-v1",
+  "repo": "OpenMed/OpenMed-PII-Dutch-BioClinicalBERT-Base-110M-v1",
+  "weights": "model.safetensors",
+  "test": "safetensors_external_104",
+  "text": "Patiënt Jan de Vries, geboren op 12 maart 1980, woont in Utrecht en heeft diabetes.",
+  "labels": "",
+  "eval": "evidence/103-local-model-catalog/eval/pii-synthetic-nl-v1.json"
+ },
+ {
+  "id": "15-OpenMed-PII-Dutch-BioClinicalModern-Large-395M-v",
+  "repo": "OpenMed/OpenMed-PII-Dutch-BioClinicalModern-Large-395M-v1-onnx-android",
+  "weights": "model_fp16.onnx",
+  "test": "openmed_snapshot_external_103",
+  "text": "Patiënt Jan de Vries, geboren op 12 maart 1980, woont in Utrecht en heeft diabetes.",
+  "labels": "",
+  "eval": "evidence/103-local-model-catalog/eval/pii-synthetic-nl-v1.json"
+ },
+ {
+  "id": "16-OpenMed-PII-Dutch-LiteClinical-Small-66M-v1-onnx",
+  "repo": "OpenMed/OpenMed-PII-Dutch-LiteClinical-Small-66M-v1-onnx-android",
+  "weights": "model.onnx",
+  "test": "openmed_snapshot_external_103",
+  "text": "Patiënt Jan de Vries, geboren op 12 maart 1980, woont in Utrecht en heeft diabetes.",
+  "labels": "",
+  "eval": "evidence/103-local-model-catalog/eval/pii-synthetic-nl-v1.json"
+ },
+ {
+  "id": "17-OpenMed-PII-Dutch-BioClinicalBERT-Base-110M-v1-o",
+  "repo": "OpenMed/OpenMed-PII-Dutch-BioClinicalBERT-Base-110M-v1-onnx-android",
+  "weights": "model.onnx",
+  "test": "openmed_snapshot_external_103",
+  "text": "Patiënt Jan de Vries, geboren op 12 maart 1980, woont in Utrecht en heeft diabetes.",
+  "labels": "",
+  "eval": "evidence/103-local-model-catalog/eval/pii-synthetic-nl-v1.json"
+ },
+ {
+  "id": "18-OpenMed-PII-Dutch-FastClinical-Small-82M-v1-onnx",
+  "repo": "OpenMed/OpenMed-PII-Dutch-FastClinical-Small-82M-v1-onnx-android",
+  "weights": "model.onnx",
+  "test": "openmed_snapshot_external_103",
+  "text": "Patiënt Jan de Vries, geboren op 12 maart 1980, woont in Utrecht en heeft diabetes.",
+  "labels": "",
+  "eval": "evidence/103-local-model-catalog/eval/pii-synthetic-nl-v1.json"
+ },
+ {
+  "id": "19-OpenMed-PII-Dutch-ClinicalE5-Small-33M-v1-onnx-a",
+  "repo": "OpenMed/OpenMed-PII-Dutch-ClinicalE5-Small-33M-v1-onnx-android",
+  "weights": "model.onnx",
+  "test": "openmed_snapshot_external_103",
+  "text": "Patiënt Jan de Vries, geboren op 12 maart 1980, woont in Utrecht en heeft diabetes.",
+  "labels": "",
+  "eval": "evidence/103-local-model-catalog/eval/pii-synthetic-nl-v1.json"
+ },
+ {
+  "id": "20-OpenMed-PII-Dutch-LiteClinical-Small-66M-v1",
+  "repo": "OpenMed/OpenMed-PII-Dutch-LiteClinical-Small-66M-v1",
+  "weights": "model.safetensors",
+  "test": "safetensors_external_104",
+  "text": "Patiënt Jan de Vries, geboren op 12 maart 1980, woont in Utrecht en heeft diabetes.",
+  "labels": "",
+  "eval": "evidence/103-local-model-catalog/eval/pii-synthetic-nl-v1.json"
+ },
+ {
+  "id": "21-OpenMed-PII-Dutch-SuperClinical-Base-184M-v1",
+  "repo": "OpenMed/OpenMed-PII-Dutch-SuperClinical-Base-184M-v1",
+  "weights": "model.safetensors",
+  "test": "safetensors_external_104",
+  "text": "Patiënt Jan de Vries, geboren op 12 maart 1980, woont in Utrecht en heeft diabetes.",
+  "labels": "",
+  "eval": "evidence/103-local-model-catalog/eval/pii-synthetic-nl-v1.json"
+ },
+ {
+  "id": "22-OpenMed-PII-Dutch-SuperClinical-Base-184M-v1-onn",
+  "repo": "OpenMed/OpenMed-PII-Dutch-SuperClinical-Base-184M-v1-onnx-android",
+  "weights": "model.onnx",
+  "test": "openmed_snapshot_external_103",
+  "text": "Patiënt Jan de Vries, geboren op 12 maart 1980, woont in Utrecht en heeft diabetes.",
+  "labels": "",
+  "eval": "evidence/103-local-model-catalog/eval/pii-synthetic-nl-v1.json"
+ },
+ {
+  "id": "23-OpenMed-PII-Dutch-SuperMedical-Base-125M-v1-onnx",
+  "repo": "OpenMed/OpenMed-PII-Dutch-SuperMedical-Base-125M-v1-onnx-android",
+  "weights": "model.onnx",
+  "test": "openmed_snapshot_external_103",
+  "text": "Patiënt Jan de Vries, geboren op 12 maart 1980, woont in Utrecht en heeft diabetes.",
+  "labels": "",
+  "eval": "evidence/103-local-model-catalog/eval/pii-synthetic-nl-v1.json"
+ },
+ {
+  "id": "24-OpenMed-PII-Dutch-mLiteClinical-Base-135M-v1",
+  "repo": "OpenMed/OpenMed-PII-Dutch-mLiteClinical-Base-135M-v1",
+  "weights": "model.safetensors",
+  "test": "safetensors_external_104",
+  "text": "Patiënt Jan de Vries, geboren op 12 maart 1980, woont in Utrecht en heeft diabetes.",
+  "labels": "",
+  "eval": "evidence/103-local-model-catalog/eval/pii-synthetic-nl-v1.json"
+ },
+ {
+  "id": "25-OpenMed-PII-Dutch-SuperMedical-Large-355M-v1-onn",
+  "repo": "OpenMed/OpenMed-PII-Dutch-SuperMedical-Large-355M-v1-onnx-android",
+  "weights": "model_fp16.onnx",
+  "test": "openmed_snapshot_external_103",
+  "text": "Patiënt Jan de Vries, geboren op 12 maart 1980, woont in Utrecht en heeft diabetes.",
+  "labels": "",
+  "eval": "evidence/103-local-model-catalog/eval/pii-synthetic-nl-v1.json"
+ },
+ {
+  "id": "26-OpenMed-PII-Dutch-mSuperClinical-Large-279M-v1-o",
+  "repo": "OpenMed/OpenMed-PII-Dutch-mSuperClinical-Large-279M-v1-onnx-android",
+  "weights": "model_fp16.onnx",
+  "test": "openmed_snapshot_external_103",
+  "text": "Patiënt Jan de Vries, geboren op 12 maart 1980, woont in Utrecht en heeft diabetes.",
+  "labels": "",
+  "eval": "evidence/103-local-model-catalog/eval/pii-synthetic-nl-v1.json"
+ },
+ {
+  "id": "27-OpenMed-PII-Dutch-mLiteClinical-Base-135M-v1-onn",
+  "repo": "OpenMed/OpenMed-PII-Dutch-mLiteClinical-Base-135M-v1-onnx-android",
+  "weights": "model.onnx",
+  "test": "openmed_snapshot_external_103",
+  "text": "Patiënt Jan de Vries, geboren op 12 maart 1980, woont in Utrecht en heeft diabetes.",
+  "labels": "",
+  "eval": "evidence/103-local-model-catalog/eval/pii-synthetic-nl-v1.json"
+ },
+ {
+  "id": "28-OpenMed-PII-Dutch-BigMed-Large-278M-v1-onnx-andr",
+  "repo": "OpenMed/OpenMed-PII-Dutch-BigMed-Large-278M-v1-onnx-android",
+  "weights": "model_fp16.onnx",
+  "test": "openmed_snapshot_external_103",
+  "text": "Patiënt Jan de Vries, geboren op 12 maart 1980, woont in Utrecht en heeft diabetes.",
+  "labels": "",
+  "eval": "evidence/103-local-model-catalog/eval/pii-synthetic-nl-v1.json"
+ },
+ {
+  "id": "29-OpenMed-PII-Dutch-QwenMed-XLarge-600M-v1-onnx-an",
+  "repo": "OpenMed/OpenMed-PII-Dutch-QwenMed-XLarge-600M-v1-onnx-android",
+  "weights": "model_int8.onnx",
+  "test": "openmed_snapshot_external_103",
+  "text": "Patiënt Jan de Vries, geboren op 12 maart 1980, woont in Utrecht en heeft diabetes.",
+  "labels": "",
+  "eval": "evidence/103-local-model-catalog/eval/pii-synthetic-nl-v1.json"
+ },
+ {
+  "id": "30-OpenMed-PII-French-QwenMed-XLarge-600M-v1-onnx-a",
+  "repo": "OpenMed/OpenMed-PII-French-QwenMed-XLarge-600M-v1-onnx-android",
+  "weights": "model_int8.onnx",
+  "test": "openmed_snapshot_external_103",
+  "text": "Le patient Jean Dupont, né le 12 mars 1980, habite à Lyon et souffre de diabète.",
+  "labels": "",
+  "eval": "evidence/103-local-model-catalog/eval/pii-synthetic-fr-v1.json"
+ },
+ {
+  "id": "31-OpenMed-PII-German-QwenMed-XLarge-600M-v1-onnx-a",
+  "repo": "OpenMed/OpenMed-PII-German-QwenMed-XLarge-600M-v1-onnx-android",
+  "weights": "model_int8.onnx",
+  "test": "openmed_snapshot_external_103",
+  "text": "Der Patient Hans Müller, geboren am 12. März 1980, wohnt in Berlin und hat Diabetes.",
+  "labels": "",
+  "eval": "evidence/103-local-model-catalog/eval/pii-synthetic-de-v1.json"
+ },
+ {
+  "id": "32-OpenMed-PII-Italian-QwenMed-XLarge-600M-v1-onnx-",
+  "repo": "OpenMed/OpenMed-PII-Italian-QwenMed-XLarge-600M-v1-onnx-android",
+  "weights": "model_int8.onnx",
+  "test": "openmed_snapshot_external_103",
+  "text": "Il paziente Mario Rossi, nato il 12 marzo 1980, vive a Milano e ha il diabete.",
+  "labels": "",
+  "eval": "evidence/103-local-model-catalog/eval/pii-synthetic-it-v1.json"
+ },
+ {
+  "id": "33-OpenMed-PII-Portuguese-QwenMed-XLarge-600M-v1-on",
+  "repo": "OpenMed/OpenMed-PII-Portuguese-QwenMed-XLarge-600M-v1-onnx-android",
+  "weights": "model_int8.onnx",
+  "test": "openmed_snapshot_external_103",
+  "text": "O paciente João Silva, nascido em 12 de março de 1980, mora em Lisboa e tem diabetes.",
+  "labels": "",
+  "eval": "evidence/103-local-model-catalog/eval/pii-synthetic-pt-v1.json"
+ },
+ {
+  "id": "34-OpenMed-PII-Spanish-QwenMed-XLarge-600M-v1-onnx-",
+  "repo": "OpenMed/OpenMed-PII-Spanish-QwenMed-XLarge-600M-v1-onnx-android",
+  "weights": "model_int8.onnx",
+  "test": "openmed_snapshot_external_103",
+  "text": "La paciente María García, nacida el 3 de mayo de 1975, vive en Sevilla y tiene diabetes.",
+  "labels": "",
+  "eval": "evidence/103-local-model-catalog/eval/pii-synthetic-es-v1.json"
+ },
+ {
+  "id": "35-OpenMed-PII-Dutch-SuperClinical-Small-44M-v1-onn",
+  "repo": "OpenMed/OpenMed-PII-Dutch-SuperClinical-Small-44M-v1-onnx-android",
+  "weights": "model.onnx",
+  "test": "openmed_snapshot_external_103",
+  "text": "Patiënt Jan de Vries, geboren op 12 maart 1980, woont in Utrecht en heeft diabetes.",
+  "labels": "",
+  "eval": "evidence/103-local-model-catalog/eval/pii-synthetic-nl-v1.json"
+ },
+ {
+  "id": "36-OpenMed-PII-Spanish-BigMed-Large-278M-v1-onnx-an",
+  "repo": "OpenMed/OpenMed-PII-Spanish-BigMed-Large-278M-v1-onnx-android",
+  "weights": "model_fp16.onnx",
+  "test": "openmed_snapshot_external_103",
+  "text": "La paciente María García, nacida el 3 de mayo de 1975, vive en Sevilla y tiene diabetes.",
+  "labels": "",
+  "eval": "evidence/103-local-model-catalog/eval/pii-synthetic-es-v1.json"
+ },
+ {
+  "id": "37-OpenMed-PII-Dutch-SuperClinical-Small-44M-v1",
+  "repo": "OpenMed/OpenMed-PII-Dutch-SuperClinical-Small-44M-v1",
+  "weights": "model.safetensors",
+  "test": "safetensors_external_104",
+  "text": "Patiënt Jan de Vries, geboren op 12 maart 1980, woont in Utrecht en heeft diabetes.",
+  "labels": "",
+  "eval": "evidence/103-local-model-catalog/eval/pii-synthetic-nl-v1.json"
+ }
+]
