@@ -250,6 +250,20 @@ pub fn build_pack_from_snapshot(
     let row = catalog
         .get(&meta.id)
         .ok_or_else(|| ModelCatalogError::NotInCatalog(meta.id.clone()))?;
+    // An OpenMed MLX snapshot borrows its tokenizer from its catalog source.
+    let source_meta = medscale_pack::snapshot_tokenizer_source(snapshot_dir)?;
+    let source_row = match &source_meta {
+        Some(m) => Some(
+            catalog
+                .get(&m.id)
+                .ok_or_else(|| ModelCatalogError::NotInCatalog(m.id.clone()))?,
+        ),
+        None => None,
+    };
+    let tokenizer_source = source_meta
+        .as_ref()
+        .zip(source_row)
+        .map(|(meta, row)| medscale_pack::TokenizerSource { meta, row });
     Ok(build_token_classifier_pack(
         &TokenClassifierSnapshot {
             meta: &meta,
@@ -257,6 +271,7 @@ pub fn build_pack_from_snapshot(
             snapshot_dir,
             onnx_file,
             fixed_sequence_length,
+            tokenizer_source,
         },
         out_dir,
     )?)

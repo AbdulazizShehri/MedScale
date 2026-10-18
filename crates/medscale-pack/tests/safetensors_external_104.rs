@@ -40,6 +40,17 @@ fn safetensors_catalog_row_to_local_execution() {
     let weight_file =
         std::env::var("MEDSCALE_HF_ONNX_FILE").unwrap_or_else(|_| "model.safetensors".into());
     let out = std::env::temp_dir().join(format!("medscale-104-pack-{}", std::process::id()));
+    // OpenMed MLX exports ship no tokenizer; acquisition stored the verified
+    // source's metadata beside the snapshot.
+    let source_meta = medscale_pack::snapshot_tokenizer_source(&snapshot).unwrap();
+    let tokenizer_source = source_meta
+        .as_ref()
+        .map(|m| medscale_pack::TokenizerSource {
+            meta: m,
+            row: catalog
+                .get(&m.id)
+                .expect("tokenizer source must be in the catalog"),
+        });
     let pack_id = build_token_classifier_pack(
         &TokenClassifierSnapshot {
             meta: &meta,
@@ -47,6 +58,7 @@ fn safetensors_catalog_row_to_local_execution() {
             snapshot_dir: &snapshot,
             onnx_file: &weight_file,
             fixed_sequence_length: 512,
+            tokenizer_source,
         },
         &out,
     )

@@ -55,8 +55,9 @@ pub use gliner_runtime::{
 };
 pub use hf_snapshot::{
     HfRepoMetadata, HfSibling, SnapshotError, TextGenerationSnapshot, TokenClassifierSnapshot,
-    build_text_generation_pack, build_token_classifier_pack, labels_from_config,
-    reproducibility_hash, verify_against_catalog, verify_file,
+    TokenizerSource, build_text_generation_pack, build_token_classifier_pack, labels_from_config,
+    reproducibility_hash, snapshot_tokenizer_source, tokenizer_source_repo, verify_against_catalog,
+    verify_file,
 };
 pub use mesc_verify::{MescEpochStore, MescVerifyError, verify_mesc_release_dir};
 pub use mlx_layout::{is_mlx_export, mlx_key};

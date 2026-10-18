@@ -200,6 +200,7 @@ pub fn candle_pack(out: &Path) -> String {
             snapshot_dir: &snapshot,
             onnx_file: "model.safetensors",
             fixed_sequence_length: 16,
+            tokenizer_source: None,
         },
         out,
     )
@@ -246,6 +247,7 @@ pub fn gliner_pack(out: &Path) -> String {
             snapshot_dir: &snapshot,
             onnx_file: "weights.safetensors",
             fixed_sequence_length: 64,
+            tokenizer_source: None,
         },
         out,
     )
