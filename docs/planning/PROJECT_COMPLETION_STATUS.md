@@ -41,7 +41,7 @@ The full lifecycle runs with real OpenMed v3.0.0 models on free GitHub runners. 
 | Unload | residency pool |
 
 Remaining, each with its cause:
-- the Models UI and the desktop parts of #182: blocked by F096-T01;
+- the Models UI and the desktop parts of #182: unblocked for Windows and macOS by the platform-scoped Tauri integration (F096-T01); the Linux desktop waits on `TAURI_LINUX_DESKTOP_GTK3`;
 - GLiNER zero-shot: the 91 PyTorch rows ship pickle only, and the Base and Large MLX exports exceed the 1 GiB Pack bound (the Small and Medium MLX exports run);
 - Clinical Longformer: tract prepares the export after the omitted-`Pad` rewrite but panics in `Gather` (contained); candle has no Longformer encoder;
 - privacy-filter: 1.49–2.80 GB, over the 1 GiB Pack bound;

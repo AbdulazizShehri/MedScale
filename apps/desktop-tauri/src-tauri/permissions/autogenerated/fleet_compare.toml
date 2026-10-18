@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-fleet-compare"
+description = "Enables the fleet_compare command without any pre-configured scope."
+commands.allow = ["fleet_compare"]
+
+[[permission]]
+identifier = "deny-fleet-compare"
+description = "Denies the fleet_compare command without any pre-configured scope."
+commands.deny = ["fleet_compare"]

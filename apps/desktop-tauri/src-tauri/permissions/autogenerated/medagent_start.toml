@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-medagent-start"
+description = "Enables the medagent_start command without any pre-configured scope."
+commands.allow = ["medagent_start"]
+
+[[permission]]
+identifier = "deny-medagent-start"
+description = "Denies the medagent_start command without any pre-configured scope."
+commands.deny = ["medagent_start"]

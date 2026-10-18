@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-patient-detail"
+description = "Enables the patient_detail command without any pre-configured scope."
+commands.allow = ["patient_detail"]
+
+[[permission]]
+identifier = "deny-patient-detail"
+description = "Denies the patient_detail command without any pre-configured scope."
+commands.deny = ["patient_detail"]

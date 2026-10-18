@@ -25,3 +25,16 @@ and negative tests (`crates/medscale-core/tests/release_sbom_054.rs`).
 - Remaining in `missing_evidence_classes`: `release_sbom_signing_provenance`
   (signing identity external), reproducible package contents, real installer
   proof, SPDX choice, branch protection, budgets, WCAG/final UI.
+
+## Regeneration log
+- 2026-10-07: regenerated with `scripts/generate-release-sbom.ps1` (unchanged
+  generator) after the `medscale-desktop-vm` workspace crate was added on the
+  Tauri desktop branch (PR #177). The previous snapshot (212 components)
+  predated that crate and the dependency additions on this stack, so
+  `committed_document_is_self_consistent` failed with
+  `workspace package missing: medscale-desktop-vm`. The document now lists
+  799 components and binds:
+  - source_sha = 7686435beb42712c3dced097b0914c8725a1b8bc (parent at generation)
+  - tree_sha = 46318dd3379904bd855cffe04b8c616941425104
+  - cargo_lock_sha256 = c12df3b452d6fd1dcb63078340c06a891487c425a46fe44aa3c0847cad432402
+  Honesty limits above are unchanged: READY_BASE only, `release_ready = false`.

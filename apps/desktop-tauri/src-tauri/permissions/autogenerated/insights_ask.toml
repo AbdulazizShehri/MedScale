@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-insights-ask"
+description = "Enables the insights_ask command without any pre-configured scope."
+commands.allow = ["insights_ask"]
+
+[[permission]]
+identifier = "deny-insights-ask"
+description = "Denies the insights_ask command without any pre-configured scope."
+commands.deny = ["insights_ask"]

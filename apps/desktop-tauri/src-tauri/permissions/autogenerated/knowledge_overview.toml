@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-knowledge-overview"
+description = "Enables the knowledge_overview command without any pre-configured scope."
+commands.allow = ["knowledge_overview"]
+
+[[permission]]
+identifier = "deny-knowledge-overview"
+description = "Denies the knowledge_overview command without any pre-configured scope."
+commands.deny = ["knowledge_overview"]

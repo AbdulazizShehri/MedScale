@@ -1,0 +1,138 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-10-01T08:03:35Z",
+  "title": "Design System: MedScale",
+  "extensions": {
+    "scope": "Approved shared Tauri presentation preparation; synthetic-only, unconnected Patients roster. Primitive tokens live in DESIGN.md frontmatter.",
+    "sources": [
+      "apps/desktop-tauri/src/theme.css",
+      "apps/desktop-tauri/src/components/MedScale.tsx",
+      "apps/desktop-tauri/src/components/MedScaleIcon.tsx",
+      "apps/desktop-tauri/src/patients/PatientIndex.tsx"
+    ],
+    "sourceState": "4641cbb plus authored table-region focus correction; new native capture and fix verdict pending at documentation handoff.",
+    "colorMeta": {
+      "dark-canvas": { "role": "neutral", "displayName": "Dark canvas" },
+      "dark-surface": { "role": "neutral", "displayName": "Dark clinical surface" },
+      "dark-focus": { "role": "neutral", "displayName": "Dark theme focus" },
+      "light-canvas": { "role": "neutral", "displayName": "Light canvas" },
+      "light-surface": { "role": "neutral", "displayName": "Light clinical surface" },
+      "light-focus": { "role": "neutral", "displayName": "Light theme focus" }
+    },
+    "typographyMeta": {
+      "title": { "displayName": "Shared title", "purpose": "Patients heading; inherited Home display metrics remain separate." },
+      "section": { "displayName": "Shared section", "purpose": "Section and inline empty-state heading; recorded weight/line height are from the empty-state heading." },
+      "body": { "displayName": "Explanatory body", "purpose": "Shared explanatory copy, constrained by the content measure." },
+      "label": { "displayName": "Control label", "purpose": "Controls and table text; individual components set weight and line height." },
+      "caption": { "displayName": "Literal status", "purpose": "Availability, status and supporting captions." },
+      "exact-identity": { "displayName": "Exact identity", "purpose": "Exact subject identifiers; the current roster supplies no records." }
+    },
+    "shadows": [
+      { "name": "palette-dark", "value": "0 28px 80px rgba(0,0,0,.45)", "purpose": "Existing dark command palette only." },
+      { "name": "palette-light", "value": "0 28px 80px rgba(18,18,18,.14)", "purpose": "Existing light command palette only." }
+    ],
+    "motion": [
+      { "name": "navigation", "value": "background .12s, color .12s", "purpose": "Existing route hover/selection transition." },
+      { "name": "reduced-motion", "value": "transition-duration:0s!important; animation-duration:0s!important", "purpose": "Source prefers-reduced-motion:reduce override." }
+    ],
+    "breakpoints": [
+      { "name": "shell-narrow", "value": "1180px" },
+      { "name": "shell-small", "value": "850px" },
+      { "name": "content-small", "value": "620px" }
+    ],
+    "geometry": {
+      "controlMinimumHeight": "36px",
+      "headerHeight": "66px",
+      "tableHeaderHeight": "40px",
+      "prospectiveTableRowHeight": "52px",
+      "tableMinimumWidth": "680px",
+      "contentMeasure": "65ch",
+      "navigationGroupGap": "12px",
+      "iconViewBox": "0 0 24 24",
+      "iconSize": "18px",
+      "iconStrokeWidth": 2,
+      "iconStrokeLinecap": "butt",
+      "iconStrokeLinejoin": "miter",
+      "iconFill": "none"
+    },
+    "focus": {
+      "controls": "outline:2px solid var(--focus); outline-offset:2px",
+      "tableRegion": "outline:2px solid var(--focus); outline-offset:-2px",
+      "paletteSearch": "outline:2px solid var(--focus); outline-offset:4px"
+    },
+    "limitations": [
+      "No synthesized tonal ramps or additional palettes: theme role values are the incumbent monochrome system.",
+      "Some inherited Home, palette, wordmark and layout metrics remain hardcoded; full-system token centralization is not claimed.",
+      "Samples use live theme variables with source-value fallbacks for standalone rendering. Light mode uses the implementation overrides, not an inferred inversion.",
+      "These snippets are documentation samples, not additional product capabilities or qualification evidence."
+    ]
+  },
+  "components": [
+    {
+      "name": "Shared Button",
+      "kind": "button",
+      "refersTo": "button",
+      "description": "Native shared button with implemented hover, active, disabled and focus states.",
+      "html": "<button type=\"button\" class=\"ds-button\">Return to Home</button>",
+      "css": ".ds-button{min-height:var(--control-height,36px);padding:0 var(--space-4,16px);border:1px solid var(--line-strong,#3c3c3c);border-radius:var(--radius-sm,4px);color:var(--text,#f6f6f4);background:var(--surface,#111111);font-family:var(--font-ui,Inter,system-ui,sans-serif);font-size:var(--type-label,12px);font-weight:550;cursor:pointer}.ds-button:hover{background:var(--hover,#1d1d1d)}.ds-button:active{background:var(--selected,#242424)}.ds-button:focus-visible{outline:2px solid var(--focus,#f4f4f2);outline-offset:2px}.ds-button:disabled{cursor:default;color:var(--muted,#939390)}"
+    },
+    {
+      "name": "Unavailable Patient Search",
+      "kind": "input",
+      "refersTo": "search-unavailable",
+      "description": "Actual disabled search with explicit availability; no enabled data path is implied.",
+      "html": "<div class=\"ds-search\" title=\"Patient search is unavailable in this preview.\"><svg aria-hidden=\"true\" focusable=\"false\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"butt\" stroke-linejoin=\"miter\"><path d=\"M10 3a7 7 0 1 0 0 14 7 7 0 0 0 0-14 M15 15l6 6\"/></svg><input type=\"search\" aria-label=\"Search patients\" placeholder=\"Search patients\" disabled/><span>Unavailable</span></div>",
+      "css": ".ds-search{display:flex;align-items:center;gap:var(--space-3,12px);min-height:var(--control-height,36px);width:min(100%,420px);padding:0 var(--space-3,12px);border:1px solid var(--line,#282828);border-radius:var(--radius-sm,4px);background:var(--surface,#111111);color:var(--muted,#939390);font-family:var(--font-ui,Inter,system-ui,sans-serif)}.ds-search svg{width:var(--icon-size,18px);height:var(--icon-size,18px);flex:none}.ds-search input{min-width:0;flex:1;background:transparent;border:0;color:var(--secondary,#a3a3a0);font:inherit;font-size:var(--type-label,12px)}.ds-search input::placeholder{color:var(--secondary,#a3a3a0);opacity:1}.ds-search span{font-size:var(--type-caption,11px)}.ds-search input:focus-visible{outline:2px solid var(--focus,#f4f4f2);outline-offset:2px}"
+    },
+    {
+      "name": "Selected Route",
+      "kind": "nav",
+      "refersTo": "nav-item-selected",
+      "description": "One selected sidebar route, first-party icon, literal label and trailing indicator.",
+      "html": "<button type=\"button\" class=\"ds-nav ds-nav-active\" aria-current=\"page\"><svg aria-hidden=\"true\" focusable=\"false\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"butt\" stroke-linejoin=\"miter\"><path d=\"M9 4h6v6H9Z M5 21v-5l4-3h6l4 3v5 M9 21v-4m6 4v-4\"/></svg><span>Patients</span></button>",
+      "css": ".ds-nav{width:100%;height:var(--control-height,36px);border:0;background:transparent;border-radius:var(--radius-md,6px);color:var(--secondary,#a3a3a0);display:flex;align-items:center;gap:11px;padding:0 10px;text-align:left;font-family:var(--font-ui,Inter,system-ui,sans-serif);font-size:12px;font-weight:520;cursor:pointer;transition:background .12s,color .12s}.ds-nav svg{width:var(--icon-size,18px);height:var(--icon-size,18px);flex:none}.ds-nav:hover{background:var(--hover,#1d1d1d);color:var(--text,#f6f6f4)}.ds-nav-active{background:var(--selected,#242424);color:var(--text,#f6f6f4);font-weight:650}.ds-nav-active::after{content:'';margin-left:auto;width:3px;height:14px;background:var(--text,#f6f6f4);border-radius:2px}.ds-nav:focus-visible{outline:2px solid var(--focus,#f4f4f2);outline-offset:2px}@media(prefers-reduced-motion:reduce){.ds-nav{transition-duration:0s!important}}"
+    },
+    {
+      "name": "Literal Unknown State",
+      "kind": "custom",
+      "description": "Unknown remains text, with an outlined monochrome marker and an optional explanation.",
+      "html": "<span class=\"ds-status\" data-state=\"Unknown\" title=\"No patient roster has been read.\"><span class=\"ds-marker\" aria-hidden=\"true\"></span>Unknown</span>",
+      "css": ".ds-status{display:inline-flex;align-items:center;gap:var(--space-2,8px);white-space:nowrap;font-family:var(--font-ui,Inter,system-ui,sans-serif);font-size:var(--type-caption,11px);font-weight:500;color:var(--secondary,#a3a3a0);line-height:1.5}.ds-marker{width:6px;height:6px;border:1px solid currentColor;flex:none}.ds-status[data-state=Unknown] .ds-marker{border-radius:50%}.ds-status[data-state=Present] .ds-marker{border-radius:50%;background:currentColor}.ds-status[data-state=Limited] .ds-marker{transform:rotate(45deg)}.ds-status[data-state=Conflict] .ds-marker{border-left-width:2px;border-right-width:2px}"
+    },
+    {
+      "name": "Inline Unavailable State",
+      "kind": "custom",
+      "description": "Implemented icon, heading and constrained explanation; no substitute patient facts.",
+      "html": "<div class=\"ds-empty\"><svg aria-hidden=\"true\" focusable=\"false\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"butt\" stroke-linejoin=\"miter\"><path d=\"M9 4h6v6H9Z M5 21v-5l4-3h6l4 3v5 M9 21v-4m6 4v-4\"/></svg><div><h2>Patient list unavailable</h2><div class=\"ds-empty-copy\"><p>No workspace is connected. Patient identity and evidence are unavailable; no patient records have been read.</p></div></div></div>",
+      "css": ".ds-empty{display:flex;align-items:flex-start;gap:var(--space-4,16px);font-family:var(--font-ui,Inter,system-ui,sans-serif);color:var(--text,#f6f6f4)}.ds-empty svg{width:var(--icon-size,18px);height:var(--icon-size,18px);flex:none;margin-top:var(--space-1,4px);color:var(--muted,#939390)}.ds-empty h2{font-size:var(--type-section,18px);font-weight:600;letter-spacing:-.02em;line-height:1.4;margin:0 0 var(--space-2,8px)}.ds-empty-copy{max-width:var(--content-measure,65ch);color:var(--secondary,#a3a3a0);font-size:var(--type-body,13px);line-height:1.6}.ds-empty-copy p{margin:0}"
+    },
+    {
+      "name": "Patients Table Region",
+      "kind": "custom",
+      "description": "Semantic table and focusable local scroll region; shows the actual unavailable row, not a clinical record.",
+      "html": "<div class=\"ds-table-region\" role=\"region\" aria-label=\"Patients table\" tabindex=\"0\"><table class=\"ds-table\"><caption class=\"ds-table-caption\">Patients — workspace unavailable; total unknown</caption><thead><tr><th scope=\"col\">Patient</th><th scope=\"col\">Subject identifier</th><th scope=\"col\">Known conditions</th><th scope=\"col\">Evidence state</th></tr></thead><tbody><tr><td colspan=\"4\" class=\"ds-table-unavailable\">Patient list unavailable. No patient records have been read.</td></tr></tbody></table></div>",
+      "css": ".ds-table-region{overflow:auto;scrollbar-width:thin;scrollbar-color:var(--line-strong,#3c3c3c) transparent}.ds-table-region:focus-visible{outline:2px solid var(--focus,#f4f4f2);outline-offset:-2px}.ds-table{width:100%;min-width:680px;border-collapse:collapse;text-align:left;table-layout:fixed;font-family:var(--font-ui,Inter,system-ui,sans-serif);font-size:var(--type-label,12px);color:var(--text,#f6f6f4)}.ds-table-caption{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}.ds-table thead th{height:var(--table-head-height,40px);border-top:1px solid var(--line,#282828);border-bottom:1px solid var(--line-strong,#3c3c3c);padding:0 var(--space-4,16px);font-weight:550;color:var(--secondary,#a3a3a0);background:var(--surface,#111111)}.ds-table th:first-child{width:23%}.ds-table th:nth-child(2){width:28%}.ds-table th:nth-child(3){width:29%}.ds-table th:nth-child(4){width:20%}.ds-table-unavailable{padding:var(--space-8,32px) var(--space-4,16px);border-bottom:1px solid var(--line,#282828);color:var(--secondary,#a3a3a0)}"
+    }
+  ],
+  "narrative": {
+    "northStar": "The work is the interface",
+    "overview": "The following shared-system layer records the approved Tauri shell and Spec 097 Patients preparation. Frontmatter values are normative for this presentation scope and are extracted from apps/desktop-tauri/src/theme.css, not inferred from a generic preset. The CSS remains the implementation source; use its theme variables rather than literal theme colors in new components. The preceding sections and historical source references are retained.\n\nThe paired-M mark, one sidebar, quiet black/white hierarchy, Inter and exact data in JetBrains Mono NL remain the approved world. Light mode uses the same component relationships with its own neutral layers. This documentation does not qualify a populated clinical surface, privacy, accessibility or release.",
+    "keyCharacteristics": [
+      "Clinical context and literal evidence states carry the interface.",
+      "Thin separators, readable tables and bounded inspection organize the work.",
+      "Shared geometry and first-party outline icons connect the two themes."
+    ],
+    "rules": [],
+    "dos": [
+      "Do use shared primitives and theme variables for new supported surfaces.",
+      "Do keep literal states, accessible labels and visible monochrome focus.",
+      "Do keep exact identifiers in the locally bundled data font.",
+      "Do preserve the paired-M identity and the same relationships in light mode."
+    ],
+    "donts": [
+      "Don't substitute fixture patients or successful empty states for an unread roster.",
+      "Don't introduce an accent palette, competing sidebar or decorative clinical metrics.",
+      "Don't infer privacy, WCAG, native platform visual or release readiness from this token record."
+    ]
+  }
+}

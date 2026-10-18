@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-fleet-dispatch"
+description = "Enables the fleet_dispatch command without any pre-configured scope."
+commands.allow = ["fleet_dispatch"]
+
+[[permission]]
+identifier = "deny-fleet-dispatch"
+description = "Denies the fleet_dispatch command without any pre-configured scope."
+commands.deny = ["fleet_dispatch"]

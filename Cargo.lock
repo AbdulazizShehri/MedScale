@@ -3956,6 +3956,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "medscale-desktop-vm"
+version = "0.1.0"
+dependencies = [
+ "medscale-contracts",
+ "medscale-core",
+ "serde_json",
+]
+
+[[package]]
 name = "medscale-fhir"
 version = "0.1.0"
 dependencies = [

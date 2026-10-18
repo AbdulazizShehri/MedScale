@@ -1,0 +1,106 @@
+{
+  "schemaVersion": 1,
+  "head": "71465513c440e61a08d3e4c3af30bf0d3b4b084c",
+  "tree": "900543aec748a3d6fcf673373e8fb0d2be5b2098",
+  "ciRun": 36834231752,
+  "executableSha256": "ee0f251175973672a063fe113a5d3a4a6f81d116f07950d716626e1db609bfb3",
+  "capturePlatform": "win32",
+  "osRelease": "10.0.26200",
+  "captureTool": "@oai/sky",
+  "originalFormat": "JPEG",
+  "clientSizeBasis": "Initial 1440x900 and minimum 1100x720 are configured client sizes. Screenshots include 2px horizontal and 31px vertical native chrome; intermediate client size inferred as 1272x900 from 1274x931 outer frame. OS client rectangles were not measured.",
+  "cursorHalo": "Tool cursor halo retained; no edits or overlays.",
+  "excludedAttempts": "Occluded initial capture and pre-settled theme/palette observations were replaced before review. Failed sizing attempts and duplicate-extension file are excluded.",
+  "interactionObservations": [
+    "Disabled patient search is skipped in keyboard order.",
+    "Table focus has authored 2px inset ring in light at 1440x900 and 1100x720, and dark at 1100x720.",
+    "Enter expands availability disclosure; main content scroll remains intentional at minimum size.",
+    "Ctrl+K opens route palette; Escape returns visible focus to availability disclosure."
+  ],
+  "records": [
+    {
+      "file": "home-dark-1440x900.jpg",
+      "width": 1442,
+      "height": 931,
+      "sha256": "3695dfce4bfea199c9f1836c553ca5415ac22b36b90555a9c9d0c4189b38b3cf",
+      "capturedAt": "2026-10-01T08:11:34.696Z"
+    },
+    {
+      "file": "patients-dark-1440x900.jpg",
+      "width": 1442,
+      "height": 931,
+      "sha256": "2f55d3df027338c08055d852511ec1fcd30247c1bee7636789386677bf033309",
+      "capturedAt": "2026-10-01T08:11:49.802Z"
+    },
+    {
+      "file": "patients-light-1440x900.jpg",
+      "width": 1442,
+      "height": 931,
+      "sha256": "813a43d0c45cfecd9bf1ba57e3164ba7a44fe7c291d98ee22213799d4c326bdb",
+      "capturedAt": "2026-10-01T08:11:59.192Z"
+    },
+    {
+      "file": "patients-table-focus-light-1440x900.jpg",
+      "width": 1442,
+      "height": 931,
+      "sha256": "9e816d4b64e30b80651ce0790b9de3013478e2ce6eeae3c67a55bce794ed3c21",
+      "capturedAt": "2026-10-01T08:12:09.518Z"
+    },
+    {
+      "file": "patients-light-intermediate-1272x900.jpg",
+      "width": 1274,
+      "height": 931,
+      "sha256": "e1ebc7293b685819a71ed0f89e01a2ce1cf7bd77934448e8ea46f59e90214ec8",
+      "capturedAt": "2026-10-01T08:17:55.476Z"
+    },
+    {
+      "file": "patients-dark-intermediate-1272x900.jpg",
+      "width": 1274,
+      "height": 931,
+      "sha256": "e3fd69790f5509919e155abfdeeb0ad51338b322fd096dd06be6e25cace3475a",
+      "capturedAt": "2026-10-01T08:18:06.929Z"
+    },
+    {
+      "file": "patients-dark-1100x720.jpg",
+      "width": 1102,
+      "height": 751,
+      "sha256": "a77dfb243f57632ea3463b694379a4947c112354524567870e74ba38d4f84ede",
+      "capturedAt": "2026-10-01T08:18:51.572Z"
+    },
+    {
+      "file": "patients-light-1100x720.jpg",
+      "width": 1102,
+      "height": 751,
+      "sha256": "3e3daa525c889bc891ff0d5788cee9aafa4ccc76e1057ee1ce80d5d7388418af",
+      "capturedAt": "2026-10-01T08:19:07.736Z"
+    },
+    {
+      "file": "patients-table-focus-light-1100x720.jpg",
+      "width": 1102,
+      "height": 751,
+      "sha256": "ae4f9610769054af1ce97cb4b09d0bef1af4a2fcd10ecfe0b3bd8d526bbd73bd",
+      "capturedAt": "2026-10-01T08:19:36.381Z"
+    },
+    {
+      "file": "patients-table-focus-dark-1100x720.jpg",
+      "width": 1102,
+      "height": 751,
+      "sha256": "89249ce385410dbfe9547692c1ff6cd699afd7d253762856166d08f618c4b7a4",
+      "capturedAt": "2026-10-01T08:20:01.597Z"
+    },
+    {
+      "file": "patients-inspector-dark-1100x720.jpg",
+      "width": 1102,
+      "height": 751,
+      "sha256": "939bdf396aec8626ec995eed2a80fe246a7123e2350da82daa3713462554d460",
+      "capturedAt": "2026-10-01T08:20:35.696Z"
+    },
+    {
+      "file": "patients-palette-dark-1100x720.jpg",
+      "width": 1102,
+      "height": 751,
+      "sha256": "0932d554971a662bc636c97834f9c171e84acab9cfdb7d07105e79162ff1c5c4",
+      "capturedAt": "2026-10-01T08:21:03.367Z"
+    }
+  ]
+}

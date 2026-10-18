@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-fleet-execute-lane"
+description = "Enables the fleet_execute_lane command without any pre-configured scope."
+commands.allow = ["fleet_execute_lane"]
+
+[[permission]]
+identifier = "deny-fleet-execute-lane"
+description = "Denies the fleet_execute_lane command without any pre-configured scope."
+commands.deny = ["fleet_execute_lane"]

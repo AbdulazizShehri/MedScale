@@ -8,6 +8,7 @@ members = [
     "crates/medscale-fhir",
     "crates/medscale-keys",
     "crates/medscale-desktop",
+    "crates/medscale-desktop-vm",
     "crates/medscale-network",
     "crates/medscale-pack",
 ]
@@ -21,6 +22,7 @@ default-members = [
     "crates/medscale-fhir",
     "crates/medscale-keys",
     "crates/medscale-desktop",
+    "crates/medscale-desktop-vm",
     "crates/medscale-network",
     "crates/medscale-pack",
 ]
