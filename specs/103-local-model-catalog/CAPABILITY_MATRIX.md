@@ -227,4 +227,26 @@ Executed or expected runnable: **1,764 of 2,266** (was 1,702 on 2026-10-10). All
 
 **Batch 26** (run 38490332415, 48 rows, PathologyDetect and PharmaDetect NER, per-row): **48 of 48 executed**.
 
+**Batch 27** (run 38495015617, 48 rows, PharmaDetect NER, per-row): **48 of 48 executed**.
+
+**Batch 28** (run 38499607675, 48 rows, PharmaDetect and ProteinDetect NER, per-row): **48 of 48 executed**.
+
+**Batch 29** (run 38504166707, 48 rows, ProteinDetect and SpeciesDetect NER, per-row): **48 of 48 executed**.
+
+**Batch 30** (run 38508572181, 48 rows, SpeciesDetect NER and PII rows, per-row): **48 of 48 executed**.
+
+**Batch 31** (run 38513044093, 48 rows, Dutch, French and German PII and GTEMed rows, per-row): **48 of 48 executed**.
+
+**Batch 32** (run 38517617668, 48 rows, German, Hindi and Italian PII, per-row): **48 of 48 executed**.
+
+**Batch 33** (run 38522642273, 48 rows, Italian, Portuguese and Spanish PII and ModernMed and NomicMed rows, per-row): **48 of 48 executed**.
+
+**Batch 34** (run 38528146442, 48 rows, Spanish, Telugu and Turkish PII, per-row): **48 of 48 executed**.
+
+**Batch 35** (run 39096111998, 41 rows, remaining fitting rows, per-row): **41 of 41 executed**; these were the last expected-runnable rows with a fitting weight file and a shipped tokenizer, including 24 GLiNER zero-shot MLX rows.
+
+**Batch 36** (run 39097293281, 64 rows, OpenMed MLX exports without a tokenizer, per-row): **64 of 64 executed**. Every row ran with its tokenizer taken from the verified catalog source named by config.json `_name_or_path` (#242); the acquisition report records the source repository and revision (for example `OpenMed-PII-BiomedELECTRA-Base-110M-v1@7a6bdd55`).
+
+**Batch 37** (run 39101767291, 46 rows, OpenMed MLX exports without a tokenizer, per-row): **46 of 46 executed**, again with the tokenizer from the verified catalog source (#242). With batches 35–37, every expected-runnable row that fits the 1 GiB bound has its own recorded run; the rest are measured over the bound (#243).
+
 **Measured over the bound (2026-10-18).** After batch 34, the selector found no fitting weight file for 372 expected-runnable rows. Measured Hub file sizes show 262 of them have a runnable weight file over the unchanged 1 GiB bound: 110 `model.safetensors` and 152 MLX `weights.safetensors`, 1.11–1.74 GB. They are now reported as `measured_over_bound` from an exact list (`MEASURED_OVER_BOUND`). The parameter count cannot decide this, because 103 executed safetensors rows above 268M parameters are stored at half precision and fit. The remaining 110 rows are OpenMed MLX exports without a tokenizer; #242 takes their tokenizer from the verified catalog source.
