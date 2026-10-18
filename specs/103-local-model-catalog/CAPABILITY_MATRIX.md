@@ -244,3 +244,5 @@ Executed or expected runnable: **1,764 of 2,266** (was 1,702 on 2026-10-10). All
 **Batch 34** (run 38528146442, 48 rows, Spanish, Telugu and Turkish PII, per-row): **48 of 48 executed**.
 
 **Batch 35** (run 39096111998, 41 rows, remaining fitting rows, per-row): **41 of 41 executed**; these were the last expected-runnable rows with a fitting weight file and a shipped tokenizer, including 24 GLiNER zero-shot MLX rows.
+
+**Batch 36** (run 39097293281, 64 rows, OpenMed MLX exports without a tokenizer, per-row): **64 of 64 executed**. Every row ran with its tokenizer taken from the verified catalog source named by config.json `_name_or_path` (#242); the acquisition report records the source repository and revision (for example `OpenMed-PII-BiomedELECTRA-Base-110M-v1@7a6bdd55`).
