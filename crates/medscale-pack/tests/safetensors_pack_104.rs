@@ -9,8 +9,8 @@ use candle_nn::{VarBuilder, VarMap};
 use candle_transformers::models::bert;
 use medscale_pack::{
     CANDLE_TOKEN_CLASSIFIER_RUNTIME_ID, CandleRunOptions, HfRepoMetadata, ModelCatalog,
-    TokenClassifierSnapshot, admit_pack_dir, build_token_classifier_pack,
-    prepare_candle_token_classifier, reproducibility_hash,
+    SnapshotError, TokenClassifierSnapshot, TokenizerSource, admit_pack_dir,
+    build_token_classifier_pack, prepare_candle_token_classifier, reproducibility_hash,
 };
 use serde_json::json;
 use sha2::{Digest, Sha256};
@@ -92,6 +92,7 @@ fn safetensors_snapshot_builds_admits_prepares_and_runs() {
             snapshot_dir: &snapshot,
             onnx_file: "model.safetensors",
             fixed_sequence_length: 16,
+            tokenizer_source: None,
         },
         &out,
     )
@@ -128,4 +129,143 @@ fn safetensors_snapshot_builds_admits_prepares_and_runs() {
 
     let _ = std::fs::remove_dir_all(snapshot);
     let _ = std::fs::remove_dir_all(out);
+}
+
+/// An OpenMed MLX-style snapshot ships no tokenizer: the Pack takes
+/// `tokenizer.json` from the catalog row named by `config.json`
+/// `_name_or_path`, verified against that row's own pinned digest, and
+/// records the source in `tokenizer_source.json`.
+#[test]
+fn a_snapshot_without_a_tokenizer_uses_its_verified_catalog_source() {
+    const MLX: &str = "OpenMed/Synthetic-NER-safetensors-mlx";
+    const SOURCE: &str = "OpenMed/Synthetic-NER-safetensors";
+    const SOURCE_SHA: &str = "4d914174cf099fda326b43084f679ad31425f88c";
+    let config = json!({
+        "model_type": "bert",
+        "architectures": ["BertForTokenClassification"],
+        "vocab_size": 8, "hidden_size": 8, "num_hidden_layers": 1,
+        "num_attention_heads": 2, "intermediate_size": 16, "hidden_act": "gelu",
+        "hidden_dropout_prob": 0.0, "max_position_embeddings": 16, "type_vocab_size": 2,
+        "initializer_range": 0.02, "layer_norm_eps": 1e-12, "pad_token_id": 0,
+        "classifier_dropout": null,
+        "id2label": {"0": "O", "1": "B-X"},
+        "_name_or_path": SOURCE
+    });
+    let config_bytes = serde_json::to_vec(&config).unwrap();
+    let tokenizer = std::fs::read(
+        PathBuf::from(env!("CARGO_MANIFEST_DIR")).join(
+            "../../evidence/069-real-local-model-runtime-hf-pack-path/fixtures/pack-tiny-token-classifier-v0/tokenizer.json",
+        ),
+    )
+    .unwrap();
+    let snapshot = dir("mlx-snapshot");
+    let varmap = VarMap::new();
+    let vb = VarBuilder::from_varmap(&varmap, DType::F32, &Device::Cpu);
+    let cfg: bert::Config = serde_json::from_value(config.clone()).unwrap();
+    bert::BertModel::load(vb.pp("bert"), &cfg).unwrap();
+    candle_nn::linear(8, 2, vb.pp("classifier")).unwrap();
+    varmap.save(snapshot.join("model.safetensors")).unwrap();
+    let weights = std::fs::read(snapshot.join("model.safetensors")).unwrap();
+    std::fs::write(snapshot.join("config.json"), &config_bytes).unwrap();
+    std::fs::write(snapshot.join("tokenizer.json"), &tokenizer).unwrap();
+
+    let mlx_meta: HfRepoMetadata = serde_json::from_value(json!({
+        "id": MLX, "sha": SHA, "lastModified": "2026-07-13T07:43:16.000Z",
+        "gated": false, "private": false,
+        "siblings": [
+            {"rfilename": "config.json", "size": config_bytes.len(), "blobId": git_blob(&config_bytes)},
+            {"rfilename": "model.safetensors", "size": weights.len(),
+             "lfs": {"sha256": hex(&Sha256::digest(&weights)), "size": weights.len()}}
+        ]
+    }))
+    .unwrap();
+    let source_meta_for = |tok: &[u8]| -> HfRepoMetadata {
+        serde_json::from_value(json!({
+            "id": SOURCE, "sha": SOURCE_SHA, "lastModified": "2026-07-13T07:43:16.000Z",
+            "gated": false, "private": false,
+            "siblings": [{"rfilename": "tokenizer.json", "size": tok.len(), "blobId": git_blob(tok)}]
+        }))
+        .unwrap()
+    };
+    let source_meta = source_meta_for(&tokenizer);
+    let row = |id: &str, meta: &HfRepoMetadata| {
+        format!(
+            r#"{{"repo_id":"{id}","family":"NER","task":"token-classification","architecture":"bert","formats":["pytorch"],"license":"apache-2.0","reproducibility_hash":"{}"}}"#,
+            reproducibility_hash(meta)
+        )
+    };
+    let rows = format!("{}\n{}", row(MLX, &mlx_meta), row(SOURCE, &source_meta));
+    let catalog = ModelCatalog::import("maziyarpanahi/openmed", COMMIT, rows.as_bytes()).unwrap();
+
+    // Without the source the snapshot is refused: it ships no tokenizer.
+    let build = |source: Option<TokenizerSource<'_>>, out: &std::path::Path| {
+        build_token_classifier_pack(
+            &TokenClassifierSnapshot {
+                meta: &mlx_meta,
+                row: catalog.get(MLX).unwrap(),
+                snapshot_dir: &snapshot,
+                onnx_file: "model.safetensors",
+                fixed_sequence_length: 16,
+                tokenizer_source: source,
+            },
+            out,
+        )
+    };
+    assert!(matches!(
+        build(None, &dir("mlx-none")),
+        Err(SnapshotError::NotInSnapshot(_))
+    ));
+
+    // A source whose pinned digest does not match the tokenizer is refused.
+    let other_meta = source_meta_for(b"{\"version\":\"other\"}");
+    let other_rows = format!("{}\n{}", row(MLX, &mlx_meta), row(SOURCE, &other_meta));
+    let other_catalog =
+        ModelCatalog::import("maziyarpanahi/openmed", COMMIT, other_rows.as_bytes()).unwrap();
+    let refused = build_token_classifier_pack(
+        &TokenClassifierSnapshot {
+            meta: &mlx_meta,
+            row: other_catalog.get(MLX).unwrap(),
+            snapshot_dir: &snapshot,
+            onnx_file: "model.safetensors",
+            fixed_sequence_length: 16,
+            tokenizer_source: Some(TokenizerSource {
+                meta: &other_meta,
+                row: other_catalog.get(SOURCE).unwrap(),
+            }),
+        },
+        &dir("mlx-bad"),
+    );
+    assert!(
+        matches!(
+            refused,
+            Err(SnapshotError::SizeMismatch { .. } | SnapshotError::DigestMismatch { .. })
+        ),
+        "{refused:?}"
+    );
+
+    let out = dir("mlx-pack");
+    build(
+        Some(TokenizerSource {
+            meta: &source_meta,
+            row: catalog.get(SOURCE).unwrap(),
+        }),
+        &out,
+    )
+    .expect("snapshot with a verified tokenizer source builds a Pack");
+    let recorded: serde_json::Value =
+        serde_json::from_slice(&std::fs::read(out.join("tokenizer_source.json")).unwrap()).unwrap();
+    assert_eq!(recorded["repository"], SOURCE);
+    assert_eq!(recorded["revision"], SOURCE_SHA);
+    assert_eq!(recorded["sha256"], hex(&Sha256::digest(&tokenizer)));
+
+    let manifest = admit_pack_dir(&out).expect("signed Pack admits");
+    let prepared = prepare_candle_token_classifier(&out, &manifest).expect("prepares");
+    let output = prepared
+        .run_document(
+            &manifest.pack_id,
+            "alice visited clinic today",
+            CandleRunOptions::default(),
+        )
+        .expect("runs");
+    assert!(output.evidence_only);
 }

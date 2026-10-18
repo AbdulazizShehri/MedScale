@@ -47,6 +47,7 @@ fn catalog_row_to_verified_pack_to_local_execution() {
             snapshot_dir: &snapshot,
             onnx_file: &onnx_file,
             fixed_sequence_length: 128,
+            tokenizer_source: None,
         },
         &out,
     )
