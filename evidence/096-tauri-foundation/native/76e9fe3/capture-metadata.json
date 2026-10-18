@@ -1,0 +1,121 @@
+{
+  "schemaVersion": 1,
+  "head": "76e9fe31c2611f1abc02a9575641988e27784486",
+  "tree": "cd7251fdbc142ba61de1ccc1a4b1993ff6935df0",
+  "ciRun": 36778619937,
+  "buildPlatform": "windows-latest / Microsoft Windows 10.0.26100",
+  "capturePlatform": "win32 10.0.26200 x64",
+  "executableSha256": "9f006846d4ff998bbbbbd75e6b18ae81b6bfefa6f16dfcbb94ac44f1fa2822cb",
+  "captureTool": "@oai/sky via supported Computer Use; foreground native Tauri window",
+  "originalFormat": "JPEG data URL returned by tool",
+  "nativeFrameIncludesChrome": true,
+  "clientSizeBasis": "Initial Tauri 1440x900 and configured minimum 1100x720; native frame 2px wider and 31px taller",
+  "cursorHalo": "Capture/input tool pointer halo appears in frames; no overlay or viewport injection into app",
+  "records": [
+    {
+      "file": "home-dark-1440x900.jpg",
+      "width": 1442,
+      "height": 931,
+      "clientWidth": 1440,
+      "clientHeight": 900,
+      "sha256": "6801a231ddd4af960bdc964a8836435360626dbe456ba40bf3d540499f72647a",
+      "capturedAt": "2026-09-30T21:40:14.148Z",
+      "png": {
+        "file": "home-dark-1440x900.png",
+        "width": 1442,
+        "height": 931,
+        "bytes": 296233,
+        "sha256": "0dd6de859d85c570d39084bd8ba3f21b556aaa8e114a0a53e4ec31eb11a10184"
+      }
+    },
+    {
+      "file": "home-light-1440x900.jpg",
+      "width": 1442,
+      "height": 931,
+      "clientWidth": 1440,
+      "clientHeight": 900,
+      "sha256": "3f526c24dbb38dd28e028fd47507a302f56ca34c25922fda02a057ac3f18473e",
+      "capturedAt": "2026-09-30T21:40:33.332Z",
+      "png": {
+        "file": "home-light-1440x900.png",
+        "width": 1442,
+        "height": 931,
+        "bytes": 255539,
+        "sha256": "6660a5f7b9fa7d2c753388996c57661856276911edad3df07821d79d720129ac"
+      }
+    },
+    {
+      "file": "home-light-1100x720.jpg",
+      "width": 1102,
+      "height": 751,
+      "clientWidth": 1100,
+      "clientHeight": 720,
+      "sha256": "6b9c569bdcb665bd7af4be2adf1009c4b4d0e64b5149e96fc665ce61a8a1c7cb",
+      "capturedAt": "2026-09-30T21:42:53.902Z",
+      "png": {
+        "file": "home-light-1100x720.png",
+        "width": 1102,
+        "height": 751,
+        "bytes": 207994,
+        "sha256": "0b76274234ec4ff02257ddc44d5f61f02ec6f599e8192baebf594bb009cd987a"
+      }
+    },
+    {
+      "file": "home-dark-1100x720.jpg",
+      "width": 1102,
+      "height": 751,
+      "clientWidth": 1100,
+      "clientHeight": 720,
+      "sha256": "c4a85d716da8d2ce3686f80d9554169a991a3da09dffffd314770385f0ddafcd",
+      "capturedAt": "2026-09-30T21:43:31.782Z",
+      "png": {
+        "file": "home-dark-1100x720.png",
+        "width": 1102,
+        "height": 751,
+        "bytes": 239942,
+        "sha256": "8c9dadad70e4b352c63c6917d1697739242887e83b1412dfcf38ee923b0f0bbd"
+      }
+    },
+    {
+      "file": "palette-dark-1100x720.jpg",
+      "width": 1102,
+      "height": 751,
+      "clientWidth": 1100,
+      "clientHeight": 720,
+      "sha256": "c032ca1a5d0feecfc28b5037de843260a4a0001d7aba60f87507fb62993162a1",
+      "capturedAt": "2026-09-30T21:44:10.738Z",
+      "png": {
+        "file": "palette-dark-1100x720.png",
+        "width": 1102,
+        "height": 751,
+        "bytes": 201253,
+        "sha256": "570f0170846ed022b7dfe5a894c5315163cc83afc4c7531ed0cb5d26d3a45dc0"
+      }
+    },
+    {
+      "file": "patients-unavailable-dark-1100x720.jpg",
+      "width": 1102,
+      "height": 751,
+      "clientWidth": 1100,
+      "clientHeight": 720,
+      "sha256": "474600c0299dee78a694ff1d7f695951448760479f5295de56284e57e0ed3c27",
+      "capturedAt": "2026-09-30T21:44:32.459Z",
+      "png": {
+        "file": "patients-unavailable-dark-1100x720.png",
+        "width": 1102,
+        "height": 751,
+        "bytes": 193957,
+        "sha256": "cd9b72ad80fd841a9f1114d1510e9c140b2ea2e260f87805ac2ce4efa6f5ae9a"
+      }
+    }
+  ],
+  "pngExport": {
+    "method": "System.Drawing JPEG decode and PNG encode; no crop, resize, retouch or app overlay",
+    "limitation": "PNG exports retain JPEG capture loss; not raw lossless framebuffer or pixel-equivalence evidence"
+  },
+  "buildReceiptExport": {
+    "method": "CRLF to LF; all JSON fields preserved",
+    "originalSha256": "675ef8280480c63608c87f2b01763867acfa668f4ebe9ea3342cd33e1c148dd8",
+    "exportSha256": "2909928956125a125a91e07e362ca3aa8832fbe8a12900de659f68a4367cb375"
+  }
+}

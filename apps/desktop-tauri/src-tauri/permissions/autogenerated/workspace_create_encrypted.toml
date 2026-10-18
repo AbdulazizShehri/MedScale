@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-workspace-create-encrypted"
+description = "Enables the workspace_create_encrypted command without any pre-configured scope."
+commands.allow = ["workspace_create_encrypted"]
+
+[[permission]]
+identifier = "deny-workspace-create-encrypted"
+description = "Denies the workspace_create_encrypted command without any pre-configured scope."
+commands.deny = ["workspace_create_encrypted"]

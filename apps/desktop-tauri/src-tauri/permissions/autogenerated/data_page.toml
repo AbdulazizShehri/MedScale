@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-data-page"
+description = "Enables the data_page command without any pre-configured scope."
+commands.allow = ["data_page"]
+
+[[permission]]
+identifier = "deny-data-page"
+description = "Denies the data_page command without any pre-configured scope."
+commands.deny = ["data_page"]

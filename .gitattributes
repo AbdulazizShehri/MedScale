@@ -1,3 +1,9 @@
 evidence/008-local-ai-capability-fabric/fixtures/** text eol=lf
 evidence/012-mesc-artifact-integration/fixtures/** text eol=lf
 assets/brand/fonts/* -text -whitespace
+apps/desktop-tauri/** text eol=lf
+apps/desktop-tauri/src-tauri/icons/*.png -text -whitespace
+apps/desktop-tauri/src-tauri/icons/*.ico -text -whitespace
+apps/desktop-tauri/src-tauri/icons/*.icns -text -whitespace
+specs/096-tauri-foundation/** text eol=lf
+crates/medscale-desktop/ui/assets/icons-v2/**/*.svg text eol=lf

@@ -1,0 +1,81 @@
+{
+  "schemaVersion": 1,
+  "head": "4641cbb57d27edcd4abf661689cb46a60a45b09c",
+  "tree": "4135002153f454c83b396afc0bc9b9cf2f43c9ee",
+  "ciRun": 36830696375,
+  "executableSha256": "15e3d30a82326f9d65935aa36c634a767a8ec0429291b675417a1d04394439d2",
+  "capturePlatform": "win32 10.0.26200",
+  "captureTool": "@oai/sky via supported Computer Use",
+  "originalFormat": "JPEG data URL",
+  "clientSizeBasis": "Initial1440x900/minimum1100x720 in Tauri configuration; outer frame adds2x31px; intermediate outer1274x931. No OS client-rect measurement.",
+  "cursorHalo": "Tool cursor halo retained, no product overlay.",
+  "excluded": [
+    "excluded-sizing-attempt-1440x900.jpg (failed resize, excluded from acceptance)",
+    "initial palette pre-settled frame replaced after actual dialog observation"
+  ],
+  "records": [
+    {
+      "file": "home-dark-1440x900.jpg",
+      "width": 1442,
+      "height": 931,
+      "sha256": "ea7a0f0d168fc7fddf9d55b17b984327d8988ef9f2b691810eb712fa7e0abbf3",
+      "capturedAt": "2026-10-01T07:43:49.484Z"
+    },
+    {
+      "file": "patients-dark-1440x900.jpg",
+      "width": 1442,
+      "height": 931,
+      "sha256": "ccaffc4a282efde84051bd4afb20c8daa2517c964b974a66bd1736aa1b89dba5",
+      "capturedAt": "2026-10-01T07:43:49.788Z"
+    },
+    {
+      "file": "patients-light-1440x900.jpg",
+      "width": 1442,
+      "height": 931,
+      "sha256": "3e252da4c9a187da348e5079f4b4fa75b88faee647d9ec8bc54da2f643b3fc7d",
+      "capturedAt": "2026-10-01T07:44:00.899Z"
+    },
+    {
+      "file": "patients-light-1100x720.jpg",
+      "width": 1102,
+      "height": 751,
+      "sha256": "edfd992041371c230dc7087e2b27e924952da74e3be5cbf2a335e52954bfcb6f",
+      "capturedAt": "2026-10-01T07:45:20.451Z"
+    },
+    {
+      "file": "patients-dark-1100x720.jpg",
+      "width": 1102,
+      "height": 751,
+      "sha256": "0ea76918ee57149659fd3e585a74f4960c064dd83b5fd0b4016048e1287b1be1",
+      "capturedAt": "2026-10-01T07:45:39.031Z"
+    },
+    {
+      "file": "patients-inspector-dark-1100x720.jpg",
+      "width": 1102,
+      "height": 751,
+      "sha256": "349165ba833a38ac46978dba8196b4b006be42ba1d942cfc8aadc576043cabf3",
+      "capturedAt": "2026-10-01T07:46:17.943Z"
+    },
+    {
+      "file": "patients-palette-dark-1100x720.jpg",
+      "width": 1102,
+      "height": 751,
+      "sha256": "8038b7cd2a72f98d8304002017cf935fdae0968e2d066b027afa7b00ce8a67ed",
+      "capturedAt": "2026-10-01T07:47:50.082Z"
+    },
+    {
+      "file": "patients-dark-intermediate-1272x900.jpg",
+      "width": 1274,
+      "height": 931,
+      "sha256": "794930b4c241262cc0ef40d37e6ed8cda1294859679ed30317e521f6f74645df",
+      "capturedAt": "2026-10-01T07:50:37.365Z"
+    },
+    {
+      "file": "patients-light-intermediate-1272x900.jpg",
+      "width": 1274,
+      "height": 931,
+      "sha256": "9b09558aafdbc0f859866c564f5ec1236c72130eafc56b932953e73a1de1c3be",
+      "capturedAt": "2026-10-01T07:50:54.998Z"
+    }
+  ]
+}

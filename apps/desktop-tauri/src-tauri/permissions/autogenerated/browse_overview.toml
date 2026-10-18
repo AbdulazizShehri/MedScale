@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-browse-overview"
+description = "Enables the browse_overview command without any pre-configured scope."
+commands.allow = ["browse_overview"]
+
+[[permission]]
+identifier = "deny-browse-overview"
+description = "Denies the browse_overview command without any pre-configured scope."
+commands.deny = ["browse_overview"]

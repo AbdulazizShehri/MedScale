@@ -2,6 +2,8 @@
 
 ## Productization entry — 2026-09-29
 
+The later 2026-09-30 founder presentation decision is recorded in `TAURI_DESKTOP_MIGRATION_DECISION_2026-09-30.md`. Future 096–100 work migrates to Tauri 2 + React/TypeScript/Vite/Tailwind in bounded stages. 095 remains Slint-era brand evidence, unmerged review/dependency gates remain real, Slint is retained, and the Tauri prototype is synthetic-only.
+
 Approved paired M supersedes older active visuals. Read PRODUCTIZATION_PROGRAM.md and specs/095-brand-foundation after standing authority/live BUILD_QUEUE. Closed 068–094 remain intact; 095–100 is autonomously authorized. Queue/closure evidence supersede older summaries. Architecture, PHI exclusion and release limitations remain.
 
 ## 1. Current gate

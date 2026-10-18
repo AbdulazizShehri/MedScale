@@ -6,6 +6,10 @@
 
 **Status:** `AUTONOMOUS_IMPLEMENTATION_AUTHORIZED`; launch UI is not frozen.
 
+## 2026-09-30 presentation architecture amendment
+
+The founder selected Tauri 2 + React + TypeScript + Vite + Tailwind for future Desktop presentation. See [the migration decision](TAURI_DESKTOP_MIGRATION_DECISION_2026-09-30.md). Spec 095 remains the historical Slint-era brand foundation; its evidence and open review gate are unchanged. Specs 096–100 retain the route, visual, interaction and audit outcomes below but deliver them through a staged Tauri frontend. The existing Rust Core remains authoritative and Slint stays as the legacy reference until a separately governed retirement decision. Preparatory 096 work is allowed while 095 is unmerged; 096 closure and merge remain dependency gated. Tauri/WebView private-data admission is still open, so early Tauri work is synthetic-only.
+
 ## Current truth and supersession
 
 Research OS Specs 068–094 remain closed in their original authorized scope. This program changes forward-facing identity and presentation; it does not reopen those packages, expand backend authority, or reinterpret their historical qualification. Draft PRs #124 and #125 remain separate and unpromoted.
@@ -24,10 +28,18 @@ The live product has 25 native routes and an existing shared component system. S
 | 096 | Product navigation and core desktop interactions | closed 095 | every existing route reachable at minimum size, working searchable command navigation, focus and density |
 | 097 | Clinical and evidence product surfaces | closed 096 | patient timeline/source/coverage, evidence/uncertainty, readable tables, empty/refusal states |
 | 098 | Research and operational product surfaces | closed 097 | Projects/Data/Analytics/Knowledge/Agents/Models/Audio/Research OS and utility journeys, real authority retained |
-| 099 | Interaction, accessibility and synthetic demo qualification | closed 098 | deterministic native capture matrix, compact/light/dark, keyboard, contrast, all explicit states, measured vs unmeasured |
-| 100 | Final product audit and scoped launch UI freeze | closed 099 | no material visual/UX finding; bound audit, exact-head and post-main CI; next-program preparation only |
+| 099 | Welcome/access experience, interaction, accessibility and synthetic demo qualification | closed 098 | truthful pre-desktop Welcome → Access → Desktop journey; deterministic native capture matrix, compact/light/dark, keyboard, contrast, all explicit states, measured vs unmeasured |
+| 100 | Final product audit and scoped launch UI freeze | closed 099 | no material visual/UX finding; bound journey audit, exact-head and post-main CI; next-program preparation only |
 
 Later release preparation, publication, Hugging Face, paper, external validation and deployment work do not start before the scoped UI bar is met. Future scientific figures use the type/neutral/spacing system and prioritize source clarity; no marketing asset campaign precedes a stable product system.
+
+## 2026-09-30 founder journey and visual refinement
+
+The approved black Patients panel remains the dark-mode visual north star and the light board remains the light-mode reference. Specs 096–098 own one compact navigation system, first-party geometric icons, layered monochrome surfaces, shared component grammar, and route-specific Patients/Evidence/Home and operational density. Do not manufacture clinical rows or convert the pinned comparative Evidence ledger into live literature. Each material visual finding requires a forward fix, a new actual native frame and direct inspection before closure.
+
+The desired ordinary startup journey is **Welcome → truthful Access → Desktop**, with no sidebar, patient content or tables on Welcome/Access. Spec 099 owns those native pre-desktop presentation states and their complete light/dark/minimum-size/keyboard qualification; Spec 100 audits the journey. Existing Desktop startup opens Home and initializes a synthetic subject. Core exposes local encrypted-vault passphrase operations and capability leases, but Desktop has no user or organizational sign-in authority. Do not label the local access action `Sign in`, show a credential form or imply user identity authentication until an actual authentication path is separately implemented and qualified. A supported local synthetic workspace action may enter Desktop explicitly without a cloud account; it must not claim an authenticated identity. This refinement does not add a Core, network, PHI or institutional auth contract to Specs 095–100.
+
+The founder requires zero new cost. Jev and Alibaba Open Code Review are requested where applicable, but a metered provider must not be called. Record `BLOCKED_BY_ZERO_COST` when a genuinely free execution path is absent; never treat a read-only preview, delegated host review or passing CI as a provider-backed review PASS. Such a blocked required review prevents the affected PR from merging while independent work continues. See `EXTERNAL_GATES.md` for the current Spec 095 gate.
 
 ## Route authority
 
