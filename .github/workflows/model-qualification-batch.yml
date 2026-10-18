@@ -91,6 +91,8 @@ jobs:
           MEDSCALE_HF_ONNX_FILE: ${{ matrix.weights }}
           MEDSCALE_SAMPLE_TEXT: ${{ matrix.text }}
           MEDSCALE_ZS_LABELS: ${{ matrix.labels }}
+          # Optional gold set for deterministic accuracy evaluation.
+          MEDSCALE_EVAL_SET: ${{ matrix.eval }}
           # Batch fields reach the shell only through the environment.
           ENTRY_ID: ${{ matrix.id }}
           ENTRY_TEST: ${{ matrix.test }}

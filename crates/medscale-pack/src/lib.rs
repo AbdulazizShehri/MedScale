@@ -3,6 +3,7 @@
 mod candle_runtime;
 mod catalog;
 mod compatibility;
+pub mod entity_eval;
 mod format;
 mod fp16_widen;
 mod generation_runtime;

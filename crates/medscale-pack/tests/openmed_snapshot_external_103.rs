@@ -136,5 +136,29 @@ fn catalog_row_to_verified_pack_to_local_execution() {
         );
         let _ = std::fs::remove_dir_all(&cache);
     }
+    // Optional deterministic accuracy evaluation on a gold set
+    // (`MEDSCALE_EVAL_SET`, for example the synthetic PII set). Evaluation
+    // evidence only; never clinical validation.
+    if let Some(path) = std::env::var("MEDSCALE_EVAL_SET")
+        .ok()
+        .filter(|p| !p.is_empty())
+    {
+        use medscale_pack::entity_eval::{EvalSet, evaluate, predicted_spans};
+        let set = EvalSet::from_json(&std::fs::read(&path).unwrap()).expect("valid gold set");
+        let mut predictions = std::collections::BTreeMap::new();
+        for doc in &set.documents {
+            let payload = prepared
+                .run_document(&manifest.pack_id, &doc.text, DocumentRunOptions::default())
+                .expect("gold document run")
+                .output
+                .proposal_payload;
+            predictions.insert(doc.id.clone(), predicted_spans(&payload));
+        }
+        let report = evaluate(&set, &predictions);
+        println!(
+            "EVAL_METRICS {}",
+            serde_json::json!({"repo": meta.id, "revision": meta.sha, "report": report})
+        );
+    }
     let _ = std::fs::remove_dir_all(&out);
 }
