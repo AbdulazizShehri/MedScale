@@ -317,9 +317,81 @@ impl AsrEngine for FixtureAsrEngine {
     }
 }
 
-/// Route availability given the engine installed in this process.
+/// Local speech recognition from an admitted Audio Pack (Spec 106): a candle
+/// Whisper model. Real recognition, but medical accuracy is unmeasured and a
+/// transcript stays a proposal for review.
+pub struct PackAsrEngine {
+    asr: medscale_pack::PreparedWhisperAsr,
+    pack_id: String,
+    version: String,
+}
+
+impl PackAsrEngine {
+    #[must_use]
+    pub fn new(asr: medscale_pack::PreparedWhisperAsr, pack_id: String, version: String) -> Self {
+        Self {
+            asr,
+            pack_id,
+            version,
+        }
+    }
+}
+
+impl AsrEngine for PackAsrEngine {
+    fn identity(&self) -> AsrEngineIdentity {
+        AsrEngineIdentity {
+            engine_id: format!(
+                "{}:{}",
+                medscale_pack::CANDLE_WHISPER_ASR_RUNTIME_ID,
+                self.pack_id
+            ),
+            version: format!(
+                "{}+{}",
+                self.version,
+                &self.asr.content_digest().to_hex()[..12]
+            ),
+            is_fixture: false,
+        }
+    }
+
+    fn transcribe(
+        &self,
+        format: PcmFormat,
+        pcm: &[u8],
+        segments: &[(u64, u64)],
+        _language: Option<&str>,
+    ) -> Result<Vec<Option<String>>, String> {
+        if format.sample_rate != 16_000 || format.bits_per_sample != 16 {
+            return Err("local ASR needs 16 kHz 16-bit PCM".to_owned());
+        }
+        let samples = medscale_pack::pcm16_to_mono_f32(pcm, format.channels)
+            .ok_or_else(|| "PCM layout is not 16-bit frames".to_owned())?;
+        segments
+            .iter()
+            .map(|&(start_ms, end_ms)| {
+                let to_index =
+                    |ms: u64| usize::try_from(ms.saturating_mul(16)).unwrap_or(usize::MAX);
+                let (a, b) = (
+                    to_index(start_ms).min(samples.len()),
+                    to_index(end_ms).min(samples.len()),
+                );
+                if b <= a {
+                    return Ok(None);
+                }
+                let text = self
+                    .asr
+                    .transcribe(&samples[a..b])
+                    .map_err(|e| e.to_string())?;
+                let text = text.trim().to_owned();
+                Ok(if text.is_empty() { None } else { Some(text) })
+            })
+            .collect()
+    }
+}
+
+/// Route availability given the engines installed in this process.
 #[must_use]
-pub fn route_statuses(fixture_installed: bool) -> Vec<AudioRouteStatus> {
+pub fn route_statuses(fixture_installed: bool, local_installed: bool) -> Vec<AudioRouteStatus> {
     AudioRoute::ALL
         .iter()
         .map(|route| {
@@ -327,6 +399,7 @@ pub fn route_statuses(fixture_installed: bool) -> Vec<AudioRouteStatus> {
                 AudioRoute::SegmentationOnly => (true, None),
                 AudioRoute::FixtureAsr if fixture_installed => (true, None),
                 AudioRoute::FixtureAsr => (false, Some("no fixture engine installed")),
+                AudioRoute::LocalAsrPack if local_installed => (true, None),
                 AudioRoute::LocalAsrPack => (false, Some("no admitted local ASR Audio Pack")),
                 AudioRoute::CloudAsr => (false, Some("audio never leaves the device")),
             };
@@ -353,6 +426,8 @@ pub struct Audio<'a> {
     pub store: &'a mut InMemoryAuthorityStore,
     pub meta: &'a SqliteMetaStore,
     pub engine: Option<&'a dyn AsrEngine>,
+    /// Spec 106: the Audio Pack engine behind `LocalAsrPack`, if installed.
+    pub local_engine: Option<&'a dyn AsrEngine>,
     /// Capture sessions started by this process. Any open session not in
     /// this set belongs to a process that ended: it becomes `interrupted`.
     pub live_captures: &'a Mutex<HashSet<String>>,
@@ -692,7 +767,10 @@ impl Audio<'_> {
         let deny = match request.route {
             _ if request.diarization_required => Some(AudioRouteDenyReason::DiarizationUnavailable),
             AudioRoute::CloudAsr => Some(AudioRouteDenyReason::CloudRouteForbidden),
-            AudioRoute::LocalAsrPack => Some(AudioRouteDenyReason::RouteUnavailable),
+            AudioRoute::LocalAsrPack if self.local_engine.is_none() => {
+                Some(AudioRouteDenyReason::RouteUnavailable)
+            }
+            AudioRoute::LocalAsrPack => None,
             AudioRoute::FixtureAsr if self.engine.is_none() => {
                 Some(AudioRouteDenyReason::RouteUnavailable)
             }
@@ -700,6 +778,7 @@ impl Audio<'_> {
         };
         let engine_identity = match request.route {
             AudioRoute::FixtureAsr if deny.is_none() => self.engine.map(|e| e.identity()),
+            AudioRoute::LocalAsrPack if deny.is_none() => self.local_engine.map(|e| e.identity()),
             _ => None,
         };
         let mut limitations = vec![
@@ -729,8 +808,13 @@ impl Audio<'_> {
                 }
             };
             let spans = analyze_pcm(source.format, pcm, vad).segments;
-            let texts: Vec<Option<String>> = match (request.route, self.engine) {
-                (AudioRoute::FixtureAsr, Some(engine)) => {
+            let engine = match request.route {
+                AudioRoute::FixtureAsr => self.engine,
+                AudioRoute::LocalAsrPack => self.local_engine,
+                _ => None,
+            };
+            let texts: Vec<Option<String>> = match (request.route, engine) {
+                (AudioRoute::FixtureAsr | AudioRoute::LocalAsrPack, Some(engine)) => {
                     let out = engine
                         .transcribe(source.format, pcm, &spans, request.language.as_deref())
                         .map_err(|message| AuthorityError::Unavailable { message })?;
@@ -1041,7 +1125,7 @@ mod tests {
     #[test]
     fn routes_never_offer_a_remote_engine() {
         for fixture in [false, true] {
-            let routes = route_statuses(fixture);
+            let routes = route_statuses(fixture, false);
             let cloud = routes
                 .iter()
                 .find(|r| r.route == AudioRoute::CloudAsr)
