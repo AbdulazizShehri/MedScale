@@ -1,0 +1,330 @@
+[
+ {
+  "id": "00-OpenMed-PII-Turkish-ClinicDischarge-Base-110M-v1",
+  "repo": "OpenMed/OpenMed-PII-Turkish-ClinicDischarge-Base-110M-v1-mlx",
+  "weights": "weights.safetensors",
+  "test": "safetensors_external_104",
+  "text": "Hasta Ahmet Yılmaz, 12 Mart 1980 doğumlu ve İstanbul'da yaşıyor.",
+  "labels": ""
+ },
+ {
+  "id": "01-OpenMed-PII-Turkish-ClinicDischarge-Base-110M-v1",
+  "repo": "OpenMed/OpenMed-PII-Turkish-ClinicDischarge-Base-110M-v1-onnx-android",
+  "weights": "model.onnx",
+  "test": "openmed_snapshot_external_103",
+  "text": "Hasta Ahmet Yılmaz, 12 Mart 1980 doğumlu ve İstanbul'da yaşıyor.",
+  "labels": ""
+ },
+ {
+  "id": "02-OpenMed-PII-Turkish-ClinicalBGE-Large-335M-v1-on",
+  "repo": "OpenMed/OpenMed-PII-Turkish-ClinicalBGE-Large-335M-v1-onnx-android",
+  "weights": "model_fp16.onnx",
+  "test": "openmed_snapshot_external_103",
+  "text": "Hasta Ahmet Yılmaz, 12 Mart 1980 doğumlu ve İstanbul'da yaşıyor.",
+  "labels": ""
+ },
+ {
+  "id": "03-OpenMed-PII-Turkish-ClinicalE5-Base-109M-v1",
+  "repo": "OpenMed/OpenMed-PII-Turkish-ClinicalE5-Base-109M-v1",
+  "weights": "model.safetensors",
+  "test": "safetensors_external_104",
+  "text": "Hasta Ahmet Yılmaz, 12 Mart 1980 doğumlu ve İstanbul'da yaşıyor.",
+  "labels": ""
+ },
+ {
+  "id": "04-OpenMed-PII-Turkish-ClinicalE5-Base-109M-v1-mlx",
+  "repo": "OpenMed/OpenMed-PII-Turkish-ClinicalE5-Base-109M-v1-mlx",
+  "weights": "weights.safetensors",
+  "test": "safetensors_external_104",
+  "text": "Hasta Ahmet Yılmaz, 12 Mart 1980 doğumlu ve İstanbul'da yaşıyor.",
+  "labels": ""
+ },
+ {
+  "id": "05-OpenMed-PII-Turkish-ClinicalE5-Base-109M-v1-onnx",
+  "repo": "OpenMed/OpenMed-PII-Turkish-ClinicalE5-Base-109M-v1-onnx-android",
+  "weights": "model.onnx",
+  "test": "openmed_snapshot_external_103",
+  "text": "Hasta Ahmet Yılmaz, 12 Mart 1980 doğumlu ve İstanbul'da yaşıyor.",
+  "labels": ""
+ },
+ {
+  "id": "06-OpenMed-PII-Turkish-ClinicalE5-Large-335M-v1-onn",
+  "repo": "OpenMed/OpenMed-PII-Turkish-ClinicalE5-Large-335M-v1-onnx-android",
+  "weights": "model_fp16.onnx",
+  "test": "openmed_snapshot_external_103",
+  "text": "Hasta Ahmet Yılmaz, 12 Mart 1980 doğumlu ve İstanbul'da yaşıyor.",
+  "labels": ""
+ },
+ {
+  "id": "07-OpenMed-PII-Turkish-LiteClinicalU-Small-66M-v1",
+  "repo": "OpenMed/OpenMed-PII-Turkish-LiteClinicalU-Small-66M-v1",
+  "weights": "model.safetensors",
+  "test": "safetensors_external_104",
+  "text": "Hasta Ahmet Yılmaz, 12 Mart 1980 doğumlu ve İstanbul'da yaşıyor.",
+  "labels": ""
+ },
+ {
+  "id": "08-OpenMed-PII-Turkish-LiteClinicalU-Small-66M-v1-m",
+  "repo": "OpenMed/OpenMed-PII-Turkish-LiteClinicalU-Small-66M-v1-mlx",
+  "weights": "weights.safetensors",
+  "test": "safetensors_external_104",
+  "text": "Hasta Ahmet Yılmaz, 12 Mart 1980 doğumlu ve İstanbul'da yaşıyor.",
+  "labels": ""
+ },
+ {
+  "id": "09-OpenMed-PII-Turkish-LiteClinicalU-Small-66M-v1-o",
+  "repo": "OpenMed/OpenMed-PII-Turkish-LiteClinicalU-Small-66M-v1-onnx-android",
+  "weights": "model.onnx",
+  "test": "openmed_snapshot_external_103",
+  "text": "Hasta Ahmet Yılmaz, 12 Mart 1980 doğumlu ve İstanbul'da yaşıyor.",
+  "labels": ""
+ },
+ {
+  "id": "10-OpenMed-PII-Turkish-ModernMed-Base-149M-v1",
+  "repo": "OpenMed/OpenMed-PII-Turkish-ModernMed-Base-149M-v1",
+  "weights": "model.safetensors",
+  "test": "safetensors_external_104",
+  "text": "Hasta Ahmet Yılmaz, 12 Mart 1980 doğumlu ve İstanbul'da yaşıyor.",
+  "labels": ""
+ },
+ {
+  "id": "11-OpenMed-PII-Turkish-ModernMed-Base-149M-v1-onnx-",
+  "repo": "OpenMed/OpenMed-PII-Turkish-ModernMed-Base-149M-v1-onnx-android",
+  "weights": "model.onnx",
+  "test": "openmed_snapshot_external_103",
+  "text": "Hasta Ahmet Yılmaz, 12 Mart 1980 doğumlu ve İstanbul'da yaşıyor.",
+  "labels": ""
+ },
+ {
+  "id": "12-OpenMed-PII-Turkish-ModernMed-Large-395M-v1-onnx",
+  "repo": "OpenMed/OpenMed-PII-Turkish-ModernMed-Large-395M-v1-onnx-android",
+  "weights": "model_fp16.onnx",
+  "test": "openmed_snapshot_external_103",
+  "text": "Hasta Ahmet Yılmaz, 12 Mart 1980 doğumlu ve İstanbul'da yaşıyor.",
+  "labels": ""
+ },
+ {
+  "id": "13-OpenMed-PII-Turkish-NomicMed-Large-395M-v1-onnx-",
+  "repo": "OpenMed/OpenMed-PII-Turkish-NomicMed-Large-395M-v1-onnx-android",
+  "weights": "model_fp16.onnx",
+  "test": "openmed_snapshot_external_103",
+  "text": "Hasta Ahmet Yılmaz, 12 Mart 1980 doğumlu ve İstanbul'da yaşıyor.",
+  "labels": ""
+ },
+ {
+  "id": "14-OpenMed-PII-Turkish-mSuperClinical-Large-279M-v1",
+  "repo": "OpenMed/OpenMed-PII-Turkish-mSuperClinical-Large-279M-v1-onnx-android",
+  "weights": "model_fp16.onnx",
+  "test": "openmed_snapshot_external_103",
+  "text": "Hasta Ahmet Yılmaz, 12 Mart 1980 doğumlu ve İstanbul'da yaşıyor.",
+  "labels": ""
+ },
+ {
+  "id": "15-OpenMed-PII-Vietnamese-mSuperClinical-Large-279M",
+  "repo": "OpenMed/OpenMed-PII-Vietnamese-mSuperClinical-Large-279M-v1-onnx-android",
+  "weights": "model_fp16.onnx",
+  "test": "openmed_snapshot_external_103",
+  "text": "Patient John Smith, born 12 March 1980, has type 2 diabetes and pain in the left knee.",
+  "labels": ""
+ },
+ {
+  "id": "16-OpenMed-PII-mSuperClinical-Large-279M-v1-onnx-an",
+  "repo": "OpenMed/OpenMed-PII-mSuperClinical-Large-279M-v1-onnx-android",
+  "weights": "model_fp16.onnx",
+  "test": "openmed_snapshot_external_103",
+  "text": "Patient John Smith, born 12 March 1980, has type 2 diabetes and pain in the left knee.",
+  "labels": ""
+ },
+ {
+  "id": "17-OpenMed-ZeroShot-NER-Anatomy-Medium-209M-mlx",
+  "repo": "OpenMed/OpenMed-ZeroShot-NER-Anatomy-Medium-209M-mlx",
+  "weights": "weights.safetensors",
+  "test": "gliner_external_104",
+  "text": "Patient John Smith, born 12 March 1980, has type 2 diabetes and pain in the left knee.",
+  "labels": "disease, drug, anatomy, gene"
+ },
+ {
+  "id": "18-OpenMed-ZeroShot-NER-BloodCancer-Medium-209M-mlx",
+  "repo": "OpenMed/OpenMed-ZeroShot-NER-BloodCancer-Medium-209M-mlx",
+  "weights": "weights.safetensors",
+  "test": "gliner_external_104",
+  "text": "Patient John Smith, born 12 March 1980, has type 2 diabetes and pain in the left knee.",
+  "labels": "disease, drug, anatomy, gene"
+ },
+ {
+  "id": "19-OpenMed-ZeroShot-NER-BloodCancer-Small-166M-mlx",
+  "repo": "OpenMed/OpenMed-ZeroShot-NER-BloodCancer-Small-166M-mlx",
+  "weights": "weights.safetensors",
+  "test": "gliner_external_104",
+  "text": "Patient John Smith, born 12 March 1980, has type 2 diabetes and pain in the left knee.",
+  "labels": "disease, drug, anatomy, gene"
+ },
+ {
+  "id": "20-OpenMed-ZeroShot-NER-Chemical-Medium-209M-mlx",
+  "repo": "OpenMed/OpenMed-ZeroShot-NER-Chemical-Medium-209M-mlx",
+  "weights": "weights.safetensors",
+  "test": "gliner_external_104",
+  "text": "Patient John Smith, born 12 March 1980, has type 2 diabetes and pain in the left knee.",
+  "labels": "disease, drug, anatomy, gene"
+ },
+ {
+  "id": "21-OpenMed-ZeroShot-NER-Chemical-Small-166M-mlx",
+  "repo": "OpenMed/OpenMed-ZeroShot-NER-Chemical-Small-166M-mlx",
+  "weights": "weights.safetensors",
+  "test": "gliner_external_104",
+  "text": "Patient John Smith, born 12 March 1980, has type 2 diabetes and pain in the left knee.",
+  "labels": "disease, drug, anatomy, gene"
+ },
+ {
+  "id": "22-OpenMed-ZeroShot-NER-DNA-Medium-209M-mlx",
+  "repo": "OpenMed/OpenMed-ZeroShot-NER-DNA-Medium-209M-mlx",
+  "weights": "weights.safetensors",
+  "test": "gliner_external_104",
+  "text": "Patient John Smith, born 12 March 1980, has type 2 diabetes and pain in the left knee.",
+  "labels": "disease, drug, anatomy, gene"
+ },
+ {
+  "id": "23-OpenMed-ZeroShot-NER-DNA-Small-166M-mlx",
+  "repo": "OpenMed/OpenMed-ZeroShot-NER-DNA-Small-166M-mlx",
+  "weights": "weights.safetensors",
+  "test": "gliner_external_104",
+  "text": "Patient John Smith, born 12 March 1980, has type 2 diabetes and pain in the left knee.",
+  "labels": "disease, drug, anatomy, gene"
+ },
+ {
+  "id": "24-OpenMed-ZeroShot-NER-Disease-Small-166M-mlx",
+  "repo": "OpenMed/OpenMed-ZeroShot-NER-Disease-Small-166M-mlx",
+  "weights": "weights.safetensors",
+  "test": "gliner_external_104",
+  "text": "Patient John Smith, born 12 March 1980, has type 2 diabetes and pain in the left knee.",
+  "labels": "disease, drug, anatomy, gene"
+ },
+ {
+  "id": "25-OpenMed-ZeroShot-NER-Genome-Medium-209M-mlx",
+  "repo": "OpenMed/OpenMed-ZeroShot-NER-Genome-Medium-209M-mlx",
+  "weights": "weights.safetensors",
+  "test": "gliner_external_104",
+  "text": "Patient John Smith, born 12 March 1980, has type 2 diabetes and pain in the left knee.",
+  "labels": "disease, drug, anatomy, gene"
+ },
+ {
+  "id": "26-OpenMed-ZeroShot-NER-Genome-Small-166M-mlx",
+  "repo": "OpenMed/OpenMed-ZeroShot-NER-Genome-Small-166M-mlx",
+  "weights": "weights.safetensors",
+  "test": "gliner_external_104",
+  "text": "Patient John Smith, born 12 March 1980, has type 2 diabetes and pain in the left knee.",
+  "labels": "disease, drug, anatomy, gene"
+ },
+ {
+  "id": "27-OpenMed-ZeroShot-NER-Genomic-Medium-209M-mlx",
+  "repo": "OpenMed/OpenMed-ZeroShot-NER-Genomic-Medium-209M-mlx",
+  "weights": "weights.safetensors",
+  "test": "gliner_external_104",
+  "text": "Patient John Smith, born 12 March 1980, has type 2 diabetes and pain in the left knee.",
+  "labels": "disease, drug, anatomy, gene"
+ },
+ {
+  "id": "28-OpenMed-ZeroShot-NER-Genomic-Small-166M-mlx",
+  "repo": "OpenMed/OpenMed-ZeroShot-NER-Genomic-Small-166M-mlx",
+  "weights": "weights.safetensors",
+  "test": "gliner_external_104",
+  "text": "Patient John Smith, born 12 March 1980, has type 2 diabetes and pain in the left knee.",
+  "labels": "disease, drug, anatomy, gene"
+ },
+ {
+  "id": "29-OpenMed-ZeroShot-NER-Oncology-Medium-209M-mlx",
+  "repo": "OpenMed/OpenMed-ZeroShot-NER-Oncology-Medium-209M-mlx",
+  "weights": "weights.safetensors",
+  "test": "gliner_external_104",
+  "text": "Patient John Smith, born 12 March 1980, has type 2 diabetes and pain in the left knee.",
+  "labels": "disease, drug, anatomy, gene"
+ },
+ {
+  "id": "30-OpenMed-ZeroShot-NER-Oncology-Small-166M-mlx",
+  "repo": "OpenMed/OpenMed-ZeroShot-NER-Oncology-Small-166M-mlx",
+  "weights": "weights.safetensors",
+  "test": "gliner_external_104",
+  "text": "Patient John Smith, born 12 March 1980, has type 2 diabetes and pain in the left knee.",
+  "labels": "disease, drug, anatomy, gene"
+ },
+ {
+  "id": "31-OpenMed-ZeroShot-NER-Organism-Medium-209M-mlx",
+  "repo": "OpenMed/OpenMed-ZeroShot-NER-Organism-Medium-209M-mlx",
+  "weights": "weights.safetensors",
+  "test": "gliner_external_104",
+  "text": "Patient John Smith, born 12 March 1980, has type 2 diabetes and pain in the left knee.",
+  "labels": "disease, drug, anatomy, gene"
+ },
+ {
+  "id": "32-OpenMed-ZeroShot-NER-Organism-Small-166M-mlx",
+  "repo": "OpenMed/OpenMed-ZeroShot-NER-Organism-Small-166M-mlx",
+  "weights": "weights.safetensors",
+  "test": "gliner_external_104",
+  "text": "Patient John Smith, born 12 March 1980, has type 2 diabetes and pain in the left knee.",
+  "labels": "disease, drug, anatomy, gene"
+ },
+ {
+  "id": "33-OpenMed-ZeroShot-NER-Pathology-Medium-209M-mlx",
+  "repo": "OpenMed/OpenMed-ZeroShot-NER-Pathology-Medium-209M-mlx",
+  "weights": "weights.safetensors",
+  "test": "gliner_external_104",
+  "text": "Patient John Smith, born 12 March 1980, has type 2 diabetes and pain in the left knee.",
+  "labels": "disease, drug, anatomy, gene"
+ },
+ {
+  "id": "34-OpenMed-ZeroShot-NER-Pathology-Small-166M-mlx",
+  "repo": "OpenMed/OpenMed-ZeroShot-NER-Pathology-Small-166M-mlx",
+  "weights": "weights.safetensors",
+  "test": "gliner_external_104",
+  "text": "Patient John Smith, born 12 March 1980, has type 2 diabetes and pain in the left knee.",
+  "labels": "disease, drug, anatomy, gene"
+ },
+ {
+  "id": "35-OpenMed-ZeroShot-NER-Pharma-Medium-209M-mlx",
+  "repo": "OpenMed/OpenMed-ZeroShot-NER-Pharma-Medium-209M-mlx",
+  "weights": "weights.safetensors",
+  "test": "gliner_external_104",
+  "text": "Patient John Smith, born 12 March 1980, has type 2 diabetes and pain in the left knee.",
+  "labels": "disease, drug, anatomy, gene"
+ },
+ {
+  "id": "36-OpenMed-ZeroShot-NER-Pharma-Small-166M-mlx",
+  "repo": "OpenMed/OpenMed-ZeroShot-NER-Pharma-Small-166M-mlx",
+  "weights": "weights.safetensors",
+  "test": "gliner_external_104",
+  "text": "Patient John Smith, born 12 March 1980, has type 2 diabetes and pain in the left knee.",
+  "labels": "disease, drug, anatomy, gene"
+ },
+ {
+  "id": "37-OpenMed-ZeroShot-NER-Protein-Medium-209M-mlx",
+  "repo": "OpenMed/OpenMed-ZeroShot-NER-Protein-Medium-209M-mlx",
+  "weights": "weights.safetensors",
+  "test": "gliner_external_104",
+  "text": "Patient John Smith, born 12 March 1980, has type 2 diabetes and pain in the left knee.",
+  "labels": "disease, drug, anatomy, gene"
+ },
+ {
+  "id": "38-OpenMed-ZeroShot-NER-Protein-Small-166M-mlx",
+  "repo": "OpenMed/OpenMed-ZeroShot-NER-Protein-Small-166M-mlx",
+  "weights": "weights.safetensors",
+  "test": "gliner_external_104",
+  "text": "Patient John Smith, born 12 March 1980, has type 2 diabetes and pain in the left knee.",
+  "labels": "disease, drug, anatomy, gene"
+ },
+ {
+  "id": "39-OpenMed-ZeroShot-NER-Species-Medium-209M-mlx",
+  "repo": "OpenMed/OpenMed-ZeroShot-NER-Species-Medium-209M-mlx",
+  "weights": "weights.safetensors",
+  "test": "gliner_external_104",
+  "text": "Patient John Smith, born 12 March 1980, has type 2 diabetes and pain in the left knee.",
+  "labels": "disease, drug, anatomy, gene"
+ },
+ {
+  "id": "40-OpenMed-ZeroShot-NER-Species-Small-166M-mlx",
+  "repo": "OpenMed/OpenMed-ZeroShot-NER-Species-Small-166M-mlx",
+  "weights": "weights.safetensors",
+  "test": "gliner_external_104",
+  "text": "Patient John Smith, born 12 March 1980, has type 2 diabetes and pain in the left knee.",
+  "labels": "disease, drug, anatomy, gene"
+ }
+]
