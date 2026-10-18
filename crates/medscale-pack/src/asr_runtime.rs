@@ -463,6 +463,49 @@ pub mod fixtures {
         .to_string()
     }
 
+    /// Writes a signed synthetic Audio Pack into `out` and returns its id.
+    /// `build_asr_pack` admits only pinned sources, so the metadata names the
+    /// pinned whisper-tiny.en revision while every sibling digest is the
+    /// synthetic file's own.
+    pub fn synthetic_audio_pack(out: &std::path::Path) -> String {
+        use sha1::Sha1;
+        use sha2::{Digest, Sha256};
+        let hex = |b: &[u8]| b.iter().map(|x| format!("{x:02x}")).collect::<String>();
+        let blob = |b: &[u8]| {
+            let mut h = Sha1::new();
+            h.update(format!("blob {} ", b.len()).as_bytes());
+            h.update(b);
+            hex(&h.finalize())
+        };
+        let (repo, sha) = super::ASR_SOURCES[0];
+        let config = serde_json::to_vec(&tiny_config()).unwrap();
+        let tokenizer = tiny_tokenizer().into_bytes();
+        let weights = tiny_weights();
+        static NEXT: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
+        let snapshot = std::env::temp_dir().join(format!(
+            "medscale-106-asr-snapshot-{}-{}",
+            std::process::id(),
+            NEXT.fetch_add(1, std::sync::atomic::Ordering::Relaxed)
+        ));
+        std::fs::create_dir_all(&snapshot).unwrap();
+        std::fs::write(snapshot.join("config.json"), &config).unwrap();
+        std::fs::write(snapshot.join("tokenizer.json"), &tokenizer).unwrap();
+        std::fs::write(snapshot.join("model.safetensors"), &weights).unwrap();
+        let meta: crate::HfRepoMetadata = serde_json::from_value(json!({
+            "id": repo, "sha": sha, "gated": false, "private": false,
+            "siblings": [
+                {"rfilename": "config.json", "size": config.len(), "blobId": blob(&config)},
+                {"rfilename": "model.safetensors", "size": weights.len(),
+                 "lfs": {"sha256": hex(&Sha256::digest(&weights)), "size": weights.len()}},
+                {"rfilename": "tokenizer.json", "size": tokenizer.len(), "blobId": blob(&tokenizer)}
+            ]
+        }))
+        .unwrap();
+        let pack_id = crate::build_asr_pack(&meta, &snapshot, out).unwrap();
+        let _ = std::fs::remove_dir_all(snapshot);
+        pack_id
+    }
+
     pub fn tiny_weights() -> Vec<u8> {
         let varmap = VarMap::new();
         let vb = VarBuilder::from_varmap(&varmap, DType::F32, &Device::Cpu);

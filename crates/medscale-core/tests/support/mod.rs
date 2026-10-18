@@ -300,31 +300,7 @@ pub fn generation_pack(out: &Path) -> String {
     pack_id
 }
 
-/// A signed Audio Pack (Spec 106) holding a synthetic tiny Whisper (random
-/// weights from `medscale_pack::asr_fixtures`). `build_asr_pack` admits only
-/// pinned sources, so the test metadata names the pinned whisper-tiny.en
-/// revision while every sibling digest is the synthetic file's own.
+/// A signed Audio Pack (Spec 106) holding a synthetic tiny Whisper.
 pub fn asr_pack(out: &Path) -> String {
-    use medscale_pack::asr_fixtures::{tiny_config, tiny_tokenizer, tiny_weights};
-    let (repo, sha) = medscale_pack::ASR_SOURCES[0];
-    let config = serde_json::to_vec(&tiny_config()).unwrap();
-    let tokenizer = tiny_tokenizer().into_bytes();
-    let weights = tiny_weights();
-    let snapshot = dir("asr-snapshot");
-    std::fs::write(snapshot.join("config.json"), &config).unwrap();
-    std::fs::write(snapshot.join("tokenizer.json"), &tokenizer).unwrap();
-    std::fs::write(snapshot.join("model.safetensors"), &weights).unwrap();
-    let meta: HfRepoMetadata = serde_json::from_value(json!({
-        "id": repo, "sha": sha, "gated": false, "private": false,
-        "siblings": [
-            {"rfilename": "config.json", "size": config.len(), "blobId": git_blob(&config)},
-            {"rfilename": "model.safetensors", "size": weights.len(),
-             "lfs": {"sha256": hex(&Sha256::digest(&weights)), "size": weights.len()}},
-            {"rfilename": "tokenizer.json", "size": tokenizer.len(), "blobId": git_blob(&tokenizer)}
-        ]
-    }))
-    .unwrap();
-    let pack_id = medscale_pack::build_asr_pack(&meta, &snapshot, out).unwrap();
-    let _ = std::fs::remove_dir_all(snapshot);
-    pack_id
+    medscale_pack::asr_fixtures::synthetic_audio_pack(out)
 }
