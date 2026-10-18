@@ -101,17 +101,17 @@ fn wer_counts_word_edits() {
 }
 
 #[test]
-#[ignore = "needs OpenAI's mel_filters.npz (MEDSCALE_MEL_FILTERS_NPZ)"]
+#[ignore = "needs OpenAI's mel filters as raw f32 (MEDSCALE_MEL_FILTERS_DIR)"]
 fn mel_filters_match_openai_reference() {
-    let reference = candle_core::Tensor::read_npz(env("MEDSCALE_MEL_FILTERS_NPZ")).unwrap();
+    // asr-qualification.yml converts OpenAI's mel_filters.npz (deflate) to
+    // raw little-endian f32 files mel_80.f32 and mel_128.f32 with numpy.
+    let dir = std::path::PathBuf::from(env("MEDSCALE_MEL_FILTERS_DIR"));
     for (name, n_mels) in [("mel_80", 80), ("mel_128", 128)] {
-        let names: Vec<&str> = reference.iter().map(|(n, _)| n.as_str()).collect();
-        let tensor = &reference
-            .iter()
-            .find(|(n, _)| n.trim_end_matches(".npy") == name)
-            .unwrap_or_else(|| panic!("{name} not in {names:?}"))
-            .1;
-        let expected: Vec<f32> = tensor.flatten_all().unwrap().to_vec1().unwrap();
+        let bytes = std::fs::read(dir.join(format!("{name}.f32"))).unwrap();
+        let expected: Vec<f32> = bytes
+            .chunks_exact(4)
+            .map(|b| f32::from_le_bytes([b[0], b[1], b[2], b[3]]))
+            .collect();
         let ours = mel_filters(n_mels);
         assert_eq!(expected.len(), ours.len(), "{name}");
         let max_diff = expected
