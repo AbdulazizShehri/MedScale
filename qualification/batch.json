@@ -1,0 +1,52 @@
+[
+ {
+  "id": "00-OpenMed-PII-mLiteClinical-Base-135M-v1",
+  "repo": "OpenMed/OpenMed-PII-mLiteClinical-Base-135M-v1",
+  "weights": "model.safetensors",
+  "test": "safetensors_external_104",
+  "text": "Patient John Smith, born 12 March 1980, has type 2 diabetes and pain in the left knee.",
+  "labels": "",
+  "eval": "evidence/103-local-model-catalog/eval/pii-synthetic-en-v1.json",
+  "openmed": "true"
+ },
+ {
+  "id": "01-OpenMed-PII-SuperMedical-Base-125M-v1",
+  "repo": "OpenMed/OpenMed-PII-SuperMedical-Base-125M-v1",
+  "weights": "model.safetensors",
+  "test": "safetensors_external_104",
+  "text": "Patient John Smith, born 12 March 1980, has type 2 diabetes and pain in the left knee.",
+  "labels": "",
+  "eval": "evidence/103-local-model-catalog/eval/pii-synthetic-en-v1.json",
+  "openmed": "true"
+ },
+ {
+  "id": "02-OpenMed-PII-SuperClinical-Base-184M-v1",
+  "repo": "OpenMed/OpenMed-PII-SuperClinical-Base-184M-v1",
+  "weights": "model.safetensors",
+  "test": "safetensors_external_104",
+  "text": "Patient John Smith, born 12 March 1980, has type 2 diabetes and pain in the left knee.",
+  "labels": "",
+  "eval": "evidence/103-local-model-catalog/eval/pii-synthetic-en-v1.json",
+  "openmed": "true"
+ },
+ {
+  "id": "03-OpenMed-NER-PharmaDetect-TinyMed-135M",
+  "repo": "OpenMed/OpenMed-NER-PharmaDetect-TinyMed-135M",
+  "weights": "model.safetensors",
+  "test": "safetensors_external_104",
+  "text": "Patient John Smith, born 12 March 1980, has type 2 diabetes and pain in the left knee.",
+  "labels": "",
+  "eval": "evidence/103-local-model-catalog/eval/ner-chemical-synthetic-en-v1.json",
+  "openmed": "true"
+ },
+ {
+  "id": "04-OpenMed-NER-AnatomyDetect-TinyMed-135M",
+  "repo": "OpenMed/OpenMed-NER-AnatomyDetect-TinyMed-135M",
+  "weights": "model.safetensors",
+  "test": "safetensors_external_104",
+  "text": "Patient John Smith, born 12 March 1980, has type 2 diabetes and pain in the left knee.",
+  "labels": "",
+  "eval": "evidence/103-local-model-catalog/eval/ner-anatomy-synthetic-en-v1.json",
+  "openmed": "true"
+ }
+]
