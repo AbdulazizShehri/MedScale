@@ -225,7 +225,9 @@ version = "0.7.2"
 features = ["derive"]
 
 [dependencies.zip]
-version = "1.1.1"
+# MedScale backport: ZIP 9.0.3 (RUSTSEC-2026-0367/0368/0369), see
+# vendor/candle-core-0.9.1/MEDSCALE_PATCH.md.
+version = "9.0.3"
 default-features = false
 
 [dev-dependencies.anyhow]

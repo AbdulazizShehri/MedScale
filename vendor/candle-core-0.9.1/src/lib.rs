@@ -46,6 +46,10 @@
 //! - [candle-pyo3](https://docs.rs/candle-pyo3/). Access to Candle from Python.
 //! - [candle-transformers](https://docs.rs/candle-transformers/). Candle implemntation of many published transformer models.
 //!
+// MedScale vendoring: as a path dependency this crate is not lint-capped like a
+// registry crate; the only warning under the workspace toolchain is this newer
+// rustc lint on unmodified upstream signatures (see MEDSCALE_PATCH.md).
+#![allow(mismatched_lifetime_syntaxes)]
 
 #[cfg(feature = "accelerate")]
 mod accelerate;
