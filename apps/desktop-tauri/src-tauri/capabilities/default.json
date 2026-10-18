@@ -13,6 +13,7 @@
     "allow-patients-list",
     "allow-patient-detail",
     "allow-documents-list",
+    "allow-documents-import-fhir",
     "allow-evidence-corpus",
     "allow-evidence-search",
     "allow-insights-overview",

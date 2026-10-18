@@ -12,6 +12,7 @@ fn main() {
             "patients_list",
             "patient_detail",
             "documents_list",
+            "documents_import_fhir",
             "evidence_corpus",
             "evidence_search",
             "insights_overview",

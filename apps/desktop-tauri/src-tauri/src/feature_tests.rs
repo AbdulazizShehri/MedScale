@@ -706,6 +706,56 @@ fn medagent_workbench_agent_context_evidence_and_resume() {
         "invalid"
     );
 
+    // Documents: import a synthetic FHIR file for a new subject through Core.
+    let dir = std::env::temp_dir().join(format!("medscale-tauri-import-{}", std::process::id()));
+    std::fs::create_dir_all(&dir).unwrap();
+    let obs = dir.join("observation-import.json");
+    std::fs::write(
+        &obs,
+        br#"{"resourceType":"Observation","id":"obs-import","status":"final","code":{"text":"Heart rate"},"subject":{"reference":"Patient/synthetic-import"},"valueQuantity":{"value":72,"unit":"beats/minute","system":"http://unitsofmeasure.org","code":"/min"}}"#,
+    )
+    .unwrap();
+    let imported = h.ok(
+        "documents_import_fhir",
+        json!({ "path": obs.display().to_string(), "subjectRef": "synthetic-subject-import" }),
+    );
+    assert_eq!(imported["resource_type"], "Observation", "{imported}");
+    assert_eq!(imported["claim_kind"], "observation");
+    let docs = h.ok("documents_list", json!({}));
+    assert!(
+        docs["sources"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .any(|s| s["source_id"] == imported["source_id"]),
+        "{docs}"
+    );
+    // The imported source can bind an agent's context.
+    assert!(
+        h.ok("medagent_sources", json!({}))
+            .as_array()
+            .unwrap()
+            .iter()
+            .any(|s| s["id"] == imported["source_id"])
+    );
+    std::fs::write(dir.join("not-json.json"), b"not json").unwrap();
+    assert_eq!(
+        h.call(
+            "documents_import_fhir",
+            json!({ "path": dir.join("not-json.json").display().to_string(), "subjectRef": "synthetic-subject-import" }),
+        )
+        .unwrap_err()["kind"],
+        "corrupt"
+    );
+    assert_eq!(
+        h.call(
+            "documents_import_fhir",
+            json!({ "path": "relative.json", "subjectRef": "synthetic-subject-import" }),
+        )
+        .unwrap_err()["kind"],
+        "invalid"
+    );
+
     // Reads the MedAgent page makes, recorded for visual QA replay.
     for (cmd, args) in [
         ("workspace_status", json!({})),
