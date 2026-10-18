@@ -1,0 +1,1088 @@
+{
+ "name": "medscale-pii-synthetic-nl",
+ "version": "1",
+ "provenance": "Synthetic sentences and identifiers authored for MedScale by scripts/evaluation/generate_pii_gold.py; no real person or record.",
+ "license": "CC0-1.0",
+ "labels": [
+  "AGE",
+  "DATE",
+  "EMAIL",
+  "ID",
+  "LOCATION",
+  "NAME",
+  "PHONE"
+ ],
+ "label_map": {
+  "first_name": "NAME",
+  "last_name": "NAME",
+  "date": "DATE",
+  "date_of_birth": "DATE",
+  "date_time": "DATE",
+  "city": "LOCATION",
+  "state": "LOCATION",
+  "country": "LOCATION",
+  "county": "LOCATION",
+  "street_address": "LOCATION",
+  "postcode": "LOCATION",
+  "phone_number": "PHONE",
+  "fax_number": "PHONE",
+  "email": "EMAIL",
+  "medical_record_number": "ID",
+  "health_plan_beneficiary_number": "ID",
+  "ssn": "ID",
+  "account_number": "ID",
+  "unique_id": "ID",
+  "customer_id": "ID",
+  "age": "AGE"
+ },
+ "documents": [
+  {
+   "id": "pii-nl-00",
+   "language": "nl",
+   "text": "Patiënt Sanne de Vries, geboren op 12 maart 1980, woont in Utrecht.",
+   "spans": [
+    {
+     "start": 8,
+     "end": 13,
+     "label": "NAME",
+     "text": "Sanne"
+    },
+    {
+     "start": 14,
+     "end": 22,
+     "label": "NAME",
+     "text": "de Vries"
+    },
+    {
+     "start": 35,
+     "end": 48,
+     "label": "DATE",
+     "text": "12 maart 1980"
+    },
+    {
+     "start": 59,
+     "end": 66,
+     "label": "LOCATION",
+     "text": "Utrecht"
+    }
+   ]
+  },
+  {
+   "id": "pii-nl-01",
+   "language": "nl",
+   "text": "Bram Jansen kwam op 3 juli 1975 voor controle van diabetes type 2.",
+   "spans": [
+    {
+     "start": 0,
+     "end": 4,
+     "label": "NAME",
+     "text": "Bram"
+    },
+    {
+     "start": 5,
+     "end": 11,
+     "label": "NAME",
+     "text": "Jansen"
+    },
+    {
+     "start": 20,
+     "end": 31,
+     "label": "DATE",
+     "text": "3 juli 1975"
+    }
+   ]
+  },
+  {
+   "id": "pii-nl-02",
+   "language": "nl",
+   "text": "Bel Fleur op +31 20 555 0193 of mail naar praman@example.com.",
+   "spans": [
+    {
+     "start": 4,
+     "end": 9,
+     "label": "NAME",
+     "text": "Fleur"
+    },
+    {
+     "start": 13,
+     "end": 28,
+     "label": "PHONE",
+     "text": "+31 20 555 0193"
+    },
+    {
+     "start": 42,
+     "end": 60,
+     "label": "EMAIL",
+     "text": "praman@example.com"
+    }
+   ]
+  },
+  {
+   "id": "pii-nl-03",
+   "language": "nl",
+   "text": "Dossier 3358846 hoort bij Daan Visser.",
+   "spans": [
+    {
+     "start": 8,
+     "end": 15,
+     "label": "ID",
+     "text": "3358846"
+    },
+    {
+     "start": 26,
+     "end": 30,
+     "label": "NAME",
+     "text": "Daan"
+    },
+    {
+     "start": 31,
+     "end": 37,
+     "label": "NAME",
+     "text": "Visser"
+    }
+   ]
+  },
+  {
+   "id": "pii-nl-04",
+   "language": "nl",
+   "text": "De patiënt van 72 jaar uit Breda meldde pijn op de borst op 30 mei 2001.",
+   "spans": [
+    {
+     "start": 15,
+     "end": 17,
+     "label": "AGE",
+     "text": "72"
+    },
+    {
+     "start": 27,
+     "end": 32,
+     "label": "LOCATION",
+     "text": "Breda"
+    },
+    {
+     "start": 60,
+     "end": 71,
+     "label": "DATE",
+     "text": "30 mei 2001"
+    }
+   ]
+  },
+  {
+   "id": "pii-nl-05",
+   "language": "nl",
+   "text": "Patiënt Lars Mulder, geboren op 14 februari 1959, woont in Utrecht.",
+   "spans": [
+    {
+     "start": 8,
+     "end": 12,
+     "label": "NAME",
+     "text": "Lars"
+    },
+    {
+     "start": 13,
+     "end": 19,
+     "label": "NAME",
+     "text": "Mulder"
+    },
+    {
+     "start": 32,
+     "end": 48,
+     "label": "DATE",
+     "text": "14 februari 1959"
+    },
+    {
+     "start": 59,
+     "end": 66,
+     "label": "LOCATION",
+     "text": "Utrecht"
+    }
+   ]
+  },
+  {
+   "id": "pii-nl-06",
+   "language": "nl",
+   "text": "Eva Bos kwam op 2 september 1987 voor controle van diabetes type 2.",
+   "spans": [
+    {
+     "start": 0,
+     "end": 3,
+     "label": "NAME",
+     "text": "Eva"
+    },
+    {
+     "start": 4,
+     "end": 7,
+     "label": "NAME",
+     "text": "Bos"
+    },
+    {
+     "start": 16,
+     "end": 32,
+     "label": "DATE",
+     "text": "2 september 1987"
+    }
+   ]
+  },
+  {
+   "id": "pii-nl-07",
+   "language": "nl",
+   "text": "Bel Thijs op +31 20 555 0193 of mail naar praman@example.com.",
+   "spans": [
+    {
+     "start": 4,
+     "end": 9,
+     "label": "NAME",
+     "text": "Thijs"
+    },
+    {
+     "start": 13,
+     "end": 28,
+     "label": "PHONE",
+     "text": "+31 20 555 0193"
+    },
+    {
+     "start": 42,
+     "end": 60,
+     "label": "EMAIL",
+     "text": "praman@example.com"
+    }
+   ]
+  },
+  {
+   "id": "pii-nl-08",
+   "language": "nl",
+   "text": "Dossier 3358846 hoort bij Sanne de Vries.",
+   "spans": [
+    {
+     "start": 8,
+     "end": 15,
+     "label": "ID",
+     "text": "3358846"
+    },
+    {
+     "start": 26,
+     "end": 31,
+     "label": "NAME",
+     "text": "Sanne"
+    },
+    {
+     "start": 32,
+     "end": 40,
+     "label": "NAME",
+     "text": "de Vries"
+    }
+   ]
+  },
+  {
+   "id": "pii-nl-09",
+   "language": "nl",
+   "text": "De patiënt van 72 jaar uit Breda meldde pijn op de borst op 19 juni 1983.",
+   "spans": [
+    {
+     "start": 15,
+     "end": 17,
+     "label": "AGE",
+     "text": "72"
+    },
+    {
+     "start": 27,
+     "end": 32,
+     "label": "LOCATION",
+     "text": "Breda"
+    },
+    {
+     "start": 60,
+     "end": 72,
+     "label": "DATE",
+     "text": "19 juni 1983"
+    }
+   ]
+  },
+  {
+   "id": "pii-nl-10",
+   "language": "nl",
+   "text": "Patiënt Fleur Bakker, geboren op 12 maart 1980, woont in Utrecht.",
+   "spans": [
+    {
+     "start": 8,
+     "end": 13,
+     "label": "NAME",
+     "text": "Fleur"
+    },
+    {
+     "start": 14,
+     "end": 20,
+     "label": "NAME",
+     "text": "Bakker"
+    },
+    {
+     "start": 33,
+     "end": 46,
+     "label": "DATE",
+     "text": "12 maart 1980"
+    },
+    {
+     "start": 57,
+     "end": 64,
+     "label": "LOCATION",
+     "text": "Utrecht"
+    }
+   ]
+  },
+  {
+   "id": "pii-nl-11",
+   "language": "nl",
+   "text": "Daan Visser kwam op 3 juli 1975 voor controle van diabetes type 2.",
+   "spans": [
+    {
+     "start": 0,
+     "end": 4,
+     "label": "NAME",
+     "text": "Daan"
+    },
+    {
+     "start": 5,
+     "end": 11,
+     "label": "NAME",
+     "text": "Visser"
+    },
+    {
+     "start": 20,
+     "end": 31,
+     "label": "DATE",
+     "text": "3 juli 1975"
+    }
+   ]
+  },
+  {
+   "id": "pii-nl-12",
+   "language": "nl",
+   "text": "Bel Noor op +31 20 555 0193 of mail naar praman@example.com.",
+   "spans": [
+    {
+     "start": 4,
+     "end": 8,
+     "label": "NAME",
+     "text": "Noor"
+    },
+    {
+     "start": 12,
+     "end": 27,
+     "label": "PHONE",
+     "text": "+31 20 555 0193"
+    },
+    {
+     "start": 41,
+     "end": 59,
+     "label": "EMAIL",
+     "text": "praman@example.com"
+    }
+   ]
+  },
+  {
+   "id": "pii-nl-13",
+   "language": "nl",
+   "text": "Dossier 3358846 hoort bij Lars Mulder.",
+   "spans": [
+    {
+     "start": 8,
+     "end": 15,
+     "label": "ID",
+     "text": "3358846"
+    },
+    {
+     "start": 26,
+     "end": 30,
+     "label": "NAME",
+     "text": "Lars"
+    },
+    {
+     "start": 31,
+     "end": 37,
+     "label": "NAME",
+     "text": "Mulder"
+    }
+   ]
+  },
+  {
+   "id": "pii-nl-14",
+   "language": "nl",
+   "text": "De patiënt van 72 jaar uit Breda meldde pijn op de borst op 30 mei 2001.",
+   "spans": [
+    {
+     "start": 15,
+     "end": 17,
+     "label": "AGE",
+     "text": "72"
+    },
+    {
+     "start": 27,
+     "end": 32,
+     "label": "LOCATION",
+     "text": "Breda"
+    },
+    {
+     "start": 60,
+     "end": 71,
+     "label": "DATE",
+     "text": "30 mei 2001"
+    }
+   ]
+  },
+  {
+   "id": "pii-nl-15",
+   "language": "nl",
+   "text": "Patiënt Thijs Vos, geboren op 14 februari 1959, woont in Utrecht.",
+   "spans": [
+    {
+     "start": 8,
+     "end": 13,
+     "label": "NAME",
+     "text": "Thijs"
+    },
+    {
+     "start": 14,
+     "end": 17,
+     "label": "NAME",
+     "text": "Vos"
+    },
+    {
+     "start": 30,
+     "end": 46,
+     "label": "DATE",
+     "text": "14 februari 1959"
+    },
+    {
+     "start": 57,
+     "end": 64,
+     "label": "LOCATION",
+     "text": "Utrecht"
+    }
+   ]
+  },
+  {
+   "id": "pii-nl-16",
+   "language": "nl",
+   "text": "Sanne de Vries kwam op 2 september 1987 voor controle van diabetes type 2.",
+   "spans": [
+    {
+     "start": 0,
+     "end": 5,
+     "label": "NAME",
+     "text": "Sanne"
+    },
+    {
+     "start": 6,
+     "end": 14,
+     "label": "NAME",
+     "text": "de Vries"
+    },
+    {
+     "start": 23,
+     "end": 39,
+     "label": "DATE",
+     "text": "2 september 1987"
+    }
+   ]
+  },
+  {
+   "id": "pii-nl-17",
+   "language": "nl",
+   "text": "Bel Bram op +31 20 555 0193 of mail naar praman@example.com.",
+   "spans": [
+    {
+     "start": 4,
+     "end": 8,
+     "label": "NAME",
+     "text": "Bram"
+    },
+    {
+     "start": 12,
+     "end": 27,
+     "label": "PHONE",
+     "text": "+31 20 555 0193"
+    },
+    {
+     "start": 41,
+     "end": 59,
+     "label": "EMAIL",
+     "text": "praman@example.com"
+    }
+   ]
+  },
+  {
+   "id": "pii-nl-18",
+   "language": "nl",
+   "text": "Dossier 3358846 hoort bij Fleur Bakker.",
+   "spans": [
+    {
+     "start": 8,
+     "end": 15,
+     "label": "ID",
+     "text": "3358846"
+    },
+    {
+     "start": 26,
+     "end": 31,
+     "label": "NAME",
+     "text": "Fleur"
+    },
+    {
+     "start": 32,
+     "end": 38,
+     "label": "NAME",
+     "text": "Bakker"
+    }
+   ]
+  },
+  {
+   "id": "pii-nl-19",
+   "language": "nl",
+   "text": "De patiënt van 72 jaar uit Breda meldde pijn op de borst op 19 juni 1983.",
+   "spans": [
+    {
+     "start": 15,
+     "end": 17,
+     "label": "AGE",
+     "text": "72"
+    },
+    {
+     "start": 27,
+     "end": 32,
+     "label": "LOCATION",
+     "text": "Breda"
+    },
+    {
+     "start": 60,
+     "end": 72,
+     "label": "DATE",
+     "text": "19 juni 1983"
+    }
+   ]
+  },
+  {
+   "id": "pii-nl-20",
+   "language": "nl",
+   "text": "Patiënt Noor Smit, geboren op 12 maart 1980, woont in Utrecht.",
+   "spans": [
+    {
+     "start": 8,
+     "end": 12,
+     "label": "NAME",
+     "text": "Noor"
+    },
+    {
+     "start": 13,
+     "end": 17,
+     "label": "NAME",
+     "text": "Smit"
+    },
+    {
+     "start": 30,
+     "end": 43,
+     "label": "DATE",
+     "text": "12 maart 1980"
+    },
+    {
+     "start": 54,
+     "end": 61,
+     "label": "LOCATION",
+     "text": "Utrecht"
+    }
+   ]
+  },
+  {
+   "id": "pii-nl-21",
+   "language": "nl",
+   "text": "Lars Mulder kwam op 3 juli 1975 voor controle van diabetes type 2.",
+   "spans": [
+    {
+     "start": 0,
+     "end": 4,
+     "label": "NAME",
+     "text": "Lars"
+    },
+    {
+     "start": 5,
+     "end": 11,
+     "label": "NAME",
+     "text": "Mulder"
+    },
+    {
+     "start": 20,
+     "end": 31,
+     "label": "DATE",
+     "text": "3 juli 1975"
+    }
+   ]
+  },
+  {
+   "id": "pii-nl-22",
+   "language": "nl",
+   "text": "Bel Eva op +31 20 555 0193 of mail naar praman@example.com.",
+   "spans": [
+    {
+     "start": 4,
+     "end": 7,
+     "label": "NAME",
+     "text": "Eva"
+    },
+    {
+     "start": 11,
+     "end": 26,
+     "label": "PHONE",
+     "text": "+31 20 555 0193"
+    },
+    {
+     "start": 40,
+     "end": 58,
+     "label": "EMAIL",
+     "text": "praman@example.com"
+    }
+   ]
+  },
+  {
+   "id": "pii-nl-23",
+   "language": "nl",
+   "text": "Dossier 3358846 hoort bij Thijs Vos.",
+   "spans": [
+    {
+     "start": 8,
+     "end": 15,
+     "label": "ID",
+     "text": "3358846"
+    },
+    {
+     "start": 26,
+     "end": 31,
+     "label": "NAME",
+     "text": "Thijs"
+    },
+    {
+     "start": 32,
+     "end": 35,
+     "label": "NAME",
+     "text": "Vos"
+    }
+   ]
+  },
+  {
+   "id": "pii-nl-24",
+   "language": "nl",
+   "text": "De patiënt van 72 jaar uit Breda meldde pijn op de borst op 30 mei 2001.",
+   "spans": [
+    {
+     "start": 15,
+     "end": 17,
+     "label": "AGE",
+     "text": "72"
+    },
+    {
+     "start": 27,
+     "end": 32,
+     "label": "LOCATION",
+     "text": "Breda"
+    },
+    {
+     "start": 60,
+     "end": 71,
+     "label": "DATE",
+     "text": "30 mei 2001"
+    }
+   ]
+  },
+  {
+   "id": "pii-nl-25",
+   "language": "nl",
+   "text": "Patiënt Bram Jansen, geboren op 14 februari 1959, woont in Utrecht.",
+   "spans": [
+    {
+     "start": 8,
+     "end": 12,
+     "label": "NAME",
+     "text": "Bram"
+    },
+    {
+     "start": 13,
+     "end": 19,
+     "label": "NAME",
+     "text": "Jansen"
+    },
+    {
+     "start": 32,
+     "end": 48,
+     "label": "DATE",
+     "text": "14 februari 1959"
+    },
+    {
+     "start": 59,
+     "end": 66,
+     "label": "LOCATION",
+     "text": "Utrecht"
+    }
+   ]
+  },
+  {
+   "id": "pii-nl-26",
+   "language": "nl",
+   "text": "Fleur Bakker kwam op 2 september 1987 voor controle van diabetes type 2.",
+   "spans": [
+    {
+     "start": 0,
+     "end": 5,
+     "label": "NAME",
+     "text": "Fleur"
+    },
+    {
+     "start": 6,
+     "end": 12,
+     "label": "NAME",
+     "text": "Bakker"
+    },
+    {
+     "start": 21,
+     "end": 37,
+     "label": "DATE",
+     "text": "2 september 1987"
+    }
+   ]
+  },
+  {
+   "id": "pii-nl-27",
+   "language": "nl",
+   "text": "Bel Daan op +31 20 555 0193 of mail naar praman@example.com.",
+   "spans": [
+    {
+     "start": 4,
+     "end": 8,
+     "label": "NAME",
+     "text": "Daan"
+    },
+    {
+     "start": 12,
+     "end": 27,
+     "label": "PHONE",
+     "text": "+31 20 555 0193"
+    },
+    {
+     "start": 41,
+     "end": 59,
+     "label": "EMAIL",
+     "text": "praman@example.com"
+    }
+   ]
+  },
+  {
+   "id": "pii-nl-28",
+   "language": "nl",
+   "text": "Dossier 3358846 hoort bij Noor Smit.",
+   "spans": [
+    {
+     "start": 8,
+     "end": 15,
+     "label": "ID",
+     "text": "3358846"
+    },
+    {
+     "start": 26,
+     "end": 30,
+     "label": "NAME",
+     "text": "Noor"
+    },
+    {
+     "start": 31,
+     "end": 35,
+     "label": "NAME",
+     "text": "Smit"
+    }
+   ]
+  },
+  {
+   "id": "pii-nl-29",
+   "language": "nl",
+   "text": "De patiënt van 72 jaar uit Breda meldde pijn op de borst op 19 juni 1983.",
+   "spans": [
+    {
+     "start": 15,
+     "end": 17,
+     "label": "AGE",
+     "text": "72"
+    },
+    {
+     "start": 27,
+     "end": 32,
+     "label": "LOCATION",
+     "text": "Breda"
+    },
+    {
+     "start": 60,
+     "end": 72,
+     "label": "DATE",
+     "text": "19 juni 1983"
+    }
+   ]
+  },
+  {
+   "id": "pii-nl-30",
+   "language": "nl",
+   "text": "Patiënt Eva Bos, geboren op 12 maart 1980, woont in Utrecht.",
+   "spans": [
+    {
+     "start": 8,
+     "end": 11,
+     "label": "NAME",
+     "text": "Eva"
+    },
+    {
+     "start": 12,
+     "end": 15,
+     "label": "NAME",
+     "text": "Bos"
+    },
+    {
+     "start": 28,
+     "end": 41,
+     "label": "DATE",
+     "text": "12 maart 1980"
+    },
+    {
+     "start": 52,
+     "end": 59,
+     "label": "LOCATION",
+     "text": "Utrecht"
+    }
+   ]
+  },
+  {
+   "id": "pii-nl-31",
+   "language": "nl",
+   "text": "Thijs Vos kwam op 3 juli 1975 voor controle van diabetes type 2.",
+   "spans": [
+    {
+     "start": 0,
+     "end": 5,
+     "label": "NAME",
+     "text": "Thijs"
+    },
+    {
+     "start": 6,
+     "end": 9,
+     "label": "NAME",
+     "text": "Vos"
+    },
+    {
+     "start": 18,
+     "end": 29,
+     "label": "DATE",
+     "text": "3 juli 1975"
+    }
+   ]
+  },
+  {
+   "id": "pii-nl-32",
+   "language": "nl",
+   "text": "Bel Sanne op +31 20 555 0193 of mail naar praman@example.com.",
+   "spans": [
+    {
+     "start": 4,
+     "end": 9,
+     "label": "NAME",
+     "text": "Sanne"
+    },
+    {
+     "start": 13,
+     "end": 28,
+     "label": "PHONE",
+     "text": "+31 20 555 0193"
+    },
+    {
+     "start": 42,
+     "end": 60,
+     "label": "EMAIL",
+     "text": "praman@example.com"
+    }
+   ]
+  },
+  {
+   "id": "pii-nl-33",
+   "language": "nl",
+   "text": "Dossier 3358846 hoort bij Bram Jansen.",
+   "spans": [
+    {
+     "start": 8,
+     "end": 15,
+     "label": "ID",
+     "text": "3358846"
+    },
+    {
+     "start": 26,
+     "end": 30,
+     "label": "NAME",
+     "text": "Bram"
+    },
+    {
+     "start": 31,
+     "end": 37,
+     "label": "NAME",
+     "text": "Jansen"
+    }
+   ]
+  },
+  {
+   "id": "pii-nl-34",
+   "language": "nl",
+   "text": "De patiënt van 72 jaar uit Breda meldde pijn op de borst op 30 mei 2001.",
+   "spans": [
+    {
+     "start": 15,
+     "end": 17,
+     "label": "AGE",
+     "text": "72"
+    },
+    {
+     "start": 27,
+     "end": 32,
+     "label": "LOCATION",
+     "text": "Breda"
+    },
+    {
+     "start": 60,
+     "end": 71,
+     "label": "DATE",
+     "text": "30 mei 2001"
+    }
+   ]
+  },
+  {
+   "id": "pii-nl-35",
+   "language": "nl",
+   "text": "Patiënt Daan Visser, geboren op 14 februari 1959, woont in Utrecht.",
+   "spans": [
+    {
+     "start": 8,
+     "end": 12,
+     "label": "NAME",
+     "text": "Daan"
+    },
+    {
+     "start": 13,
+     "end": 19,
+     "label": "NAME",
+     "text": "Visser"
+    },
+    {
+     "start": 32,
+     "end": 48,
+     "label": "DATE",
+     "text": "14 februari 1959"
+    },
+    {
+     "start": 59,
+     "end": 66,
+     "label": "LOCATION",
+     "text": "Utrecht"
+    }
+   ]
+  },
+  {
+   "id": "pii-nl-36",
+   "language": "nl",
+   "text": "Noor Smit kwam op 2 september 1987 voor controle van diabetes type 2.",
+   "spans": [
+    {
+     "start": 0,
+     "end": 4,
+     "label": "NAME",
+     "text": "Noor"
+    },
+    {
+     "start": 5,
+     "end": 9,
+     "label": "NAME",
+     "text": "Smit"
+    },
+    {
+     "start": 18,
+     "end": 34,
+     "label": "DATE",
+     "text": "2 september 1987"
+    }
+   ]
+  },
+  {
+   "id": "pii-nl-37",
+   "language": "nl",
+   "text": "Bel Lars op +31 20 555 0193 of mail naar praman@example.com.",
+   "spans": [
+    {
+     "start": 4,
+     "end": 8,
+     "label": "NAME",
+     "text": "Lars"
+    },
+    {
+     "start": 12,
+     "end": 27,
+     "label": "PHONE",
+     "text": "+31 20 555 0193"
+    },
+    {
+     "start": 41,
+     "end": 59,
+     "label": "EMAIL",
+     "text": "praman@example.com"
+    }
+   ]
+  },
+  {
+   "id": "pii-nl-38",
+   "language": "nl",
+   "text": "Dossier 3358846 hoort bij Eva Bos.",
+   "spans": [
+    {
+     "start": 8,
+     "end": 15,
+     "label": "ID",
+     "text": "3358846"
+    },
+    {
+     "start": 26,
+     "end": 29,
+     "label": "NAME",
+     "text": "Eva"
+    },
+    {
+     "start": 30,
+     "end": 33,
+     "label": "NAME",
+     "text": "Bos"
+    }
+   ]
+  },
+  {
+   "id": "pii-nl-39",
+   "language": "nl",
+   "text": "De patiënt van 72 jaar uit Breda meldde pijn op de borst op 19 juni 1983.",
+   "spans": [
+    {
+     "start": 15,
+     "end": 17,
+     "label": "AGE",
+     "text": "72"
+    },
+    {
+     "start": 27,
+     "end": 32,
+     "label": "LOCATION",
+     "text": "Breda"
+    },
+    {
+     "start": 60,
+     "end": 72,
+     "label": "DATE",
+     "text": "19 juni 1983"
+    }
+   ]
+  }
+ ]
+}

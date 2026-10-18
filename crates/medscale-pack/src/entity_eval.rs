@@ -466,6 +466,54 @@ mod tests {
     }
 
     #[test]
+    fn the_committed_multilingual_pii_gold_sets_are_valid() {
+        let sets: [(&str, &[u8]); 6] = [
+            (
+                "nl",
+                include_bytes!(
+                    "../../../evidence/103-local-model-catalog/eval/pii-synthetic-nl-v1.json"
+                ),
+            ),
+            (
+                "fr",
+                include_bytes!(
+                    "../../../evidence/103-local-model-catalog/eval/pii-synthetic-fr-v1.json"
+                ),
+            ),
+            (
+                "de",
+                include_bytes!(
+                    "../../../evidence/103-local-model-catalog/eval/pii-synthetic-de-v1.json"
+                ),
+            ),
+            (
+                "es",
+                include_bytes!(
+                    "../../../evidence/103-local-model-catalog/eval/pii-synthetic-es-v1.json"
+                ),
+            ),
+            (
+                "it",
+                include_bytes!(
+                    "../../../evidence/103-local-model-catalog/eval/pii-synthetic-it-v1.json"
+                ),
+            ),
+            (
+                "pt",
+                include_bytes!(
+                    "../../../evidence/103-local-model-catalog/eval/pii-synthetic-pt-v1.json"
+                ),
+            ),
+        ];
+        for (lang, bytes) in sets {
+            let set = EvalSet::from_json(bytes).unwrap_or_else(|e| panic!("{lang}: {e}"));
+            assert_eq!(set.documents.len(), 40, "{lang}");
+            assert!(set.documents.iter().all(|d| d.language == lang), "{lang}");
+            assert_eq!(set.license, "CC0-1.0");
+        }
+    }
+
+    #[test]
     fn predicted_spans_are_read_from_runtime_payloads() {
         let payload = json!({"entities": [
             {"label": "first_name", "score": 0.9, "start": 0, "end": 4, "text": "Anna"},

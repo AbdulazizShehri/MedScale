@@ -1,0 +1,1088 @@
+{
+ "name": "medscale-pii-synthetic-es",
+ "version": "1",
+ "provenance": "Synthetic sentences and identifiers authored for MedScale by scripts/evaluation/generate_pii_gold.py; no real person or record.",
+ "license": "CC0-1.0",
+ "labels": [
+  "AGE",
+  "DATE",
+  "EMAIL",
+  "ID",
+  "LOCATION",
+  "NAME",
+  "PHONE"
+ ],
+ "label_map": {
+  "first_name": "NAME",
+  "last_name": "NAME",
+  "date": "DATE",
+  "date_of_birth": "DATE",
+  "date_time": "DATE",
+  "city": "LOCATION",
+  "state": "LOCATION",
+  "country": "LOCATION",
+  "county": "LOCATION",
+  "street_address": "LOCATION",
+  "postcode": "LOCATION",
+  "phone_number": "PHONE",
+  "fax_number": "PHONE",
+  "email": "EMAIL",
+  "medical_record_number": "ID",
+  "health_plan_beneficiary_number": "ID",
+  "ssn": "ID",
+  "account_number": "ID",
+  "unique_id": "ID",
+  "customer_id": "ID",
+  "age": "AGE"
+ },
+ "documents": [
+  {
+   "id": "pii-es-00",
+   "language": "es",
+   "text": "La paciente Lucía García, nacida el 12 de marzo de 1980, vive en Sevilla.",
+   "spans": [
+    {
+     "start": 12,
+     "end": 17,
+     "label": "NAME",
+     "text": "Lucía"
+    },
+    {
+     "start": 18,
+     "end": 24,
+     "label": "NAME",
+     "text": "García"
+    },
+    {
+     "start": 36,
+     "end": 55,
+     "label": "DATE",
+     "text": "12 de marzo de 1980"
+    },
+    {
+     "start": 65,
+     "end": 72,
+     "label": "LOCATION",
+     "text": "Sevilla"
+    }
+   ]
+  },
+  {
+   "id": "pii-es-01",
+   "language": "es",
+   "text": "Mateo Fernández acudió el 3 de julio de 1975 para el control de su diabetes tipo 2.",
+   "spans": [
+    {
+     "start": 0,
+     "end": 5,
+     "label": "NAME",
+     "text": "Mateo"
+    },
+    {
+     "start": 6,
+     "end": 15,
+     "label": "NAME",
+     "text": "Fernández"
+    },
+    {
+     "start": 26,
+     "end": 44,
+     "label": "DATE",
+     "text": "3 de julio de 1975"
+    }
+   ]
+  },
+  {
+   "id": "pii-es-02",
+   "language": "es",
+   "text": "Contacte con Sofía en el +31 20 555 0193 o en praman@example.com.",
+   "spans": [
+    {
+     "start": 13,
+     "end": 18,
+     "label": "NAME",
+     "text": "Sofía"
+    },
+    {
+     "start": 25,
+     "end": 40,
+     "label": "PHONE",
+     "text": "+31 20 555 0193"
+    },
+    {
+     "start": 46,
+     "end": 64,
+     "label": "EMAIL",
+     "text": "praman@example.com"
+    }
+   ]
+  },
+  {
+   "id": "pii-es-03",
+   "language": "es",
+   "text": "El expediente 3358846 pertenece a Hugo Martín.",
+   "spans": [
+    {
+     "start": 14,
+     "end": 21,
+     "label": "ID",
+     "text": "3358846"
+    },
+    {
+     "start": 34,
+     "end": 38,
+     "label": "NAME",
+     "text": "Hugo"
+    },
+    {
+     "start": 39,
+     "end": 45,
+     "label": "NAME",
+     "text": "Martín"
+    }
+   ]
+  },
+  {
+   "id": "pii-es-04",
+   "language": "es",
+   "text": "El paciente de 72 años de Zaragoza refirió dolor torácico el 30 de mayo de 2001.",
+   "spans": [
+    {
+     "start": 15,
+     "end": 17,
+     "label": "AGE",
+     "text": "72"
+    },
+    {
+     "start": 26,
+     "end": 34,
+     "label": "LOCATION",
+     "text": "Zaragoza"
+    },
+    {
+     "start": 61,
+     "end": 79,
+     "label": "DATE",
+     "text": "30 de mayo de 2001"
+    }
+   ]
+  },
+  {
+   "id": "pii-es-05",
+   "language": "es",
+   "text": "La paciente Pablo Romero, nacida el 14 de febrero de 1959, vive en Sevilla.",
+   "spans": [
+    {
+     "start": 12,
+     "end": 17,
+     "label": "NAME",
+     "text": "Pablo"
+    },
+    {
+     "start": 18,
+     "end": 24,
+     "label": "NAME",
+     "text": "Romero"
+    },
+    {
+     "start": 36,
+     "end": 57,
+     "label": "DATE",
+     "text": "14 de febrero de 1959"
+    },
+    {
+     "start": 67,
+     "end": 74,
+     "label": "LOCATION",
+     "text": "Sevilla"
+    }
+   ]
+  },
+  {
+   "id": "pii-es-06",
+   "language": "es",
+   "text": "Carmen Navarro acudió el 2 de septiembre de 1987 para el control de su diabetes tipo 2.",
+   "spans": [
+    {
+     "start": 0,
+     "end": 6,
+     "label": "NAME",
+     "text": "Carmen"
+    },
+    {
+     "start": 7,
+     "end": 14,
+     "label": "NAME",
+     "text": "Navarro"
+    },
+    {
+     "start": 25,
+     "end": 48,
+     "label": "DATE",
+     "text": "2 de septiembre de 1987"
+    }
+   ]
+  },
+  {
+   "id": "pii-es-07",
+   "language": "es",
+   "text": "Contacte con Diego en el +31 20 555 0193 o en praman@example.com.",
+   "spans": [
+    {
+     "start": 13,
+     "end": 18,
+     "label": "NAME",
+     "text": "Diego"
+    },
+    {
+     "start": 25,
+     "end": 40,
+     "label": "PHONE",
+     "text": "+31 20 555 0193"
+    },
+    {
+     "start": 46,
+     "end": 64,
+     "label": "EMAIL",
+     "text": "praman@example.com"
+    }
+   ]
+  },
+  {
+   "id": "pii-es-08",
+   "language": "es",
+   "text": "El expediente 3358846 pertenece a Lucía García.",
+   "spans": [
+    {
+     "start": 14,
+     "end": 21,
+     "label": "ID",
+     "text": "3358846"
+    },
+    {
+     "start": 34,
+     "end": 39,
+     "label": "NAME",
+     "text": "Lucía"
+    },
+    {
+     "start": 40,
+     "end": 46,
+     "label": "NAME",
+     "text": "García"
+    }
+   ]
+  },
+  {
+   "id": "pii-es-09",
+   "language": "es",
+   "text": "El paciente de 72 años de Zaragoza refirió dolor torácico el 19 de junio de 1983.",
+   "spans": [
+    {
+     "start": 15,
+     "end": 17,
+     "label": "AGE",
+     "text": "72"
+    },
+    {
+     "start": 26,
+     "end": 34,
+     "label": "LOCATION",
+     "text": "Zaragoza"
+    },
+    {
+     "start": 61,
+     "end": 80,
+     "label": "DATE",
+     "text": "19 de junio de 1983"
+    }
+   ]
+  },
+  {
+   "id": "pii-es-10",
+   "language": "es",
+   "text": "La paciente Sofía López, nacida el 12 de marzo de 1980, vive en Sevilla.",
+   "spans": [
+    {
+     "start": 12,
+     "end": 17,
+     "label": "NAME",
+     "text": "Sofía"
+    },
+    {
+     "start": 18,
+     "end": 23,
+     "label": "NAME",
+     "text": "López"
+    },
+    {
+     "start": 35,
+     "end": 54,
+     "label": "DATE",
+     "text": "12 de marzo de 1980"
+    },
+    {
+     "start": 64,
+     "end": 71,
+     "label": "LOCATION",
+     "text": "Sevilla"
+    }
+   ]
+  },
+  {
+   "id": "pii-es-11",
+   "language": "es",
+   "text": "Hugo Martín acudió el 3 de julio de 1975 para el control de su diabetes tipo 2.",
+   "spans": [
+    {
+     "start": 0,
+     "end": 4,
+     "label": "NAME",
+     "text": "Hugo"
+    },
+    {
+     "start": 5,
+     "end": 11,
+     "label": "NAME",
+     "text": "Martín"
+    },
+    {
+     "start": 22,
+     "end": 40,
+     "label": "DATE",
+     "text": "3 de julio de 1975"
+    }
+   ]
+  },
+  {
+   "id": "pii-es-12",
+   "language": "es",
+   "text": "Contacte con Valeria en el +31 20 555 0193 o en praman@example.com.",
+   "spans": [
+    {
+     "start": 13,
+     "end": 20,
+     "label": "NAME",
+     "text": "Valeria"
+    },
+    {
+     "start": 27,
+     "end": 42,
+     "label": "PHONE",
+     "text": "+31 20 555 0193"
+    },
+    {
+     "start": 48,
+     "end": 66,
+     "label": "EMAIL",
+     "text": "praman@example.com"
+    }
+   ]
+  },
+  {
+   "id": "pii-es-13",
+   "language": "es",
+   "text": "El expediente 3358846 pertenece a Pablo Romero.",
+   "spans": [
+    {
+     "start": 14,
+     "end": 21,
+     "label": "ID",
+     "text": "3358846"
+    },
+    {
+     "start": 34,
+     "end": 39,
+     "label": "NAME",
+     "text": "Pablo"
+    },
+    {
+     "start": 40,
+     "end": 46,
+     "label": "NAME",
+     "text": "Romero"
+    }
+   ]
+  },
+  {
+   "id": "pii-es-14",
+   "language": "es",
+   "text": "El paciente de 72 años de Zaragoza refirió dolor torácico el 30 de mayo de 2001.",
+   "spans": [
+    {
+     "start": 15,
+     "end": 17,
+     "label": "AGE",
+     "text": "72"
+    },
+    {
+     "start": 26,
+     "end": 34,
+     "label": "LOCATION",
+     "text": "Zaragoza"
+    },
+    {
+     "start": 61,
+     "end": 79,
+     "label": "DATE",
+     "text": "30 de mayo de 2001"
+    }
+   ]
+  },
+  {
+   "id": "pii-es-15",
+   "language": "es",
+   "text": "La paciente Diego Torres, nacida el 14 de febrero de 1959, vive en Sevilla.",
+   "spans": [
+    {
+     "start": 12,
+     "end": 17,
+     "label": "NAME",
+     "text": "Diego"
+    },
+    {
+     "start": 18,
+     "end": 24,
+     "label": "NAME",
+     "text": "Torres"
+    },
+    {
+     "start": 36,
+     "end": 57,
+     "label": "DATE",
+     "text": "14 de febrero de 1959"
+    },
+    {
+     "start": 67,
+     "end": 74,
+     "label": "LOCATION",
+     "text": "Sevilla"
+    }
+   ]
+  },
+  {
+   "id": "pii-es-16",
+   "language": "es",
+   "text": "Lucía García acudió el 2 de septiembre de 1987 para el control de su diabetes tipo 2.",
+   "spans": [
+    {
+     "start": 0,
+     "end": 5,
+     "label": "NAME",
+     "text": "Lucía"
+    },
+    {
+     "start": 6,
+     "end": 12,
+     "label": "NAME",
+     "text": "García"
+    },
+    {
+     "start": 23,
+     "end": 46,
+     "label": "DATE",
+     "text": "2 de septiembre de 1987"
+    }
+   ]
+  },
+  {
+   "id": "pii-es-17",
+   "language": "es",
+   "text": "Contacte con Mateo en el +31 20 555 0193 o en praman@example.com.",
+   "spans": [
+    {
+     "start": 13,
+     "end": 18,
+     "label": "NAME",
+     "text": "Mateo"
+    },
+    {
+     "start": 25,
+     "end": 40,
+     "label": "PHONE",
+     "text": "+31 20 555 0193"
+    },
+    {
+     "start": 46,
+     "end": 64,
+     "label": "EMAIL",
+     "text": "praman@example.com"
+    }
+   ]
+  },
+  {
+   "id": "pii-es-18",
+   "language": "es",
+   "text": "El expediente 3358846 pertenece a Sofía López.",
+   "spans": [
+    {
+     "start": 14,
+     "end": 21,
+     "label": "ID",
+     "text": "3358846"
+    },
+    {
+     "start": 34,
+     "end": 39,
+     "label": "NAME",
+     "text": "Sofía"
+    },
+    {
+     "start": 40,
+     "end": 45,
+     "label": "NAME",
+     "text": "López"
+    }
+   ]
+  },
+  {
+   "id": "pii-es-19",
+   "language": "es",
+   "text": "El paciente de 72 años de Zaragoza refirió dolor torácico el 19 de junio de 1983.",
+   "spans": [
+    {
+     "start": 15,
+     "end": 17,
+     "label": "AGE",
+     "text": "72"
+    },
+    {
+     "start": 26,
+     "end": 34,
+     "label": "LOCATION",
+     "text": "Zaragoza"
+    },
+    {
+     "start": 61,
+     "end": 80,
+     "label": "DATE",
+     "text": "19 de junio de 1983"
+    }
+   ]
+  },
+  {
+   "id": "pii-es-20",
+   "language": "es",
+   "text": "La paciente Valeria Sánchez, nacida el 12 de marzo de 1980, vive en Sevilla.",
+   "spans": [
+    {
+     "start": 12,
+     "end": 19,
+     "label": "NAME",
+     "text": "Valeria"
+    },
+    {
+     "start": 20,
+     "end": 27,
+     "label": "NAME",
+     "text": "Sánchez"
+    },
+    {
+     "start": 39,
+     "end": 58,
+     "label": "DATE",
+     "text": "12 de marzo de 1980"
+    },
+    {
+     "start": 68,
+     "end": 75,
+     "label": "LOCATION",
+     "text": "Sevilla"
+    }
+   ]
+  },
+  {
+   "id": "pii-es-21",
+   "language": "es",
+   "text": "Pablo Romero acudió el 3 de julio de 1975 para el control de su diabetes tipo 2.",
+   "spans": [
+    {
+     "start": 0,
+     "end": 5,
+     "label": "NAME",
+     "text": "Pablo"
+    },
+    {
+     "start": 6,
+     "end": 12,
+     "label": "NAME",
+     "text": "Romero"
+    },
+    {
+     "start": 23,
+     "end": 41,
+     "label": "DATE",
+     "text": "3 de julio de 1975"
+    }
+   ]
+  },
+  {
+   "id": "pii-es-22",
+   "language": "es",
+   "text": "Contacte con Carmen en el +31 20 555 0193 o en praman@example.com.",
+   "spans": [
+    {
+     "start": 13,
+     "end": 19,
+     "label": "NAME",
+     "text": "Carmen"
+    },
+    {
+     "start": 26,
+     "end": 41,
+     "label": "PHONE",
+     "text": "+31 20 555 0193"
+    },
+    {
+     "start": 47,
+     "end": 65,
+     "label": "EMAIL",
+     "text": "praman@example.com"
+    }
+   ]
+  },
+  {
+   "id": "pii-es-23",
+   "language": "es",
+   "text": "El expediente 3358846 pertenece a Diego Torres.",
+   "spans": [
+    {
+     "start": 14,
+     "end": 21,
+     "label": "ID",
+     "text": "3358846"
+    },
+    {
+     "start": 34,
+     "end": 39,
+     "label": "NAME",
+     "text": "Diego"
+    },
+    {
+     "start": 40,
+     "end": 46,
+     "label": "NAME",
+     "text": "Torres"
+    }
+   ]
+  },
+  {
+   "id": "pii-es-24",
+   "language": "es",
+   "text": "El paciente de 72 años de Zaragoza refirió dolor torácico el 30 de mayo de 2001.",
+   "spans": [
+    {
+     "start": 15,
+     "end": 17,
+     "label": "AGE",
+     "text": "72"
+    },
+    {
+     "start": 26,
+     "end": 34,
+     "label": "LOCATION",
+     "text": "Zaragoza"
+    },
+    {
+     "start": 61,
+     "end": 79,
+     "label": "DATE",
+     "text": "30 de mayo de 2001"
+    }
+   ]
+  },
+  {
+   "id": "pii-es-25",
+   "language": "es",
+   "text": "La paciente Mateo Fernández, nacida el 14 de febrero de 1959, vive en Sevilla.",
+   "spans": [
+    {
+     "start": 12,
+     "end": 17,
+     "label": "NAME",
+     "text": "Mateo"
+    },
+    {
+     "start": 18,
+     "end": 27,
+     "label": "NAME",
+     "text": "Fernández"
+    },
+    {
+     "start": 39,
+     "end": 60,
+     "label": "DATE",
+     "text": "14 de febrero de 1959"
+    },
+    {
+     "start": 70,
+     "end": 77,
+     "label": "LOCATION",
+     "text": "Sevilla"
+    }
+   ]
+  },
+  {
+   "id": "pii-es-26",
+   "language": "es",
+   "text": "Sofía López acudió el 2 de septiembre de 1987 para el control de su diabetes tipo 2.",
+   "spans": [
+    {
+     "start": 0,
+     "end": 5,
+     "label": "NAME",
+     "text": "Sofía"
+    },
+    {
+     "start": 6,
+     "end": 11,
+     "label": "NAME",
+     "text": "López"
+    },
+    {
+     "start": 22,
+     "end": 45,
+     "label": "DATE",
+     "text": "2 de septiembre de 1987"
+    }
+   ]
+  },
+  {
+   "id": "pii-es-27",
+   "language": "es",
+   "text": "Contacte con Hugo en el +31 20 555 0193 o en praman@example.com.",
+   "spans": [
+    {
+     "start": 13,
+     "end": 17,
+     "label": "NAME",
+     "text": "Hugo"
+    },
+    {
+     "start": 24,
+     "end": 39,
+     "label": "PHONE",
+     "text": "+31 20 555 0193"
+    },
+    {
+     "start": 45,
+     "end": 63,
+     "label": "EMAIL",
+     "text": "praman@example.com"
+    }
+   ]
+  },
+  {
+   "id": "pii-es-28",
+   "language": "es",
+   "text": "El expediente 3358846 pertenece a Valeria Sánchez.",
+   "spans": [
+    {
+     "start": 14,
+     "end": 21,
+     "label": "ID",
+     "text": "3358846"
+    },
+    {
+     "start": 34,
+     "end": 41,
+     "label": "NAME",
+     "text": "Valeria"
+    },
+    {
+     "start": 42,
+     "end": 49,
+     "label": "NAME",
+     "text": "Sánchez"
+    }
+   ]
+  },
+  {
+   "id": "pii-es-29",
+   "language": "es",
+   "text": "El paciente de 72 años de Zaragoza refirió dolor torácico el 19 de junio de 1983.",
+   "spans": [
+    {
+     "start": 15,
+     "end": 17,
+     "label": "AGE",
+     "text": "72"
+    },
+    {
+     "start": 26,
+     "end": 34,
+     "label": "LOCATION",
+     "text": "Zaragoza"
+    },
+    {
+     "start": 61,
+     "end": 80,
+     "label": "DATE",
+     "text": "19 de junio de 1983"
+    }
+   ]
+  },
+  {
+   "id": "pii-es-30",
+   "language": "es",
+   "text": "La paciente Carmen Navarro, nacida el 12 de marzo de 1980, vive en Sevilla.",
+   "spans": [
+    {
+     "start": 12,
+     "end": 18,
+     "label": "NAME",
+     "text": "Carmen"
+    },
+    {
+     "start": 19,
+     "end": 26,
+     "label": "NAME",
+     "text": "Navarro"
+    },
+    {
+     "start": 38,
+     "end": 57,
+     "label": "DATE",
+     "text": "12 de marzo de 1980"
+    },
+    {
+     "start": 67,
+     "end": 74,
+     "label": "LOCATION",
+     "text": "Sevilla"
+    }
+   ]
+  },
+  {
+   "id": "pii-es-31",
+   "language": "es",
+   "text": "Diego Torres acudió el 3 de julio de 1975 para el control de su diabetes tipo 2.",
+   "spans": [
+    {
+     "start": 0,
+     "end": 5,
+     "label": "NAME",
+     "text": "Diego"
+    },
+    {
+     "start": 6,
+     "end": 12,
+     "label": "NAME",
+     "text": "Torres"
+    },
+    {
+     "start": 23,
+     "end": 41,
+     "label": "DATE",
+     "text": "3 de julio de 1975"
+    }
+   ]
+  },
+  {
+   "id": "pii-es-32",
+   "language": "es",
+   "text": "Contacte con Lucía en el +31 20 555 0193 o en praman@example.com.",
+   "spans": [
+    {
+     "start": 13,
+     "end": 18,
+     "label": "NAME",
+     "text": "Lucía"
+    },
+    {
+     "start": 25,
+     "end": 40,
+     "label": "PHONE",
+     "text": "+31 20 555 0193"
+    },
+    {
+     "start": 46,
+     "end": 64,
+     "label": "EMAIL",
+     "text": "praman@example.com"
+    }
+   ]
+  },
+  {
+   "id": "pii-es-33",
+   "language": "es",
+   "text": "El expediente 3358846 pertenece a Mateo Fernández.",
+   "spans": [
+    {
+     "start": 14,
+     "end": 21,
+     "label": "ID",
+     "text": "3358846"
+    },
+    {
+     "start": 34,
+     "end": 39,
+     "label": "NAME",
+     "text": "Mateo"
+    },
+    {
+     "start": 40,
+     "end": 49,
+     "label": "NAME",
+     "text": "Fernández"
+    }
+   ]
+  },
+  {
+   "id": "pii-es-34",
+   "language": "es",
+   "text": "El paciente de 72 años de Zaragoza refirió dolor torácico el 30 de mayo de 2001.",
+   "spans": [
+    {
+     "start": 15,
+     "end": 17,
+     "label": "AGE",
+     "text": "72"
+    },
+    {
+     "start": 26,
+     "end": 34,
+     "label": "LOCATION",
+     "text": "Zaragoza"
+    },
+    {
+     "start": 61,
+     "end": 79,
+     "label": "DATE",
+     "text": "30 de mayo de 2001"
+    }
+   ]
+  },
+  {
+   "id": "pii-es-35",
+   "language": "es",
+   "text": "La paciente Hugo Martín, nacida el 14 de febrero de 1959, vive en Sevilla.",
+   "spans": [
+    {
+     "start": 12,
+     "end": 16,
+     "label": "NAME",
+     "text": "Hugo"
+    },
+    {
+     "start": 17,
+     "end": 23,
+     "label": "NAME",
+     "text": "Martín"
+    },
+    {
+     "start": 35,
+     "end": 56,
+     "label": "DATE",
+     "text": "14 de febrero de 1959"
+    },
+    {
+     "start": 66,
+     "end": 73,
+     "label": "LOCATION",
+     "text": "Sevilla"
+    }
+   ]
+  },
+  {
+   "id": "pii-es-36",
+   "language": "es",
+   "text": "Valeria Sánchez acudió el 2 de septiembre de 1987 para el control de su diabetes tipo 2.",
+   "spans": [
+    {
+     "start": 0,
+     "end": 7,
+     "label": "NAME",
+     "text": "Valeria"
+    },
+    {
+     "start": 8,
+     "end": 15,
+     "label": "NAME",
+     "text": "Sánchez"
+    },
+    {
+     "start": 26,
+     "end": 49,
+     "label": "DATE",
+     "text": "2 de septiembre de 1987"
+    }
+   ]
+  },
+  {
+   "id": "pii-es-37",
+   "language": "es",
+   "text": "Contacte con Pablo en el +31 20 555 0193 o en praman@example.com.",
+   "spans": [
+    {
+     "start": 13,
+     "end": 18,
+     "label": "NAME",
+     "text": "Pablo"
+    },
+    {
+     "start": 25,
+     "end": 40,
+     "label": "PHONE",
+     "text": "+31 20 555 0193"
+    },
+    {
+     "start": 46,
+     "end": 64,
+     "label": "EMAIL",
+     "text": "praman@example.com"
+    }
+   ]
+  },
+  {
+   "id": "pii-es-38",
+   "language": "es",
+   "text": "El expediente 3358846 pertenece a Carmen Navarro.",
+   "spans": [
+    {
+     "start": 14,
+     "end": 21,
+     "label": "ID",
+     "text": "3358846"
+    },
+    {
+     "start": 34,
+     "end": 40,
+     "label": "NAME",
+     "text": "Carmen"
+    },
+    {
+     "start": 41,
+     "end": 48,
+     "label": "NAME",
+     "text": "Navarro"
+    }
+   ]
+  },
+  {
+   "id": "pii-es-39",
+   "language": "es",
+   "text": "El paciente de 72 años de Zaragoza refirió dolor torácico el 19 de junio de 1983.",
+   "spans": [
+    {
+     "start": 15,
+     "end": 17,
+     "label": "AGE",
+     "text": "72"
+    },
+    {
+     "start": 26,
+     "end": 34,
+     "label": "LOCATION",
+     "text": "Zaragoza"
+    },
+    {
+     "start": 61,
+     "end": 80,
+     "label": "DATE",
+     "text": "19 de junio de 1983"
+    }
+   ]
+  }
+ ]
+}

@@ -1,0 +1,1088 @@
+{
+ "name": "medscale-pii-synthetic-fr",
+ "version": "1",
+ "provenance": "Synthetic sentences and identifiers authored for MedScale by scripts/evaluation/generate_pii_gold.py; no real person or record.",
+ "license": "CC0-1.0",
+ "labels": [
+  "AGE",
+  "DATE",
+  "EMAIL",
+  "ID",
+  "LOCATION",
+  "NAME",
+  "PHONE"
+ ],
+ "label_map": {
+  "first_name": "NAME",
+  "last_name": "NAME",
+  "date": "DATE",
+  "date_of_birth": "DATE",
+  "date_time": "DATE",
+  "city": "LOCATION",
+  "state": "LOCATION",
+  "country": "LOCATION",
+  "county": "LOCATION",
+  "street_address": "LOCATION",
+  "postcode": "LOCATION",
+  "phone_number": "PHONE",
+  "fax_number": "PHONE",
+  "email": "EMAIL",
+  "medical_record_number": "ID",
+  "health_plan_beneficiary_number": "ID",
+  "ssn": "ID",
+  "account_number": "ID",
+  "unique_id": "ID",
+  "customer_id": "ID",
+  "age": "AGE"
+ },
+ "documents": [
+  {
+   "id": "pii-fr-00",
+   "language": "fr",
+   "text": "Le patient Camille Lefèvre, né le 12 mars 1980, habite à Lyon.",
+   "spans": [
+    {
+     "start": 11,
+     "end": 18,
+     "label": "NAME",
+     "text": "Camille"
+    },
+    {
+     "start": 19,
+     "end": 26,
+     "label": "NAME",
+     "text": "Lefèvre"
+    },
+    {
+     "start": 34,
+     "end": 46,
+     "label": "DATE",
+     "text": "12 mars 1980"
+    },
+    {
+     "start": 57,
+     "end": 61,
+     "label": "LOCATION",
+     "text": "Lyon"
+    }
+   ]
+  },
+  {
+   "id": "pii-fr-01",
+   "language": "fr",
+   "text": "Louis Moreau a été vu le 3 juillet 1975 pour le suivi d'un diabète de type 2.",
+   "spans": [
+    {
+     "start": 0,
+     "end": 5,
+     "label": "NAME",
+     "text": "Louis"
+    },
+    {
+     "start": 6,
+     "end": 12,
+     "label": "NAME",
+     "text": "Moreau"
+    },
+    {
+     "start": 25,
+     "end": 39,
+     "label": "DATE",
+     "text": "3 juillet 1975"
+    }
+   ]
+  },
+  {
+   "id": "pii-fr-02",
+   "language": "fr",
+   "text": "Contacter Inès au +31 20 555 0193 ou par courriel à praman@example.com.",
+   "spans": [
+    {
+     "start": 10,
+     "end": 14,
+     "label": "NAME",
+     "text": "Inès"
+    },
+    {
+     "start": 18,
+     "end": 33,
+     "label": "PHONE",
+     "text": "+31 20 555 0193"
+    },
+    {
+     "start": 52,
+     "end": 70,
+     "label": "EMAIL",
+     "text": "praman@example.com"
+    }
+   ]
+  },
+  {
+   "id": "pii-fr-03",
+   "language": "fr",
+   "text": "Le dossier 3358846 appartient à Hugo Lambert.",
+   "spans": [
+    {
+     "start": 11,
+     "end": 18,
+     "label": "ID",
+     "text": "3358846"
+    },
+    {
+     "start": 32,
+     "end": 36,
+     "label": "NAME",
+     "text": "Hugo"
+    },
+    {
+     "start": 37,
+     "end": 44,
+     "label": "NAME",
+     "text": "Lambert"
+    }
+   ]
+  },
+  {
+   "id": "pii-fr-04",
+   "language": "fr",
+   "text": "Le patient de 72 ans venant de Dijon a signalé une douleur thoracique le 30 mai 2001.",
+   "spans": [
+    {
+     "start": 14,
+     "end": 16,
+     "label": "AGE",
+     "text": "72"
+    },
+    {
+     "start": 31,
+     "end": 36,
+     "label": "LOCATION",
+     "text": "Dijon"
+    },
+    {
+     "start": 73,
+     "end": 84,
+     "label": "DATE",
+     "text": "30 mai 2001"
+    }
+   ]
+  },
+  {
+   "id": "pii-fr-05",
+   "language": "fr",
+   "text": "Le patient Jules Fontaine, né le 14 février 1959, habite à Lyon.",
+   "spans": [
+    {
+     "start": 11,
+     "end": 16,
+     "label": "NAME",
+     "text": "Jules"
+    },
+    {
+     "start": 17,
+     "end": 25,
+     "label": "NAME",
+     "text": "Fontaine"
+    },
+    {
+     "start": 33,
+     "end": 48,
+     "label": "DATE",
+     "text": "14 février 1959"
+    },
+    {
+     "start": 59,
+     "end": 63,
+     "label": "LOCATION",
+     "text": "Lyon"
+    }
+   ]
+  },
+  {
+   "id": "pii-fr-06",
+   "language": "fr",
+   "text": "Manon Chevalier a été vu le 2 septembre 1987 pour le suivi d'un diabète de type 2.",
+   "spans": [
+    {
+     "start": 0,
+     "end": 5,
+     "label": "NAME",
+     "text": "Manon"
+    },
+    {
+     "start": 6,
+     "end": 15,
+     "label": "NAME",
+     "text": "Chevalier"
+    },
+    {
+     "start": 28,
+     "end": 44,
+     "label": "DATE",
+     "text": "2 septembre 1987"
+    }
+   ]
+  },
+  {
+   "id": "pii-fr-07",
+   "language": "fr",
+   "text": "Contacter Nathan au +31 20 555 0193 ou par courriel à praman@example.com.",
+   "spans": [
+    {
+     "start": 10,
+     "end": 16,
+     "label": "NAME",
+     "text": "Nathan"
+    },
+    {
+     "start": 20,
+     "end": 35,
+     "label": "PHONE",
+     "text": "+31 20 555 0193"
+    },
+    {
+     "start": 54,
+     "end": 72,
+     "label": "EMAIL",
+     "text": "praman@example.com"
+    }
+   ]
+  },
+  {
+   "id": "pii-fr-08",
+   "language": "fr",
+   "text": "Le dossier 3358846 appartient à Camille Lefèvre.",
+   "spans": [
+    {
+     "start": 11,
+     "end": 18,
+     "label": "ID",
+     "text": "3358846"
+    },
+    {
+     "start": 32,
+     "end": 39,
+     "label": "NAME",
+     "text": "Camille"
+    },
+    {
+     "start": 40,
+     "end": 47,
+     "label": "NAME",
+     "text": "Lefèvre"
+    }
+   ]
+  },
+  {
+   "id": "pii-fr-09",
+   "language": "fr",
+   "text": "Le patient de 72 ans venant de Dijon a signalé une douleur thoracique le 19 juin 1983.",
+   "spans": [
+    {
+     "start": 14,
+     "end": 16,
+     "label": "AGE",
+     "text": "72"
+    },
+    {
+     "start": 31,
+     "end": 36,
+     "label": "LOCATION",
+     "text": "Dijon"
+    },
+    {
+     "start": 73,
+     "end": 85,
+     "label": "DATE",
+     "text": "19 juin 1983"
+    }
+   ]
+  },
+  {
+   "id": "pii-fr-10",
+   "language": "fr",
+   "text": "Le patient Inès Girard, né le 12 mars 1980, habite à Lyon.",
+   "spans": [
+    {
+     "start": 11,
+     "end": 15,
+     "label": "NAME",
+     "text": "Inès"
+    },
+    {
+     "start": 16,
+     "end": 22,
+     "label": "NAME",
+     "text": "Girard"
+    },
+    {
+     "start": 30,
+     "end": 42,
+     "label": "DATE",
+     "text": "12 mars 1980"
+    },
+    {
+     "start": 53,
+     "end": 57,
+     "label": "LOCATION",
+     "text": "Lyon"
+    }
+   ]
+  },
+  {
+   "id": "pii-fr-11",
+   "language": "fr",
+   "text": "Hugo Lambert a été vu le 3 juillet 1975 pour le suivi d'un diabète de type 2.",
+   "spans": [
+    {
+     "start": 0,
+     "end": 4,
+     "label": "NAME",
+     "text": "Hugo"
+    },
+    {
+     "start": 5,
+     "end": 12,
+     "label": "NAME",
+     "text": "Lambert"
+    },
+    {
+     "start": 25,
+     "end": 39,
+     "label": "DATE",
+     "text": "3 juillet 1975"
+    }
+   ]
+  },
+  {
+   "id": "pii-fr-12",
+   "language": "fr",
+   "text": "Contacter Léa au +31 20 555 0193 ou par courriel à praman@example.com.",
+   "spans": [
+    {
+     "start": 10,
+     "end": 13,
+     "label": "NAME",
+     "text": "Léa"
+    },
+    {
+     "start": 17,
+     "end": 32,
+     "label": "PHONE",
+     "text": "+31 20 555 0193"
+    },
+    {
+     "start": 51,
+     "end": 69,
+     "label": "EMAIL",
+     "text": "praman@example.com"
+    }
+   ]
+  },
+  {
+   "id": "pii-fr-13",
+   "language": "fr",
+   "text": "Le dossier 3358846 appartient à Jules Fontaine.",
+   "spans": [
+    {
+     "start": 11,
+     "end": 18,
+     "label": "ID",
+     "text": "3358846"
+    },
+    {
+     "start": 32,
+     "end": 37,
+     "label": "NAME",
+     "text": "Jules"
+    },
+    {
+     "start": 38,
+     "end": 46,
+     "label": "NAME",
+     "text": "Fontaine"
+    }
+   ]
+  },
+  {
+   "id": "pii-fr-14",
+   "language": "fr",
+   "text": "Le patient de 72 ans venant de Dijon a signalé une douleur thoracique le 30 mai 2001.",
+   "spans": [
+    {
+     "start": 14,
+     "end": 16,
+     "label": "AGE",
+     "text": "72"
+    },
+    {
+     "start": 31,
+     "end": 36,
+     "label": "LOCATION",
+     "text": "Dijon"
+    },
+    {
+     "start": 73,
+     "end": 84,
+     "label": "DATE",
+     "text": "30 mai 2001"
+    }
+   ]
+  },
+  {
+   "id": "pii-fr-15",
+   "language": "fr",
+   "text": "Le patient Nathan Garnier, né le 14 février 1959, habite à Lyon.",
+   "spans": [
+    {
+     "start": 11,
+     "end": 17,
+     "label": "NAME",
+     "text": "Nathan"
+    },
+    {
+     "start": 18,
+     "end": 25,
+     "label": "NAME",
+     "text": "Garnier"
+    },
+    {
+     "start": 33,
+     "end": 48,
+     "label": "DATE",
+     "text": "14 février 1959"
+    },
+    {
+     "start": 59,
+     "end": 63,
+     "label": "LOCATION",
+     "text": "Lyon"
+    }
+   ]
+  },
+  {
+   "id": "pii-fr-16",
+   "language": "fr",
+   "text": "Camille Lefèvre a été vu le 2 septembre 1987 pour le suivi d'un diabète de type 2.",
+   "spans": [
+    {
+     "start": 0,
+     "end": 7,
+     "label": "NAME",
+     "text": "Camille"
+    },
+    {
+     "start": 8,
+     "end": 15,
+     "label": "NAME",
+     "text": "Lefèvre"
+    },
+    {
+     "start": 28,
+     "end": 44,
+     "label": "DATE",
+     "text": "2 septembre 1987"
+    }
+   ]
+  },
+  {
+   "id": "pii-fr-17",
+   "language": "fr",
+   "text": "Contacter Louis au +31 20 555 0193 ou par courriel à praman@example.com.",
+   "spans": [
+    {
+     "start": 10,
+     "end": 15,
+     "label": "NAME",
+     "text": "Louis"
+    },
+    {
+     "start": 19,
+     "end": 34,
+     "label": "PHONE",
+     "text": "+31 20 555 0193"
+    },
+    {
+     "start": 53,
+     "end": 71,
+     "label": "EMAIL",
+     "text": "praman@example.com"
+    }
+   ]
+  },
+  {
+   "id": "pii-fr-18",
+   "language": "fr",
+   "text": "Le dossier 3358846 appartient à Inès Girard.",
+   "spans": [
+    {
+     "start": 11,
+     "end": 18,
+     "label": "ID",
+     "text": "3358846"
+    },
+    {
+     "start": 32,
+     "end": 36,
+     "label": "NAME",
+     "text": "Inès"
+    },
+    {
+     "start": 37,
+     "end": 43,
+     "label": "NAME",
+     "text": "Girard"
+    }
+   ]
+  },
+  {
+   "id": "pii-fr-19",
+   "language": "fr",
+   "text": "Le patient de 72 ans venant de Dijon a signalé une douleur thoracique le 19 juin 1983.",
+   "spans": [
+    {
+     "start": 14,
+     "end": 16,
+     "label": "AGE",
+     "text": "72"
+    },
+    {
+     "start": 31,
+     "end": 36,
+     "label": "LOCATION",
+     "text": "Dijon"
+    },
+    {
+     "start": 73,
+     "end": 85,
+     "label": "DATE",
+     "text": "19 juin 1983"
+    }
+   ]
+  },
+  {
+   "id": "pii-fr-20",
+   "language": "fr",
+   "text": "Le patient Léa Rousseau, né le 12 mars 1980, habite à Lyon.",
+   "spans": [
+    {
+     "start": 11,
+     "end": 14,
+     "label": "NAME",
+     "text": "Léa"
+    },
+    {
+     "start": 15,
+     "end": 23,
+     "label": "NAME",
+     "text": "Rousseau"
+    },
+    {
+     "start": 31,
+     "end": 43,
+     "label": "DATE",
+     "text": "12 mars 1980"
+    },
+    {
+     "start": 54,
+     "end": 58,
+     "label": "LOCATION",
+     "text": "Lyon"
+    }
+   ]
+  },
+  {
+   "id": "pii-fr-21",
+   "language": "fr",
+   "text": "Jules Fontaine a été vu le 3 juillet 1975 pour le suivi d'un diabète de type 2.",
+   "spans": [
+    {
+     "start": 0,
+     "end": 5,
+     "label": "NAME",
+     "text": "Jules"
+    },
+    {
+     "start": 6,
+     "end": 14,
+     "label": "NAME",
+     "text": "Fontaine"
+    },
+    {
+     "start": 27,
+     "end": 41,
+     "label": "DATE",
+     "text": "3 juillet 1975"
+    }
+   ]
+  },
+  {
+   "id": "pii-fr-22",
+   "language": "fr",
+   "text": "Contacter Manon au +31 20 555 0193 ou par courriel à praman@example.com.",
+   "spans": [
+    {
+     "start": 10,
+     "end": 15,
+     "label": "NAME",
+     "text": "Manon"
+    },
+    {
+     "start": 19,
+     "end": 34,
+     "label": "PHONE",
+     "text": "+31 20 555 0193"
+    },
+    {
+     "start": 53,
+     "end": 71,
+     "label": "EMAIL",
+     "text": "praman@example.com"
+    }
+   ]
+  },
+  {
+   "id": "pii-fr-23",
+   "language": "fr",
+   "text": "Le dossier 3358846 appartient à Nathan Garnier.",
+   "spans": [
+    {
+     "start": 11,
+     "end": 18,
+     "label": "ID",
+     "text": "3358846"
+    },
+    {
+     "start": 32,
+     "end": 38,
+     "label": "NAME",
+     "text": "Nathan"
+    },
+    {
+     "start": 39,
+     "end": 46,
+     "label": "NAME",
+     "text": "Garnier"
+    }
+   ]
+  },
+  {
+   "id": "pii-fr-24",
+   "language": "fr",
+   "text": "Le patient de 72 ans venant de Dijon a signalé une douleur thoracique le 30 mai 2001.",
+   "spans": [
+    {
+     "start": 14,
+     "end": 16,
+     "label": "AGE",
+     "text": "72"
+    },
+    {
+     "start": 31,
+     "end": 36,
+     "label": "LOCATION",
+     "text": "Dijon"
+    },
+    {
+     "start": 73,
+     "end": 84,
+     "label": "DATE",
+     "text": "30 mai 2001"
+    }
+   ]
+  },
+  {
+   "id": "pii-fr-25",
+   "language": "fr",
+   "text": "Le patient Louis Moreau, né le 14 février 1959, habite à Lyon.",
+   "spans": [
+    {
+     "start": 11,
+     "end": 16,
+     "label": "NAME",
+     "text": "Louis"
+    },
+    {
+     "start": 17,
+     "end": 23,
+     "label": "NAME",
+     "text": "Moreau"
+    },
+    {
+     "start": 31,
+     "end": 46,
+     "label": "DATE",
+     "text": "14 février 1959"
+    },
+    {
+     "start": 57,
+     "end": 61,
+     "label": "LOCATION",
+     "text": "Lyon"
+    }
+   ]
+  },
+  {
+   "id": "pii-fr-26",
+   "language": "fr",
+   "text": "Inès Girard a été vu le 2 septembre 1987 pour le suivi d'un diabète de type 2.",
+   "spans": [
+    {
+     "start": 0,
+     "end": 4,
+     "label": "NAME",
+     "text": "Inès"
+    },
+    {
+     "start": 5,
+     "end": 11,
+     "label": "NAME",
+     "text": "Girard"
+    },
+    {
+     "start": 24,
+     "end": 40,
+     "label": "DATE",
+     "text": "2 septembre 1987"
+    }
+   ]
+  },
+  {
+   "id": "pii-fr-27",
+   "language": "fr",
+   "text": "Contacter Hugo au +31 20 555 0193 ou par courriel à praman@example.com.",
+   "spans": [
+    {
+     "start": 10,
+     "end": 14,
+     "label": "NAME",
+     "text": "Hugo"
+    },
+    {
+     "start": 18,
+     "end": 33,
+     "label": "PHONE",
+     "text": "+31 20 555 0193"
+    },
+    {
+     "start": 52,
+     "end": 70,
+     "label": "EMAIL",
+     "text": "praman@example.com"
+    }
+   ]
+  },
+  {
+   "id": "pii-fr-28",
+   "language": "fr",
+   "text": "Le dossier 3358846 appartient à Léa Rousseau.",
+   "spans": [
+    {
+     "start": 11,
+     "end": 18,
+     "label": "ID",
+     "text": "3358846"
+    },
+    {
+     "start": 32,
+     "end": 35,
+     "label": "NAME",
+     "text": "Léa"
+    },
+    {
+     "start": 36,
+     "end": 44,
+     "label": "NAME",
+     "text": "Rousseau"
+    }
+   ]
+  },
+  {
+   "id": "pii-fr-29",
+   "language": "fr",
+   "text": "Le patient de 72 ans venant de Dijon a signalé une douleur thoracique le 19 juin 1983.",
+   "spans": [
+    {
+     "start": 14,
+     "end": 16,
+     "label": "AGE",
+     "text": "72"
+    },
+    {
+     "start": 31,
+     "end": 36,
+     "label": "LOCATION",
+     "text": "Dijon"
+    },
+    {
+     "start": 73,
+     "end": 85,
+     "label": "DATE",
+     "text": "19 juin 1983"
+    }
+   ]
+  },
+  {
+   "id": "pii-fr-30",
+   "language": "fr",
+   "text": "Le patient Manon Chevalier, né le 12 mars 1980, habite à Lyon.",
+   "spans": [
+    {
+     "start": 11,
+     "end": 16,
+     "label": "NAME",
+     "text": "Manon"
+    },
+    {
+     "start": 17,
+     "end": 26,
+     "label": "NAME",
+     "text": "Chevalier"
+    },
+    {
+     "start": 34,
+     "end": 46,
+     "label": "DATE",
+     "text": "12 mars 1980"
+    },
+    {
+     "start": 57,
+     "end": 61,
+     "label": "LOCATION",
+     "text": "Lyon"
+    }
+   ]
+  },
+  {
+   "id": "pii-fr-31",
+   "language": "fr",
+   "text": "Nathan Garnier a été vu le 3 juillet 1975 pour le suivi d'un diabète de type 2.",
+   "spans": [
+    {
+     "start": 0,
+     "end": 6,
+     "label": "NAME",
+     "text": "Nathan"
+    },
+    {
+     "start": 7,
+     "end": 14,
+     "label": "NAME",
+     "text": "Garnier"
+    },
+    {
+     "start": 27,
+     "end": 41,
+     "label": "DATE",
+     "text": "3 juillet 1975"
+    }
+   ]
+  },
+  {
+   "id": "pii-fr-32",
+   "language": "fr",
+   "text": "Contacter Camille au +31 20 555 0193 ou par courriel à praman@example.com.",
+   "spans": [
+    {
+     "start": 10,
+     "end": 17,
+     "label": "NAME",
+     "text": "Camille"
+    },
+    {
+     "start": 21,
+     "end": 36,
+     "label": "PHONE",
+     "text": "+31 20 555 0193"
+    },
+    {
+     "start": 55,
+     "end": 73,
+     "label": "EMAIL",
+     "text": "praman@example.com"
+    }
+   ]
+  },
+  {
+   "id": "pii-fr-33",
+   "language": "fr",
+   "text": "Le dossier 3358846 appartient à Louis Moreau.",
+   "spans": [
+    {
+     "start": 11,
+     "end": 18,
+     "label": "ID",
+     "text": "3358846"
+    },
+    {
+     "start": 32,
+     "end": 37,
+     "label": "NAME",
+     "text": "Louis"
+    },
+    {
+     "start": 38,
+     "end": 44,
+     "label": "NAME",
+     "text": "Moreau"
+    }
+   ]
+  },
+  {
+   "id": "pii-fr-34",
+   "language": "fr",
+   "text": "Le patient de 72 ans venant de Dijon a signalé une douleur thoracique le 30 mai 2001.",
+   "spans": [
+    {
+     "start": 14,
+     "end": 16,
+     "label": "AGE",
+     "text": "72"
+    },
+    {
+     "start": 31,
+     "end": 36,
+     "label": "LOCATION",
+     "text": "Dijon"
+    },
+    {
+     "start": 73,
+     "end": 84,
+     "label": "DATE",
+     "text": "30 mai 2001"
+    }
+   ]
+  },
+  {
+   "id": "pii-fr-35",
+   "language": "fr",
+   "text": "Le patient Hugo Lambert, né le 14 février 1959, habite à Lyon.",
+   "spans": [
+    {
+     "start": 11,
+     "end": 15,
+     "label": "NAME",
+     "text": "Hugo"
+    },
+    {
+     "start": 16,
+     "end": 23,
+     "label": "NAME",
+     "text": "Lambert"
+    },
+    {
+     "start": 31,
+     "end": 46,
+     "label": "DATE",
+     "text": "14 février 1959"
+    },
+    {
+     "start": 57,
+     "end": 61,
+     "label": "LOCATION",
+     "text": "Lyon"
+    }
+   ]
+  },
+  {
+   "id": "pii-fr-36",
+   "language": "fr",
+   "text": "Léa Rousseau a été vu le 2 septembre 1987 pour le suivi d'un diabète de type 2.",
+   "spans": [
+    {
+     "start": 0,
+     "end": 3,
+     "label": "NAME",
+     "text": "Léa"
+    },
+    {
+     "start": 4,
+     "end": 12,
+     "label": "NAME",
+     "text": "Rousseau"
+    },
+    {
+     "start": 25,
+     "end": 41,
+     "label": "DATE",
+     "text": "2 septembre 1987"
+    }
+   ]
+  },
+  {
+   "id": "pii-fr-37",
+   "language": "fr",
+   "text": "Contacter Jules au +31 20 555 0193 ou par courriel à praman@example.com.",
+   "spans": [
+    {
+     "start": 10,
+     "end": 15,
+     "label": "NAME",
+     "text": "Jules"
+    },
+    {
+     "start": 19,
+     "end": 34,
+     "label": "PHONE",
+     "text": "+31 20 555 0193"
+    },
+    {
+     "start": 53,
+     "end": 71,
+     "label": "EMAIL",
+     "text": "praman@example.com"
+    }
+   ]
+  },
+  {
+   "id": "pii-fr-38",
+   "language": "fr",
+   "text": "Le dossier 3358846 appartient à Manon Chevalier.",
+   "spans": [
+    {
+     "start": 11,
+     "end": 18,
+     "label": "ID",
+     "text": "3358846"
+    },
+    {
+     "start": 32,
+     "end": 37,
+     "label": "NAME",
+     "text": "Manon"
+    },
+    {
+     "start": 38,
+     "end": 47,
+     "label": "NAME",
+     "text": "Chevalier"
+    }
+   ]
+  },
+  {
+   "id": "pii-fr-39",
+   "language": "fr",
+   "text": "Le patient de 72 ans venant de Dijon a signalé une douleur thoracique le 19 juin 1983.",
+   "spans": [
+    {
+     "start": 14,
+     "end": 16,
+     "label": "AGE",
+     "text": "72"
+    },
+    {
+     "start": 31,
+     "end": 36,
+     "label": "LOCATION",
+     "text": "Dijon"
+    },
+    {
+     "start": 73,
+     "end": 85,
+     "label": "DATE",
+     "text": "19 juin 1983"
+    }
+   ]
+  }
+ ]
+}
