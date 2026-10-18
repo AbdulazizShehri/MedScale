@@ -16,7 +16,7 @@ Both sides were scored by MedScale's `entity_eval` on the same synthetic gold se
 
 - **Accuracy (strict F1, MedScale's best decoding vs OpenMed's pipeline):** 11 wins, 10 ties (within ±0.005), 0 losses over 21 models.
   - PII: higher on 10 of 10 models (+0.007 to +0.19).
-  - NER: level on 9 of 11 and higher on 2.
+  - NER: level on 10 of 11 and higher on 1 (AnatomyDetect-BioClinical-108M, +0.019).
 - **MedScale default decoding (`openmed_compatible`):**
   - Level with OpenMed on the BioMed-109M and BioMed-335M rows.
   - Well below on most others (as low as 0.016 strict F1 where OpenMed scores 1.000).
