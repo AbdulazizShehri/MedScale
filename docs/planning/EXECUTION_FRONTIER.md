@@ -8,7 +8,7 @@ The live, repository-backed handoff for autonomous sessions. Each session verifi
 
 | PR | Scope | State at handoff |
 |---|---|---|
-| this PR | Batches 27–34 evidence | — |
+| this PR | Batches 27–37 evidence; T103-09 complete | — |
 
 Merged 2026-10-13 and 2026-10-14: #223–#240.
 
