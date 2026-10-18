@@ -14,7 +14,7 @@ type ModelsVm = {
 export function Models() {
   const { state, reload } = useCommand<ModelsVm>("models_overview");
   const [sel, setSel] = useState(0);
-  const [tab, setTab] = useState<"packs" | "comparative">("packs");
+  const [tab, setTab] = useState<"packs" | "catalog" | "evaluate" | "comparative">("packs");
   const { pending, run } = useAction();
   const outcome = useOutcome();
   async function admit() { const r = await run("admit", "models_admit_fixture_pack"); if (outcome(r, "Fixture pack submitted to Core")) await reload(); }
@@ -32,6 +32,8 @@ export function Models() {
         <Ledger items={[{ k: "runtime", v: v.model_runtime_summary }, { k: "source", v: v.model_source_summary }, { k: "inventory", v: v.model_inventory_summary }]} />
         <div className="tabs" role="tablist" style={{ marginBottom: 14 }}>
           <button type="button" role="tab" aria-selected={tab === "packs"} className={`tab ${tab === "packs" ? "on" : ""}`} onClick={() => setTab("packs")}>Packs <span className="mono">{v.models.length}</span></button>
+          <button type="button" role="tab" aria-selected={tab === "catalog"} className={`tab ${tab === "catalog" ? "on" : ""}`} onClick={() => setTab("catalog")}>Catalog <span className="mono">OpenMed v3.0.0</span></button>
+          <button type="button" role="tab" aria-selected={tab === "evaluate"} className={`tab ${tab === "evaluate" ? "on" : ""}`} onClick={() => setTab("evaluate")}>Try a model</button>
           <button type="button" role="tab" aria-selected={tab === "comparative"} className={`tab ${tab === "comparative" ? "on" : ""}`} onClick={() => setTab("comparative")}>Comparative evidence <span className="mono">static</span></button>
         </div>
         {tab === "packs" && (v.models.length ? (
@@ -45,6 +47,8 @@ export function Models() {
               </tr>
             ))}</tbody></table>
         ) : <Empty icon="models" title="No admitted packs">Admit the bundled synthetic ONNX fixture pack. Core verifies its manifest, digests and signature before admission.</Empty>)}
+        {tab === "catalog" && <CatalogTab />}
+        {tab === "evaluate" && <EvaluateTab />}
         {tab === "comparative" && <Section title="Comparative evidence" count="MedScale vs OpenMed · static ledger">
           <p className="t-sm i2" style={{ marginBottom: 10 }}>{v.competitive_summary} {v.openmed_baseline}</p>
           <table className="tb"><thead><tr><th style={{ width: "22%" }}>Capability</th><th style={{ width: "20%" }}>MedScale</th><th style={{ width: "20%" }}>OpenMed</th><th style={{ width: "14%" }}>Verdict</th><th>Limitations</th></tr></thead>
@@ -70,6 +74,110 @@ export function Models() {
         </aside>
       )}
     </>
+  );
+}
+
+type CatalogRow = {
+  repo_id: string; task: string | null; family: string | null; formats: string[]; tier: string | null; status: string;
+  license_claim: string | null; device_fit: string; disk: { kind: string; megabytes?: number } | null;
+  runtime_expectation: { kind: string; [k: string]: unknown };
+};
+type CatalogPage = { repository: string; commit: string; total_rows: number; total_matching: number; next_offset: number | null; status_counts: Record<string, number>; rows: CatalogRow[] };
+
+function CatalogTab() {
+  const [draft, setDraft] = useState({ text: "", task: "", format: "", status: "" });
+  const [query, setQuery] = useState({ text: "", task: "", format: "", status: "", offset: 0 });
+  const page = useCommand<CatalogPage>("models_catalog", query);
+  const p = page.state.status === "ready" ? page.state.data : null;
+  const submit = (e: FormEvent) => { e.preventDefault(); setQuery({ ...draft, offset: 0 }); };
+  return (
+    <Section title="Model catalog" count={p ? `${p.total_matching} of ${p.total_rows}` : "…"}>
+      <form onSubmit={submit} className="row-gap" style={{ gap: 8, flexWrap: "wrap", marginBottom: 10 }}>
+        <input aria-label="Search the catalog" placeholder="Search model, family or language" value={draft.text} maxLength={120} onChange={(e) => setDraft({ ...draft, text: e.target.value })} style={{ minWidth: 240 }} />
+        <select aria-label="Task" value={draft.task} onChange={(e) => setDraft({ ...draft, task: e.target.value })}>
+          <option value="">Any task</option>
+          {["token-classification", "text-generation", "zero-shot-token-classification", "text-classification", "feature-extraction", "visual-question-answering"].map((t) => <option key={t} value={t}>{t}</option>)}
+        </select>
+        <select aria-label="Format" value={draft.format} onChange={(e) => setDraft({ ...draft, format: e.target.value })}>
+          <option value="">Any format</option>
+          {["onnx", "safetensors", "pytorch", "mlx-fp", "mlx-4bit", "gguf"].map((t) => <option key={t} value={t}>{t}</option>)}
+        </select>
+        <select aria-label="Status" value={draft.status} onChange={(e) => setDraft({ ...draft, status: e.target.value })}>
+          <option value="">Any status</option>
+          {Object.keys(p?.status_counts ?? { DISCOVERABLE: 0, RIGHTS_PENDING: 0 }).map((t) => <option key={t} value={t}>{t}</option>)}
+        </select>
+        <button type="submit" className="btn btn-s">Search</button>
+      </form>
+      {page.state.status === "loading" && <Skeleton />}
+      {page.state.status === "error" && <ErrorState error={page.state.error} onRetry={page.reload} />}
+      {p && <>
+        <table className="tb"><thead><tr><th style={{ width: "34%" }}>Model</th><th style={{ width: "18%" }}>Task</th><th className="col-p3" style={{ width: "14%" }}>Formats</th><th style={{ width: "10%" }}>Disk</th><th style={{ width: "14%" }}>Expectation</th><th>Status</th></tr></thead>
+          <tbody>{p.rows.map((r) => (
+            <tr key={r.repo_id} className="r2">
+              <td><div style={{ display: "flex", flexDirection: "column", minWidth: 0 }}><span className="mono trunc" style={{ fontSize: 12.5 }}>{r.repo_id}</span><span className="t-sm i3 trunc">{[r.family, r.tier, r.license_claim].filter(Boolean).join(" · ")}</span></div></td>
+              <td className="t-sm i2"><span className="trunc">{r.task ?? "—"}</span></td>
+              <td className="col-p3 mono t-mono-sm i2"><span className="trunc">{r.formats.join(", ")}</span></td>
+              <td className="mono t-mono-sm i2">{r.disk?.megabytes != null ? `${Math.round(r.disk.megabytes)} MB` : "—"}</td>
+              <td className="t-sm i2"><span className="trunc">{r.runtime_expectation.kind.replace(/_/g, " ")}</span></td>
+              <td><Status kind={r.status === "DISCOVERABLE" ? "available" : "limited"} weight="weak">{r.status}</Status></td>
+            </tr>
+          ))}</tbody></table>
+        <div className="row-gap" style={{ gap: 8, marginTop: 10, justifyContent: "space-between" }}>
+          <span className="t-sm i3">{p.repository} @ <span className="mono">{p.commit.slice(0, 12)}</span> · rows {query.offset + 1}–{query.offset + p.rows.length}</span>
+          <span className="row-gap" style={{ gap: 8 }}>
+            <button type="button" className="btn btn-g" disabled={query.offset === 0} onClick={() => setQuery({ ...query, offset: Math.max(0, query.offset - 50) })}>Previous</button>
+            <button type="button" className="btn btn-g" disabled={p.next_offset == null} onClick={() => setQuery({ ...query, offset: p.next_offset ?? query.offset })}>Next</button>
+          </span>
+        </div>
+      </>}
+      <p className="t-sm i3" style={{ marginTop: 8 }}>A listing is not a download and not an executable model. Each row shows MedScale's pre-download expectation; rights follow each model's own card.</p>
+    </Section>
+  );
+}
+
+const DECODINGS: Array<[string, string]> = [["", "Default (OpenMed-compatible)"], ["word_first", "Word: first sub-token"], ["word_average", "Word: average"], ["word_max", "Word: most confident"], ["pii_merge", "PII merge"], ["word_first_pii_merge", "Word first + PII merge"]];
+
+function EvaluateTab() {
+  const models = useCommand<Model[]>("medagent_models");
+  const [packId, setPackId] = useState("");
+  const [input, setInput] = useState("Synthetic note: Ada Example, born 12 March 1980, seen at Utrecht clinic for type 2 diabetes.");
+  const [decoding, setDecoding] = useState("");
+  const [labels, setLabels] = useState("");
+  const [result, setResult] = useState<{ proposal_payload: Record<string, unknown>; runtime_id: string; prepared_cache_hit: boolean; audit_id: string } | null>(null);
+  const { pending, run } = useAction();
+  const outcome = useOutcome();
+  const packs = models.state.status === "ready" ? models.state.data.filter((m) => m.runnable) : [];
+  useEffect(() => { if (!packId && packs[0]) setPackId(packs[0].id); }, [packs, packId]);
+  async function evaluate(e: FormEvent) {
+    e.preventDefault();
+    const list = labels.split(",").map((l) => l.trim()).filter(Boolean);
+    const r = await run<NonNullable<typeof result>>("evaluate", "models_evaluate", { packId, input, decoding: decoding || null, labels: list.length ? list : null });
+    if (outcome(r, "Evaluated on the local runtime · evidence only")) setResult(r.data);
+  }
+  const entities = (result?.proposal_payload.entities ?? result?.proposal_payload.pii_merged_entities) as Array<Record<string, unknown>> | undefined;
+  return (
+    <Section title="Try a model" count="synthetic text only">
+      <form onSubmit={evaluate} className="stack" style={{ gap: 8, maxWidth: 760 }}>
+        <label className="lbl" htmlFor="ep">Admitted Pack</label>
+        <select id="ep" value={packId} onChange={(e) => setPackId(e.target.value)}>{packs.map((p) => <option key={p.id} value={p.id}>{p.id} · {p.version}</option>)}</select>
+        <label className="lbl" htmlFor="ei">Synthetic input</label>
+        <textarea id="ei" value={input} maxLength={4000} onChange={(e) => setInput(e.target.value)} style={{ minHeight: 80 }} />
+        <div className="grid-2">
+          <div className="stack" style={{ gap: 4 }}><label className="lbl" htmlFor="ed">Entity decoding (token classification)</label>
+            <select id="ed" value={decoding} onChange={(e) => setDecoding(e.target.value)}>{DECODINGS.map(([k, l]) => <option key={k} value={k}>{l}</option>)}</select></div>
+          <div className="stack" style={{ gap: 4 }}><label className="lbl" htmlFor="el">Labels (GLiNER zero-shot, comma-separated)</label>
+            <input id="el" value={labels} maxLength={600} placeholder="person, date, location" onChange={(e) => setLabels(e.target.value)} /></div>
+        </div>
+        <div><button type="submit" className="btn btn-p" disabled={!packId || !input.trim() || !!pending}>{pending === "evaluate" ? <Glyph kind="running" /> : null}Evaluate</button></div>
+      </form>
+      {result && <div style={{ marginTop: 14 }}>
+        <Ledger items={[{ k: "runtime", v: result.runtime_id, mono: true }, { k: "prepared cache", v: result.prepared_cache_hit ? "hit" : "cold", mono: true }, { k: "audit", v: result.audit_id, mono: true }]} />
+        {entities?.length ? <table className="tb"><thead><tr><th style={{ width: "40%" }}>Text</th><th style={{ width: "30%" }}>Label</th><th>Span</th></tr></thead>
+          <tbody>{entities.map((x, i) => <tr key={i}><td className="t-sm">{String(x.text ?? x.word ?? "")}</td><td className="t-sm i2">{String(x.label ?? x.entity_group ?? x.entity ?? "")}</td><td className="mono t-mono-sm i3">{String(x.start ?? "")}–{String(x.end ?? "")}</td></tr>)}</tbody></table> : null}
+        <details style={{ marginTop: 10 }}><summary className="t-sm i2">Full proposal payload</summary><pre className="pre">{JSON.stringify(result.proposal_payload, null, 2)}</pre></details>
+        <Authority>Evaluation evidence, not a record. Nothing is promoted; synthetic input only.</Authority>
+      </div>}
+    </Section>
   );
 }
 

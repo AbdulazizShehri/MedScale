@@ -406,6 +406,41 @@ impl CliSession {
         Ok(packs)
     }
 
+    /// Evaluates an admitted local Pack through Core (Specs 069, 103, 104).
+    /// Core re-verifies the folder against the admitted manifest and refuses
+    /// non-synthetic input; the result is evaluation evidence, not a record.
+    pub fn packs_evaluate_local(
+        &mut self,
+        request: medscale_contracts::packs::PackEvaluationRequest,
+    ) -> Result<medscale_contracts::packs::PackEvaluationResult, AuthorityError> {
+        let resp = self.dispatch(
+            Capability::PacksEvaluateLocal,
+            RequestBody::PacksEvaluateLocal { request },
+        )?;
+        let ResponseBody::PackEvaluation { result } = resp else {
+            return Err(Self::unexpected("pack evaluation"));
+        };
+        Ok(result)
+    }
+
+    /// One page of a pinned local model catalog snapshot (Spec 103). Read
+    /// only: nothing is downloaded, and a listing implies no execution.
+    pub fn model_catalog_query(
+        &mut self,
+        query: medscale_contracts::model_catalog::ModelCatalogQueryRequest,
+    ) -> Result<medscale_contracts::model_catalog::ModelCatalogPage, AuthorityError> {
+        let resp = self.dispatch(
+            Capability::ModelCatalogRead,
+            RequestBody::ModelCatalogQuery {
+                query: Box::new(query),
+            },
+        )?;
+        let ResponseBody::ModelCatalogPage { page } = resp else {
+            return Err(Self::unexpected("model catalog page"));
+        };
+        Ok(*page)
+    }
+
     /// Read the durable external-action outbox through the same authority facade as Desktop.
     pub fn outbox(
         &mut self,

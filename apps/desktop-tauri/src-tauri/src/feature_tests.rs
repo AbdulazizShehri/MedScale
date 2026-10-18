@@ -665,6 +665,47 @@ fn medagent_workbench_agent_context_evidence_and_resume() {
             .unwrap()
             .is_empty()
     );
+    // Model catalog: the pinned OpenMed v3.0.0 snapshot lists through Core.
+    let page = h.ok("models_catalog", json!({}));
+    assert_eq!(page["total_rows"], 2266, "{}", page["total_rows"]);
+    assert_eq!(page["rows"].as_array().unwrap().len(), 50);
+    let pii = h.ok("models_catalog", json!({ "text": "PII", "offset": 0 }));
+    assert!(pii["total_matching"].as_u64().unwrap() > 0);
+    assert!(pii["total_matching"].as_u64().unwrap() < 2266);
+
+    // Evaluate: the fixture Pack on synthetic text, default and word decoding.
+    let models = h.ok("medagent_models", json!({}));
+    let fixture_id = models
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|m| m["fixture"] == true)
+        .unwrap()["id"]
+        .as_str()
+        .unwrap()
+        .to_owned();
+    let eval = h.ok(
+        "models_evaluate",
+        json!({ "packId": fixture_id, "input": "alice visited clinic today" }),
+    );
+    assert_eq!(eval["evidence_only"], true, "{eval}");
+    let worded = h.ok(
+        "models_evaluate",
+        json!({ "packId": fixture_id, "input": "alice visited clinic today", "decoding": "word_first" }),
+    );
+    assert_eq!(
+        worded["proposal_payload"]["aggregation"], "word_first",
+        "{worded}"
+    );
+    assert_eq!(
+        h.call(
+            "models_evaluate",
+            json!({ "packId": fixture_id, "input": "x", "decoding": "best" }),
+        )
+        .unwrap_err()["kind"],
+        "invalid"
+    );
+
     // Reads the MedAgent page makes, recorded for visual QA replay.
     for (cmd, args) in [
         ("workspace_status", json!({})),
@@ -673,6 +714,8 @@ fn medagent_workbench_agent_context_evidence_and_resume() {
         ("medagent_runs", json!({ "projectId": pid })),
         ("medagent_models", json!({})),
         ("medagent_sources", json!({})),
+        ("models_overview", json!({})),
+        ("models_catalog", json!({})),
         ("medagent_run_detail", json!({ "runId": rid })),
     ] {
         h.ok(cmd, args);

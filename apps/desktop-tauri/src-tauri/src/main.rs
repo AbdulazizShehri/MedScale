@@ -84,6 +84,8 @@ fn presentation_builder<R: tauri::Runtime>(builder: tauri::Builder<R>) -> tauri:
             cmd_ops::medagent_revoke_agent,
             cmd_ops::medagent_run_detail,
             cmd_ops::medagent_complete,
+            cmd_ops::models_catalog,
+            cmd_ops::models_evaluate,
             cmd_ops::fleet_overview,
             cmd_ops::fleet_setup_lanes,
             cmd_ops::fleet_create,

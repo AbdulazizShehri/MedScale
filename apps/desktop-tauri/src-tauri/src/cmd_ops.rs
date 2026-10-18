@@ -45,6 +45,113 @@ pub fn models_admit_fixture_pack(host: tauri::State<'_, Host>) -> CmdResult<Valu
     Ok(json!(result))
 }
 
+/// The pinned OpenMed v3.0.0 model catalog, copied byte for byte with its
+/// license (`third_party/provenance/103-openmed-v3-model-catalog.md`).
+const CATALOG_JSONL: &[u8] = include_bytes!("../../../../third_party/openmed-v3.0.0/models.jsonl");
+const CATALOG_REPOSITORY: &str = "maziyarpanahi/openmed";
+const CATALOG_COMMIT: &str = "ea920f36fadd7b45935247d639f0ffa1ef493b23";
+
+fn catalog_path(state: &State) -> CmdResult<String> {
+    let path = state
+        .data_dir()?
+        .join("catalog")
+        .join("openmed-v3.0.0-models.jsonl");
+    let current = std::fs::metadata(&path)
+        .map(|m| m.len() == CATALOG_JSONL.len() as u64)
+        .unwrap_or(false);
+    if !current {
+        std::fs::create_dir_all(path.parent().expect("catalog folder"))
+            .map_err(|_| CmdError::unavailable("Unavailable: catalog folder"))?;
+        std::fs::write(&path, CATALOG_JSONL)
+            .map_err(|_| CmdError::unavailable("Unavailable: catalog not writable"))?;
+    }
+    Ok(path.display().to_string())
+}
+
+fn filter(value: Option<String>) -> CmdResult<Option<String>> {
+    value
+        .filter(|v| !v.trim().is_empty())
+        .map(|v| host::bounded_text(&v, 120))
+        .transpose()
+}
+
+/// One page of the pinned model catalog through Core. A listing is not a
+/// download and not an executable model; each row carries its expectation.
+#[tauri::command(async)]
+#[allow(clippy::too_many_arguments)]
+pub fn models_catalog(
+    host: tauri::State<'_, Host>,
+    text: Option<String>,
+    task: Option<String>,
+    family: Option<String>,
+    format: Option<String>,
+    status: Option<String>,
+    offset: Option<u32>,
+) -> CmdResult<Value> {
+    let mut state = lock(&host)?;
+    let snapshot_path = catalog_path(&state)?;
+    let page = state.session()?.model_catalog_query(
+        medscale_contracts::model_catalog::ModelCatalogQueryRequest {
+            snapshot_path,
+            repository: CATALOG_REPOSITORY.to_owned(),
+            commit: CATALOG_COMMIT.to_owned(),
+            text: filter(text)?,
+            task: filter(task)?,
+            family: filter(family)?,
+            format: filter(format)?,
+            status: filter(status)?,
+            offset: offset.unwrap_or(0),
+            limit: 50,
+            ..Default::default()
+        },
+    )?;
+    Ok(json!(page))
+}
+
+/// Evaluates an admitted Pack on synthetic text through Core, with an
+/// optional entity decoding (token classification) or labels (GLiNER).
+#[tauri::command(async)]
+pub fn models_evaluate(
+    host: tauri::State<'_, Host>,
+    pack_id: String,
+    input: String,
+    decoding: Option<String>,
+    labels: Option<Vec<String>>,
+) -> CmdResult<Value> {
+    let pack_id = host::bounded_id(&pack_id)?.to_owned();
+    let input = host::bounded_text(&input, 4000)?;
+    let decoding = decoding
+        .filter(|d| !d.is_empty())
+        .map(|d| {
+            serde_json::from_value::<medscale_contracts::packs::EntityDecoding>(Value::String(d))
+                .map_err(|_| CmdError::invalid("Invalid: unknown entity decoding"))
+        })
+        .transpose()?;
+    let labels = labels
+        .filter(|l| !l.is_empty())
+        .map(|l| {
+            l.iter()
+                .map(|x| host::bounded_text(x, 64))
+                .collect::<CmdResult<Vec<_>>>()
+        })
+        .transpose()?;
+    let mut state = lock(&host)?;
+    let local_path = pack_dir(&mut state, &pack_id)?;
+    let result = state.session()?.packs_evaluate_local(
+        medscale_contracts::packs::PackEvaluationRequest {
+            pack_id: OpaqueId::new(&pack_id),
+            local_path,
+            input,
+            max_tokens: 512,
+            // The desktop evaluates synthetic text only; Core enforces it too.
+            synthetic_only: true,
+            zero_shot_labels: labels,
+            decoding,
+        },
+    )?;
+    Ok(json!(result))
+}
+
 // ─────────────────────── shared agent fixtures ───────────────────────
 
 /// Installs the ONNX fixture pack into the workspace session and returns

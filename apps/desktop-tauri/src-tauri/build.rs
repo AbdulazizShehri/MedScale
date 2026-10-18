@@ -57,6 +57,8 @@ fn main() {
             "medagent_revoke_agent",
             "medagent_run_detail",
             "medagent_complete",
+            "models_catalog",
+            "models_evaluate",
             "fleet_overview",
             "fleet_setup_lanes",
             "fleet_create",
