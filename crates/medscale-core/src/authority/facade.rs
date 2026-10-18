@@ -2333,6 +2333,83 @@ impl CoreFacade {
             RequestBody::GetFhirSupportMatrix => Ok(ResponseBody::FhirSupportMatrix {
                 matrix: medscale_contracts::fhir::FhirSupportMatrix::trusted_v1_ready_base(),
             }),
+            RequestBody::ExportSubjectLossAware {
+                subject_ref,
+                purpose,
+            } => {
+                self.require_lease(&req.vault_id)?;
+                let purpose = purpose.trim().to_owned();
+                if purpose.is_empty()
+                    || purpose.chars().count() > 200
+                    || purpose.chars().any(char::is_control)
+                {
+                    return Err(AuthorityError::InvalidArgument {
+                        message: "an export states its purpose".to_owned(),
+                    });
+                }
+                // Promoted fixtures carry `{"resource": ...}`; a bare resource
+                // is accepted too.
+                fn fhir_resource(payload: &serde_json::Value) -> Option<&serde_json::Value> {
+                    let inner = payload.get("resource").unwrap_or(payload);
+                    inner.get("resourceType").is_some().then_some(inner)
+                }
+                let mut store = self.store();
+                let mut assertions: Vec<_> = store
+                    .assertions_for_subject(&subject_ref)
+                    .into_iter()
+                    .filter(|a| {
+                        a.header.realm_id == req.realm_id
+                            && a.header.authority_scope_id == req.authority_scope_id
+                            && fhir_resource(&a.payload).is_some()
+                    })
+                    .collect();
+                assertions.sort_by(|a, b| a.header.id.as_str().cmp(b.header.id.as_str()));
+                if assertions.is_empty() {
+                    return Err(AuthorityError::NotFound);
+                }
+                let exports: Vec<_> = assertions
+                    .iter()
+                    .filter_map(|a| fhir_resource(&a.payload))
+                    .map(medscale_contracts::fhir::loss_aware_export)
+                    .collect();
+                let export_digest =
+                    DigestSha256::of(&serde_json::to_vec(&exports).map_err(|e| {
+                        AuthorityError::Internal {
+                            message: e.to_string(),
+                        }
+                    })?);
+                let artifact_refs: Vec<OpaqueId> =
+                    assertions.iter().map(|a| a.header.id.clone()).collect();
+                let disclosure_id = store.alloc_id("disclosure");
+                let record = medscale_contracts::workflow::DisclosureRecord {
+                    disclosure_id: disclosure_id.clone(),
+                    purpose,
+                    scope: "fhir_r4_loss_aware_export".to_owned(),
+                    subject_ref: Some(subject_ref),
+                    artifact_refs: artifact_refs.clone(),
+                    export_digest: Some(export_digest.clone()),
+                    synthetic_only: true,
+                    release_ready_claimed: false,
+                    note: Some(format!("{} resources", exports.len())),
+                };
+                let audit = ActionAuditRecord {
+                    header: ObjectHeader {
+                        id: disclosure_id,
+                        schema_version: AUTHORITY_SCHEMA_VERSION,
+                        realm_id: req.realm_id,
+                        authority_scope_id: req.authority_scope_id,
+                    },
+                    kind: ActionAuditKind::Audit,
+                    actor: OpaqueId::new("workflow-operator"),
+                    action: medscale_contracts::workflow::DISCLOSURE_APPEND_ACTION.to_owned(),
+                    target_refs: artifact_refs,
+                    effect_state: None,
+                    payload_digest: Some(export_digest),
+                    detail: Some(serde_json::to_value(&record).unwrap_or(serde_json::Value::Null)),
+                };
+                store.insert(StoredObject::Audit(audit));
+                Ok(ResponseBody::SubjectFhirExport { exports, record })
+            }
             RequestBody::ExportFhirLossAware { resource } => {
                 Ok(ResponseBody::FhirLossAwareExport {
                     export: medscale_contracts::fhir::loss_aware_export(&resource),
@@ -5727,6 +5804,7 @@ fn capability_matches(cap: &Capability, body: &RequestBody) -> bool {
             | (
                 Capability::ExportFhirLossAware,
                 RequestBody::ExportFhirLossAware { .. }
+                    | RequestBody::ExportSubjectLossAware { .. }
             )
             | (
                 Capability::RejectProposal,
