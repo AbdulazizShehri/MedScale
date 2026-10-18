@@ -6,10 +6,12 @@ Three single-type sets matching the OpenMed NER families: disease
 common, unambiguous examples. Each sentence also mentions entities of the
 other types as distractors, so a model that tags them loses precision.
 
-Boundary convention: the gold span is the term itself without laterality or
-other modifiers ("knee" in "left knee", "diabetes mellitus" in "type 2
-diabetes mellitus" is annotated as the full disease name "type 2 diabetes
-mellitus"). Training corpora differ here, so overlap scores are reported
+Boundary convention: a disease or chemical span is the full name ("type 2
+diabetes mellitus"). An anatomy span includes a laterality word ("left knee"),
+the convention of the anatomy corpus the AnatomyDetect models follow: in
+NER accuracy batch 0 (run 39138333094) all 21 AnatomyDetect models tagged
+"left hip" / "right elbow" whole (strict recall exactly 0.600 against a
+laterality-free v1 draft, overlap F1 0.83-0.91). Overlap scores are reported
 beside strict ones.
 
 Usage: generate_ner_gold.py OUT_DIR
@@ -73,7 +75,13 @@ def build(kind: str) -> dict:
             start = len(text)
             text += v
             if slot == spec["slot"]:
-                spans.append({"start": start, "end": len(text), "label": spec["label"], "text": v})
+                span_start = start
+                if slot == "a":
+                    for side in ("left ", "right "):
+                        if text[:start].endswith(side):
+                            span_start = start - len(side)
+                spans.append({"start": span_start, "end": len(text), "label": spec["label"],
+                              "text": text[span_start:]})
             pos = brace + 3
         documents.append({"id": f"ner-{kind}-en-{i:02d}", "language": "en", "text": text, "spans": spans})
     return {

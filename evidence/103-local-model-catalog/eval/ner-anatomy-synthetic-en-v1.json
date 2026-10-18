@@ -28,10 +28,10 @@
    "text": "She reported pain in the left hip and a history of type 2 diabetes mellitus.",
    "spans": [
     {
-     "start": 30,
+     "start": 25,
      "end": 33,
      "label": "ANATOMY",
-     "text": "hip"
+     "text": "left hip"
     }
    ]
   },
@@ -92,10 +92,10 @@
    "text": "Swelling of the right elbow improved after atorvastatin.",
    "spans": [
     {
-     "start": 22,
+     "start": 16,
      "end": 27,
      "label": "ANATOMY",
-     "text": "elbow"
+     "text": "right elbow"
     }
    ]
   },
@@ -123,10 +123,10 @@
    "text": "She reported pain in the left wrist and a history of pneumonia.",
    "spans": [
     {
-     "start": 30,
+     "start": 25,
      "end": 35,
      "label": "ANATOMY",
-     "text": "wrist"
+     "text": "left wrist"
     }
    ]
   },
@@ -187,10 +187,10 @@
    "text": "Swelling of the right ear improved after levothyroxine.",
    "spans": [
     {
-     "start": 22,
+     "start": 16,
      "end": 25,
      "label": "ANATOMY",
-     "text": "ear"
+     "text": "right ear"
     }
    ]
   },
@@ -218,10 +218,10 @@
    "text": "She reported pain in the left knee and a history of migraine.",
    "spans": [
     {
-     "start": 30,
+     "start": 25,
      "end": 34,
      "label": "ANATOMY",
-     "text": "knee"
+     "text": "left knee"
     }
    ]
   },
@@ -282,10 +282,10 @@
    "text": "Swelling of the right shoulder improved after insulin.",
    "spans": [
     {
-     "start": 22,
+     "start": 16,
      "end": 30,
      "label": "ANATOMY",
-     "text": "shoulder"
+     "text": "right shoulder"
     }
    ]
   },
@@ -313,10 +313,10 @@
    "text": "She reported pain in the left lung and a history of atrial fibrillation.",
    "spans": [
     {
-     "start": 30,
+     "start": 25,
      "end": 34,
      "label": "ANATOMY",
-     "text": "lung"
+     "text": "left lung"
     }
    ]
   },
@@ -377,10 +377,10 @@
    "text": "Swelling of the right ankle improved after metformin.",
    "spans": [
     {
-     "start": 22,
+     "start": 16,
      "end": 27,
      "label": "ANATOMY",
-     "text": "ankle"
+     "text": "right ankle"
     }
    ]
   },
