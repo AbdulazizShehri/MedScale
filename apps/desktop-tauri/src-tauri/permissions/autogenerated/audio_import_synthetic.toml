@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-audio-import-synthetic"
+description = "Enables the audio_import_synthetic command without any pre-configured scope."
+commands.allow = ["audio_import_synthetic"]
+
+[[permission]]
+identifier = "deny-audio-import-synthetic"
+description = "Denies the audio_import_synthetic command without any pre-configured scope."
+commands.deny = ["audio_import_synthetic"]

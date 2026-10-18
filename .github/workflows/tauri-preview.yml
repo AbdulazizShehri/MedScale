@@ -1,0 +1,150 @@
+name: tauri-preview
+
+on:
+  pull_request:
+    paths:
+      - apps/desktop-tauri/**
+      - scripts/package-tauri-preview.ps1
+      - scripts/package-tauri-release.ps1
+      - scripts/verify-tauri-release.ps1
+      - scripts/test-verify-tauri-release.ps1
+      - scripts/qualify-tauri-installer-windows.ps1
+      - scripts/qualify-tauri-package-macos.ps1
+      - scripts/qualify-tauri-package-linux.ps1
+      - specs/101-tauri-release-packaging/**
+      - assets/brand/**
+      - crates/medscale-desktop/ui/assets/**
+      - deny.toml
+      - .github/workflows/tauri-preview.yml
+      - .github/workflows/ci.yml
+      - specs/096-tauri-foundation/**
+      - evidence/096-tauri-foundation/**
+      - docs/engineering/admissions/096-tauri-presentation.md
+      - docs/planning/TAURI_DESKTOP_MIGRATION_DECISION_2026-09-30.md
+
+permissions:
+  contents: read
+
+concurrency:
+  group: tauri-preview-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  RUSTFLAGS: -Dwarnings
+  CARGO_BUILD_JOBS: "2"
+
+jobs:
+  native:
+    name: tauri preview (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 60
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: "24.19.0"
+          cache: npm
+          cache-dependency-path: apps/desktop-tauri/package-lock.json
+      - uses: dtolnay/rust-toolchain@d1031067263f94b142dd6c0ce24c5eb9d02d52a0
+        with:
+          toolchain: "1.97.1"
+          components: rustfmt, clippy
+      - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2
+        with:
+          workspaces: apps/desktop-tauri/src-tauri -> target
+      - name: Linux WebView development dependencies
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf xvfb
+      - name: Install locked frontend without lifecycle scripts
+        working-directory: apps/desktop-tauri
+        run: npm ci --ignore-scripts --no-audit --no-fund
+      - name: Frontend tests and build
+        working-directory: apps/desktop-tauri
+        run: |
+          npm test
+          npm run build
+      - name: Rust format
+        run: cargo fmt --manifest-path apps/desktop-tauri/src-tauri/Cargo.toml -- --check
+      - name: Rust Clippy and tests
+        run: |
+          cargo clippy --manifest-path apps/desktop-tauri/src-tauri/Cargo.toml --features custom-protocol --all-targets --locked -- -D warnings
+          cargo test --manifest-path apps/desktop-tauri/src-tauri/Cargo.toml --features custom-protocol --locked
+      - name: Build native preview
+        run: cargo build --manifest-path apps/desktop-tauri/src-tauri/Cargo.toml --features custom-protocol --release --locked
+      - name: Package unqualified preview with sources and notices
+        shell: pwsh
+        run: ./scripts/package-tauri-preview.ps1
+      - name: Bundle unsigned engineering installer (Spec 101)
+        working-directory: apps/desktop-tauri
+        shell: bash
+        run: |
+          case "$RUNNER_OS" in
+            Windows) bundles=nsis ;;
+            macOS) bundles=app,dmg ;;
+            Linux) bundles=deb ;;
+          esac
+          npm run tauri -- build --bundles "$bundles" --no-sign --ci --features custom-protocol -- --locked
+      - name: Record build-time tool hashes (Spec 101 FR-003)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          $tools = Join-Path $env:LOCALAPPDATA 'tauri' 'NSIS'
+          Get-ChildItem -LiteralPath $tools -Recurse -File | Where-Object { $_.Name -in 'makensis.exe','nsis_tauri_utils.dll' } |
+            ForEach-Object { '{0}  {1}' -f (Get-FileHash -LiteralPath $_.FullName -Algorithm SHA256).Hash.ToLowerInvariant(), $_.FullName.Substring($tools.Length + 1) }
+      - name: Assemble and verify release set (Spec 101 T101-04/05)
+        shell: pwsh
+        run: |
+          ./scripts/package-tauri-release.ps1
+          $platform = if ($IsWindows) { 'windows' } elseif ($IsMacOS) { 'macos' } else { 'linux' }
+          ./scripts/verify-tauri-release.ps1 -Root "target/tauri-release/$platform" -ExpectedSourceSha '${{ github.event.pull_request.head.sha }}'
+          ./scripts/test-verify-tauri-release.ps1
+      - name: Install, launch and uninstall qualification (Spec 101 T101-07)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: ./scripts/qualify-tauri-installer-windows.ps1 -ReleaseRoot target/tauri-release/windows -ReportPath target/tauri-release-qualification/windows.json
+      - name: Package launch and removal qualification (Spec 101 T101-08)
+        if: runner.os == 'macOS'
+        shell: pwsh
+        run: ./scripts/qualify-tauri-package-macos.ps1 -ReleaseRoot target/tauri-release/macos -ReportPath target/tauri-release-qualification/macos.json
+      - name: Package install, launch and removal qualification (Spec 101 T101-09)
+        if: runner.os == 'Linux'
+        shell: pwsh
+        run: ./scripts/qualify-tauri-package-linux.ps1 -ReleaseRoot target/tauri-release/linux -ReportPath target/tauri-release-qualification/linux.json
+      - uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v4.6.2
+        if: ${{ !cancelled() }}
+        with:
+          name: tauri-installer-${{ matrix.os }}
+          path: |
+            target/tauri-release/
+            target/tauri-release-qualification/
+          if-no-files-found: warn
+          retention-days: 7
+          compression-level: 0
+      - uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v4.6.2
+        with:
+          name: tauri-preview-${{ matrix.os }}
+          path: target/tauri-preview-package/
+          if-no-files-found: error
+          retention-days: 1
+          compression-level: 9
+
+  policy:
+    name: tauri dependency policy
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+      - uses: EmbarkStudios/cargo-deny-action@3c6349835b2b7b196a839186cb8b78e02f7b5f25 # v2
+        with:
+          command: check
+          manifest-path: apps/desktop-tauri/src-tauri/Cargo.toml
+          arguments: --config deny.toml --locked --features custom-protocol

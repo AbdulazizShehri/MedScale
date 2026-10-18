@@ -5,17 +5,17 @@
   <img src="assets/brand/medscale-horizontal-black.svg" alt="MedScale" width="280">
 </picture>
 
-MedScale is a local-first clinical intelligence platform. A Rust Core owns every source, assertion, provenance record and authority decision. Surfaces only present and request through it.
+MedScale is a local-first clinical intelligence platform. A Rust Core owns every source, assertion, provenance record and authority decision. The desktop and command-line surfaces only present and request through it.
 
 - **Local by default.** Records, vaults and models stay on the device. Network egress is denied unless an explicit, governed action allows it.
 - **Evidence you can inspect.** Every statement links back to its source, its coverage and its review state. Unknown, conflicting and unsupported data are shown as such, never filled in.
 - **Encrypted workspaces.** Vaults are SQLCipher-encrypted at rest and sealed on close, with recovery codes.
 - **Local models, honestly labelled.** Models run offline through signed MedScale Packs and propose; people decide. Catalog listings are kept separate from downloaded, admitted, tested and qualified models.
-- **One Core, several surfaces.** The CLI ships on `main` today. The Tauri desktop is in review in the productization chain (Specs 096–101). The Slint desktop (`crates/medscale-desktop`) is kept only as a legacy reference implementation.
+- **One Core, several surfaces.** The CLI and the Tauri desktop ([`apps/desktop-tauri`](apps/desktop-tauri/README.md)) share the same Core semantics. The desktop is built for Windows and macOS; a Linux desktop waits on an upstream Tauri move off GTK 3 / `glib` 0.18 (see [external gates](docs/planning/EXTERNAL_GATES.md), `TAURI_GLIB_ADVISORY_F096_T01`). The CLI and Core stay supported on Linux. The Slint desktop (`crates/medscale-desktop`) is kept only as a legacy reference implementation.
 
 > **Status: engineering preview, synthetic data only.** MedScale is not release-ready, not clinically validated and not a medical device. Real patient data is not authorized. See [external gates](docs/planning/EXTERNAL_GATES.md).
 
-Design: [brand identity system](docs/brand/BRAND_IDENTITY_SYSTEM.md) (the paired M, [Spec 095](specs/095-brand-foundation/spec.md)) and [`DESIGN.md`](DESIGN.md). Product program: [productization](docs/planning/PRODUCTIZATION_PROGRAM.md).
+Design: [brand identity system](docs/brand/BRAND_IDENTITY_SYSTEM.md) (the paired M, [Spec 095](specs/095-brand-foundation/spec.md)) and [`DESIGN.md`](DESIGN.md). Desktop: [`apps/desktop-tauri`](apps/desktop-tauri/README.md). Product program: [productization](docs/planning/PRODUCTIZATION_PROGRAM.md).
 
 ## Working on MedScale (engineering and agents)
 
@@ -80,9 +80,10 @@ cargo run -p medscale-cli --locked -- doctor
 - [OpenMed Parity / Surpass Matrix V2](docs/planning/OPENMED_PARITY_SURPASS_MATRIX_V2.md)
 - [GLM 5.3 Reconciliation V2](docs/planning/GLM53_RECONCILIATION_V2.md)
 
+
 ## Comparisons and provenance
 
-MedScale measures itself against named external baselines without depending on them. OpenMed is used as a **pinned comparator** (`v2.2.0` frozen in Spec 071; a separate `v3.0.0` snapshot in Spec 103). Any comparative claim needs measured evidence; none of superiority is made here. MESC is a separate scientific project and owns no MedScale clinical truth. Adapted third-party material keeps its license and attribution: see [`third_party/provenance`](third_party/provenance), the [identity and provenance audit](docs/brand/PRE_RELEASE_IDENTITY_AND_PROVENANCE_AUDIT.md) and the [source acquisition plan](docs/planning/SOURCE_ACQUISITION_AND_COPY_PLAN.md).
+MedScale measures itself against named external baselines without depending on them. OpenMed is used as a **pinned comparator** (`v2.2.0` frozen in Spec 071; a separate `v3.0.0` snapshot in Spec 103). Any comparative claim needs measured evidence; none of superiority is made here. MESC is a separate scientific project and owns no MedScale clinical truth. Adapted third-party material keeps its license and attribution: see [`third_party/provenance`](third_party/provenance), the [identity and provenance audit](docs/brand/PRE_RELEASE_IDENTITY_AND_PROVENANCE_AUDIT.md), the generated `NOTICE.md` and SBOM in every release set, and the [source acquisition plan](docs/planning/SOURCE_ACQUISITION_AND_COPY_PLAN.md).
 
 ## License
 

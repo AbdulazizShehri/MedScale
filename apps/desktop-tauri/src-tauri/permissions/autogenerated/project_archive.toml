@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-project-archive"
+description = "Enables the project_archive command without any pre-configured scope."
+commands.allow = ["project_archive"]
+
+[[permission]]
+identifier = "deny-project-archive"
+description = "Denies the project_archive command without any pre-configured scope."
+commands.deny = ["project_archive"]
