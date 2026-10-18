@@ -64,6 +64,16 @@ LABEL_MAP = {
     "medical_record_number": "ID", "health_plan_beneficiary_number": "ID", "ssn": "ID",
     "account_number": "ID", "unique_id": "ID", "customer_id": "ID",
     "age": "AGE",
+    # The multilingual OpenMed PII models use the ai4privacy-style schema
+    # (FIRSTNAME, DATEOFBIRTH, PHONE, ...). It has no medical record number
+    # label; MASKEDNUMBER is its closest identifier label, so ID recall on
+    # those models is limited by the schema, not only by the model.
+    "firstname": "NAME", "lastname": "NAME", "middlename": "NAME",
+    "dateofbirth": "DATE",
+    "street": "LOCATION", "zipcode": "LOCATION", "buildingnumber": "LOCATION",
+    "secondaryaddress": "LOCATION",
+    "phone": "PHONE",
+    "maskednumber": "ID",
 }
 
 

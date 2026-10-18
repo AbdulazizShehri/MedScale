@@ -33,7 +33,17 @@
   "account_number": "ID",
   "unique_id": "ID",
   "customer_id": "ID",
-  "age": "AGE"
+  "age": "AGE",
+  "firstname": "NAME",
+  "lastname": "NAME",
+  "middlename": "NAME",
+  "dateofbirth": "DATE",
+  "street": "LOCATION",
+  "zipcode": "LOCATION",
+  "buildingnumber": "LOCATION",
+  "secondaryaddress": "LOCATION",
+  "phone": "PHONE",
+  "maskednumber": "ID"
  },
  "documents": [
   {
