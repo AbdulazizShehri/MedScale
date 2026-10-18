@@ -143,7 +143,7 @@ fn catalog_row_to_verified_pack_to_local_execution() {
         .ok()
         .filter(|p| !p.is_empty())
     {
-        use medscale_pack::entity_eval::{EvalSet, evaluate, predicted_spans};
+        use medscale_pack::entity_eval::{EvalSet, evaluate, predicted_spans_at};
         // Repository-relative paths resolve against the workspace root
         // (`cargo test` runs in the crate directory).
         let path = std::path::Path::new(&path);
@@ -155,20 +155,59 @@ fn catalog_row_to_verified_pack_to_local_execution() {
             path.to_path_buf()
         };
         let set = EvalSet::from_json(&std::fs::read(&path).unwrap()).expect("valid gold set");
-        let mut predictions = std::collections::BTreeMap::new();
-        for doc in &set.documents {
-            let payload = prepared
-                .run_document(&manifest.pack_id, &doc.text, DocumentRunOptions::default())
-                .expect("gold document run")
-                .output
-                .proposal_payload;
-            predictions.insert(doc.id.clone(), predicted_spans(&payload));
+        // The OpenMed-compatible default and MedScale's optional decoders.
+        let configs = [
+            ("openmed_default", DocumentRunOptions::default(), "entities"),
+            (
+                "word_first",
+                DocumentRunOptions {
+                    aggregation: medscale_pack::EntityAggregation::WordFirst,
+                    ..DocumentRunOptions::default()
+                },
+                "entities",
+            ),
+            (
+                "word_average",
+                DocumentRunOptions {
+                    aggregation: medscale_pack::EntityAggregation::WordAverage,
+                    ..DocumentRunOptions::default()
+                },
+                "entities",
+            ),
+            (
+                "pii_merge",
+                DocumentRunOptions {
+                    pii_semantic_merge: true,
+                    ..DocumentRunOptions::default()
+                },
+                "pii_merged_entities",
+            ),
+            (
+                "word_first_pii_merge",
+                DocumentRunOptions {
+                    aggregation: medscale_pack::EntityAggregation::WordFirst,
+                    pii_semantic_merge: true,
+                    ..DocumentRunOptions::default()
+                },
+                "pii_merged_entities",
+            ),
+        ];
+        for (config, options, field) in configs {
+            let mut predictions = std::collections::BTreeMap::new();
+            for doc in &set.documents {
+                let payload = prepared
+                    .run_document(&manifest.pack_id, &doc.text, options)
+                    .expect("gold document run")
+                    .output
+                    .proposal_payload;
+                predictions.insert(doc.id.clone(), predicted_spans_at(&payload, field));
+            }
+            let report = evaluate(&set, &predictions);
+            println!(
+                "EVAL_METRICS {}",
+                serde_json::json!({"repo": meta.id, "revision": meta.sha, "config": config, "report": report})
+            );
         }
-        let report = evaluate(&set, &predictions);
-        println!(
-            "EVAL_METRICS {}",
-            serde_json::json!({"repo": meta.id, "revision": meta.sha, "report": report})
-        );
     }
     let _ = std::fs::remove_dir_all(&out);
 }

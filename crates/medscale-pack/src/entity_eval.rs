@@ -163,7 +163,14 @@ pub struct PredictedSpan {
 /// (`entities` array, Unicode-scalar offsets).
 #[must_use]
 pub fn predicted_spans(payload: &Value) -> Vec<PredictedSpan> {
-    payload["entities"]
+    predicted_spans_at(payload, "entities")
+}
+
+/// [`predicted_spans`] from another payload array, for example
+/// `pii_merged_entities` (the OpenMed PII entity merger's output).
+#[must_use]
+pub fn predicted_spans_at(payload: &Value, field: &str) -> Vec<PredictedSpan> {
+    payload[field]
         .as_array()
         .into_iter()
         .flatten()
@@ -466,5 +473,11 @@ mod tests {
         ]});
         assert_eq!(predicted_spans(&payload), vec![p(0, 4, "first_name")]);
         assert!(predicted_spans(&json!({})).is_empty());
+        let merged = json!({"pii_merged_entities": [
+            {"label": "first_name", "score": 0.8, "start": 0, "end": 9, "text": "Anna Berg"}]});
+        assert_eq!(
+            predicted_spans_at(&merged, "pii_merged_entities"),
+            vec![p(0, 9, "first_name")]
+        );
     }
 }

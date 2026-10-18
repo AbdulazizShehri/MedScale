@@ -61,9 +61,8 @@ def main() -> int:
         log = re.sub(r"\x1b\[[0-9;]*m", "", log)
         lines = [re.sub(r"^\S+Z ", "", l) for l in log.splitlines()]
         evidence = next((l for l in lines if l.startswith("SNAPSHOT_EVIDENCE")), None)
-        metrics = next((l for l in lines if l.startswith("EVAL_METRICS ")), None)
-        if metrics and job["conclusion"] == "success":
-            evals.append(json.loads(metrics.removeprefix("EVAL_METRICS ")))
+        if job["conclusion"] == "success":
+            evals += [json.loads(l.removeprefix("EVAL_METRICS ")) for l in lines if l.startswith("EVAL_METRICS ")]
         job_id = job["name"].removeprefix("qualify (").removesuffix(")")
         entry = batch.get(job_id)
         panic = next((l for l in lines if "panicked" in l or l.startswith("error:")), "")
@@ -95,12 +94,12 @@ def main() -> int:
     print("\n<!-- summary -->\n| Job | Result | Detail |\n|---|---|---|")
     print("\n".join(summary))
     if evals:
-        print("\n<!-- evaluation -->\n| Model | Revision | Strict P | Strict R | Strict F1 | Overlap F1 | Unmapped labels |")
-        print("|---|---|---|---|---|---|---|")
+        print("\n<!-- evaluation -->\n| Model | Revision | Decoding | Strict P | Strict R | Strict F1 | Overlap F1 | Unmapped labels |")
+        print("|---|---|---|---|---|---|---|---|")
         for e in sorted(evals, key=lambda e: -e["report"]["strict"]["f1"]):
             r = e["report"]
             print(
-                f"| {e['repo']} | `{e['revision'][:8]}` | {r['strict']['precision']:.3f} | "
+                f"| {e['repo']} | `{e['revision'][:8]}` | {e.get('config', 'openmed_default')} | {r['strict']['precision']:.3f} | "
                 f"{r['strict']['recall']:.3f} | {r['strict']['f1']:.3f} | {r['overlap']['f1']:.3f} | "
                 f"{', '.join(r['unmapped_labels']) or '-'} |"
             )
