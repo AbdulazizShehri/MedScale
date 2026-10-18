@@ -78,36 +78,78 @@ type Run = { id: string; status: string; revision: number; prompt: string };
 type Turn = { seq: number; kind: string; payload: string };
 
 export function MedAgent() {
-  return <ProjectScope title="MedAgent" sub="Agent runs bound to ingested sources, executed on the local fixture runtime. Output is a proposal.">{(pid) => <MedAgentBody projectId={pid} />}</ProjectScope>;
+  return <ProjectScope title="MedAgent" sub="Named agents on admitted local Packs, with contexts bound to chosen sources. Output is a proposal.">{(pid) => <MedAgentBody projectId={pid} />}</ProjectScope>;
 }
 
+type Agent = { id: string; label: string; status: string; revision?: number; pack_id?: string; tools?: string[] };
+type Model = { id: string; version: string; runtime: string; fixture: boolean; runnable: boolean };
+type Source = { id: string; fixture: string; resource_type: string; subject: string };
+type RunDetail = {
+  run: Run; context_id: string;
+  agent: { id: string; label: string; status: string; revision: number; pack_id: string; pack_version: string; tools: string[] };
+  evidence: Array<{ id: string; resolution: string | null; fixture: string | null; resource_type: string | null; subject: string | null }>;
+};
+const TOOLS: Array<[string, string]> = [["read_context_artifact", "Read a bound source"], ["search_context_artifacts", "Search bound sources"]];
+
 function MedAgentBody({ projectId }: { projectId: string }) {
-  const runs = useCommand<{ runs: Run[]; agents: Array<{ id: string; label: string; status: string }> }>("medagent_runs", { projectId });
+  const runs = useCommand<{ runs: Run[]; agents: Agent[] }>("medagent_runs", { projectId });
+  const models = useCommand<Model[]>("medagent_models");
+  const sources = useCommand<Source[]>("medagent_sources");
   const [sel, setSel] = useState<string | null>(null);
   const [prompt, setPrompt] = useState("");
+  const [agentId, setAgentId] = useState("");
+  const [picked, setPicked] = useState<string[]>([]);
   const [proposal, setProposal] = useState<unknown>(null);
+  const [newAgent, setNewAgent] = useState<{ name: string; packId: string; tools: string[] } | null>(null);
+  const [packPath, setPackPath] = useState("");
   const turns = useCommand<Turn[]>(sel ? "medagent_turns" : null, sel ? { runId: sel } : undefined);
+  const detail = useCommand<RunDetail>(sel ? "medagent_run_detail" : null, sel ? { runId: sel } : undefined);
   const { pending, run } = useAction();
   const outcome = useOutcome();
   const list = runs.state.status === "ready" ? runs.state.data.runs : [];
+  const agents = runs.state.status === "ready" ? runs.state.data.agents : [];
+  const active = agents.filter((a) => a.status === "active");
+  const packs = models.state.status === "ready" ? models.state.data : [];
+  const srcs = sources.state.status === "ready" ? sources.state.data : [];
   const cur = list.find((r) => r.id === sel) ?? null;
+  const d = detail.state.status === "ready" ? detail.state.data : null;
   useEffect(() => { if (!sel && list[0]) setSel(list[0].id); }, [list, sel]);
+  useEffect(() => { if (!agentId && active[0]) setAgentId(active[0].id); }, [active, agentId]);
+  useEffect(() => { if (!picked.length && srcs.length) setPicked(srcs.slice(0, 2).map((s) => s.id)); }, [srcs, picked.length]);
 
+  const after = async () => { await runs.reload(); await turns.reload(); await detail.reload(); };
   async function create(e: FormEvent) {
     e.preventDefault();
-    const r = await run<Run>("create", "medagent_create_run", { projectId, prompt });
-    if (outcome(r, "Run created (pending)")) { setPrompt(""); await runs.reload(); setSel(r.data.id); }
+    const args = agentId ? { projectId, prompt, agentId, sourceIds: picked } : { projectId, prompt, sourceIds: picked };
+    const r = await run<Run>("create", "medagent_create_run", args);
+    if (outcome(r, "Run created (pending)")) { setPrompt(""); setProposal(null); await runs.reload(); setSel(r.data.id); }
   }
-  async function step(cmd: "medagent_start" | "medagent_cancel", label: string) {
+  async function step(cmd: "medagent_start" | "medagent_cancel" | "medagent_complete", label: string) {
     if (!cur) return;
     const r = await run(cmd, cmd, { runId: cur.id, revision: cur.revision });
-    if (outcome(r, label)) { await runs.reload(); await turns.reload(); }
+    if (outcome(r, label)) await after();
   }
   async function execute() {
     if (!cur) return;
     const r = await run<{ turn: unknown; proposal: unknown }>("execute", "medagent_execute", { runId: cur.id });
-    if (outcome(r, "Run executed · proposal recorded")) { setProposal(r.data.proposal); await runs.reload(); await turns.reload(); }
+    if (outcome(r, "Run executed · proposal recorded")) { setProposal(r.data.proposal); await after(); }
   }
+  async function createAgent(e: FormEvent) {
+    e.preventDefault();
+    if (!newAgent) return;
+    const r = await run<Agent>("agent", "medagent_create_agent", { projectId, ...newAgent });
+    if (outcome(r, "Agent registered")) { setNewAgent(null); setAgentId(r.data.id); await runs.reload(); }
+  }
+  async function revoke(a: Agent) {
+    const r = await run("revoke", "medagent_revoke_agent", { agentId: a.id, revision: a.revision ?? 1 });
+    if (outcome(r, "Agent revoked · history kept")) { if (agentId === a.id) setAgentId(""); await runs.reload(); await detail.reload(); }
+  }
+  async function admitPack(e: FormEvent) {
+    e.preventDefault();
+    const r = await run("pack", "medagent_admit_pack", { path: packPath });
+    if (outcome(r, "Pack admitted by Core")) { setPackPath(""); await models.reload(); }
+  }
+  const toggle = (xs: string[], x: string) => (xs.includes(x) ? xs.filter((y) => y !== x) : [...xs, x]);
 
   return (
     <div style={{ display: "grid", gridTemplateColumns: "300px minmax(0,1fr)", gap: 24 }}>
@@ -122,24 +164,93 @@ function MedAgentBody({ projectId }: { projectId: string }) {
             </button>
           ))}
         </Section>
-        {runs.state.status === "ready" && <Section title="Agents" count={runs.state.data.agents.length}>
-          {runs.state.data.agents.map((a) => <div key={a.id} className="row-gap" style={{ justifyContent: "space-between", minHeight: 30 }}><span className="t-sm trunc">{a.label}</span><Status kind={glyphFor(String(a.status))} weight="weak">{String(a.status)}</Status></div>)}
-          {!runs.state.data.agents.length && <p className="t-sm i3">Created with the first run, on the admitted fixture pack.</p>}
-        </Section>}
+        <Section title="Agents" count={agents.length}>
+          {agents.map((a) => (
+            <div key={a.id} className="row-gap" style={{ justifyContent: "space-between", minHeight: 30, gap: 8 }}>
+              <span className="t-sm trunc">{a.label}</span>
+              <span className="row-gap" style={{ gap: 6 }}>
+                <Status kind={glyphFor(String(a.status))} weight="weak">{String(a.status)}</Status>
+                {a.status === "active" && <button type="button" className="btn btn-g" onClick={() => revoke(a)} disabled={!!pending}>Revoke</button>}
+              </span>
+            </div>
+          ))}
+          {!agents.length && <p className="t-sm i3">No agents yet. Register one, or the first run registers a synthetic review agent on the fixture Pack.</p>}
+          {newAgent ? (
+            <form onSubmit={createAgent} className="stack" style={{ gap: 8, marginTop: 10 }}>
+              <label className="lbl" htmlFor="an">Agent name</label>
+              <input id="an" value={newAgent.name} maxLength={80} onChange={(e) => setNewAgent({ ...newAgent, name: e.target.value })} />
+              <label className="lbl" htmlFor="am">Model (admitted Pack)</label>
+              <select id="am" value={newAgent.packId} onChange={(e) => setNewAgent({ ...newAgent, packId: e.target.value })}>
+                {packs.map((p) => <option key={p.id} value={p.id} disabled={!p.runnable}>{p.id} · {p.version}{p.fixture ? " · fixture" : ""}{p.runnable ? "" : " · folder unknown"}</option>)}
+              </select>
+              <span className="lbl">Tools</span>
+              {TOOLS.map(([k, label]) => (
+                <label key={k} className="row-gap t-sm" style={{ gap: 6 }}>
+                  <input type="checkbox" checked={newAgent.tools.includes(k)} onChange={() => setNewAgent({ ...newAgent, tools: toggle(newAgent.tools, k) })} />{label}
+                </label>
+              ))}
+              <div className="row-gap" style={{ gap: 8 }}>
+                <button type="submit" className="btn btn-p" disabled={!newAgent.name.trim() || !newAgent.packId || !newAgent.tools.length || !!pending}>Register</button>
+                <button type="button" className="btn btn-g" onClick={() => setNewAgent(null)}>Cancel</button>
+              </div>
+            </form>
+          ) : (
+            <button type="button" className="btn btn-s" style={{ marginTop: 10 }} disabled={!packs.length} onClick={() => setNewAgent({ name: "", packId: packs.find((p) => p.runnable)?.id ?? "", tools: ["read_context_artifact"] })}>New agent</button>
+          )}
+        </Section>
+        <Section title="Models" count={packs.length}>
+          {models.state.status === "error" && <ErrorState error={models.state.error} onRetry={models.reload} />}
+          {packs.map((p) => <div key={p.id} className="row-gap" style={{ justifyContent: "space-between", minHeight: 28 }}><span className="mono t-mono-sm trunc">{p.id}</span><Status kind={p.runnable ? "available" : "blocked"} weight="weak">{p.fixture ? "fixture" : p.runnable ? "local" : "folder unknown"}</Status></div>)}
+          <form onSubmit={admitPack} className="stack" style={{ gap: 6, marginTop: 8 }}>
+            <label className="lbl" htmlFor="pp">Admit a local Pack folder</label>
+            <input id="pp" value={packPath} maxLength={1024} placeholder="Absolute folder path" onChange={(e) => setPackPath(e.target.value)} />
+            <div><button type="submit" className="btn btn-s" disabled={!packPath.trim() || !!pending}>Admit</button></div>
+          </form>
+          <p className="t-sm i3" style={{ marginTop: 6 }}>Core verifies the manifest, digests and signature. Nothing is downloaded.</p>
+        </Section>
       </div>
       <div>
         <form onSubmit={create} className="stack" style={{ gap: 8, marginBottom: 18 }}>
-          <label className="lbl" htmlFor="ap">New run · scope: ingested synthetic sources</label>
+          <label className="lbl" htmlFor="ag">Agent</label>
+          <select id="ag" value={agentId} onChange={(e) => setAgentId(e.target.value)}>
+            {!active.length && <option value="">Synthetic review agent (created on first run)</option>}
+            {active.map((a) => <option key={a.id} value={a.id}>{a.label}</option>)}
+          </select>
+          <span className="lbl">Context · ingested synthetic sources ({picked.length} selected)</span>
+          <div className="stack" style={{ gap: 2, maxHeight: 150, overflow: "auto" }}>
+            {srcs.map((s) => (
+              <label key={s.id} className="row-gap t-sm" style={{ gap: 6 }}>
+                <input type="checkbox" checked={picked.includes(s.id)} onChange={() => setPicked(toggle(picked, s.id))} />
+                <span className="trunc">{s.resource_type} · {s.fixture} · {s.subject}</span>
+              </label>
+            ))}
+          </div>
+          <label className="lbl" htmlFor="ap">Prompt</label>
           <textarea id="ap" value={prompt} onChange={(e) => setPrompt(e.target.value)} placeholder="Ask about the bound sources…" maxLength={2000} style={{ minHeight: 70 }} />
-          <div><button type="submit" className="btn btn-p" disabled={!prompt.trim() || !!pending}>{pending === "create" ? <Glyph kind="running" /> : null}Create run</button></div>
+          <div><button type="submit" className="btn btn-p" disabled={!prompt.trim() || !picked.length || picked.length > 16 || !!pending}>{pending === "create" ? <Glyph kind="running" /> : null}Create run</button></div>
         </form>
         {cur ? <>
-          <Ledger items={[{ k: "run", v: cur.id, mono: true }, { k: "status", v: <Status kind={glyphFor(cur.status)} weight="strong">{cur.status}</Status> }, { k: "revision", v: cur.revision, mono: true }]} />
+          <Ledger items={[
+            { k: "run", v: cur.id, mono: true },
+            { k: "status", v: <Status kind={glyphFor(cur.status)} weight="strong">{cur.status}</Status> },
+            { k: "revision", v: cur.revision, mono: true },
+            ...(d ? [{ k: "agent", v: `${d.agent.label} (${d.agent.status})` }, { k: "model", v: `${d.agent.pack_id} · ${d.agent.pack_version}`, mono: true }, { k: "tools", v: d.agent.tools.join(", ") || "none" }] : []),
+          ]} />
           <div className="row-gap" style={{ gap: 8, marginBottom: 16 }}>
             <button type="button" className="btn btn-s" onClick={() => step("medagent_start", "Run started")} disabled={!!pending || cur.status !== "pending"}>Start</button>
             <button type="button" className="btn btn-p" onClick={execute} disabled={!!pending || cur.status !== "running"}>{pending === "execute" ? <Glyph kind="running" /> : null}Execute on local runtime</button>
+            <button type="button" className="btn btn-s" onClick={() => step("medagent_complete", "Run completed · receipt recorded")} disabled={!!pending || cur.status !== "running"}>Complete</button>
             <button type="button" className="btn btn-g" onClick={() => step("medagent_cancel", "Run cancelled")} disabled={!!pending || ["completed", "cancelled", "failed"].includes(cur.status)}>Cancel</button>
           </div>
+          <Section title="Evidence" count={d ? d.evidence.length : "…"}>
+            {detail.state.status === "error" && <ErrorState error={detail.state.error} onRetry={detail.reload} />}
+            {d?.evidence.map((e) => (
+              <div key={e.id} className="lr" style={{ gridTemplateColumns: "minmax(0,1fr) auto", padding: "6px 12px" }}>
+                <span style={{ display: "flex", flexDirection: "column", minWidth: 0 }}><span className="t-sm trunc">{e.resource_type ?? "source"} · {e.fixture ?? e.id}</span><span className="mono t-mono-sm i3 trunc">{e.id}{e.subject ? ` · ${e.subject}` : ""}</span></span>
+                <Status kind={e.resolution === "current" ? "available" : "blocked"} weight="weak">{e.resolution ?? "unknown"}</Status>
+              </div>
+            ))}
+          </Section>
           <Section title="Turns" count={turns.state.status === "ready" ? turns.state.data.length : "…"}>
             {turns.state.status === "ready" && (turns.state.data.length ? turns.state.data.map((t) => (
               <div key={t.seq} className="lr" style={{ gridTemplateColumns: "36px 140px minmax(0,1fr)", alignItems: "start", padding: "8px 12px" }}><span className="mono t-mono-sm i3">{t.seq}</span><span className="t-sm i2">{t.kind}</span><TurnPayload payload={t.payload} /></div>
@@ -151,8 +262,8 @@ function MedAgentBody({ projectId }: { projectId: string }) {
               <pre className="pre" style={{ marginTop: 10, border: 0, background: "transparent", padding: 0 }}>{JSON.stringify(proposal, null, 2)}</pre>
             </div>
           </Section>}
-          <Authority>Proposal, not accepted. Nothing is written to a record; a person decides through review.</Authority>
-        </> : <Empty icon="medagent" title="No run selected">Create a run. MedScale registers a synthetic agent on the admitted fixture pack and binds its context to ingested sources.</Empty>}
+          <Authority>Proposal, not accepted. Nothing is written to a record; a person decides through review. Runs, turns and evidence persist in the vault and resume after a restart.</Authority>
+        </> : <Empty icon="medagent" title="No run selected">Choose an agent and the sources its context binds, then create a run.</Empty>}
       </div>
     </div>
   );

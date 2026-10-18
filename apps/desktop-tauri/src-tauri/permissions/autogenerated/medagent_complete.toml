@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-medagent-complete"
+description = "Enables the medagent_complete command without any pre-configured scope."
+commands.allow = ["medagent_complete"]
+
+[[permission]]
+identifier = "deny-medagent-complete"
+description = "Denies the medagent_complete command without any pre-configured scope."
+commands.deny = ["medagent_complete"]

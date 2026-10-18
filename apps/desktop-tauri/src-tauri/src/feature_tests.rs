@@ -24,6 +24,15 @@ struct Harness {
 
 impl Harness {
     fn new(name: &str) -> Self {
+        Self::start(name, true)
+    }
+
+    /// A new app process on the same data directory (an app restart).
+    fn restart(name: &str) -> Self {
+        Self::start(name, false)
+    }
+
+    fn start(name: &str, fresh: bool) -> Self {
         let app = super::presentation_builder(mock_builder())
             .build(tauri::generate_context!())
             .expect("build production context");
@@ -31,7 +40,9 @@ impl Harness {
             "medscale-tauri-feature-{name}-{}",
             std::process::id()
         ));
-        let _ = std::fs::remove_dir_all(&dir);
+        if fresh {
+            let _ = std::fs::remove_dir_all(&dir);
+        }
         std::fs::create_dir_all(&dir).unwrap();
         app.state::<crate::host::Host>()
             .state
@@ -500,4 +511,171 @@ fn encrypted_vault_create_lock_unlock_and_wrong_passphrase() {
         .unwrap_err()["kind"],
         "conflict"
     );
+}
+
+#[test]
+fn medagent_workbench_agent_context_evidence_and_resume() {
+    let pid;
+    let rid;
+    let agent_id;
+    {
+        let h = Harness::new("medagent");
+        h.ok("workspace_open_synthetic", json!({}));
+        let project = h.ok(
+            "project_create",
+            json!({ "name": "Agent study", "description": null }),
+        );
+        pid = project["id"].as_str().unwrap().to_owned();
+
+        // Model selection: the bundled fixture Pack is admitted and runnable.
+        let models = h.ok("medagent_models", json!({}));
+        let fixture = models
+            .as_array()
+            .unwrap()
+            .iter()
+            .find(|m| m["fixture"] == true)
+            .unwrap_or_else(|| panic!("{models}"))
+            .clone();
+        assert_eq!(fixture["runnable"], true);
+        let pack_id = fixture["id"].as_str().unwrap().to_owned();
+
+        // A relative or missing folder is refused before Core sees it.
+        assert_eq!(
+            h.call("medagent_admit_pack", json!({ "path": "relative/pack" }))
+                .unwrap_err()["kind"],
+            "invalid"
+        );
+
+        // Agent creation: name, Pack and granted tools; unknown tools refused.
+        assert_eq!(
+            h.call(
+                "medagent_create_agent",
+                json!({ "projectId": pid, "name": "x", "packId": pack_id, "tools": ["shell"] }),
+            )
+            .unwrap_err()["kind"],
+            "invalid"
+        );
+        let agent = h.ok(
+            "medagent_create_agent",
+            json!({
+                "projectId": pid,
+                "name": "Synthetic summarizer",
+                "packId": pack_id,
+                "tools": ["read_context_artifact", "search_context_artifacts"],
+            }),
+        );
+        assert_eq!(agent["label"], "Synthetic summarizer");
+        assert_eq!(agent["pack_id"], pack_id.as_str());
+        assert_eq!(agent["tools"].as_array().unwrap().len(), 2, "{agent}");
+        agent_id = agent["id"].as_str().unwrap().to_owned();
+
+        // Context creation: exactly the chosen ingested source.
+        let sources = h.ok("medagent_sources", json!({}));
+        let first = sources[0]["id"].as_str().unwrap().to_owned();
+        assert_eq!(
+            h.call(
+                "medagent_create_run",
+                json!({ "projectId": pid, "prompt": "p", "agentId": agent_id, "sourceIds": ["not-a-source"] }),
+            )
+            .unwrap_err()["kind"],
+            "invalid"
+        );
+        let run = h.ok(
+            "medagent_create_run",
+            json!({
+                "projectId": pid,
+                "prompt": "summarize the observation",
+                "agentId": agent_id,
+                "sourceIds": [first],
+            }),
+        );
+        rid = run["id"].as_str().unwrap().to_owned();
+        let detail = h.ok("medagent_run_detail", json!({ "runId": rid }));
+        assert_eq!(detail["agent"]["id"], agent_id.as_str());
+        let evidence = detail["evidence"].as_array().unwrap();
+        assert_eq!(evidence.len(), 1, "{detail}");
+        assert_eq!(evidence[0]["id"], first.as_str());
+        assert!(evidence[0]["fixture"].is_string(), "{detail}");
+
+        h.ok(
+            "medagent_start",
+            json!({ "runId": rid, "revision": run["revision"] }),
+        );
+        let executed = h.ok("medagent_execute", json!({ "runId": rid }));
+        assert!(executed["proposal"].is_object(), "{executed}");
+        let running = h.ok("medagent_run_detail", json!({ "runId": rid }));
+        let done = h.ok(
+            "medagent_complete",
+            json!({ "runId": rid, "revision": running["run"]["revision"] }),
+        );
+        assert_eq!(done["status"], "completed", "{done}");
+        assert!(done["receipt"].is_object(), "{done}");
+        // Closing the window releases the vault lease (a new process starts
+        // with none); the mock app outlives this scope, so lock explicitly.
+        h.ok("workspace_lock", json!({}));
+    }
+
+    // Restart: a new app process on the same data directory resumes the
+    // session from the vault — agent, run, turns and evidence.
+    let h = Harness::restart("medagent");
+    h.ok("workspace_open_synthetic", json!({}));
+    let runs = h.ok("medagent_runs", json!({ "projectId": pid }));
+    let resumed = runs["runs"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|r| r["id"] == rid.as_str())
+        .unwrap_or_else(|| panic!("{runs}"))
+        .clone();
+    assert_eq!(resumed["status"], "completed", "{resumed}");
+    assert!(
+        runs["agents"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .any(|a| a["id"] == agent_id.as_str())
+    );
+    assert!(
+        h.ok("medagent_turns", json!({ "runId": rid }))
+            .as_array()
+            .unwrap()
+            .len()
+            >= 2
+    );
+    let detail = h.ok("medagent_run_detail", json!({ "runId": rid }));
+    assert_eq!(detail["evidence"].as_array().unwrap().len(), 1);
+
+    // Revocation keeps history and stops new execution on that agent.
+    let revoked = h.ok(
+        "medagent_revoke_agent",
+        json!({ "agentId": agent_id, "revision": detail["agent"]["revision"] }),
+    );
+    assert_eq!(revoked["status"], "revoked", "{revoked}");
+    // With every agent revoked, a run without an agent gets a new active one.
+    let fresh = h.ok(
+        "medagent_create_run",
+        json!({ "projectId": pid, "prompt": "follow-up question" }),
+    );
+    let fresh_detail = h.ok("medagent_run_detail", json!({ "runId": fresh["id"] }));
+    assert_eq!(fresh_detail["agent"]["status"], "active", "{fresh_detail}");
+    assert_ne!(fresh_detail["agent"]["id"], agent_id.as_str());
+    assert!(
+        !h.ok("medagent_turns", json!({ "runId": rid }))
+            .as_array()
+            .unwrap()
+            .is_empty()
+    );
+    // Reads the MedAgent page makes, recorded for visual QA replay.
+    for (cmd, args) in [
+        ("workspace_status", json!({})),
+        ("get_shell_status", json!({})),
+        ("projects_list", json!({})),
+        ("medagent_runs", json!({ "projectId": pid })),
+        ("medagent_models", json!({})),
+        ("medagent_sources", json!({})),
+        ("medagent_run_detail", json!({ "runId": rid })),
+    ] {
+        h.ok(cmd, args);
+    }
+    h.dump();
 }

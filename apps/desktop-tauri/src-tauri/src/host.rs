@@ -291,6 +291,34 @@ fn save_manifest(vault_root: &Path, manifest: &SeedManifest) -> CmdResult<()> {
         .map_err(|_| CmdError::unavailable("Unavailable: seed manifest not writable"))
 }
 
+fn pack_dirs_path(vault_root: &Path) -> PathBuf {
+    let mut name = vault_root
+        .file_name()
+        .map(|n| n.to_string_lossy().into_owned())
+        .unwrap_or_else(|| "workspace".to_owned());
+    name.push_str(".desktop-packs.json");
+    vault_root.with_file_name(name)
+}
+
+/// Local folders of Packs this desktop admitted into a vault, by Pack id.
+/// Core re-verifies the folder against the admitted manifest on every run.
+pub fn load_pack_dirs(vault_root: &Path) -> std::collections::BTreeMap<String, String> {
+    std::fs::read(pack_dirs_path(vault_root))
+        .ok()
+        .and_then(|bytes| serde_json::from_slice(&bytes).ok())
+        .unwrap_or_default()
+}
+
+pub fn save_pack_dirs(
+    vault_root: &Path,
+    dirs: &std::collections::BTreeMap<String, String>,
+) -> CmdResult<()> {
+    let bytes = serde_json::to_vec_pretty(dirs)
+        .map_err(|_| CmdError::new("internal", "Internal: pack folders"))?;
+    std::fs::write(pack_dirs_path(vault_root), bytes)
+        .map_err(|_| CmdError::unavailable("Unavailable: pack folders not writable"))
+}
+
 /// Ingests and promotes the synthetic fixtures through Core, once per vault.
 pub fn seed_synthetic(workspace: &mut Workspace, data_dir: &Path) -> CmdResult<()> {
     if !workspace.seed.subjects.is_empty() {
