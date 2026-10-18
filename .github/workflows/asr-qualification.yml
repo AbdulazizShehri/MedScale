@@ -86,10 +86,13 @@ jobs:
           out = sys.argv[1]
           texts = [
               "The patient reports chest pain since Monday morning.",
-              "Blood pressure is one hundred and forty over ninety.",
-              "She was started on metformin for type two diabetes.",
-              "No known drug allergies. Follow up in two weeks.",
-              "The child has a fever and a dry cough for three days.",
+              "Blood pressure is 140 over 90.",
+              "She was started on metformin for type 2 diabetes.",
+              "No known drug allergies. Follow up in 2 weeks.",
+              "The child has a fever and a dry cough for 3 days.",
+              "The wound on the left leg is healing well.",
+              "He denies shortness of breath or nausea.",
+              "Please repeat the blood test next month.",
           ]
           cases = []
           for i, text in enumerate(texts):

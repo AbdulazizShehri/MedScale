@@ -44,6 +44,15 @@ pub const ASR_SOURCES: &[(&str, &str)] = &[
 pub const MAX_ASR_SAMPLES: usize = 10 * 60 * whisper::SAMPLE_RATE;
 /// Largest number of tokens decoded for one 30-second window.
 const MAX_WINDOW_TOKENS: usize = 224;
+/// Token allowance per second of audio in a window (speech runs at about
+/// 3–4 tokens per second), plus a fixed margin. Bounds runaway decoding.
+const TOKENS_PER_SECOND: usize = 8;
+const TOKEN_MARGIN: usize = 16;
+/// A token repeated this many times in a row ends the window (greedy
+/// Whisper can loop on silence or unclear audio); the repeats are dropped.
+const MAX_TOKEN_REPEAT: usize = 4;
+// A full 30-second window may still use the whole window budget.
+const _: () = assert!(TOKEN_MARGIN + TOKENS_PER_SECOND * 31 >= MAX_WINDOW_TOKENS);
 
 #[derive(Debug, Error)]
 pub enum AsrRuntimeError {
@@ -315,7 +324,10 @@ impl PreparedWhisperAsr {
             } else {
                 window
             };
-            let piece = self.decode_window(&mut model, &window)?;
+            let seconds = (content_frames - seek).min(whisper::N_FRAMES) * whisper::HOP_LENGTH
+                / whisper::SAMPLE_RATE;
+            let budget = TOKEN_MARGIN + TOKENS_PER_SECOND * (seconds + 1);
+            let piece = self.decode_window(&mut model, &window, budget)?;
             if !piece.is_empty() {
                 if !text.is_empty() {
                     text.push(' ');
@@ -327,7 +339,12 @@ impl PreparedWhisperAsr {
         Ok(text)
     }
 
-    fn decode_window(&self, model: &mut Whisper, mel: &Tensor) -> Result<String, AsrRuntimeError> {
+    fn decode_window(
+        &self,
+        model: &mut Whisper,
+        mel: &Tensor,
+        audio_budget: usize,
+    ) -> Result<String, AsrRuntimeError> {
         let features = model.encoder.forward(mel, true).map_err(exec)?;
         let mut tokens = vec![self.tokens.sot];
         if let Some(en) = self.tokens.english {
@@ -344,7 +361,9 @@ impl PreparedWhisperAsr {
             }
         }
         let mask = Tensor::new(mask.as_slice(), &self.device).map_err(exec)?;
-        let budget = MAX_WINDOW_TOKENS.min(self.config.max_target_positions / 2);
+        let budget = MAX_WINDOW_TOKENS
+            .min(self.config.max_target_positions / 2)
+            .min(audio_budget);
         for i in 0..budget {
             let input = Tensor::new(tokens.as_slice(), &self.device)
                 .and_then(|t| t.unsqueeze(0))
@@ -369,6 +388,16 @@ impl PreparedWhisperAsr {
                 break;
             }
             tokens.push(next);
+            let tail = &tokens[prompt_len..];
+            if tail.len() >= MAX_TOKEN_REPEAT
+                && tail[tail.len() - MAX_TOKEN_REPEAT..]
+                    .iter()
+                    .all(|&t| t == next)
+            {
+                // Keep one occurrence; drop the loop.
+                tokens.truncate(tokens.len() - (MAX_TOKEN_REPEAT - 1));
+                break;
+            }
         }
         model.decoder.reset_kv_cache();
         self.tokenizer

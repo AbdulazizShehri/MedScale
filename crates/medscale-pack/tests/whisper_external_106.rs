@@ -15,11 +15,41 @@ fn env(name: &str) -> String {
     std::env::var(name).unwrap_or_else(|_| panic!("{name} must be set"))
 }
 
+/// Lowercased words with small number words written as digits, so "two"
+/// and "2" compare equal (Whisper writes either).
 fn words(text: &str) -> Vec<String> {
+    const NUMBERS: &[&str] = &[
+        "zero",
+        "one",
+        "two",
+        "three",
+        "four",
+        "five",
+        "six",
+        "seven",
+        "eight",
+        "nine",
+        "ten",
+        "eleven",
+        "twelve",
+        "thirteen",
+        "fourteen",
+        "fifteen",
+        "sixteen",
+        "seventeen",
+        "eighteen",
+        "nineteen",
+        "twenty",
+    ];
     text.to_lowercase()
         .split(|c: char| !c.is_alphanumeric() && c != '\'')
         .filter(|w| !w.is_empty())
-        .map(str::to_owned)
+        .map(|w| {
+            NUMBERS
+                .iter()
+                .position(|n| *n == w)
+                .map_or_else(|| w.to_owned(), |i| i.to_string())
+        })
         .collect()
 }
 
@@ -62,8 +92,12 @@ fn wav_samples(bytes: &[u8]) -> Vec<f32> {
 
 #[test]
 fn wer_counts_word_edits() {
-    assert_eq!(wer("the patient has a fever", "the patient has a fever."), 0.0);
+    assert_eq!(
+        wer("the patient has a fever", "the patient has a fever."),
+        0.0
+    );
     assert!((wer("a b c d", "a x c") - 0.5).abs() < 1e-9);
+    assert_eq!(wer("type two diabetes", "Type 2 diabetes."), 0.0);
 }
 
 #[test]
@@ -71,7 +105,12 @@ fn wer_counts_word_edits() {
 fn mel_filters_match_openai_reference() {
     let reference = candle_core::Tensor::read_npz(env("MEDSCALE_MEL_FILTERS_NPZ")).unwrap();
     for (name, n_mels) in [("mel_80", 80), ("mel_128", 128)] {
-        let tensor = &reference.iter().find(|(n, _)| n == name).unwrap().1;
+        let names: Vec<&str> = reference.iter().map(|(n, _)| n.as_str()).collect();
+        let tensor = &reference
+            .iter()
+            .find(|(n, _)| n.trim_end_matches(".npy") == name)
+            .unwrap_or_else(|| panic!("{name} not in {names:?}"))
+            .1;
         let expected: Vec<f32> = tensor.flatten_all().unwrap().to_vec1().unwrap();
         let ours = mel_filters(n_mels);
         assert_eq!(expected.len(), ours.len(), "{name}");
