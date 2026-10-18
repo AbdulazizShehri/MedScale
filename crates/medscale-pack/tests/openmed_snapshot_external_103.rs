@@ -144,6 +144,16 @@ fn catalog_row_to_verified_pack_to_local_execution() {
         .filter(|p| !p.is_empty())
     {
         use medscale_pack::entity_eval::{EvalSet, evaluate, predicted_spans};
+        // Repository-relative paths resolve against the workspace root
+        // (`cargo test` runs in the crate directory).
+        let path = std::path::Path::new(&path);
+        let path = if path.is_relative() {
+            std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+                .join("../..")
+                .join(path)
+        } else {
+            path.to_path_buf()
+        };
         let set = EvalSet::from_json(&std::fs::read(&path).unwrap()).expect("valid gold set");
         let mut predictions = std::collections::BTreeMap::new();
         for doc in &set.documents {
