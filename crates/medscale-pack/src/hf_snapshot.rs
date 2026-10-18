@@ -90,6 +90,8 @@ pub enum SnapshotError {
     RightsPending(Option<String>),
     #[error("config.json has no usable id2label")]
     Labels,
+    #[error("tokenizer source refused: {0}")]
+    TokenizerSource(String),
     #[error("io: {0}")]
     Io(String),
 }
@@ -453,6 +455,48 @@ pub fn build_text_generation_pack(
     Ok(pack_id)
 }
 
+/// The catalog repository a snapshot borrows `tokenizer.json` from.
+///
+/// OpenMed's MLX exports ship no tokenizer; OpenMed and OpenMedKit fall back
+/// to the source checkpoint named by `_name_or_path` in `config.json`. MedScale
+/// does the same, but only for an `OpenMed/` repository that is itself a
+/// catalog row, with its own metadata verified against that row and the
+/// tokenizer verified against its own pinned digest.
+pub struct TokenizerSource<'a> {
+    pub meta: &'a HfRepoMetadata,
+    pub row: &'a CatalogRow,
+}
+
+/// The tokenizer source a snapshot's `config.json` names (`_name_or_path`),
+/// when it is a plain `OpenMed/<name>` repository other than `own_repo`.
+#[must_use]
+pub fn tokenizer_source_repo(config: &[u8], own_repo: &str) -> Option<String> {
+    let value: Value = serde_json::from_slice(config).ok()?;
+    let name = value.get("_name_or_path")?.as_str()?;
+    let model = name.strip_prefix("OpenMed/")?;
+    let plain = !model.is_empty()
+        && model
+            .bytes()
+            .all(|b| b.is_ascii_alphanumeric() || matches!(b, b'-' | b'_' | b'.'))
+        && !model.starts_with('.');
+    (plain && name != own_repo).then(|| name.to_owned())
+}
+
+/// Metadata of the tokenizer source an acquisition stored beside the
+/// snapshot (`tokenizer_source/metadata.json`), when there is one.
+pub fn snapshot_tokenizer_source(
+    snapshot_dir: &Path,
+) -> Result<Option<HfRepoMetadata>, SnapshotError> {
+    let path = snapshot_dir.join("tokenizer_source").join("metadata.json");
+    match fs::read(&path) {
+        Ok(bytes) => serde_json::from_slice(&bytes)
+            .map(Some)
+            .map_err(|e| SnapshotError::Metadata(format!("tokenizer_source/metadata.json: {e}"))),
+        Err(e) if e.kind() == std::io::ErrorKind::NotFound => Ok(None),
+        Err(e) => Err(io(&e)),
+    }
+}
+
 /// Inputs of a token-classification Pack built from a verified snapshot.
 pub struct TokenClassifierSnapshot<'a> {
     pub meta: &'a HfRepoMetadata,
@@ -462,6 +506,9 @@ pub struct TokenClassifierSnapshot<'a> {
     /// ONNX file to run, for example `model.onnx`.
     pub onnx_file: &'a str,
     pub fixed_sequence_length: u32,
+    /// Set when the repository ships no `tokenizer.json` (OpenMed MLX
+    /// exports); the snapshot's `tokenizer.json` is then the source's.
+    pub tokenizer_source: Option<TokenizerSource<'a>>,
 }
 
 /// Verifies the snapshot against the catalog and Hub digests, then writes a
@@ -499,10 +546,47 @@ pub fn build_token_classifier_pack(
     };
     let model = read(input.onnx_file)?;
     let model_sha = verify_file(input.meta, input.onnx_file, &model)?;
-    let tokenizer = read("tokenizer.json")?;
-    verify_file(input.meta, "tokenizer.json", &tokenizer)?;
     let config = read("config.json")?;
     verify_file(input.meta, "config.json", &config)?;
+    let tokenizer = read("tokenizer.json")?;
+    let tokenizer_source = match &input.tokenizer_source {
+        None => {
+            verify_file(input.meta, "tokenizer.json", &tokenizer)?;
+            None
+        }
+        Some(source) => {
+            let own = input
+                .meta
+                .siblings
+                .iter()
+                .any(|s| s.rfilename == "tokenizer.json");
+            if own {
+                return Err(SnapshotError::TokenizerSource(
+                    "the repository ships its own tokenizer.json".into(),
+                ));
+            }
+            if tokenizer_source_repo(&config, &input.meta.id).as_deref()
+                != Some(source.meta.id.as_str())
+            {
+                return Err(SnapshotError::TokenizerSource(format!(
+                    "config.json does not name {} as its source",
+                    source.meta.id
+                )));
+            }
+            verify_against_catalog(source.meta, source.row)?;
+            // The borrowed file carries its own repository's license claim,
+            // which must be admitted like the export's.
+            spdx_for(source.row.license_claim.as_deref())?;
+            let sha256 = verify_file(source.meta, "tokenizer.json", &tokenizer)?;
+            Some(json!({
+                "repository": source.meta.id,
+                "revision": source.meta.sha,
+                "file": "tokenizer.json",
+                "sha256": sha256,
+                "reason": "the repository ships no tokenizer; config.json _name_or_path names this catalog repository",
+            }))
+        }
+    };
     let labels = labels_from_config(&config)?;
 
     let revision = input.meta.sha.clone();
@@ -544,6 +628,14 @@ pub fn build_token_classifier_pack(
             + "\n")
             .as_bytes(),
     )?;
+    if let Some(source) = &tokenizer_source {
+        write(
+            "tokenizer_source.json",
+            (serde_json::to_string_pretty(source).map_err(|e| SnapshotError::Io(e.to_string()))?
+                + "\n")
+                .as_bytes(),
+        )?;
+    }
 
     let mut rows = Vec::new();
     let mut artifacts = vec![
@@ -554,6 +646,9 @@ pub fn build_token_classifier_pack(
     ];
     if safetensors {
         artifacts.insert(0, ("config.json", "model_metadata", true));
+    }
+    if tokenizer_source.is_some() {
+        artifacts.push(("tokenizer_source.json", "model_metadata", true));
     }
     for (name, kind, text) in artifacts {
         let bytes = fs::read(out_dir.join(name)).map_err(|e| io(&e))?;
@@ -736,11 +831,32 @@ mod tests {
             snapshot_dir: Path::new("."),
             onnx_file: "model.onnx",
             fixed_sequence_length: 128,
+            tokenizer_source: None,
         };
         assert!(matches!(
             build_token_classifier_pack(&input, Path::new("unused")),
             Err(SnapshotError::RightsPending(_))
         ));
+    }
+
+    #[test]
+    fn tokenizer_sources_are_plain_openmed_repositories_named_by_the_config() {
+        let own = "OpenMed/OpenMed-PII-X-mlx";
+        let src = |name: &str| {
+            tokenizer_source_repo(format!(r#"{{"_name_or_path":"{name}"}}"#).as_bytes(), own)
+        };
+        assert_eq!(
+            src("OpenMed/OpenMed-PII-X").as_deref(),
+            Some("OpenMed/OpenMed-PII-X")
+        );
+        assert_eq!(src(own), None);
+        assert_eq!(src("other/OpenMed-PII-X"), None);
+        assert_eq!(src("OpenMed/../evil"), None);
+        assert_eq!(src("OpenMed/a/b"), None);
+        assert_eq!(src("OpenMed/"), None);
+        assert_eq!(src("./local-dir"), None);
+        assert_eq!(tokenizer_source_repo(b"{}", own), None);
+        assert_eq!(tokenizer_source_repo(b"not json", own), None);
     }
 
     #[test]

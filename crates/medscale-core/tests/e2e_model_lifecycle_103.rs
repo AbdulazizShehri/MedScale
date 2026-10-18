@@ -204,6 +204,7 @@ fn model_lifecycle_runs_end_to_end_through_core() {
             snapshot_dir: &snap_dir,
             onnx_file: "model.safetensors",
             fixed_sequence_length: 16,
+            tokenizer_source: None,
         },
         &pack_dir,
     )
@@ -337,6 +338,7 @@ fn an_unsupported_architecture_is_refused_before_execution() {
             snapshot_dir: &snap_dir,
             onnx_file: "model.safetensors",
             fixed_sequence_length: 16,
+            tokenizer_source: None,
         },
         &pack_dir,
     )
