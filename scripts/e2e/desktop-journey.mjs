@@ -153,6 +153,19 @@ async function journey(name, fn) {
     console.log(`E2E PASS ${name}`);
   } catch (err) {
     await shot(`${name}-FAILED`).catch(() => {});
+    try {
+      const handles = await wd("GET", `/session/${sid}/window/handles`);
+      const title = await wd("GET", `/session/${sid}/title`);
+      const url = await wd("GET", `/session/${sid}/url`);
+      const buttons = await wd("POST", `/session/${sid}/elements`, { using: "xpath", value: "//button" });
+      const js = await wd("POST", `/session/${sid}/execute/sync`, {
+        script: "return Array.from(document.querySelectorAll('button')).slice(0, 8).map(b => b.innerText.trim());",
+        args: [],
+      });
+      console.log(`DEBUG handles=${JSON.stringify(handles)} title=${title} url=${url} xpathButtons=${buttons.length} jsButtons=${JSON.stringify(js)}`);
+    } catch (e) {
+      console.log(`DEBUG failed: ${e.message}`);
+    }
     results.push({ journey: name, ok: false, ms: Date.now() - started, error: String(err.message) });
     console.log(`E2E FAIL ${name}: ${err.message}`);
     throw err;
