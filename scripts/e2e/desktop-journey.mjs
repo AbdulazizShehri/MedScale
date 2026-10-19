@@ -119,6 +119,19 @@ async function find(xpath, timeout = 30000) {
     }
     await sleep(250);
   }
+  try {
+    const els = await wd("POST", `/session/${sid}/elements`, { using: "xpath", value: xpath });
+    let probe = "none";
+    if (els[0]) {
+      probe = await wd("POST", `/session/${sid}/execute/sync`, {
+        script: "const e = arguments[0]; const r = e.getBoundingClientRect(); return JSON.stringify({ w: r.width, h: r.height, disabled: e.disabled, vis: getComputedStyle(e).visibility });",
+        args: [{ [ELEMENT]: els[0][ELEMENT] }],
+      }).catch((e) => `error ${e.message}`);
+    }
+    console.log(`DEBUG find matches=${els.length} keys=${JSON.stringify(Object.keys(els[0] ?? {}))} probe=${probe}`);
+  } catch (e) {
+    console.log(`DEBUG find probe failed: ${e.message}`);
+  }
   throw new Error(`not found within ${timeout} ms: ${xpath}${last ? ` (${last.message})` : ""}`);
 }
 const text = (t) => `contains(normalize-space(.), ${JSON.stringify(t)})`;
