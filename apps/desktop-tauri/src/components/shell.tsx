@@ -1,7 +1,8 @@
 import { useEffect, useMemo, useRef, useState, type KeyboardEvent } from "react";
 import { areas, routes, searchRoutes, type Route, type RouteId } from "../routes";
 import { useApp } from "../lib/app";
-import { Glyph, Icon, Mark, type IconName } from "./ui";
+import { Mark, Wordmark } from "./brand";
+import { Glyph, Icon, type IconName } from "./ui";
 
 const isMac = typeof navigator !== "undefined" && /Mac|iPhone|iPad/.test(navigator.platform);
 export const MOD = isMac ? "⌘" : "Ctrl";
@@ -16,8 +17,8 @@ export function Sidebar() {
   return (
     <aside className="sb" aria-label="Primary navigation">
       <div className="sb-brand">
-        <Mark width={28} />
-        <span className="sb-word">MedScale</span>
+        <Mark height={26} />
+        <Wordmark height={13} className="sb-word" />
       </div>
 
       <button type="button" className="sb-ws" style={{ width: "calc(100% - 16px)", textAlign: "left" }} onClick={() => navigate("Settings")} title="Workspace settings">

@@ -135,7 +135,7 @@
 /* ---------- 6. Sidebar ---------- */
 .sb { width: var(--sidebar); flex: none; height: 100%; display: flex; flex-direction: column; background: var(--bg-app); color: var(--ink-1); }
 .sb-brand { height: 52px; flex: none; display: flex; align-items: center; gap: 10px; padding: 0 16px; }
-.sb-word { font-size: 15px; font-weight: 600; letter-spacing: -0.02em; }
+.sb-word { flex: none; color: var(--ink-1); }
 .sb-ws { margin: 0 8px 8px; display: flex; align-items: center; gap: 8px; height: 36px; padding: 0 8px; border-radius: var(--r-2); }
 .sb-ws:hover { background: var(--bg-hover); }
 .sb-search { margin: 0 8px 4px; height: 30px; display: flex; align-items: center; gap: 8px; padding: 0 6px 0 8px; border-radius: var(--r-2);

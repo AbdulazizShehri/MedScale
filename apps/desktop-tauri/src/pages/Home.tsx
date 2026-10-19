@@ -1,7 +1,8 @@
 import { useApp } from "../lib/app";
 import { useCommand } from "../lib/ipc";
 import { MOD } from "../components/shell";
-import { ErrorState, Glyph, KV, Mark, Section, Skeleton, Stamp, Status } from "../components/ui";
+import { Mark } from "../components/brand";
+import { ErrorState, Glyph, KV, Section, Skeleton, Stamp, Status } from "../components/ui";
 import { CoverageStrip, COVERAGE } from "./Patients";
 
 type Subjects = { subjects: Array<{ subject_ref: string; display_name: string; condition_summary: string; coverage_slots: Array<{ concept_key: string; status: string }> | null; latest_event: string | null }> };
@@ -50,7 +51,7 @@ export function Home() {
       <div className="pane">
         <div className="page-head">
           <div className="grow">
-            <div className="brand-hero" style={{ marginBottom: 6 }}><Mark width={30} className="mark" /><span className="brand-rule" aria-hidden="true" /></div>
+            <div className="brand-hero" style={{ marginBottom: 6 }}><Mark height={28} className="mark" /><span className="brand-rule" aria-hidden="true" /></div>
             <h1 className="t-h1">Workspace</h1>
             <p className="ph-sub">What needs a person, what changed, and what this workspace can and cannot assert.</p>
           </div>

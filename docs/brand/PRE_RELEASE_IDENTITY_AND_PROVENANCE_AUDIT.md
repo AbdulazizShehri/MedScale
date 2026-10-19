@@ -1,5 +1,7 @@
 # Pre-release identity and provenance audit (issue #182)
 
+> **2026-10-19 update:** the founder-approved Logo 12 replaced the paired-triangle M in brand assets, app icons and desktop surfaces ([logo specification](LOGO_SPEC.md), [provenance](../../third_party/provenance/logo-12-approved-identity.md)). The findings below are the 2026-10-09 record and stay unchanged.
+
 **Rule:** product-facing identity is MedScale's own. Technical source provenance, licenses and history are kept, accurate and separate. No history rewrite. No removal of required notices.
 
 **Scope of this record:** `main` as of 2026-10-09 (README, CLI, brand assets, required records). The Tauri desktop surfaces (window title, bundle metadata, icons, in-app copy, About page, release bundles) are audited on the productization stack (PR #179, `apps/desktop-tauri/src/identity.test.ts`). They land on `main` only with that chain, which is blocked by F096-T01 (see [external gates](../planning/EXTERNAL_GATES.md)). This record will be merged with that audit when the chain lands.

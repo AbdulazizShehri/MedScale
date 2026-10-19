@@ -15,7 +15,7 @@ MedScale is a local-first clinical intelligence platform. A Rust Core owns every
 
 > **Status: engineering preview, synthetic data only.** MedScale is not release-ready, not clinically validated and not a medical device. Real patient data is not authorized. See [external gates](docs/planning/EXTERNAL_GATES.md).
 
-Design: [brand identity system](docs/brand/BRAND_IDENTITY_SYSTEM.md) (the paired M, [Spec 095](specs/095-brand-foundation/spec.md)) and [`DESIGN.md`](DESIGN.md). Desktop: [`apps/desktop-tauri`](apps/desktop-tauri/README.md). Product program: [productization](docs/planning/PRODUCTIZATION_PROGRAM.md).
+Design: [brand identity system](docs/brand/BRAND_IDENTITY_SYSTEM.md) (founder-approved Logo 12, [logo specification](docs/brand/LOGO_SPEC.md)) and [`DESIGN.md`](DESIGN.md). Desktop: [`apps/desktop-tauri`](apps/desktop-tauri/README.md). Product program: [productization](docs/planning/PRODUCTIZATION_PROGRAM.md).
 
 ## Working on MedScale (engineering and agents)
 

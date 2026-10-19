@@ -79,7 +79,7 @@ fn native_desktop_shell_is_pinned_non_webview_and_branded() {
     assert!(theme.contains("brand-white: #FFFFFF"));
     assert!(theme.contains("font-ui: \"Inter\""));
     assert!(app.contains("default-font-family: Theme.font-ui"));
-    assert!(mark.contains("id=\"medscale-paired-m\""));
+    assert!(mark.contains("id=\"medscale-frames\""));
     assert!(mark.contains("#000000"));
     assert!(!mark.contains("#0A66FF"));
     assert!(!mark.contains("<circle"));

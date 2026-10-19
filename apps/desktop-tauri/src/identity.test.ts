@@ -38,6 +38,7 @@ const STALE: Array<[RegExp, string]> = [
   [/strategic donor|capability floor/i, "third-party-centred positioning"],
   [/\bTauri App\b|vite\.svg|Vite \+ React|create-vite/i, "generator boilerplate"],
   [/ScaleFold/i, "superseded identity (#125)"],
+  [/paired[- ]M\b|M0 76 50 0 100 76Z|M0 86\.60254/, "superseded paired-M logo (Logo 12, 2026-10-19)"],
   [/lorem ipsum/i, "placeholder text"],
   [/\b\d[\d,]* (?:local |)models (?:run|available) locally\b/i, "bare model-count claim (Spec 103 R11)"],
 ];

@@ -1,21 +1,52 @@
 # MedScale brand identity
 
-**Status:** CANONICAL_SPEC_095; founder-approved supplied identity, 2026-09-29.
+**Status:** CANONICAL — founder-approved Logo 12, 2026-10-19. It supersedes the Spec 095 paired-M identity for all active branding.
 
 ## Central idea
 
-Care and progress in one balanced paired M. The approved symbol remains fixed. Its discipline appears in precise typography, paired relationships and whitespace. MedScale is a Clinical Intelligence OS. **Evidence first. Action second.** describes operation, not readiness.
+Three overlapping, upright frames: layered evidence and records that stay separate and inspectable, joined by one continuous lower stroke. The symbol is fixed. Its discipline carries into precise typography, monochrome hierarchy and whitespace. MedScale is a Clinical Intelligence OS. **Evidence first. Action second.** describes how the product operates, not a readiness claim.
 
-## Rules and applications
+## Primary logo
 
-Exact primary black #000000 and white #FFFFFF; functional neutral UI layers never recolor the logo. Inter UI/wordmark and JetBrains Mono NL metadata. Four-pixel spacing base, thin borders, restrained radii, no decorative shadow or motion. Source relationships, exact states and uncertainty stay visible.
+- **Canonical:** white `#FFFFFF` symbol and wordmark on pure black `#000000` (`assets/brand/medscale-logo-canonical.svg`).
+- **Inverse:** black on white (`medscale-logo-inverse.svg`).
+- **Lockups:**
+  - Primary vertical lockup: `medscale-stacked-*`. It follows the approved reference, with the symbol centred above the wordmark.
+  - Horizontal lockup: `medscale-horizontal-*`.
+  - Standalone symbol: `mark-*`.
+- **Wordmark:** exactly `MedScale`. Squared, geometric, monoline letterforms with one uniform stroke across the whole word. No bold "Scale", no weight contrast, no tagline in the primary logo.
+- No gradients, blue, shadows, glows, embossing, 3D, outlines-of-outlines or decorative effects. The logo uses only `#000000` and `#FFFFFF`. Product UI accents never recolour it.
 
-See LOGO_SPEC.md, TYPOGRAPHY_SYSTEM.md and PRODUCT_UI_GRAMMAR.md. Font rights/hashes: third_party/provenance/095-native-typography.md. Packaged notices: assets/brand/fonts/FONT_NOTICE.md.
+Construction, sizes and misuse rules: [LOGO_SPEC.md](LOGO_SPEC.md). Provenance and reconstruction method: [`third_party/provenance/logo-12-approved-identity.md`](../../third_party/provenance/logo-12-approved-identity.md).
 
-Native Desktop leads, then README/docs/CLI and a documentation-only web reference. Lockups support future figures, slides, site and social use after the system stabilizes. Scientific figures prioritize data and source readability. No marketing PDF or duplicate raster campaign precedes product qualification.
+## Applications
 
-Use factual labels and explain uncertainty near claims. State denied, unsupported, unmeasured or unavailable exactly. No clinical promise, real PHI, invented count or comparative superiority without evidence. Technical content is English.
+- **Desktop (Tauri):**
+  - `Mark`, `Wordmark` and `Logo` in `apps/desktop-tauri/src/components/brand.tsx` draw the master geometry in `currentColor`.
+  - They are used in the sidebar, splash, Welcome and Access, Home, and About.
+  - Bundle icons: `src-tauri/icons/`.
+- **README and docs:** `assets/brand/png/medscale-readme-dark.png` and `-light.png` (horizontal lockup at documentation scale), or the SVG masters.
+- **Favicon:** `assets/brand/medscale-favicon.svg` (optical small master), with PNG fallbacks in `assets/brand/icons/`.
+- **Legacy Slint desktop:** `crates/medscale-desktop/ui/assets/`.
 
-## Authority and qualification
+## Typography and UI
 
-Old active visuals are SUPERSEDED_BY_SPEC_095; historical Spec 073 and all 068–094 closures remain. The vector is a mathematical reconstruction of approximate raster construction; rendered silhouette review does not claim pixel equivalence. Compilation is not visual acceptance. Launch freeze belongs to Spec 100 after the bounded program.
+Inter is the UI typeface and JetBrains Mono NL is used for exact data and metadata. Both fonts are admitted with recorded hashes in [`third_party/provenance/095-native-typography.md`](../../third_party/provenance/095-native-typography.md). The logo wordmark is first-party geometry and does not use either font. Other system rules are unchanged:
+
+- four-pixel spacing base
+- thin borders
+- restrained radii
+- no decorative shadow or motion
+- source relationships, exact states and uncertainty stay visible
+
+See TYPOGRAPHY_SYSTEM.md and PRODUCT_UI_GRAMMAR.md.
+
+## Voice
+
+Use factual labels and explain uncertainty near claims. State denied, unsupported, unmeasured or unavailable exactly. No clinical promise, real PHI, invented count or comparative superiority without evidence. Technical content is in English.
+
+## Authority and history
+
+The paired-M identity (Spec 095, 2026-09-29) is SUPERSEDED_BY_LOGO_12 for active branding. Its provenance record, specs, evidence snapshots and closed 068–101 artifacts remain intact as history.
+
+The Logo 12 vector is a measured reconstruction of the approved raster: symbol IoU 0.925, wordmark IoU 0.911. Rendered review does not claim pixel equivalence, and compilation is not visual acceptance.
