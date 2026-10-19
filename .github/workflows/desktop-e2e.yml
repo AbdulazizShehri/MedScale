@@ -1,0 +1,100 @@
+# End-to-end user journeys against the real MedScale desktop binary.
+#
+# Builds the release desktop (custom protocol, bundled frontend; plus the
+# test-only e2e-webdriver feature, which turns off WebView2 InPrivate), starts
+# the runner's Microsoft Edge WebDriver, and runs
+# scripts/e2e/desktop-journey.mjs, which launches the app with a WebView2
+# remote-debugging port and attaches to it: open the synthetic workspace,
+# patients, projects, MedAgent (agent, run, evidence), the model catalog,
+# documents, a disclosed FHIR export, the audit trail, and persistence after
+# relaunching the app. Synthetic data only. Screenshots are kept as visual
+# evidence.
+name: desktop-e2e
+
+on:
+  push:
+    branches: ["e2e/**", main]
+  pull_request:
+    paths:
+      - apps/desktop-tauri/**
+      - scripts/e2e/**
+      - crates/**
+      - .github/workflows/desktop-e2e.yml
+
+permissions:
+  contents: read
+
+concurrency:
+  group: desktop-e2e-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  journeys:
+    name: desktop e2e (windows)
+    runs-on: windows-latest
+    timeout-minutes: 75
+    env:
+      CARGO_BUILD_JOBS: "2"
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: "24.19.0"
+          cache: npm
+          cache-dependency-path: apps/desktop-tauri/package-lock.json
+      - uses: dtolnay/rust-toolchain@d1031067263f94b142dd6c0ce24c5eb9d02d52a0
+        with:
+          toolchain: "1.97.1"
+      - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2
+        with:
+          workspaces: apps/desktop-tauri/src-tauri -> target
+          key: desktop-e2e
+      - name: Build the frontend
+        working-directory: apps/desktop-tauri
+        run: |
+          npm ci --ignore-scripts --no-audit --no-fund
+          npm run build
+      - name: Build the release desktop
+        run: cargo build --manifest-path apps/desktop-tauri/src-tauri/Cargo.toml --features custom-protocol,e2e-webdriver --release --locked
+      - name: Allow WebView2 remote debugging on this disposable runner
+        shell: pwsh
+        run: |
+          foreach ($k in 'HKLM:\SOFTWARE\Policies\Microsoft\Edge', 'HKLM:\SOFTWARE\Policies\Microsoft\Edge\WebView2', 'HKLM:\SOFTWARE\WOW6432Node\Policies\Microsoft\Edge') {
+            if (Test-Path $k) { "== $k"; Get-ItemProperty $k | Format-List | Out-String -Width 200 }
+          }
+          New-Item -Path 'HKLM:\SOFTWARE\Policies\Microsoft\Edge' -Force | Out-Null
+          Set-ItemProperty -Path 'HKLM:\SOFTWARE\Policies\Microsoft\Edge' -Name RemoteDebuggingAllowed -Value 1 -Type DWord
+      - name: Run the journeys
+        shell: pwsh
+        run: |
+          $driver = Join-Path $env:EDGEWEBDRIVER 'msedgedriver.exe'
+          & $driver --version
+          $wd = Start-Process -FilePath $driver -ArgumentList @('--port=9515') -PassThru -NoNewWindow
+          Start-Sleep -Seconds 3
+          try {
+            node scripts/e2e/desktop-journey.mjs apps/desktop-tauri/src-tauri/target/release/medscale-desktop-tauri.exe target/e2e-shots
+            if ($LASTEXITCODE -ne 0) { throw "journeys failed" }
+          } finally {
+            Stop-Process -Id $wd.Id -Force -ErrorAction SilentlyContinue
+          }
+      - name: Desktop state on failure
+        if: failure()
+        shell: pwsh
+        run: |
+          Get-Process | Where-Object { $_.ProcessName -match 'medscale|msedgewebview2|WerFault' } | Format-Table ProcessName, Id, MainWindowTitle | Out-String
+          New-Item -ItemType Directory -Force target/e2e-shots | Out-Null
+          Add-Type -AssemblyName System.Windows.Forms, System.Drawing
+          $b = [System.Windows.Forms.Screen]::PrimaryScreen.Bounds
+          $bmp = New-Object System.Drawing.Bitmap $b.Width, $b.Height
+          [System.Drawing.Graphics]::FromImage($bmp).CopyFromScreen($b.Location, [System.Drawing.Point]::Empty, $b.Size)
+          $bmp.Save("target/e2e-shots/desktop-on-failure.png")
+          Get-WinEvent -LogName Application -MaxEvents 30 -ErrorAction SilentlyContinue | Where-Object { $_.Message -match 'medscale|WebView' } | Select-Object -First 10 TimeCreated, ProviderName, Message | Format-List | Out-String -Width 300
+      - uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v4.6.2
+        if: ${{ !cancelled() }}
+        with:
+          name: desktop-e2e-screenshots
+          path: target/e2e-shots/
+          if-no-files-found: warn
+          retention-days: 14

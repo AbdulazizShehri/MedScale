@@ -12,6 +12,9 @@ build = "build.rs"
 
 [features]
 custom-protocol = ["tauri/custom-protocol"]
+# Test-only: lets Edge WebDriver attach for desktop E2E (disables InPrivate).
+# Never enabled for packaged builds.
+e2e-webdriver = []
 
 [dependencies]
 medscale-contracts = { path = "../../../crates/medscale-contracts", version = "0.1.0" }

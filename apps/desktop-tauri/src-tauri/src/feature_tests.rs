@@ -882,6 +882,15 @@ fn medagent_workbench_agent_context_evidence_and_resume() {
         .collect();
     assert!(!items.is_empty(), "{draft}");
     assert!(items.iter().all(|i| i["segment_seq"] == 1), "{draft}");
+    // Optional speaker grouping labels every segment anonymously.
+    let grouped = h.ok(
+        "audio_transcribe",
+        json!({ "projectId": pid, "sourceId": imported["source_id"], "route": "segmentation_only", "diarize": true }),
+    );
+    assert_eq!(
+        grouped["transcript"]["segments"][0]["speaker"]["kind"], "anonymous",
+        "{grouped}"
+    );
     assert_eq!(
         h.call(
             "audio_transcribe",

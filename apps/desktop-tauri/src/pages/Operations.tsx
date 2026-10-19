@@ -171,7 +171,8 @@ export function Audio() {
 }
 
 type AsrStatus = { routes: Array<{ route: string; available: boolean; reason: string | null }>; asr_pack_dir: string | null };
-type Segment = { seq: number; start_ms: number; end_ms: number; status: string; text: string | null };
+type Segment = { seq: number; start_ms: number; end_ms: number; status: string; text: string | null; speaker?: { kind: string; index?: number } };
+const speakerLabel = (s: Segment["speaker"]) => (s?.kind === "anonymous" && s.index !== undefined ? `speaker ${s.index}` : null);
 type Transcript = { revision_id: string; revision_no: number; state: string; segments: Segment[] };
 type TranscribeResult = { decision: { outcome: string; reason?: string | null }; engine: { engine_id: string; is_fixture: boolean } | null; limitations: string[]; transcript: Transcript | null };
 
@@ -182,6 +183,7 @@ function AudioBody({ projectId }: { projectId: string }) {
   const [packPath, setPackPath] = useState("");
   const [wavPath, setWavPath] = useState("");
   const [route, setRoute] = useState("local_asr_pack");
+  const [diarize, setDiarize] = useState(false);
   const [result, setResult] = useState<TranscribeResult | null>(null);
   const [edit, setEdit] = useState<{ seq: number; text: string; reason: string } | null>(null);
   const models = useCommand<Array<{ id: string; runnable: boolean; fixture: boolean }>>("medagent_models");
@@ -202,7 +204,7 @@ function AudioBody({ projectId }: { projectId: string }) {
   async function admitPack(e: FormEvent) { e.preventDefault(); const r = await run("pack", "audio_admit_asr_pack", { path: packPath }); if (outcome(r, "Audio Pack admitted · local recognition on")) { setPackPath(""); await asr.reload(); } }
   async function importWav(e: FormEvent) { e.preventDefault(); const r = await run("wav", "audio_import_wav", { projectId, path: wavPath }); if (outcome(r, "Recording imported")) { setWavPath(""); await o.reload(); } }
   async function transcribe(id: string) {
-    const r = await run<TranscribeResult>(`t-${id}`, "audio_transcribe", { projectId, sourceId: id, route });
+    const r = await run<TranscribeResult>(`t-${id}`, "audio_transcribe", { projectId, sourceId: id, route, diarize });
     if (outcome(r, "Transcription recorded · draft")) { setResult(r.data); setEdit(null); }
   }
   async function correct(e: FormEvent) {
@@ -243,6 +245,10 @@ function AudioBody({ projectId }: { projectId: string }) {
           <option value="fixture_asr">Fixture engine (not recognition)</option>
           <option value="segmentation_only">Segmentation only</option>
         </select>}>
+        <label className="row-gap t-sm" style={{ gap: 6, marginBottom: 8 }}>
+          <input type="checkbox" checked={diarize} onChange={(e) => setDiarize(e.target.checked)} />
+          Group speakers (acoustic clustering, unvalidated; labels are never identity)
+        </label>
         {v.sources.length ? v.sources.map((s) => <div key={s.id} className="lr" style={{ gridTemplateColumns: "minmax(0,1fr) minmax(0,1.4fr) 120px auto auto" }}><span style={{ display: "flex", flexDirection: "column", minWidth: 0 }}><span className="trunc" style={{ fontWeight: 600 }}>{s.label}</span><span className="mono t-mono-sm i3 trunc">{s.id}</span></span><span className="t-sm i3 trunc">{s.kind} · {s.detail}</span><Status kind={glyphFor(s.health)} weight="weak">{s.health}</Status><button type="button" className="btn btn-g" disabled={!!pending} onClick={() => segment(s.id)}>Segment</button><button type="button" className="btn btn-s" disabled={!!pending} onClick={() => transcribe(s.id)}>{pending === `t-${s.id}` ? <Glyph kind="running" /> : null}Transcribe</button></div>) : <p className="t-sm i3">No audio sources in this project.</p>}
       </Section>
       {seg && <Section title="Segmentation" count="draft"><p className="t-sm" style={{ marginBottom: 8 }}>{seg.summary}</p><pre className="pre">{seg.lines.join("\n") || "No segments."}</pre></Section>}
@@ -251,7 +257,7 @@ function AudioBody({ projectId }: { projectId: string }) {
         {result.transcript?.segments.map((x) => (
           <div key={x.seq} className="lr" style={{ gridTemplateColumns: "36px 130px minmax(0,1fr) auto", alignItems: "start", padding: "8px 12px" }}>
             <span className="mono t-mono-sm i3">{x.seq}</span>
-            <span className="mono t-mono-sm i3">{x.start_ms}–{x.end_ms} ms</span>
+            <span className="mono t-mono-sm i3">{x.start_ms}–{x.end_ms} ms{speakerLabel(x.speaker) ? ` · ${speakerLabel(x.speaker)}` : ""}</span>
             <span className="t-sm">{x.text ?? <span className="i3">(untranscribed)</span>}</span>
             <button type="button" className="btn btn-g" onClick={() => setEdit({ seq: x.seq, text: x.text ?? "", reason: "" })}>Correct</button>
           </div>
