@@ -1,0 +1,61 @@
+# Same-runner A/B of warm candle encoder latency: the profiling example built
+# against main's vendored candle-core (A) and this branch's (B), run
+# alternately on one machine. Random weights, real model configs; no model
+# downloads beyond config.json. Runs only on `perf-ab/**` branches.
+name: perf-ab
+
+on:
+  push:
+    branches: ["perf-ab/**"]
+
+permissions:
+  contents: read
+
+jobs:
+  ab:
+    name: candle A/B (${{ matrix.os }})
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v4
+        with:
+          fetch-depth: 0
+      - uses: dtolnay/rust-toolchain@d1031067263f94b142dd6c0ce24c5eb9d02d52a0 # pinned master
+        with:
+          toolchain: 1.97.1
+      - name: Configs
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p "$RUNNER_TEMP/cfg"
+          for m in OpenMed-NER-AnatomyDetect-TinyMed-135M OpenMed-NER-AnatomyDetect-BioMed-109M; do
+            curl -sfL --retry 5 "https://huggingface.co/OpenMed/$m/raw/main/config.json" -o "$RUNNER_TEMP/cfg/$m.json"
+          done
+      - name: Build B (this branch)
+        shell: bash
+        run: |
+          cargo build --release --locked -p medscale-pack --example candle_latency_profile
+          cp target/release/examples/candle_latency_profile$([ "$RUNNER_OS" = Windows ] && echo .exe) "$RUNNER_TEMP/prof-b"
+      - name: Build A (main's candle-core, same example)
+        shell: bash
+        run: |
+          git checkout origin/main -- vendor/candle-core-0.9.1
+          cargo build --release --locked -p medscale-pack --example candle_latency_profile
+          cp target/release/examples/candle_latency_profile$([ "$RUNNER_OS" = Windows ] && echo .exe) "$RUNNER_TEMP/prof-a"
+          git checkout HEAD -- vendor/candle-core-0.9.1
+      - name: Alternate A and B
+        shell: bash
+        run: |
+          set -euo pipefail
+          nproc 2>/dev/null || echo "$NUMBER_OF_PROCESSORS"
+          for round in 1 2 3; do
+            for v in a b; do
+              for m in OpenMed-NER-AnatomyDetect-TinyMed-135M OpenMed-NER-AnatomyDetect-BioMed-109M; do
+                "$RUNNER_TEMP/prof-$v" "$RUNNER_TEMP/cfg/$m.json" 8 16 32 64 | sed "s/^/AB round=$round variant=$v model=$m /"
+              done
+            done
+          done
