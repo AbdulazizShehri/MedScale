@@ -290,11 +290,16 @@ pub enum SpeakerLabel {
 pub enum DiarizationState {
     NotRequested,
     Unavailable,
+    /// Spec 106: segments grouped by voice features (pitch, zero-crossing
+    /// rate) with unsupervised clustering. Unvalidated; labels are not
+    /// identity.
+    AcousticClustering,
 }
 
 closed_vocabulary!(DiarizationState, "diarization state", {
     NotRequested => "not_requested",
     Unavailable => "unavailable",
+    AcousticClustering => "acoustic_clustering",
 });
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
@@ -322,6 +327,8 @@ pub enum AudioLimitation {
     TranscriptNotClinicalTruth,
     SpeakerLabelsAreNotIdentity,
     DiarizationUnavailable,
+    /// Spec 106: speaker groups come from unvalidated acoustic clustering.
+    DiarizationIsUnvalidatedClustering,
     /// The fixture engine does not recognize speech.
     FixtureEngineIsNotSpeechRecognition,
     /// Medical ASR quality (medications, doses, numbers, negation) is
@@ -650,8 +657,10 @@ impl TranscriptRevision {
             }
             previous_end = s.end_ms;
             // No diarization engine exists in this build.
-            if s.speaker != SpeakerLabel::Unknown {
-                return Err("speaker labels need diarization, which is unavailable".to_owned());
+            if s.speaker != SpeakerLabel::Unknown
+                && self.diarization != DiarizationState::AcousticClustering
+            {
+                return Err("speaker labels need diarization".to_owned());
             }
             match (&s.text, s.status) {
                 (None, SegmentStatus::Untranscribed) => {}

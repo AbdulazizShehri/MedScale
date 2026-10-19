@@ -127,6 +127,58 @@ jobs:
             -- --ignored --nocapture --test-threads 1 2>&1 | tee asr.log
           grep -E '^(ASR_METRICS|MEL_FILTERS)' asr.log >> "$GITHUB_STEP_SUMMARY"
 
+      - name: Diarization on a synthetic two-voice dialogue
+        if: matrix.repo == 'openai/whisper-tiny.en'
+        run: |
+          set -euo pipefail
+          out="$RUNNER_TEMP/dialogue"
+          mkdir -p "$out"
+          python3 - "$out" <<'PY'
+          import json, struct, subprocess, sys, wave
+          out = sys.argv[1]
+          lines = [
+              ("en-us+m3", "Good morning. What brings you in today?"),
+              ("en-us+f4", "I have had a cough and a mild fever since Monday."),
+              ("en-us+m3", "Any shortness of breath or chest pain?"),
+              ("en-us+f4", "No chest pain, but I feel tired in the evenings."),
+              ("en-us+m3", "Let us check your temperature and listen to your lungs."),
+              ("en-us+f4", "Thank you, doctor."),
+          ]
+          frames, turns, t = b"", [], 0
+          silence = bytes(32000 * 7 // 10)  # 0.7 s of 16-bit mono zeros
+          for i, (voice, text) in enumerate(lines):
+              raw, conv = f"{out}/l{i}-raw.wav", f"{out}/l{i}.wav"
+              subprocess.run(["espeak-ng", "-v", voice, "-s", "150", "-w", raw, text], check=True)
+              subprocess.run(["ffmpeg", "-loglevel", "error", "-y", "-i", raw, "-ar", "16000", "-ac", "1", "-c:a", "pcm_s16le", conv], check=True)
+              with wave.open(conv) as w:
+                  data = w.readframes(w.getnframes())
+              ms = len(data) // 32
+              turns.append([t, t + ms, 1 if voice.endswith("m3") else 2])
+              frames += data + silence
+              t += ms + 700
+          with wave.open(f"{out}/dialogue.wav", "wb") as w:
+              w.setnchannels(1); w.setsampwidth(2); w.setframerate(16000); w.writeframes(frames)
+          json.dump(turns, open(f"{out}/turns.json", "w"))
+          # Same script in one voice: diarization must find one speaker.
+          frames1, turns1, t = b"", [], 0
+          for i, (_, text) in enumerate(lines):
+              raw, conv = f"{out}/o{i}-raw.wav", f"{out}/o{i}.wav"
+              subprocess.run(["espeak-ng", "-v", "en-us+m3", "-s", "150", "-w", raw, text], check=True)
+              subprocess.run(["ffmpeg", "-loglevel", "error", "-y", "-i", raw, "-ar", "16000", "-ac", "1", "-c:a", "pcm_s16le", conv], check=True)
+              with wave.open(conv) as w:
+                  data = w.readframes(w.getnframes())
+              ms = len(data) // 32
+              turns1.append([t, t + ms, 1])
+              frames1 += data + silence
+              t += ms + 700
+          with wave.open(f"{out}/one-voice.wav", "wb") as w:
+              w.setnchannels(1); w.setsampwidth(2); w.setframerate(16000); w.writeframes(frames1)
+          json.dump(turns1, open(f"{out}/one-voice-turns.json", "w"))
+          PY
+          MEDSCALE_DIAR_WAV="$out/dialogue.wav" MEDSCALE_DIAR_TURNS="$out/turns.json"             cargo test --release --locked -p medscale-core --test diarization_external_106             -- --ignored --nocapture 2>&1 | tee -a asr.log
+          MEDSCALE_DIAR_WAV="$out/one-voice.wav" MEDSCALE_DIAR_TURNS="$out/one-voice-turns.json" MEDSCALE_DIAR_EXPECT_SPEAKERS=1             cargo test --release --locked -p medscale-core --test diarization_external_106             -- --ignored --nocapture 2>&1 | tee -a asr.log
+          grep -E '^DIARIZATION_METRICS' asr.log >> "$GITHUB_STEP_SUMMARY"
+
       - name: Keep the log (no weights)
         if: always()
         uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v4.6.2
