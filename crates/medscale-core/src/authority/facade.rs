@@ -60,6 +60,8 @@ pub struct CoreFacade {
     /// Spec 081: the installed local speech engine, if any (none by
     /// default; hermetic tests and demos install the labelled fixture).
     asr_engine: AsrEngineBox,
+    /// Spec 106: the Audio Pack engine behind `LocalAsrPack`, if installed.
+    local_asr_engine: AsrEngineBox,
     /// Spec 081: capture sessions started by this process.
     live_captures: Mutex<std::collections::HashSet<String>>,
     /// Spec 085: the Compute worker (default: the MedScale worker next to
@@ -140,6 +142,7 @@ impl CoreFacade {
             privacy_keys: PrivacyKeys(Box::new(medscale_keys::MemoryKeyStore::new())),
             browse_transport: BrowseTransportBox(Box::new(medscale_network::UreqBrowseTransport)),
             asr_engine: AsrEngineBox(None),
+            local_asr_engine: AsrEngineBox(None),
             live_captures: Mutex::new(std::collections::HashSet::new()),
             compute_runtime: crate::compute_supervisor::ComputeRuntime::resolve(),
             compute_cancel: crate::compute_supervisor::CancelSlot::default(),
@@ -184,6 +187,12 @@ impl CoreFacade {
     /// policy stays in Core; there is never a remote engine.
     pub fn set_asr_engine(&mut self, engine: Box<dyn super::audio::AsrEngine>) {
         self.asr_engine = AsrEngineBox(Some(engine));
+    }
+
+    /// Installs the Spec 106 local ASR engine prepared from an admitted
+    /// Audio Pack. It serves only the `LocalAsrPack` route.
+    pub fn set_local_asr_engine(&mut self, engine: Box<dyn super::audio::AsrEngine>) {
+        self.local_asr_engine = AsrEngineBox(Some(engine));
     }
 
     /// Replaces the Spec 085 Compute worker (qualification harnesses name
@@ -601,6 +610,7 @@ impl CoreFacade {
             store: store_ref,
             meta,
             engine: self.asr_engine.0.as_deref(),
+            local_engine: self.local_asr_engine.0.as_deref(),
             live_captures: &self.live_captures,
             sessions: &self.sessions,
             leases: &self.leases,
@@ -4751,7 +4761,10 @@ impl CoreFacade {
                 Ok(ResponseBody::AudioCaptures { sessions: value })
             }
             RequestBody::AudioRouteList => Ok(ResponseBody::AudioRoutes {
-                routes: super::audio::route_statuses(self.asr_engine.0.is_some()),
+                routes: super::audio::route_statuses(
+                    self.asr_engine.0.is_some(),
+                    self.local_asr_engine.0.is_some(),
+                ),
             }),
             // Spec 088 AudioFlow Advanced huddles on the Spec 081 authority.
             RequestBody::HuddleAct { act } => {

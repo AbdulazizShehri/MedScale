@@ -299,3 +299,8 @@ pub fn generation_pack(out: &Path) -> String {
     let _ = std::fs::remove_dir_all(snapshot);
     pack_id
 }
+
+/// A signed Audio Pack (Spec 106) holding a synthetic tiny Whisper.
+pub fn asr_pack(out: &Path) -> String {
+    medscale_pack::asr_fixtures::synthetic_audio_pack(out)
+}

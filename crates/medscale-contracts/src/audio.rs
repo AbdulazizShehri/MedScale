@@ -181,7 +181,7 @@ pub enum AudioRoute {
     /// Synthetic fixture engine for hermetic tests and demos. Not speech
     /// recognition; available only when a host installs it.
     FixtureAsr,
-    /// A local ASR engine from an admitted Audio Pack (none admitted).
+    /// A local ASR engine from an admitted Audio Pack (Spec 106).
     LocalAsrPack,
     CloudAsr,
 }
@@ -610,8 +610,14 @@ impl TranscriptRevision {
         }
         match &self.origin {
             TranscriptOrigin::Engine { route, engine, .. } => {
-                if matches!(route, AudioRoute::CloudAsr | AudioRoute::LocalAsrPack) {
+                if *route == AudioRoute::CloudAsr {
                     return Err("no revision can come from an unavailable route".to_owned());
+                }
+                // Spec 106: a local ASR revision names its non-fixture Pack engine.
+                if *route == AudioRoute::LocalAsrPack
+                    && !engine.as_ref().is_some_and(|e| !e.is_fixture)
+                {
+                    return Err("local ASR revisions name their Audio Pack engine".to_owned());
                 }
                 if (*route == AudioRoute::FixtureAsr)
                     != engine.as_ref().is_some_and(|e| e.is_fixture)
