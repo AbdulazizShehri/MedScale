@@ -71,6 +71,18 @@ jobs:
           } finally {
             Stop-Process -Id $wd.Id -Force -ErrorAction SilentlyContinue
           }
+      - name: Desktop state on failure
+        if: failure()
+        shell: pwsh
+        run: |
+          Get-Process | Where-Object { $_.ProcessName -match 'medscale|msedgewebview2|WerFault' } | Format-Table ProcessName, Id, MainWindowTitle | Out-String
+          New-Item -ItemType Directory -Force target/e2e-shots | Out-Null
+          Add-Type -AssemblyName System.Windows.Forms, System.Drawing
+          $b = [System.Windows.Forms.Screen]::PrimaryScreen.Bounds
+          $bmp = New-Object System.Drawing.Bitmap $b.Width, $b.Height
+          [System.Drawing.Graphics]::FromImage($bmp).CopyFromScreen($b.Location, [System.Drawing.Point]::Empty, $b.Size)
+          $bmp.Save("target/e2e-shots/desktop-on-failure.png")
+          Get-WinEvent -LogName Application -MaxEvents 30 -ErrorAction SilentlyContinue | Where-Object { $_.Message -match 'medscale|WebView' } | Select-Object -First 10 TimeCreated, ProviderName, Message | Format-List | Out-String -Width 300
       - uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v4.6.2
         if: ${{ !cancelled() }}
         with:

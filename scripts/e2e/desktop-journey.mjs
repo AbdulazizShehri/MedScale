@@ -47,7 +47,10 @@ async function launch() {
       const r = await fetch(`http://127.0.0.1:${DEBUG_PORT}/json/version`);
       if (r.ok) break;
     } catch {}
-    if (Date.now() > end) throw new Error("the app opened no WebView2 debugging port");
+    if (Date.now() > end) {
+      const state = child.exitCode === null ? "still running" : `exited with code ${child.exitCode}`;
+      throw new Error(`the app opened no WebView2 debugging port (app ${state})`);
+    }
     await sleep(500);
   }
   const s = await wd("POST", "/session", {
