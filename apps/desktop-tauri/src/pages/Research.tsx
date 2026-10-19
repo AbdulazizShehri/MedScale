@@ -81,7 +81,7 @@ export function Projects() {
           </Section>
         )}
       </div>
-      <aside className="inspector collapsible" aria-label="New project">
+      <aside className="inspector" aria-label="New project">
         <form onSubmit={create} className="ins-pad" style={{ gap: 16 }}>
           <div className="sec" style={{ margin: 0 }}><span className="sec-t">New project</span><span className="sec-rule" /></div>
           <div><label className="lbl" htmlFor="pn">Name</label><input id="pn" type="text" value={name} onChange={(e) => setName(e.target.value)} placeholder="e.g. Coverage audit" maxLength={128} style={{ width: "100%" }} /><span className="t-sm i3" style={{ display: "block", marginTop: 4 }}>Up to 128 characters.</span></div>
