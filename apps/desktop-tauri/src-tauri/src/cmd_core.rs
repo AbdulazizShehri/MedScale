@@ -240,6 +240,25 @@ pub fn documents_list(host: tauri::State<'_, Host>) -> CmdResult<Value> {
     }))
 }
 
+/// Imports one synthetic FHIR R4 JSON file for a subject through Core's
+/// governed ingest and promotion (synthetic workspace only).
+#[tauri::command(async)]
+pub fn documents_import_fhir(
+    host: tauri::State<'_, Host>,
+    path: String,
+    subject_ref: String,
+) -> CmdResult<Value> {
+    let path = host::bounded_text(&path, 1024)?;
+    let subject = host::bounded_id(&subject_ref)?.to_owned();
+    let file = std::path::Path::new(&path);
+    if !file.is_absolute() {
+        return Err(CmdError::invalid("Invalid: choose an absolute file path"));
+    }
+    let mut state = lock(&host)?;
+    let source = host::import_fhir(state.workspace()?, file, &subject)?;
+    Ok(json!(source))
+}
+
 fn corpus_json() -> Value {
     let corpus = default_synthetic_corpus();
     json!({

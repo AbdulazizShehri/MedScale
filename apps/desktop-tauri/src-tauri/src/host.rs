@@ -291,6 +291,34 @@ fn save_manifest(vault_root: &Path, manifest: &SeedManifest) -> CmdResult<()> {
         .map_err(|_| CmdError::unavailable("Unavailable: seed manifest not writable"))
 }
 
+fn pack_dirs_path(vault_root: &Path) -> PathBuf {
+    let mut name = vault_root
+        .file_name()
+        .map(|n| n.to_string_lossy().into_owned())
+        .unwrap_or_else(|| "workspace".to_owned());
+    name.push_str(".desktop-packs.json");
+    vault_root.with_file_name(name)
+}
+
+/// Local folders of Packs this desktop admitted into a vault, by Pack id.
+/// Core re-verifies the folder against the admitted manifest on every run.
+pub fn load_pack_dirs(vault_root: &Path) -> std::collections::BTreeMap<String, String> {
+    std::fs::read(pack_dirs_path(vault_root))
+        .ok()
+        .and_then(|bytes| serde_json::from_slice(&bytes).ok())
+        .unwrap_or_default()
+}
+
+pub fn save_pack_dirs(
+    vault_root: &Path,
+    dirs: &std::collections::BTreeMap<String, String>,
+) -> CmdResult<()> {
+    let bytes = serde_json::to_vec_pretty(dirs)
+        .map_err(|_| CmdError::new("internal", "Internal: pack folders"))?;
+    std::fs::write(pack_dirs_path(vault_root), bytes)
+        .map_err(|_| CmdError::unavailable("Unavailable: pack folders not writable"))
+}
+
 /// Ingests and promotes the synthetic fixtures through Core, once per vault.
 pub fn seed_synthetic(workspace: &mut Workspace, data_dir: &Path) -> CmdResult<()> {
     if !workspace.seed.subjects.is_empty() {
@@ -334,6 +362,79 @@ pub fn seed_synthetic(workspace: &mut Workspace, data_dir: &Path) -> CmdResult<(
     save_manifest(&workspace.vault_root, &manifest)?;
     workspace.seed = manifest;
     Ok(())
+}
+
+/// Claim kind for an imported FHIR resource type (as in the bundled fixtures).
+fn claim_kind_for(resource_type: &str) -> &'static str {
+    match resource_type {
+        "Patient" => "patient",
+        "Observation" => "observation",
+        "Condition" => "condition",
+        "MedicationRequest" | "MedicationStatement" => "medication",
+        _ => "other",
+    }
+}
+
+/// Largest FHIR file the desktop imports (1 MiB).
+pub const FHIR_IMPORT_MAX_BYTES: u64 = 1 << 20;
+
+/// Ingests and promotes one synthetic FHIR R4 JSON file through Core for a
+/// subject, and records it in the vault's manifest. Synthetic vaults only:
+/// Core admits no clinical ingest into encrypted vaults yet.
+pub fn import_fhir(
+    workspace: &mut Workspace,
+    path: &Path,
+    subject: &str,
+) -> CmdResult<SeededSource> {
+    if workspace.kind != VaultKind::Synthetic {
+        return Err(CmdError::new(
+            "denied",
+            "Denied: clinical ingest is admitted into the synthetic workspace only",
+        ));
+    }
+    let meta =
+        std::fs::metadata(path).map_err(|_| CmdError::new("missing", "Missing: file not found"))?;
+    if !meta.is_file() || meta.len() == 0 || meta.len() > FHIR_IMPORT_MAX_BYTES {
+        return Err(CmdError::invalid(
+            "Invalid: choose a FHIR JSON file of at most 1 MiB",
+        ));
+    }
+    let bytes =
+        std::fs::read(path).map_err(|_| CmdError::unavailable("Unavailable: file not readable"))?;
+    let resource: serde_json::Value = serde_json::from_slice(&bytes)
+        .map_err(|_| CmdError::new("corrupt", "Corrupt: file is not JSON"))?;
+    let resource_type = resource
+        .get("resourceType")
+        .and_then(serde_json::Value::as_str)
+        .ok_or_else(|| CmdError::invalid("Invalid: not a FHIR resource (no resourceType)"))?
+        .to_owned();
+    let claim_kind = claim_kind_for(&resource_type);
+    let source_id = workspace
+        .session
+        .ingest_fhir_file(&path.display().to_string())?;
+    workspace.session.promote_fixture_as_assertion(
+        source_id.clone(),
+        subject,
+        claim_kind,
+        resource,
+    )?;
+    let file = path
+        .file_name()
+        .map(|n| n.to_string_lossy().into_owned())
+        .unwrap_or_else(|| "resource.json".to_owned());
+    let source = SeededSource {
+        source_id: source_id.as_str().to_owned(),
+        fixture: format!("imported:{file}"),
+        resource_type,
+        claim_kind: claim_kind.to_owned(),
+        subject_ref: subject.to_owned(),
+    };
+    workspace.seed.sources.push(source.clone());
+    if !workspace.seed.subjects.iter().any(|s| s == subject) {
+        workspace.seed.subjects.push(subject.to_owned());
+    }
+    save_manifest(&workspace.vault_root, &workspace.seed)?;
+    Ok(source)
 }
 
 pub fn open_synthetic(state: &mut State) -> CmdResult<()> {

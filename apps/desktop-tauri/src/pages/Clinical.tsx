@@ -14,11 +14,37 @@ export function Documents() {
   const rows = useMemo(() => state.status === "ready" ? state.data.sources.filter((s) => type === "all" || s.resource_type === type) : [], [state, type]);
   const types = state.status === "ready" ? [...new Set(state.data.sources.map((s) => s.resource_type))] : [];
   const cur = rows[sel] ?? rows[0];
+  const [imp, setImp] = useState<{ path: string; subject: string } | null>(null);
+  const [impState, setImpState] = useState<{ pending: boolean; error: string | null; done: string | null }>({ pending: false, error: null, done: null });
+  async function importFhir(e: FormEvent) {
+    e.preventDefault();
+    if (!imp) return;
+    setImpState({ pending: true, error: null, done: null });
+    try {
+      const r = await call<{ source_id: string; resource_type: string }>("documents_import_fhir", { path: imp.path, subjectRef: imp.subject });
+      setImpState({ pending: false, error: null, done: `${r.resource_type} ingested and promoted as ${r.source_id}` });
+      setImp(null);
+      await reload();
+    } catch (err) {
+      setImpState({ pending: false, error: (err as CmdError).message ?? String(err), done: null });
+    }
+  }
 
   return (
     <>
       <div className="pane">
-        <PageHead title="Documents" sub="Source material held in the vault, and exactly what was extracted from it." />
+        <PageHead title="Documents" sub="Source material held in the vault, and exactly what was extracted from it.">
+          <button type="button" className="btn btn-s" onClick={() => setImp(imp ? null : { path: "", subject: "synthetic-subject-ada" })}>Import synthetic FHIR</button>
+        </PageHead>
+        {imp && <form onSubmit={importFhir} className="stack" style={{ gap: 8, maxWidth: 640, marginBottom: 14 }}>
+          <label className="lbl" htmlFor="ip">FHIR R4 JSON file (absolute path, at most 1 MiB, synthetic only)</label>
+          <input id="ip" value={imp.path} maxLength={1024} onChange={(e) => setImp({ ...imp, path: e.target.value })} />
+          <label className="lbl" htmlFor="is">Subject</label>
+          <input id="is" value={imp.subject} maxLength={128} onChange={(e) => setImp({ ...imp, subject: e.target.value })} />
+          <div><button type="submit" className="btn btn-p" disabled={!imp.path.trim() || !imp.subject.trim() || impState.pending}>{impState.pending ? <Glyph kind="running" /> : null}Ingest through Core</button></div>
+        </form>}
+        {impState.error && <Notice kind="unavailable" title="Not imported.">{impState.error}</Notice>}
+        {impState.done && <Notice kind="present" title="Imported.">{impState.done}</Notice>}
         {state.status === "loading" && <Skeleton />}
         {state.status === "error" && <ErrorState error={state.error} onRetry={reload} />}
         {state.status === "ready" && <>
@@ -35,7 +61,7 @@ export function Documents() {
                   <td className="t-sm">{s.resource_type}</td>
                   <td><Status kind="present">Structured</Status> <span className="mono t-mono-sm i3">{s.claim_kind}</span></td>
                   <td className="col-p3" title={s.subject_ref}><span className="mono t-mono-sm i2 trunc">{s.subject_ref}</span></td>
-                  <td title="Bundled synthetic FHIR fixture"><Status kind="synthetic" weight="weak">Synthetic</Status></td>
+                  <td title={s.fixture.startsWith("imported:") ? "Imported synthetic FHIR file" : "Bundled synthetic FHIR fixture"}><Status kind="synthetic" weight="weak">{s.fixture.startsWith("imported:") ? "Imported" : "Synthetic"}</Status></td>
                 </tr>
               ))}</tbody>
             </table>

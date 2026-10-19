@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-medagent-admit-pack"
+description = "Enables the medagent_admit_pack command without any pre-configured scope."
+commands.allow = ["medagent_admit_pack"]
+
+[[permission]]
+identifier = "deny-medagent-admit-pack"
+description = "Denies the medagent_admit_pack command without any pre-configured scope."
+commands.deny = ["medagent_admit_pack"]

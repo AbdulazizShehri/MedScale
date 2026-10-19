@@ -68,6 +68,13 @@ foreach ($taskFontLicense in @('Inter-OFL.txt','JetBrainsMono-OFL.txt')) {
 }
 Copy-Item -LiteralPath (Join-Path $taskRepoRoot 'assets/brand/fonts/FONT_NOTICE.md') -Destination (Join-Path $taskPackageRoot 'licenses/fonts')
 $taskFontNotice = Get-Content -LiteralPath (Join-Path $taskRepoRoot 'assets/brand/fonts/FONT_NOTICE.md') -Raw
+# Bundled data: the pinned OpenMed v3.0.0 model catalog (Apache-2.0), byte-identical
+# (third_party/provenance/103-openmed-v3-model-catalog.md).
+$taskOpenMedLicenses = Join-Path $taskPackageRoot 'licenses/openmed-v3.0.0'
+New-Item -ItemType Directory -Force -Path $taskOpenMedLicenses | Out-Null
+foreach ($taskOpenMedFile in @('LICENSE','NOTICE')) {
+    Copy-Item -LiteralPath (Join-Path $taskRepoRoot "third_party/openmed-v3.0.0/$taskOpenMedFile") -Destination $taskOpenMedLicenses
+}
 @"
 # MedScale Tauri presentation preview notices
 
@@ -77,6 +84,12 @@ evidence/rust-dependencies.json and npm runtime packages identified in
 evidence/package-lock.json. Original notices are under licenses/rust and licenses/npm.
 Unmodified MPL sources and their notice are included under source-archives and
 MPL-SOURCE-NOTICE.txt. Dependency admission is recorded in evidence/096-tauri-presentation.md.
+
+The desktop bundles the OpenMed v3.0.0 model catalog (models.jsonl, commit
+ea920f36fadd7b45935247d639f0ffa1ef493b23, Apache-2.0, unmodified) from
+https://github.com/maziyarpanahi/openmed. Its LICENSE and NOTICE are under
+licenses/openmed-v3.0.0. The catalog lists models; it grants no rights to model
+weights or datasets.
 
 $taskFontNotice
 "@ | Set-Content -LiteralPath (Join-Path $taskPackageRoot 'NOTICE.md') -Encoding utf8

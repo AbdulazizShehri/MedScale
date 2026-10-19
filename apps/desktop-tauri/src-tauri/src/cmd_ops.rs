@@ -45,6 +45,113 @@ pub fn models_admit_fixture_pack(host: tauri::State<'_, Host>) -> CmdResult<Valu
     Ok(json!(result))
 }
 
+/// The pinned OpenMed v3.0.0 model catalog, copied byte for byte with its
+/// license (`third_party/provenance/103-openmed-v3-model-catalog.md`).
+const CATALOG_JSONL: &[u8] = include_bytes!("../../../../third_party/openmed-v3.0.0/models.jsonl");
+const CATALOG_REPOSITORY: &str = "maziyarpanahi/openmed";
+const CATALOG_COMMIT: &str = "ea920f36fadd7b45935247d639f0ffa1ef493b23";
+
+fn catalog_path(state: &State) -> CmdResult<String> {
+    let path = state
+        .data_dir()?
+        .join("catalog")
+        .join("openmed-v3.0.0-models.jsonl");
+    let current = std::fs::metadata(&path)
+        .map(|m| m.len() == CATALOG_JSONL.len() as u64)
+        .unwrap_or(false);
+    if !current {
+        std::fs::create_dir_all(path.parent().expect("catalog folder"))
+            .map_err(|_| CmdError::unavailable("Unavailable: catalog folder"))?;
+        std::fs::write(&path, CATALOG_JSONL)
+            .map_err(|_| CmdError::unavailable("Unavailable: catalog not writable"))?;
+    }
+    Ok(path.display().to_string())
+}
+
+fn filter(value: Option<String>) -> CmdResult<Option<String>> {
+    value
+        .filter(|v| !v.trim().is_empty())
+        .map(|v| host::bounded_text(&v, 120))
+        .transpose()
+}
+
+/// One page of the pinned model catalog through Core. A listing is not a
+/// download and not an executable model; each row carries its expectation.
+#[tauri::command(async)]
+#[allow(clippy::too_many_arguments)]
+pub fn models_catalog(
+    host: tauri::State<'_, Host>,
+    text: Option<String>,
+    task: Option<String>,
+    family: Option<String>,
+    format: Option<String>,
+    status: Option<String>,
+    offset: Option<u32>,
+) -> CmdResult<Value> {
+    let mut state = lock(&host)?;
+    let snapshot_path = catalog_path(&state)?;
+    let page = state.session()?.model_catalog_query(
+        medscale_contracts::model_catalog::ModelCatalogQueryRequest {
+            snapshot_path,
+            repository: CATALOG_REPOSITORY.to_owned(),
+            commit: CATALOG_COMMIT.to_owned(),
+            text: filter(text)?,
+            task: filter(task)?,
+            family: filter(family)?,
+            format: filter(format)?,
+            status: filter(status)?,
+            offset: offset.unwrap_or(0),
+            limit: 50,
+            ..Default::default()
+        },
+    )?;
+    Ok(json!(page))
+}
+
+/// Evaluates an admitted Pack on synthetic text through Core, with an
+/// optional entity decoding (token classification) or labels (GLiNER).
+#[tauri::command(async)]
+pub fn models_evaluate(
+    host: tauri::State<'_, Host>,
+    pack_id: String,
+    input: String,
+    decoding: Option<String>,
+    labels: Option<Vec<String>>,
+) -> CmdResult<Value> {
+    let pack_id = host::bounded_id(&pack_id)?.to_owned();
+    let input = host::bounded_text(&input, 4000)?;
+    let decoding = decoding
+        .filter(|d| !d.is_empty())
+        .map(|d| {
+            serde_json::from_value::<medscale_contracts::packs::EntityDecoding>(Value::String(d))
+                .map_err(|_| CmdError::invalid("Invalid: unknown entity decoding"))
+        })
+        .transpose()?;
+    let labels = labels
+        .filter(|l| !l.is_empty())
+        .map(|l| {
+            l.iter()
+                .map(|x| host::bounded_text(x, 64))
+                .collect::<CmdResult<Vec<_>>>()
+        })
+        .transpose()?;
+    let mut state = lock(&host)?;
+    let local_path = pack_dir(&mut state, &pack_id)?;
+    let result = state.session()?.packs_evaluate_local(
+        medscale_contracts::packs::PackEvaluationRequest {
+            pack_id: OpaqueId::new(&pack_id),
+            local_path,
+            input,
+            max_tokens: 512,
+            // The desktop evaluates synthetic text only; Core enforces it too.
+            synthetic_only: true,
+            zero_shot_labels: labels,
+            decoding,
+        },
+    )?;
+    Ok(json!(result))
+}
+
 // ─────────────────────── shared agent fixtures ───────────────────────
 
 /// Installs the ONNX fixture pack into the workspace session and returns
@@ -111,24 +218,237 @@ pub fn medagent_turns(host: tauri::State<'_, Host>, run_id: String) -> CmdResult
     ))
 }
 
-/// Registers a synthetic agent identity on the fixture pack and a context bound
-/// to ingested sources, then creates a pending run for the prompt.
+/// Folder of an admitted Pack: the bundled fixture, or one this desktop
+/// admitted into the open vault.
+fn pack_dir(state: &mut State, pack_id: &str) -> CmdResult<String> {
+    let (fixture_id, fixture_dir) = workspace_pack(state)?;
+    if fixture_id.as_str() == pack_id {
+        return Ok(fixture_dir);
+    }
+    let root = state.workspace()?.vault_root.clone();
+    let dir = host::load_pack_dirs(&root).remove(pack_id).ok_or_else(|| {
+        CmdError::unavailable(
+            "Unavailable: this Pack's folder is not known to this desktop; admit it again",
+        )
+    })?;
+    // Core's Pack registry is per session: admit the remembered folder again
+    // (idempotent; Core re-verifies it) so runs resume after a restart.
+    state.session()?.packs_install_local(&dir)?;
+    Ok(dir)
+}
+
+/// Models an agent can use: Packs admitted in the open vault. The bundled
+/// fixture is always admitted; other Packs come from `medagent_admit_pack`.
+#[tauri::command(async)]
+pub fn medagent_models(host: tauri::State<'_, Host>) -> CmdResult<Value> {
+    let mut state = lock(&host)?;
+    let (fixture_id, _) = workspace_pack(&mut state)?;
+    let root = state.workspace()?.vault_root.clone();
+    let dirs = host::load_pack_dirs(&root);
+    let packs = state.session()?.packs_list()?;
+    Ok(json!(
+        packs
+            .iter()
+            .map(|p| {
+                let id = p.pack_id.as_str();
+                json!({
+                    "id": id,
+                    "version": p.version,
+                    "runtime": p.runtime_requirements,
+                    "fixture": id == fixture_id.as_str(),
+                    "runnable": id == fixture_id.as_str() || dirs.contains_key(id),
+                })
+            })
+            .collect::<Vec<_>>()
+    ))
+}
+
+/// Admits a local Pack folder into the open vault. Core verifies the
+/// manifest, digests, signature and trust root; nothing is downloaded.
+#[tauri::command(async)]
+pub fn medagent_admit_pack(host: tauri::State<'_, Host>, path: String) -> CmdResult<Value> {
+    let path = host::bounded_text(&path, 1024)?;
+    let dir = std::path::Path::new(&path);
+    if !dir.is_absolute() || !dir.is_dir() {
+        return Err(CmdError::invalid(
+            "Invalid: choose an existing absolute Pack folder",
+        ));
+    }
+    let mut state = lock(&host)?;
+    let result = state.session()?.packs_install_local(&path)?;
+    let Some(pack_id) = result.pack_id.clone().filter(|_| result.admitted) else {
+        return Err(CmdError::new(
+            "denied",
+            format!("Denied: Pack not admitted ({:?})", result.reason),
+        ));
+    };
+    let root = state.workspace()?.vault_root.clone();
+    let mut dirs = host::load_pack_dirs(&root);
+    dirs.insert(pack_id.as_str().to_owned(), path);
+    host::save_pack_dirs(&root, &dirs)?;
+    Ok(json!({ "id": pack_id.as_str(), "admitted": true }))
+}
+
+/// Ingested sources an agent's context can bind.
+#[tauri::command(async)]
+pub fn medagent_sources(host: tauri::State<'_, Host>) -> CmdResult<Value> {
+    let mut state = lock(&host)?;
+    let ws = state.workspace()?;
+    let mut seen = std::collections::BTreeSet::new();
+    Ok(json!(
+        ws.seed
+            .sources
+            .iter()
+            .filter(|s| seen.insert(s.source_id.clone()))
+            .map(|s| json!({
+                "id": s.source_id,
+                "fixture": s.fixture,
+                "resource_type": s.resource_type,
+                "subject": s.subject_ref,
+            }))
+            .collect::<Vec<_>>()
+    ))
+}
+
+/// Registers a named agent on an admitted Pack with the granted tools.
+#[tauri::command(async)]
+pub fn medagent_create_agent(
+    host: tauri::State<'_, Host>,
+    project_id: String,
+    name: String,
+    pack_id: String,
+    tools: Vec<String>,
+) -> CmdResult<Value> {
+    let project_id = host::bounded_id(&project_id)?.to_owned();
+    let pack_id = host::bounded_id(&pack_id)?.to_owned();
+    let name = host::bounded_text(&name, 80)?;
+    let tools = tools
+        .iter()
+        .map(|t| {
+            serde_json::from_value::<ToolKind>(Value::String(t.clone()))
+                .map_err(|_| CmdError::invalid("Invalid: unknown agent tool"))
+        })
+        .collect::<CmdResult<Vec<_>>>()?;
+    if tools.is_empty() {
+        return Err(CmdError::invalid("Invalid: grant at least one tool"));
+    }
+    let mut state = lock(&host)?;
+    let (identity, capabilities) = state.session()?.medagent_identity_register(
+        OpaqueId::new(&project_id),
+        OpaqueId::new(&pack_id),
+        name,
+        tools,
+    )?;
+    Ok(agent_json(&identity, &capabilities))
+}
+
+fn agent_json(
+    identity: &medscale_contracts::medagent::AgentIdentity,
+    capabilities: &medscale_contracts::medagent::AgentCapabilityManifest,
+) -> Value {
+    json!({
+        "id": identity.header.id.as_str(),
+        "label": identity.display_name,
+        "status": identity.status,
+        "revision": identity.revision,
+        "pack_id": identity.pack_id.as_str(),
+        "pack_version": identity.pack_version,
+        "tools": capabilities.granted_tool_kinds,
+    })
+}
+
+/// Revokes an agent; its existing runs and turns stay on record.
+#[tauri::command(async)]
+pub fn medagent_revoke_agent(
+    host: tauri::State<'_, Host>,
+    agent_id: String,
+    revision: u64,
+) -> CmdResult<Value> {
+    let agent_id = host::bounded_id(&agent_id)?.to_owned();
+    let mut state = lock(&host)?;
+    let session = state.session()?;
+    session.medagent_identity_revoke(OpaqueId::new(&agent_id), revision)?;
+    let (identity, capabilities) = session.medagent_identity_get(OpaqueId::new(&agent_id))?;
+    Ok(agent_json(&identity, &capabilities))
+}
+
+/// One run with its agent, model and the evidence its context binds.
+#[tauri::command(async)]
+pub fn medagent_run_detail(host: tauri::State<'_, Host>, run_id: String) -> CmdResult<Value> {
+    let run_id = host::bounded_id(&run_id)?.to_owned();
+    let mut state = lock(&host)?;
+    let sources: std::collections::BTreeMap<String, host::SeededSource> = state
+        .workspace()?
+        .seed
+        .sources
+        .iter()
+        .map(|s| (s.source_id.clone(), s.clone()))
+        .collect();
+    let session = state.session()?;
+    let run = session.medagent_run_get(OpaqueId::new(&run_id))?;
+    let (identity, capabilities) = session.medagent_identity_get(run.agent_identity_id.clone())?;
+    let (context, resolutions) = session.medagent_context_get(run.context_manifest_id.clone())?;
+    let evidence = context
+        .selected_artifacts
+        .iter()
+        .enumerate()
+        .map(|(i, a)| {
+            let id = a.object_id.as_str();
+            let source = sources.get(id);
+            json!({
+                "id": id,
+                "resolution": resolutions.get(i),
+                "fixture": source.map(|s| s.fixture.clone()),
+                "resource_type": source.map(|s| s.resource_type.clone()),
+                "subject": source.map(|s| s.subject_ref.clone()),
+            })
+        })
+        .collect::<Vec<_>>();
+    Ok(json!({
+        "run": {
+            "id": run.header.id.as_str(),
+            "status": run.status.as_str(),
+            "revision": run.revision,
+            "prompt": run.prompt,
+        },
+        "agent": agent_json(&identity, &capabilities),
+        "context_id": context.header.id.as_str(),
+        "evidence": evidence,
+    }))
+}
+
+/// Creates a pending run. With `agent_id` and `source_ids`, the run uses that
+/// agent and a context bound to exactly those ingested sources; without them,
+/// the first active agent (or a new synthetic review agent on the fixture
+/// Pack) and the first two sources.
 #[tauri::command(async)]
 pub fn medagent_create_run(
     host: tauri::State<'_, Host>,
     project_id: String,
     prompt: String,
+    agent_id: Option<String>,
+    source_ids: Option<Vec<String>>,
 ) -> CmdResult<Value> {
     let project_id = host::bounded_id(&project_id)?.to_owned();
     let prompt = host::bounded_text(&prompt, 2000)?;
+    let agent_id = agent_id
+        .map(|a| host::bounded_id(&a).map(str::to_owned))
+        .transpose()?;
     let mut state = lock(&host)?;
+    let artifacts = match source_ids {
+        Some(ids) => selected_sources(&mut state, &ids)?,
+        None => source_artifacts(&mut state, 2)?,
+    };
     let (pack_id, _) = workspace_pack(&mut state)?;
-    let artifacts = source_artifacts(&mut state, 2)?;
     let session = state.session()?;
     let existing = session.medagent_identity_list(OpaqueId::new(&project_id), None)?;
-    let agent_id = match existing.first() {
-        Some(identity) => identity.header.id.clone(),
-        None => {
+    let active = existing
+        .iter()
+        .find(|i| i.status == medscale_contracts::medagent::AgentIdentityStatus::Active);
+    let agent_id = match (agent_id, active) {
+        (Some(id), _) => OpaqueId::new(id),
+        (None, Some(identity)) => identity.header.id.clone(),
+        (None, None) => {
             session
                 .medagent_identity_register(
                     OpaqueId::new(&project_id),
@@ -150,6 +470,32 @@ pub fn medagent_create_run(
         prompt,
     )?;
     Ok(crate::obj!(run => id, status, revision, prompt))
+}
+
+/// Context artifacts for exactly the chosen ingested sources (1 to 16).
+fn selected_sources(state: &mut State, ids: &[String]) -> CmdResult<Vec<ArtifactDescriptor>> {
+    if ids.is_empty() || ids.len() > 16 {
+        return Err(CmdError::invalid("Invalid: choose 1 to 16 sources"));
+    }
+    let ws = state.workspace()?;
+    let mut out: Vec<ArtifactDescriptor> = Vec::new();
+    for id in ids {
+        let id = host::bounded_id(id)?;
+        if !ws.seed.sources.iter().any(|s| s.source_id == id) {
+            return Err(CmdError::invalid(
+                "Invalid: source is not ingested in this workspace",
+            ));
+        }
+        if out.iter().any(|a| a.object_id.as_str() == id) {
+            continue;
+        }
+        out.push(ArtifactDescriptor {
+            object_id: OpaqueId::new(id),
+            kind: ArtifactKind::SourceRecord,
+            binding: ArtifactVersionBinding::IdentityOnly,
+        });
+    }
+    Ok(out)
 }
 
 #[tauri::command(async)]
@@ -174,13 +520,38 @@ pub fn medagent_cancel(
     Ok(crate::obj!(r => id, status, revision, prompt))
 }
 
+/// Completes a running run (`Running -> Completed`) and returns its receipt.
+#[tauri::command(async)]
+pub fn medagent_complete(
+    host: tauri::State<'_, Host>,
+    run_id: String,
+    revision: u64,
+) -> CmdResult<Value> {
+    let run_id = host::bounded_id(&run_id)?.to_owned();
+    let mut state = lock(&host)?;
+    let (run, receipt) = state
+        .session()?
+        .medagent_run_complete(OpaqueId::new(&run_id), revision)?;
+    Ok(json!({
+        "id": run.header.id.as_str(),
+        "status": run.status.as_str(),
+        "revision": run.revision,
+        "prompt": run.prompt,
+        "receipt": receipt,
+    }))
+}
+
 /// Executes a started run on the local ONNX fixture runtime. The result is a
 /// proposal; nothing is promoted or written to a record.
 #[tauri::command(async)]
 pub fn medagent_execute(host: tauri::State<'_, Host>, run_id: String) -> CmdResult<Value> {
     let run_id = host::bounded_id(&run_id)?.to_owned();
     let mut state = lock(&host)?;
-    let (_, dir) = workspace_pack(&mut state)?;
+    // The run's own agent Pack; Core rejects a folder that is not exactly it.
+    let session = state.session()?;
+    let run = session.medagent_run_get(OpaqueId::new(&run_id))?;
+    let (identity, _) = session.medagent_identity_get(run.agent_identity_id)?;
+    let dir = pack_dir(&mut state, identity.pack_id.as_str())?;
     let (turn, proposal) =
         state
             .session()?
@@ -200,6 +571,39 @@ pub fn fleet_overview(host: tauri::State<'_, Host>, project_id: String) -> CmdRe
     Ok(json!({
         "lanes": lanes.iter().map(|r| crate::obj!(r => id, role_label, status, revision)).collect::<Vec<_>>(),
         "fleets": fleets.iter().map(|r| crate::obj!(r => id, status, revision)).collect::<Vec<_>>(),
+    }))
+}
+
+/// Creates one lane: an existing agent (and so its Pack) with a role and a
+/// context bound to the chosen ingested sources.
+#[tauri::command(async)]
+pub fn fleet_create_lane(
+    host: tauri::State<'_, Host>,
+    project_id: String,
+    role: String,
+    agent_id: String,
+    source_ids: Vec<String>,
+) -> CmdResult<Value> {
+    let project_id = host::bounded_id(&project_id)?.to_owned();
+    let agent_id = host::bounded_id(&agent_id)?.to_owned();
+    let role = host::bounded_text(&role, 80)?;
+    let mut state = lock(&host)?;
+    let artifacts = selected_sources(&mut state, &source_ids)?;
+    let session = state.session()?;
+    let (context, _) = session.medagent_context_create(OpaqueId::new(&project_id), artifacts)?;
+    let lane = session.model_fleet_lane_create(
+        OpaqueId::new(&project_id),
+        OpaqueId::new(&agent_id),
+        context.header.id,
+        role,
+        None,
+        None,
+    )?;
+    Ok(json!({
+        "id": lane.header.id.as_str(),
+        "role_label": lane.role_label,
+        "agent_id": agent_id,
+        "status": lane.status,
     }))
 }
 
@@ -287,7 +691,11 @@ pub fn fleet_execute_lane(
     let fleet_id = host::bounded_id(&fleet_id)?.to_owned();
     let lane_id = host::bounded_id(&lane_id)?.to_owned();
     let mut state = lock(&host)?;
-    let (_, dir) = workspace_pack(&mut state)?;
+    // Each lane runs on its own agent's Pack, so a fleet can compare models.
+    let session = state.session()?;
+    let lane = session.model_fleet_lane_get(OpaqueId::new(&lane_id))?;
+    let (identity, _) = session.medagent_identity_get(lane.agent_identity_id)?;
+    let dir = pack_dir(&mut state, identity.pack_id.as_str())?;
     let r = model_fleet_workspace::execute_lane(state.session()?, &fleet_id, &lane_id, &dir)?;
     Ok(crate::obj!(r => id, status, revision))
 }
