@@ -1,9 +1,9 @@
-import { useState, type FormEvent, type ReactNode } from "react";
+import { useEffect, useState, type FormEvent, type ReactNode } from "react";
 import { useApp } from "../lib/app";
-import { useAction, useCommand } from "../lib/ipc";
+import { call, useAction, useCommand, type CmdError } from "../lib/ipc";
 import { ProjectScope } from "../components/project";
 import { MOD } from "../components/shell";
-import { Authority, Empty, ErrorState, KV, Ledger, Mark, Notice, PageHead, Section, Skeleton, Status, glyphFor, useOutcome } from "../components/ui";
+import { Authority, Empty, ErrorState, Glyph, KV, Ledger, Mark, Notice, PageHead, Section, Skeleton, Status, glyphFor, useOutcome } from "../components/ui";
 
 type Row = { label: string; value: string; detail: string; status: string };
 type Gov = {
@@ -90,11 +90,53 @@ export function AuditTrail() {
   );
 }
 
+type SubjectExport = {
+  exports: Array<{ resource_type: string; field_losses: Array<{ fhir_path: string; loss_class: string; note: string }>; unsupported_fields_preserved: string[]; full_conformance_claimed: boolean }>;
+  disclosure: { disclosure_id: string; purpose: string; artifact_refs: string[]; export_digest: string | null };
+};
+
+function SubjectExportForm({ onDone }: { onDone: () => void }) {
+  const patients = useCommand<{ subjects: Array<{ subject_ref: string; display_name: string }> }>("patients_list");
+  const [subject, setSubject] = useState("");
+  const [purpose, setPurpose] = useState("");
+  const [result, setResult] = useState<SubjectExport | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
+  const subjects = patients.state.status === "ready" ? patients.state.data.subjects : [];
+  useEffect(() => { if (!subject && subjects[0]) setSubject(subjects[0].subject_ref); }, [subjects, subject]);
+  async function run(e: FormEvent) {
+    e.preventDefault();
+    setBusy(true); setError(null);
+    try { setResult(await call<SubjectExport>("exports_subject", { subjectRef: subject, purpose })); onDone(); }
+    catch (err) { setError((err as CmdError).message ?? String(err)); }
+    finally { setBusy(false); }
+  }
+  return (
+    <Section n="01" title="Export a subject" count="loss-aware · disclosed">
+      <form onSubmit={run} className="stack" style={{ gap: 8, maxWidth: 640 }}>
+        <label className="lbl" htmlFor="xs">Subject</label>
+        <select id="xs" value={subject} onChange={(e) => setSubject(e.target.value)}>{subjects.map((s) => <option key={s.subject_ref} value={s.subject_ref}>{s.display_name} · {s.subject_ref}</option>)}</select>
+        <label className="lbl" htmlFor="xp">Purpose (recorded in the disclosure)</label>
+        <input id="xp" value={purpose} maxLength={200} onChange={(e) => setPurpose(e.target.value)} placeholder="For example: synthetic interchange review" />
+        <div><button type="submit" className="btn btn-p" disabled={!subject || !purpose.trim() || busy}>{busy ? <Glyph kind="running" /> : null}Export FHIR R4 (loss-aware)</button></div>
+      </form>
+      {error && <Notice kind="unavailable" title="Not exported.">{error}</Notice>}
+      {result && <div style={{ marginTop: 12 }}>
+        <Ledger items={[{ k: "disclosure", v: result.disclosure.disclosure_id, mono: true }, { k: "resources", v: result.exports.length, mono: true }, { k: "digest", v: result.disclosure.export_digest ?? "—", mono: true }]} />
+        <table className="tb"><thead><tr><th style={{ width: "22%" }}>Resource</th><th style={{ width: "14%" }}>Losses</th><th>Lost or unsupported fields</th></tr></thead>
+          <tbody>{result.exports.map((x, i) => <tr key={i}><td className="t-sm">{x.resource_type}</td><td className="mono t-mono-sm">{x.field_losses.length}</td><td className="t-sm i2"><span className="trunc">{[...x.field_losses.map((l) => `${l.fhir_path} (${l.loss_class})`), ...x.unsupported_fields_preserved].join(", ") || "none"}</span></td></tr>)}</tbody></table>
+        <p className="t-sm i3" style={{ marginTop: 6 }}>Full conformance is not claimed. The export is shown here, not written to disk; the disclosure is in the Audit Trail.</p>
+      </div>}
+    </Section>
+  );
+}
+
 export function Exports() {
   const { state, reload } = useGov();
   return (
     <div className="pane">
       <PageHead title="Exports" sub="Loss-aware interchange. What can leave, in which format, and what would be lost." />
+      <SubjectExportForm onDone={reload} />
       {state.status === "loading" && <Skeleton />}
       {state.status === "error" && <ErrorState error={state.error} onRetry={reload} />}
       {state.status === "ready" && <>

@@ -893,6 +893,211 @@ pub fn audio_overview(host: tauri::State<'_, Host>, project_id: String) -> CmdRe
     }))
 }
 
+/// Audio routes and the installed local speech recognition, if any.
+#[tauri::command(async)]
+pub fn audio_asr_status(host: tauri::State<'_, Host>) -> CmdResult<Value> {
+    let mut state = lock(&host)?;
+    let root = state.workspace()?.vault_root.clone();
+    let routes = state.session()?.audio_routes()?;
+    Ok(json!({
+        "routes": routes,
+        "asr_pack_dir": host::load_asr_pack(&root),
+    }))
+}
+
+/// Admits an Audio Pack folder (Spec 106) and installs its Whisper engine
+/// behind the local ASR route. Core verifies the Pack; nothing is downloaded.
+#[tauri::command(async)]
+pub fn audio_admit_asr_pack(host: tauri::State<'_, Host>, path: String) -> CmdResult<Value> {
+    let path = host::bounded_text(&path, 1024)?;
+    let dir = std::path::Path::new(&path);
+    if !dir.is_absolute() || !dir.is_dir() {
+        return Err(CmdError::invalid(
+            "Invalid: choose an existing absolute Audio Pack folder",
+        ));
+    }
+    let mut state = lock(&host)?;
+    let session = state.session()?;
+    let admitted = session.packs_install_local(&path)?;
+    let Some(pack_id) = admitted.pack_id.clone().filter(|_| admitted.admitted) else {
+        return Err(CmdError::new(
+            "denied",
+            format!("Denied: Pack not admitted ({:?})", admitted.reason),
+        ));
+    };
+    session.use_local_asr_pack(&path)?;
+    let root = state.workspace()?.vault_root.clone();
+    host::save_asr_pack(&root, &path)?;
+    Ok(json!({ "id": pack_id.as_str(), "installed": true }))
+}
+
+/// Largest WAV file the desktop imports (64 MiB).
+const WAV_IMPORT_MAX_BYTES: u64 = 64 << 20;
+
+/// Imports a synthetic WAV recording (absolute path) into a project.
+#[tauri::command(async)]
+pub fn audio_import_wav(
+    host: tauri::State<'_, Host>,
+    project_id: String,
+    path: String,
+) -> CmdResult<Value> {
+    let project_id = host::bounded_id(&project_id)?.to_owned();
+    let path = host::bounded_text(&path, 1024)?;
+    let file = std::path::Path::new(&path);
+    if !file.is_absolute() || !path.to_ascii_lowercase().ends_with(".wav") {
+        return Err(CmdError::invalid(
+            "Invalid: choose an absolute .wav file of at most 64 MiB",
+        ));
+    }
+    let wav = host::read_bounded(file, WAV_IMPORT_MAX_BYTES)?;
+    let label = file
+        .file_name()
+        .map(|n| n.to_string_lossy().into_owned())
+        .unwrap_or_else(|| "recording.wav".to_owned());
+    let mut state = lock(&host)?;
+    let source = state
+        .session()?
+        .audio_import(OpaqueId::new(&project_id), label, wav)?;
+    Ok(json!({ "source_id": source.header.id.as_str() }))
+}
+
+fn transcript_json(revision: &medscale_contracts::audio::TranscriptRevision) -> Value {
+    json!({
+        "revision_id": revision.header.id.as_str(),
+        "revision_no": revision.revision_no,
+        "state": revision.state,
+        "origin": revision.origin,
+        "segments": revision.segments.iter().map(|s| json!({
+            "seq": s.seq, "start_ms": s.start_ms, "end_ms": s.end_ms,
+            "status": s.status, "text": s.text,
+        })).collect::<Vec<_>>(),
+    })
+}
+
+/// Transcribes one source on a route (`local_asr_pack`, `fixture_asr` or
+/// `segmentation_only`). The transcript is a draft for review.
+#[tauri::command(async)]
+pub fn audio_transcribe(
+    host: tauri::State<'_, Host>,
+    project_id: String,
+    source_id: String,
+    route: String,
+) -> CmdResult<Value> {
+    use medscale_contracts::audio::{AudioRoute, AudioRouteRequest, VoiceInputMode};
+    let route = match route.as_str() {
+        "local_asr_pack" => AudioRoute::LocalAsrPack,
+        "fixture_asr" => AudioRoute::FixtureAsr,
+        "segmentation_only" => AudioRoute::SegmentationOnly,
+        _ => return Err(CmdError::invalid("Invalid: unknown audio route")),
+    };
+    let mut state = lock(&host)?;
+    let view = state.session()?.audio_transcribe(AudioRouteRequest {
+        project_id: OpaqueId::new(host::bounded_id(&project_id)?),
+        source_id: OpaqueId::new(host::bounded_id(&source_id)?),
+        route,
+        mode: VoiceInputMode::Dictation,
+        language: Some("en".to_owned()),
+        diarization_required: false,
+    })?;
+    Ok(json!({
+        "decision": view.receipt.decision,
+        "engine": view.receipt.engine,
+        "limitations": view.receipt.limitations,
+        "transcript": view.revision.as_ref().map(transcript_json),
+    }))
+}
+
+/// Records a person's correction of one segment as a new revision.
+#[tauri::command(async)]
+pub fn audio_correct(
+    host: tauri::State<'_, Host>,
+    revision_id: String,
+    seq: u32,
+    text: String,
+    reason: String,
+) -> CmdResult<Value> {
+    let revision_id = host::bounded_id(&revision_id)?.to_owned();
+    let text = host::bounded_text(&text, 2000)?;
+    let reason = host::bounded_text(&reason, 200)?;
+    let mut state = lock(&host)?;
+    let revision = state.session()?.audio_transcript_correct(
+        OpaqueId::new(&revision_id),
+        vec![(seq, text)],
+        reason,
+    )?;
+    Ok(transcript_json(&revision))
+}
+
+/// Drafts a note from a transcript revision: an admitted token-classification
+/// Pack runs on each transcribed segment, and the entities it finds are
+/// grouped by label. Every item cites its segment and time span. The draft is
+/// a proposal for review; nothing is written to a record (Spec 106 T106-06).
+#[tauri::command(async)]
+pub fn audio_draft_note(
+    host: tauri::State<'_, Host>,
+    revision_id: String,
+    pack_id: String,
+) -> CmdResult<Value> {
+    let revision_id = host::bounded_id(&revision_id)?.to_owned();
+    let pack_id = host::bounded_id(&pack_id)?.to_owned();
+    let mut state = lock(&host)?;
+    let local_path = pack_dir(&mut state, &pack_id)?;
+    let session = state.session()?;
+    let revision = session.audio_transcript_get(OpaqueId::new(&revision_id))?;
+    let mut sections: std::collections::BTreeMap<String, Vec<Value>> =
+        std::collections::BTreeMap::new();
+    let mut evaluated = 0usize;
+    for segment in &revision.segments {
+        let Some(text) = segment.text.as_deref().filter(|t| !t.trim().is_empty()) else {
+            continue;
+        };
+        let result =
+            session.packs_evaluate_local(medscale_contracts::packs::PackEvaluationRequest {
+                pack_id: OpaqueId::new(&pack_id),
+                local_path: local_path.clone(),
+                input: text.to_owned(),
+                max_tokens: 512,
+                synthetic_only: true,
+                zero_shot_labels: None,
+                decoding: Some(medscale_contracts::packs::EntityDecoding::WordFirst),
+            })?;
+        evaluated += 1;
+        let entities = result.proposal_payload["entities"]
+            .as_array()
+            .cloned()
+            .unwrap_or_default();
+        for e in entities {
+            // An entity without offsets or a label cannot be cited; skip it.
+            let (Some(start), Some(end), Some(label)) =
+                (e["start"].as_u64(), e["end"].as_u64(), e["label"].as_str())
+            else {
+                continue;
+            };
+            let label = label.to_owned();
+            let span: String = text
+                .chars()
+                .skip(usize::try_from(start).unwrap_or(0))
+                .take(usize::try_from(end.saturating_sub(start)).unwrap_or(0))
+                .collect();
+            sections.entry(label).or_default().push(json!({
+                "text": span,
+                "segment_seq": segment.seq,
+                "start_ms": segment.start_ms,
+                "end_ms": segment.end_ms,
+            }));
+        }
+    }
+    Ok(json!({
+        "revision_id": revision_id,
+        "revision_no": revision.revision_no,
+        "pack_id": pack_id,
+        "segments_evaluated": evaluated,
+        "sections": sections,
+        "status": "proposal",
+        "note": "Draft from a transcript; each item cites its segment. Not a record and not clinical truth.",
+    }))
+}
+
 /// Imports a generated synthetic tone/silence WAV (no microphone, no person).
 #[tauri::command(async)]
 pub fn audio_import_synthetic(

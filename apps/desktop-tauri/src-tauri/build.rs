@@ -13,6 +13,7 @@ fn main() {
             "patient_detail",
             "documents_list",
             "documents_import_fhir",
+            "exports_subject",
             "evidence_corpus",
             "evidence_search",
             "insights_overview",
@@ -81,6 +82,12 @@ fn main() {
             "audio_overview",
             "audio_import_synthetic",
             "audio_segment",
+            "audio_asr_status",
+            "audio_admit_asr_pack",
+            "audio_import_wav",
+            "audio_transcribe",
+            "audio_correct",
+            "audio_draft_note",
         ]));
     tauri_build::try_build(attributes).expect("failed to build the constrained Tauri manifest");
 }

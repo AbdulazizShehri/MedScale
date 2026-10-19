@@ -259,6 +259,25 @@ pub fn documents_import_fhir(
     Ok(json!(source))
 }
 
+/// Loss-aware FHIR export of one subject's assertions (Spec 020/021). Core
+/// appends the disclosure record in the same step; the result is shown, not
+/// written to disk by the desktop.
+#[tauri::command(async)]
+pub fn exports_subject(
+    host: tauri::State<'_, Host>,
+    subject_ref: String,
+    purpose: String,
+) -> CmdResult<Value> {
+    let subject = host::bounded_id(&subject_ref)?.to_owned();
+    let purpose = host::bounded_text(&purpose, 200)?;
+    let mut state = lock(&host)?;
+    let (exports, record) = state.session()?.export_subject_fhir(
+        medscale_contracts::objects::OpaqueId::new(&subject),
+        purpose,
+    )?;
+    Ok(json!({ "exports": exports, "disclosure": record }))
+}
+
 fn corpus_json() -> Value {
     let corpus = default_synthetic_corpus();
     json!({
