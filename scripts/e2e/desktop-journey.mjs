@@ -91,6 +91,18 @@ async function quit() {
     await sleep(2000);
   }
 }
+async function visible(id) {
+  // The W3C "displayed" endpoint is optional; fall back to a layout check.
+  try {
+    return await wd("GET", `/session/${sid}/element/${id}/displayed`);
+  } catch {
+    return wd("POST", `/session/${sid}/execute/sync`, {
+      script: "const e = arguments[0]; const r = e.getBoundingClientRect(); return !e.disabled && r.width > 0 && r.height > 0;",
+      args: [{ [ELEMENT]: id }],
+    }).catch(() => false);
+  }
+}
+let loggedFindError = false;
 async function find(xpath, timeout = 30000) {
   const end = Date.now() + timeout;
   let last;
@@ -99,12 +111,14 @@ async function find(xpath, timeout = 30000) {
       const els = await wd("POST", `/session/${sid}/elements`, { using: "xpath", value: xpath });
       for (const e of els) {
         const id = e[ELEMENT];
-        const shown = await wd("GET", `/session/${sid}/element/${id}/displayed`).catch(() => false);
-        const enabled = await wd("GET", `/session/${sid}/element/${id}/enabled`).catch(() => false);
-        if (shown && enabled) return id;
+        if (id && (await visible(id))) return id;
       }
     } catch (err) {
       last = err;
+      if (!loggedFindError) {
+        loggedFindError = true;
+        console.log(`find error: ${err.message}`);
+      }
     }
     await sleep(250);
   }
