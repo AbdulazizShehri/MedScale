@@ -181,12 +181,20 @@ fn every_surface_runs_against_real_core() {
     assert!(hits["relevance_is_not_authority"].as_bool().unwrap_or(true));
     let insights = h.ok("insights_overview", json!({}));
     assert_eq!(insights["cohort_size"], 2, "{insights}");
-    assert!(
-        !h.ok("insights_ask", json!({ "query": "coverage gaps" }))
-            .as_str()
-            .unwrap()
-            .is_empty()
+    // Grounded answers: cited sentences from the corpus, or an abstention.
+    let grounded = h.ok(
+        "insights_ask",
+        json!({ "query": "metformin dose in diabetes" }),
     );
+    assert_eq!(grounded["answer"]["abstained"], false, "{grounded}");
+    assert_eq!(
+        grounded["answer"]["citations"][0]["doc_id"], "doc-dm",
+        "{grounded}"
+    );
+    assert!(grounded["answer"]["citations"][0]["content_digest"].is_string());
+    // The only statin document is retracted, so nothing supports it.
+    let retracted = h.ok("insights_ask", json!({ "query": "statin myopathy" }));
+    assert_eq!(retracted["answer"]["abstained"], true, "{retracted}");
 
     // Projects.
     let project = h.ok(
@@ -696,6 +704,14 @@ fn medagent_workbench_agent_context_evidence_and_resume() {
     assert_eq!(
         worded["proposal_payload"]["aggregation"], "word_first",
         "{worded}"
+    );
+    let recommended = h.ok(
+        "models_evaluate",
+        json!({ "packId": fixture_id, "input": "alice visited clinic today", "decoding": "recommended" }),
+    );
+    assert_eq!(
+        recommended["proposal_payload"]["aggregation"], "word_first",
+        "{recommended}"
     );
     assert_eq!(
         h.call(

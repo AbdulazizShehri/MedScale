@@ -144,6 +144,12 @@ pub enum EntityDecoding {
     PiiMerge,
     /// `word_first` plus OpenMed's PII entity merger.
     WordFirstPiiMerge,
+    /// Task-aware: `word_first_pii_merge` for PII-family models and
+    /// `word_first` for other token classifiers. Chosen from MedScale's
+    /// head-to-head against OpenMed 3.0.0 (21 models, synthetic gold sets:
+    /// at or above OpenMed on every row). Opt-in; an absent decoding keeps
+    /// the established behaviour.
+    Recommended,
 }
 
 /// One prepared model held in a Core residency pool (Spec 103).

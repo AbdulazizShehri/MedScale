@@ -49,7 +49,7 @@ Fill Spec 081's `LocalAsrPack` route with real, local speech recognition, so tha
 
 ## Non-goals
 
-- Diarization: speaker labels stay `Unknown`, and `diarization_required` is still denied.
+- Trained speaker-embedding diarization. Spec 106 adds only unvalidated acoustic clustering (`DiarizationState::AcousticClustering`): anonymous "speaker N" groups, never identity.
 - Timestamps per word, streaming, language detection, translation and cloud ASR.
 - Note generation from transcripts (a later slice).
 - Any claim of medical accuracy.

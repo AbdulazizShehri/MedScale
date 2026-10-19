@@ -37,7 +37,7 @@ mod store;
 
 pub use audio::{
     AsrEngine, FixtureAsrEngine, PackAsrEngine, SegmentEdit, SignalAnalysis, analyze_pcm,
-    build_wav, parse_wav, synthetic_pcm,
+    build_wav, diarize, parse_wav, synthetic_pcm,
 };
 pub use corpus::{
     DEFAULT_CORPUS_ID, DEFAULT_CORPUS_VERSION, SCALE_CORPUS_DOC_COUNT_10K, SCALE_CORPUS_ID,

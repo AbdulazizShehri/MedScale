@@ -547,11 +547,6 @@ fn routes_are_local_only_and_every_request_leaves_a_receipt() {
             false,
             AudioRouteDenyReason::RouteUnavailable,
         ),
-        (
-            AudioRoute::SegmentationOnly,
-            true,
-            AudioRouteDenyReason::DiarizationUnavailable,
-        ),
     ] {
         let v = h
             .transcribe(&p, &source, route, VoiceInputMode::Dictation, diarize)
@@ -597,6 +592,33 @@ fn routes_are_local_only_and_every_request_leaves_a_receipt() {
         v.receipt
             .limitations
             .contains(&AudioLimitation::MedicalAccuracyUnmeasured)
+    );
+
+    // Spec 106: diarization on request is unvalidated acoustic clustering;
+    // every segment gets an anonymous speaker index, never an identity.
+    let d = h
+        .transcribe(
+            &p,
+            &source,
+            AudioRoute::SegmentationOnly,
+            VoiceInputMode::Command,
+            true,
+        )
+        .unwrap();
+    let dt = d.revision.unwrap();
+    assert_eq!(
+        dt.diarization,
+        medscale_contracts::audio::DiarizationState::AcousticClustering
+    );
+    assert!(
+        dt.segments
+            .iter()
+            .all(|s| matches!(s.speaker, SpeakerLabel::Anonymous { index } if index >= 1))
+    );
+    assert!(
+        d.receipt
+            .limitations
+            .contains(&AudioLimitation::DiarizationIsUnvalidatedClustering)
     );
 
     match h

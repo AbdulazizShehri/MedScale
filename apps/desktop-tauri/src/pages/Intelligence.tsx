@@ -135,16 +135,16 @@ function CatalogTab() {
   );
 }
 
-// word_first scored at or above the OpenMed-compatible decoder on every
-// synthetic head-to-head row (evidence/103-local-model-catalog/eval/), so it
-// is preselected; the OpenMed-compatible decoder stays one click away.
-const DECODINGS: Array<[string, string]> = [["word_first", "Word: first sub-token (evaluated best overall)"], ["", "OpenMed-compatible (ONNX decoder)"], ["word_average", "Word: average"], ["word_max", "Word: most confident"], ["pii_merge", "PII merge"], ["word_first_pii_merge", "Word first + PII merge"]];
+// "recommended" is Core's task-aware decoding: word-first plus the PII merger
+// for PII models, word-first otherwise. It scored at or above OpenMed 3.0.0 on
+// every synthetic head-to-head row (evidence/103-local-model-catalog/eval/).
+const DECODINGS: Array<[string, string]> = [["recommended", "Recommended (task-aware)"], ["word_first", "Word: first sub-token"], ["", "OpenMed-compatible (ONNX decoder)"], ["word_average", "Word: average"], ["word_max", "Word: most confident"], ["pii_merge", "PII merge"], ["word_first_pii_merge", "Word first + PII merge"]];
 
 function EvaluateTab() {
   const models = useCommand<Model[]>("medagent_models");
   const [packId, setPackId] = useState("");
   const [input, setInput] = useState("Synthetic note: Ada Example, born 12 March 1980, seen at Utrecht clinic for type 2 diabetes.");
-  const [decoding, setDecoding] = useState("word_first");
+  const [decoding, setDecoding] = useState("recommended");
   const [labels, setLabels] = useState("");
   const [result, setResult] = useState<{ proposal_payload: Record<string, unknown>; runtime_id: string; prepared_cache_hit: boolean; audit_id: string } | null>(null);
   const { pending, run } = useAction();
