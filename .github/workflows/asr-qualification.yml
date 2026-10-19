@@ -74,6 +74,16 @@ jobs:
           curl -sfL -A medscale-qualification \
             "https://raw.githubusercontent.com/openai/whisper/$WHISPER_ASSETS_COMMIT/whisper/assets/mel_filters.npz" \
             -o "$RUNNER_TEMP/mel_filters.npz"
+          python3 -m venv "$RUNNER_TEMP/np"
+          "$RUNNER_TEMP/np/bin/pip" install --quiet "numpy==2.3.4"
+          "$RUNNER_TEMP/np/bin/python" - "$RUNNER_TEMP/mel_filters.npz" "$RUNNER_TEMP/mel" <<'PY'
+          import os, sys, numpy as np
+          src, out = sys.argv[1], sys.argv[2]
+          os.makedirs(out, exist_ok=True)
+          with np.load(src) as f:
+              for name in ("mel_80", "mel_128"):
+                  f[name].astype("<f4").tofile(os.path.join(out, name + ".f32"))
+          PY
           echo "SNAPSHOT_DIR=$dir" >> "$GITHUB_ENV"
 
       - name: Generate synthetic speech
@@ -110,7 +120,7 @@ jobs:
         env:
           MEDSCALE_ASR_SNAPSHOT_DIR: ${{ env.SNAPSHOT_DIR }}
           MEDSCALE_ASR_CASES: ${{ env.CASES }}
-          MEDSCALE_MEL_FILTERS_NPZ: ${{ runner.temp }}/mel_filters.npz
+          MEDSCALE_MEL_FILTERS_DIR: ${{ runner.temp }}/mel
         run: |
           set -o pipefail
           cargo test --release --locked -p medscale-pack --test whisper_external_106 \

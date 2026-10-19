@@ -580,6 +580,28 @@ mod tests {
     }
 
     #[test]
+    fn synthetic_audio_pack_admits_and_prepares() {
+        let out =
+            std::env::temp_dir().join(format!("medscale-106-unit-pack-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&out);
+        let pack_id = fixtures::synthetic_audio_pack(&out);
+        let manifest = crate::admit_pack_dir(&out).expect("signed Audio Pack admits");
+        assert_eq!(manifest.pack_id.as_str(), pack_id);
+        assert!(
+            manifest
+                .runtime_requirements
+                .starts_with(CANDLE_WHISPER_ASR_RUNTIME_ID)
+        );
+        let asr = prepare_whisper_asr(&out, &manifest).expect("prepares from the Pack");
+        assert_eq!(
+            asr.provenance().runtime_family,
+            CANDLE_WHISPER_ASR_RUNTIME_ID
+        );
+        asr.transcribe(&[0.0; 16_000]).expect("transcribes");
+        let _ = std::fs::remove_dir_all(out);
+    }
+
+    #[test]
     fn missing_control_token_is_refused() {
         let tok = fixtures::tiny_tokenizer().replace("<|notimestamps|>", "<|other|>");
         let err = prepare_whisper_from_bytes(
