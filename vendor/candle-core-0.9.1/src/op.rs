@@ -499,7 +499,10 @@ impl UnaryOpT for Gelu {
     }
     #[inline(always)]
     fn f32(v: f32) -> f32 {
-        0.5 * v * (1.0 + f32::tanh(SQRT_TWO_OVER_PI_F32 * v * (1.0 + 0.044715 * v * v)))
+        // MedScale performance patch: single-precision tanh (MEDSCALE_PATCH.md).
+        0.5 * v
+            * (1.0
+                + crate::cpu::erf::tanh_f32(SQRT_TWO_OVER_PI_F32 * v * (1.0 + 0.044715 * v * v)))
     }
     #[inline(always)]
     fn f64(v: f64) -> f64 {
@@ -813,7 +816,8 @@ impl UnaryOpT for GeluErf {
     }
     #[inline(always)]
     fn f32(v: f32) -> f32 {
-        Self::f64(v as f64) as f32
+        // MedScale performance patch: single-precision erf (MEDSCALE_PATCH.md).
+        (crate::cpu::erf::erf_f32(v * std::f32::consts::FRAC_1_SQRT_2) + 1.) * 0.5 * v
     }
     #[inline(always)]
     fn f64(v: f64) -> f64 {
