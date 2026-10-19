@@ -92,15 +92,12 @@ async function quit() {
   }
 }
 async function visible(id) {
-  // The W3C "displayed" endpoint is optional; fall back to a layout check.
-  try {
-    return await wd("GET", `/session/${sid}/element/${id}/displayed`);
-  } catch {
-    return wd("POST", `/session/${sid}/execute/sync`, {
-      script: "const e = arguments[0]; const r = e.getBoundingClientRect(); return !e.disabled && r.width > 0 && r.height > 0;",
-      args: [{ [ELEMENT]: id }],
-    }).catch(() => false);
-  }
+  // Layout-based check: WebDriver's "displayed" reports false for this
+  // WebView2 window on the CI desktop even when it is rendered.
+  return wd("POST", `/session/${sid}/execute/sync`, {
+    script: "const e = arguments[0]; const r = e.getBoundingClientRect(); const s = getComputedStyle(e); return !e.disabled && r.width > 0 && r.height > 0 && s.visibility !== 'hidden' && s.display !== 'none';",
+    args: [{ [ELEMENT]: id }],
+  }).catch(() => false);
 }
 let loggedFindError = false;
 async function find(xpath, timeout = 30000) {
