@@ -29,7 +29,7 @@ async function wd(method, url, body) {
   return json.value;
 }
 
-const ELEMENT = "element-6066-11e4-a52e-4f735466cecc";
+const ELEMENT = "element-6066-11e4-a52e-4f735466cecf";
 let sid;
 let child;
 let step = 0;
