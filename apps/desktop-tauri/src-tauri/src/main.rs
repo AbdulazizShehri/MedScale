@@ -17,6 +17,7 @@ mod cmd_research;
 mod host;
 mod navigation_policy;
 mod startup_failure;
+mod synthesis;
 
 #[cfg(test)]
 mod feature_tests;
@@ -40,6 +41,7 @@ fn presentation_builder<R: tauri::Runtime>(builder: tauri::Builder<R>) -> tauri:
             cmd_core::patient_detail,
             cmd_core::documents_list,
             cmd_core::documents_import_fhir,
+            cmd_core::exports_subject,
             cmd_core::evidence_corpus,
             cmd_core::evidence_search,
             cmd_core::insights_overview,
@@ -108,6 +110,12 @@ fn presentation_builder<R: tauri::Runtime>(builder: tauri::Builder<R>) -> tauri:
             cmd_ops::audio_overview,
             cmd_ops::audio_import_synthetic,
             cmd_ops::audio_segment,
+            cmd_ops::audio_asr_status,
+            cmd_ops::audio_admit_asr_pack,
+            cmd_ops::audio_import_wav,
+            cmd_ops::audio_transcribe,
+            cmd_ops::audio_correct,
+            cmd_ops::audio_draft_note,
         ])
 }
 

@@ -14,6 +14,7 @@
     "allow-patient-detail",
     "allow-documents-list",
     "allow-documents-import-fhir",
+    "allow-exports-subject",
     "allow-evidence-corpus",
     "allow-evidence-search",
     "allow-insights-overview",
@@ -81,6 +82,12 @@
     "allow-workflow-overview",
     "allow-audio-overview",
     "allow-audio-import-synthetic",
-    "allow-audio-segment"
+    "allow-audio-segment",
+    "allow-audio-asr-status",
+    "allow-audio-admit-asr-pack",
+    "allow-audio-import-wav",
+    "allow-audio-transcribe",
+    "allow-audio-correct",
+    "allow-audio-draft-note"
   ]
 }

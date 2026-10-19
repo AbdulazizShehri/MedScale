@@ -110,6 +110,34 @@ fn candle_pack_evaluates_through_core_with_a_resident_cache() {
     assert_eq!(decoded.proposal_payload["aggregation"], "word_first");
     assert!(decoded.proposal_payload["pii_merged_entities"].is_array());
 
+    // `recommended` is task-aware: this synthetic Pack is not a PII-family
+    // model, so it decodes word-first without the PII merger.
+    let recommended = facade
+        .dispatch(request(
+            Capability::PacksEvaluateLocal,
+            RequestBody::PacksEvaluateLocal {
+                request: PackEvaluationRequest {
+                    pack_id: OpaqueId::new(&pack_id),
+                    local_path: out.display().to_string(),
+                    input: "alice visited clinic today".to_owned(),
+                    max_tokens: 16,
+                    synthetic_only: true,
+                    zero_shot_labels: None,
+                    decoding: Some(medscale_contracts::packs::EntityDecoding::Recommended),
+                },
+            },
+        ))
+        .result
+        .expect("candle Pack evaluates with the recommended decoding");
+    let ResponseBody::PackEvaluation {
+        result: recommended,
+    } = recommended
+    else {
+        panic!("evaluation");
+    };
+    assert_eq!(recommended.proposal_payload["aggregation"], "word_first");
+    assert!(recommended.proposal_payload["pii_merged_entities"].is_null());
+
     let real_phi = facade.dispatch(request(
         Capability::PacksEvaluateLocal,
         RequestBody::PacksEvaluateLocal {

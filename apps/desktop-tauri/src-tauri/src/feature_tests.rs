@@ -181,12 +181,20 @@ fn every_surface_runs_against_real_core() {
     assert!(hits["relevance_is_not_authority"].as_bool().unwrap_or(true));
     let insights = h.ok("insights_overview", json!({}));
     assert_eq!(insights["cohort_size"], 2, "{insights}");
-    assert!(
-        !h.ok("insights_ask", json!({ "query": "coverage gaps" }))
-            .as_str()
-            .unwrap()
-            .is_empty()
+    // Grounded answers: cited sentences from the corpus, or an abstention.
+    let grounded = h.ok(
+        "insights_ask",
+        json!({ "query": "metformin dose in diabetes" }),
     );
+    assert_eq!(grounded["answer"]["abstained"], false, "{grounded}");
+    assert_eq!(
+        grounded["answer"]["citations"][0]["doc_id"], "doc-dm",
+        "{grounded}"
+    );
+    assert!(grounded["answer"]["citations"][0]["content_digest"].is_string());
+    // The only statin document is retracted, so nothing supports it.
+    let retracted = h.ok("insights_ask", json!({ "query": "statin myopathy" }));
+    assert_eq!(retracted["answer"]["abstained"], true, "{retracted}");
 
     // Projects.
     let project = h.ok(
@@ -697,6 +705,14 @@ fn medagent_workbench_agent_context_evidence_and_resume() {
         worded["proposal_payload"]["aggregation"], "word_first",
         "{worded}"
     );
+    let recommended = h.ok(
+        "models_evaluate",
+        json!({ "packId": fixture_id, "input": "alice visited clinic today", "decoding": "recommended" }),
+    );
+    assert_eq!(
+        recommended["proposal_payload"]["aggregation"], "word_first",
+        "{recommended}"
+    );
     assert_eq!(
         h.call(
             "models_evaluate",
@@ -769,6 +785,16 @@ fn medagent_workbench_agent_context_evidence_and_resume() {
             .iter()
             .any(|s| s["id"] == imported["source_id"])
     );
+    // The 1 MiB bound applies to the bytes read.
+    std::fs::write(dir.join("big.json"), vec![b' '; (1 << 20) + 1]).unwrap();
+    assert_eq!(
+        h.call(
+            "documents_import_fhir",
+            json!({ "path": dir.join("big.json").display().to_string(), "subjectRef": "synthetic-subject-import" }),
+        )
+        .unwrap_err()["kind"],
+        "invalid"
+    );
     std::fs::write(dir.join("not-json.json"), b"not json").unwrap();
     assert_eq!(
         h.call(
@@ -785,6 +811,131 @@ fn medagent_workbench_agent_context_evidence_and_resume() {
         )
         .unwrap_err()["kind"],
         "invalid"
+    );
+
+    // AudioFlow (Spec 106): admit an Audio Pack, import a WAV, transcribe on
+    // the local ASR route, correct a segment.
+    let asr_dir = std::env::temp_dir().join(format!("medscale-tauri-asr-{}", std::process::id()));
+    let _ = std::fs::remove_dir_all(&asr_dir);
+    medscale_pack::asr_fixtures::synthetic_audio_pack(&asr_dir);
+    let status = h.ok("audio_asr_status", json!({}));
+    assert!(
+        status["routes"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .any(|r| r["route"] == "local_asr_pack" && r["available"] == false),
+        "{status}"
+    );
+    h.ok(
+        "audio_admit_asr_pack",
+        json!({ "path": asr_dir.display().to_string() }),
+    );
+    let status = h.ok("audio_asr_status", json!({}));
+    assert!(
+        status["routes"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .any(|r| r["route"] == "local_asr_pack" && r["available"] == true),
+        "{status}"
+    );
+    let wav_path = dir.join("dictation.wav");
+    std::fs::write(
+        &wav_path,
+        medscale_core::CliSession::synthetic_wav(
+            medscale_contracts::audio::PcmFormat::mono_16k(),
+            &[(300, false), (900, true), (300, false)],
+        ),
+    )
+    .unwrap();
+    let imported = h.ok(
+        "audio_import_wav",
+        json!({ "projectId": pid, "path": wav_path.display().to_string() }),
+    );
+    let transcribed = h.ok(
+        "audio_transcribe",
+        json!({ "projectId": pid, "sourceId": imported["source_id"], "route": "local_asr_pack" }),
+    );
+    assert_eq!(transcribed["decision"]["outcome"], "allow", "{transcribed}");
+    assert_eq!(transcribed["engine"]["is_fixture"], false, "{transcribed}");
+    let revision = transcribed["transcript"]["revision_id"].clone();
+    let corrected = h.ok(
+        "audio_correct",
+        json!({ "revisionId": revision, "seq": 1, "text": "patient has fever", "reason": "reviewed against the recording" }),
+    );
+    assert_eq!(corrected["revision_no"], 2, "{corrected}");
+    assert_eq!(corrected["segments"][0]["text"], "patient has fever");
+    // Draft note from the corrected revision with the fixture Pack: items
+    // cite their segment; the draft stays a proposal.
+    let draft = h.ok(
+        "audio_draft_note",
+        json!({ "revisionId": corrected["revision_id"], "packId": fixture_id }),
+    );
+    assert_eq!(draft["status"], "proposal", "{draft}");
+    assert_eq!(draft["segments_evaluated"], 1, "{draft}");
+    let items: Vec<&Value> = draft["sections"]
+        .as_object()
+        .unwrap()
+        .values()
+        .flat_map(|v| v.as_array().unwrap())
+        .collect();
+    assert!(!items.is_empty(), "{draft}");
+    assert!(items.iter().all(|i| i["segment_seq"] == 1), "{draft}");
+    assert_eq!(
+        h.call(
+            "audio_transcribe",
+            json!({ "projectId": pid, "sourceId": imported["source_id"], "route": "cloud" })
+        )
+        .unwrap_err()["kind"],
+        "invalid"
+    );
+    // Restart again: the remembered Audio Pack engine is reinstalled on open.
+    h.ok("workspace_lock", json!({}));
+    {
+        let again = Harness::restart("medagent");
+        again.ok("workspace_open_synthetic", json!({}));
+        let status = again.ok("audio_asr_status", json!({}));
+        assert!(
+            status["routes"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .any(|r| r["route"] == "local_asr_pack" && r["available"] == true),
+            "local ASR resumes after restart: {status}"
+        );
+        again.ok("workspace_lock", json!({}));
+    }
+    h.ok("workspace_open_synthetic", json!({}));
+
+    // Exports: a subject's loss-aware FHIR export appends its disclosure.
+    let before = h.ok("governance_overview", json!({}))["audit_rows"]
+        .as_array()
+        .map_or(0, Vec::len);
+    let exported = h.ok(
+        "exports_subject",
+        json!({ "subjectRef": "synthetic-subject-ada", "purpose": "synthetic interchange review" }),
+    );
+    assert!(
+        !exported["exports"].as_array().unwrap().is_empty(),
+        "{exported}"
+    );
+    assert_eq!(exported["disclosure"]["scope"], "fhir_r4_loss_aware_export");
+    let after = h.ok("governance_overview", json!({}))["audit_rows"]
+        .as_array()
+        .map_or(0, Vec::len);
+    assert_eq!(
+        after,
+        before + 1,
+        "the disclosure appears in the Audit Trail"
+    );
+    assert_eq!(
+        h.call(
+            "exports_subject",
+            json!({ "subjectRef": "nobody", "purpose": "x" })
+        )
+        .unwrap_err()["kind"],
+        "missing"
     );
 
     // Reads the MedAgent page makes, recorded for visual QA replay.

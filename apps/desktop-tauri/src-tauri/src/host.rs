@@ -319,6 +319,45 @@ pub fn save_pack_dirs(
         .map_err(|_| CmdError::unavailable("Unavailable: pack folders not writable"))
 }
 
+fn asr_pack_path(vault_root: &Path) -> PathBuf {
+    let mut name = vault_root
+        .file_name()
+        .map(|n| n.to_string_lossy().into_owned())
+        .unwrap_or_else(|| "workspace".to_owned());
+    name.push_str(".desktop-asr.json");
+    vault_root.with_file_name(name)
+}
+
+/// The Audio Pack folder this desktop installed for a vault (Spec 106).
+pub fn load_asr_pack(vault_root: &Path) -> Option<String> {
+    std::fs::read(asr_pack_path(vault_root))
+        .ok()
+        .and_then(|bytes| serde_json::from_slice::<serde_json::Value>(&bytes).ok())
+        .and_then(|v| v["dir"].as_str().map(str::to_owned))
+}
+
+pub fn save_asr_pack(vault_root: &Path, dir: &str) -> CmdResult<()> {
+    let bytes = serde_json::to_vec_pretty(&serde_json::json!({ "dir": dir }))
+        .map_err(|_| CmdError::new("internal", "Internal: audio pack record"))?;
+    std::fs::write(asr_pack_path(vault_root), bytes)
+        .map_err(|_| CmdError::unavailable("Unavailable: audio pack record not writable"))
+}
+
+/// Reinstalls the remembered Audio Pack engine after the vault opens, so
+/// local speech recognition resumes after a restart. Core's Pack registry is
+/// per session, so the folder is admitted again first (Core re-verifies the
+/// manifest, digests and signature); a failure leaves the route unavailable.
+fn restore_asr(workspace: &mut Workspace) {
+    if let Some(dir) = load_asr_pack(&workspace.vault_root)
+        && workspace
+            .session
+            .packs_install_local(&dir)
+            .is_ok_and(|r| r.admitted)
+    {
+        let _ = workspace.session.use_local_asr_pack(&dir);
+    }
+}
+
 /// Ingests and promotes the synthetic fixtures through Core, once per vault.
 pub fn seed_synthetic(workspace: &mut Workspace, data_dir: &Path) -> CmdResult<()> {
     if !workspace.seed.subjects.is_empty() {
@@ -378,6 +417,28 @@ fn claim_kind_for(resource_type: &str) -> &'static str {
 /// Largest FHIR file the desktop imports (1 MiB).
 pub const FHIR_IMPORT_MAX_BYTES: u64 = 1 << 20;
 
+/// Reads a regular file of 1..=`max` bytes. The bound applies to the bytes
+/// actually read, not to earlier metadata, so a file that grows after a
+/// check cannot exceed it.
+pub fn read_bounded(path: &Path, max: u64) -> CmdResult<Vec<u8>> {
+    use std::io::Read;
+    let file = std::fs::File::open(path)
+        .map_err(|_| CmdError::new("missing", "Missing: file not found"))?;
+    if !file.metadata().is_ok_and(|m| m.is_file()) {
+        return Err(CmdError::invalid("Invalid: not a regular file"));
+    }
+    let mut bytes = Vec::new();
+    file.take(max + 1)
+        .read_to_end(&mut bytes)
+        .map_err(|_| CmdError::unavailable("Unavailable: file not readable"))?;
+    if bytes.is_empty() || bytes.len() as u64 > max {
+        return Err(CmdError::invalid(format!(
+            "Invalid: file must be 1 to {max} bytes"
+        )));
+    }
+    Ok(bytes)
+}
+
 /// Ingests and promotes one synthetic FHIR R4 JSON file through Core for a
 /// subject, and records it in the vault's manifest. Synthetic vaults only:
 /// Core admits no clinical ingest into encrypted vaults yet.
@@ -392,15 +453,7 @@ pub fn import_fhir(
             "Denied: clinical ingest is admitted into the synthetic workspace only",
         ));
     }
-    let meta =
-        std::fs::metadata(path).map_err(|_| CmdError::new("missing", "Missing: file not found"))?;
-    if !meta.is_file() || meta.len() == 0 || meta.len() > FHIR_IMPORT_MAX_BYTES {
-        return Err(CmdError::invalid(
-            "Invalid: choose a FHIR JSON file of at most 1 MiB",
-        ));
-    }
-    let bytes =
-        std::fs::read(path).map_err(|_| CmdError::unavailable("Unavailable: file not readable"))?;
+    let bytes = read_bounded(path, FHIR_IMPORT_MAX_BYTES)?;
     let resource: serde_json::Value = serde_json::from_slice(&bytes)
         .map_err(|_| CmdError::new("corrupt", "Corrupt: file is not JSON"))?;
     let resource_type = resource
@@ -409,9 +462,7 @@ pub fn import_fhir(
         .ok_or_else(|| CmdError::invalid("Invalid: not a FHIR resource (no resourceType)"))?
         .to_owned();
     let claim_kind = claim_kind_for(&resource_type);
-    let source_id = workspace
-        .session
-        .ingest_fhir_file(&path.display().to_string())?;
+    let source_id = workspace.session.ingest_fhir_bytes(bytes)?;
     workspace.session.promote_fixture_as_assertion(
         source_id.clone(),
         subject,
@@ -457,6 +508,7 @@ pub fn open_synthetic(state: &mut State) -> CmdResult<()> {
         seed,
     };
     seed_synthetic(&mut workspace, &data_dir)?;
+    restore_asr(&mut workspace);
     state.workspace = Some(workspace);
     Ok(())
 }
