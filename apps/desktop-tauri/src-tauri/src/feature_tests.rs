@@ -697,6 +697,14 @@ fn medagent_workbench_agent_context_evidence_and_resume() {
         worded["proposal_payload"]["aggregation"], "word_first",
         "{worded}"
     );
+    let recommended = h.ok(
+        "models_evaluate",
+        json!({ "packId": fixture_id, "input": "alice visited clinic today", "decoding": "recommended" }),
+    );
+    assert_eq!(
+        recommended["proposal_payload"]["aggregation"], "word_first",
+        "{recommended}"
+    );
     assert_eq!(
         h.call(
             "models_evaluate",

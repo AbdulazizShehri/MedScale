@@ -771,7 +771,8 @@ impl CoreFacade {
                 (candidate, false)
             }
         };
-        let (aggregation, pii_semantic_merge) = decoding_options(decoding.unwrap_or_default());
+        let (aggregation, pii_semantic_merge) =
+            decoding_options(decoding.unwrap_or_default(), prepared.provenance());
         let output = prepared
             .run_document(
                 &manifest.pack_id,
@@ -2141,7 +2142,8 @@ impl CoreFacade {
                 let evaluation = match request.decoding {
                     None => prepared.run(&manifest.pack_id, &request.input),
                     Some(decoding) => {
-                        let (aggregation, pii_semantic_merge) = decoding_options(decoding);
+                        let (aggregation, pii_semantic_merge) =
+                            decoding_options(decoding, prepared.provenance());
                         prepared.run_document(
                             &manifest.pack_id,
                             &request.input,
@@ -6421,18 +6423,71 @@ fn digest_from_hex(hex: &str) -> Option<medscale_contracts::objects::DigestSha25
     Some(medscale_contracts::objects::DigestSha256::from_bytes(bytes))
 }
 
+/// True for a PII-family model. OpenMed names every PII export
+/// `OpenMed-PII-*` (catalog family `PII`); that naming is the verified family
+/// evidence the `recommended` decoding relies on.
+fn is_pii_family(provenance: &medscale_contracts::packs::ModelSourceProvenance) -> bool {
+    provenance.repository.to_ascii_lowercase().contains("-pii-")
+}
+
 /// Runtime options for a contract-level entity decoding (Spec 103).
 fn decoding_options(
     decoding: medscale_contracts::packs::EntityDecoding,
+    provenance: &medscale_contracts::packs::ModelSourceProvenance,
 ) -> (medscale_pack::EntityAggregation, bool) {
     use medscale_contracts::packs::EntityDecoding as D;
     use medscale_pack::EntityAggregation as A;
     match decoding {
+        D::Recommended => (A::WordFirst, is_pii_family(provenance)),
         D::OpenmedCompatible => (A::OpenMedOnnx, false),
         D::WordFirst => (A::WordFirst, false),
         D::WordAverage => (A::WordAverage, false),
         D::WordMax => (A::WordMax, false),
         D::PiiMerge => (A::OpenMedOnnx, true),
         D::WordFirstPiiMerge => (A::WordFirst, true),
+    }
+}
+
+#[cfg(test)]
+mod decoding_tests {
+    use super::{decoding_options, is_pii_family};
+    use medscale_contracts::packs::{EntityDecoding, ModelSourceProvenance};
+    use medscale_pack::EntityAggregation;
+
+    fn provenance(repository: &str) -> ModelSourceProvenance {
+        ModelSourceProvenance {
+            source_kind: "hugging_face".into(),
+            repository: repository.into(),
+            revision: "0".repeat(40),
+            original_file: "model.safetensors".into(),
+            source_sha256: "0".repeat(64),
+            transform: "none".into(),
+            fixed_sequence_length: 512,
+            task: "token-classification".into(),
+            export_format: "safetensors".into(),
+            runtime_family: "candle_safetensors_token_classification_v1".into(),
+            license_id: "Apache-2.0".into(),
+            upstream_rights_uri: String::new(),
+        }
+    }
+
+    #[test]
+    fn recommended_decoding_is_task_aware() {
+        let pii = provenance("OpenMed/OpenMed-PII-SuperClinical-Small-44M-v1");
+        let ner = provenance("OpenMed/OpenMed-NER-PharmaDetect-TinyMed-135M");
+        assert!(is_pii_family(&pii) && !is_pii_family(&ner));
+        assert!(matches!(
+            decoding_options(EntityDecoding::Recommended, &pii),
+            (EntityAggregation::WordFirst, true)
+        ));
+        assert!(matches!(
+            decoding_options(EntityDecoding::Recommended, &ner),
+            (EntityAggregation::WordFirst, false)
+        ));
+        // Explicit decodings are unchanged by the model family.
+        assert!(matches!(
+            decoding_options(EntityDecoding::OpenmedCompatible, &pii),
+            (EntityAggregation::OpenMedOnnx, false)
+        ));
     }
 }
