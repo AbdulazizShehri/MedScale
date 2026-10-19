@@ -319,73 +319,126 @@ impl AsrEngine for FixtureAsrEngine {
 
 /// Most speakers acoustic clustering reports.
 const MAX_SPEAKERS: usize = 8;
-/// Average-linkage distance below which two groups are one voice. Features
-/// are natural-log pitch and zero-crossing rate x 10, so 0.25 is roughly a
-/// 28% pitch difference.
-const SPEAKER_MERGE_DISTANCE: f64 = 0.25;
+/// Mel bands and cepstral coefficients of the per-segment voice embedding.
+const DIAR_MELS: usize = 80;
+const DIAR_CEPSTRA: usize = 12;
+/// A cut between groups needs a merge distance at least this many times the
+/// mean of the merges before it; otherwise everything is one voice.
+const SPEAKER_JUMP_RATIO: f64 = 1.6;
+/// Smallest difference in mean natural-log pitch between two speaker groups
+/// (about 10%); closer groups are merged.
+const MIN_PITCH_SEPARATION: f64 = 0.1;
 
-/// Median pitch (Hz) of voiced frames and mean zero-crossing rate for one
-/// span of mono samples; `None` when no frame is voiced.
-fn voice_features(samples: &[f64], sample_rate: u32) -> Option<[f64; 2]> {
-    let rate = f64::from(sample_rate);
-    let frame = (rate * 0.040) as usize;
-    let hop = (rate * 0.010) as usize;
-    let (min_lag, max_lag) = ((rate / 400.0) as usize, (rate / 60.0) as usize);
-    if frame <= max_lag || hop == 0 || samples.len() < frame {
+/// Mean cepstral embedding (c1..c12 of the mean log-mel spectrum of voiced
+/// frames, gain-invariant) plus log pitch, for one span of 16 kHz samples.
+/// `None` when the span has no voiced frame.
+fn voice_embedding(samples: &[f64], filters: &[f32]) -> Option<Vec<f64>> {
+    const FRAME: usize = 400;
+    const HOP: usize = 160;
+    const BINS: usize = 1 + FRAME / 2;
+    if samples.len() < FRAME {
         return None;
     }
-    let energies: Vec<f64> = samples
-        .windows(frame)
-        .step_by(hop)
-        .map(|w| w.iter().map(|x| x * x).sum::<f64>() / frame as f64)
+    let hann: Vec<f64> = (0..FRAME)
+        .map(|i| 0.5 - 0.5 * (2.0 * std::f64::consts::PI * i as f64 / FRAME as f64).cos())
+        .collect();
+    let (cos, sin): (Vec<f64>, Vec<f64>) = (0..BINS * FRAME)
+        .map(|k| {
+            let (b, n) = (k / FRAME, k % FRAME);
+            let a = 2.0 * std::f64::consts::PI * (b * n) as f64 / FRAME as f64;
+            (a.cos(), a.sin())
+        })
+        .unzip();
+    let frames: Vec<&[f64]> = samples.windows(FRAME).step_by(HOP).collect();
+    let energies: Vec<f64> = frames
+        .iter()
+        .map(|w| w.iter().map(|x| x * x).sum())
         .collect();
     let mut sorted = energies.clone();
     sorted.sort_by(f64::total_cmp);
-    let floor = sorted[sorted.len() / 2].max(1e-6);
+    let floor = sorted[sorted.len() / 2].max(1e-9);
+    let mut mean = vec![0.0; DIAR_MELS];
     let mut pitches = Vec::new();
-    let mut zcrs = Vec::new();
-    for (k, w) in samples.windows(frame).step_by(hop).enumerate() {
-        if energies[k] < floor {
+    let mut voiced = 0usize;
+    for (w, &e) in frames.iter().zip(&energies) {
+        if e < floor {
             continue;
         }
-        let r0: f64 = w.iter().map(|x| x * x).sum();
-        let (mut best, mut best_lag) = (0.0, 0);
-        for lag in min_lag..=max_lag.min(frame - 1) {
-            let r: f64 = w[..frame - lag]
+        voiced += 1;
+        let x: Vec<f64> = w.iter().zip(&hann).map(|(s, h)| s * h).collect();
+        let power: Vec<f64> = (0..BINS)
+            .map(|b| {
+                let (mut re, mut im) = (0.0, 0.0);
+                for (n, v) in x.iter().enumerate() {
+                    re += v * cos[b * FRAME + n];
+                    im -= v * sin[b * FRAME + n];
+                }
+                re * re + im * im
+            })
+            .collect();
+        for (m, slot) in mean.iter_mut().enumerate() {
+            let band: f64 = (0..BINS)
+                .map(|b| f64::from(filters[m * BINS + b]) * power[b])
+                .sum();
+            *slot += band.max(1e-10).ln();
+        }
+        // Autocorrelation pitch (60..400 Hz) on the same frame.
+        let r0: f64 = w.iter().map(|v| v * v).sum();
+        let (mut best, mut lag_at) = (0.0, 0);
+        for lag in 40..=266 {
+            let r: f64 = w[..FRAME - lag]
                 .iter()
                 .zip(&w[lag..])
                 .map(|(a, b)| a * b)
                 .sum();
             if r > best {
                 best = r;
-                best_lag = lag;
+                lag_at = lag;
             }
         }
-        if best_lag > 0 && best > 0.3 * r0 {
-            pitches.push(rate / best_lag as f64);
+        if lag_at > 0 && best > 0.3 * r0 {
+            pitches.push((16_000.0 / lag_at as f64).ln());
         }
-        let crossings = w
-            .windows(2)
-            .filter(|p| (p[0] >= 0.0) != (p[1] >= 0.0))
-            .count();
-        zcrs.push(crossings as f64 / frame as f64);
     }
-    if pitches.is_empty() {
+    if voiced == 0 {
         return None;
     }
+    for v in &mut mean {
+        *v /= voiced as f64;
+    }
+    // DCT-II of the mean log-mel spectrum; c0 (overall level) is dropped.
+    let mut embedding: Vec<f64> = (1..=DIAR_CEPSTRA)
+        .map(|c| {
+            mean.iter()
+                .enumerate()
+                .map(|(m, v)| {
+                    v * (std::f64::consts::PI * c as f64 * (m as f64 + 0.5) / DIAR_MELS as f64)
+                        .cos()
+                })
+                .sum::<f64>()
+        })
+        .collect();
     pitches.sort_by(f64::total_cmp);
-    let zcr = zcrs.iter().sum::<f64>() / zcrs.len().max(1) as f64;
-    Some([pitches[pitches.len() / 2].ln(), zcr * 10.0])
+    embedding.push(pitches.get(pitches.len() / 2).copied().unwrap_or(0.0));
+    Some(embedding)
 }
 
 /// Spec 106: groups VAD segments by voice with unsupervised acoustic
-/// clustering (pitch and zero-crossing rate, average-linkage agglomerative
-/// clustering under a fixed distance). Returns a 1-based speaker index per
-/// segment, numbered in order of first appearance; a segment without voiced
-/// frames joins the previous segment's speaker. Unvalidated: labels are
-/// groups of similar-sounding segments, never identity.
+/// clustering. Each segment gets a spectral embedding (cepstral means of its
+/// voiced frames plus log pitch); dimensions are standardized across the
+/// recording; average-linkage agglomerative clustering runs to the end, and
+/// the recording is cut at the largest jump of a merge distance over the mean
+/// of the earlier merges (at least 1.6x); groups whose mean pitch differs by
+/// less than about 10% are then merged, so one voice stays one group.
+/// Returns a 1-based speaker index per segment in order of first appearance;
+/// a segment without voiced frames joins the previous segment's speaker.
+/// 16 kHz audio only (otherwise every segment is speaker 1). Unvalidated:
+/// labels are groups of similar-sounding segments, never identity.
 #[must_use]
 pub fn diarize(format: PcmFormat, pcm: &[u8], spans: &[(u64, u64)]) -> Vec<u16> {
+    if format.sample_rate != 16_000 || spans.is_empty() {
+        return vec![1; spans.len()];
+    }
     let channels = usize::from(format.channels.max(1));
     let samples: Vec<f64> = pcm
         .chunks_exact(2 * channels)
@@ -397,31 +450,50 @@ pub fn diarize(format: PcmFormat, pcm: &[u8], spans: &[(u64, u64)]) -> Vec<u16> 
             sum / channels as f64
         })
         .collect();
-    let per_ms = f64::from(format.sample_rate) / 1000.0;
-    let features: Vec<Option<[f64; 2]>> = spans
+    let filters = medscale_pack::mel_filters(DIAR_MELS);
+    let embeddings: Vec<Option<Vec<f64>>> = spans
         .iter()
         .map(|&(start, end)| {
-            let a = ((start as f64 * per_ms) as usize).min(samples.len());
-            let b = ((end as f64 * per_ms) as usize).min(samples.len());
-            voice_features(&samples[a..b], format.sample_rate)
+            let a = usize::try_from(start * 16)
+                .unwrap_or(usize::MAX)
+                .min(samples.len());
+            let b = usize::try_from(end * 16)
+                .unwrap_or(usize::MAX)
+                .min(samples.len());
+            voice_embedding(&samples[a..b], &filters)
         })
         .collect();
-    // Average-linkage agglomerative clustering over voiced segments.
-    let mut clusters: Vec<Vec<usize>> = features
-        .iter()
-        .enumerate()
-        .filter(|(_, f)| f.is_some())
-        .map(|(i, _)| vec![i])
+    let voiced: Vec<usize> = (0..spans.len())
+        .filter(|&i| embeddings[i].is_some())
         .collect();
+    // Standardize each dimension across voiced segments.
+    let dims = DIAR_CEPSTRA + 1;
+    let mut z = vec![vec![0.0; dims]; spans.len()];
+    for d in 0..dims {
+        let vals: Vec<f64> = voiced
+            .iter()
+            .map(|&i| embeddings[i].as_ref().map_or(0.0, |e| e[d]))
+            .collect();
+        let mean = vals.iter().sum::<f64>() / vals.len().max(1) as f64;
+        let sd = (vals.iter().map(|v| (v - mean).powi(2)).sum::<f64>() / vals.len().max(1) as f64)
+            .sqrt();
+        for &i in &voiced {
+            let v = embeddings[i].as_ref().map_or(0.0, |e| e[d]);
+            z[i][d] = if sd > 1e-9 { (v - mean) / sd } else { 0.0 };
+        }
+    }
     let dist = |a: usize, b: usize| {
-        let (x, y) = (
-            features[a].unwrap_or_default(),
-            features[b].unwrap_or_default(),
-        );
-        ((x[0] - y[0]).powi(2) + (x[1] - y[1]).powi(2)).sqrt()
+        z[a].iter()
+            .zip(&z[b])
+            .map(|(x, y)| (x - y).powi(2))
+            .sum::<f64>()
+            .sqrt()
     };
-    loop {
-        let mut best: Option<(f64, usize, usize)> = None;
+    // Full average-linkage dendrogram over voiced segments.
+    let mut clusters: Vec<Vec<usize>> = voiced.iter().map(|&i| vec![i]).collect();
+    let mut history: Vec<(f64, Vec<Vec<usize>>)> = vec![(0.0, clusters.clone())];
+    while clusters.len() > 1 {
+        let mut best = (f64::INFINITY, 0, 1);
         for i in 0..clusters.len() {
             for j in i + 1..clusters.len() {
                 let total: f64 = clusters[i]
@@ -430,21 +502,51 @@ pub fn diarize(format: PcmFormat, pcm: &[u8], spans: &[(u64, u64)]) -> Vec<u16> 
                     .map(|(a, b)| dist(a, b))
                     .sum();
                 let d = total / (clusters[i].len() * clusters[j].len()) as f64;
-                if best.is_none_or(|(bd, _, _)| d < bd) {
-                    best = Some((d, i, j));
+                if d < best.0 {
+                    best = (d, i, j);
                 }
             }
         }
-        match best {
-            Some((d, i, j)) if d < SPEAKER_MERGE_DISTANCE || clusters.len() > MAX_SPEAKERS => {
-                let merged = clusters.remove(j);
-                clusters[i].extend(merged);
-            }
-            _ => break,
+        let merged = clusters.remove(best.2);
+        clusters[best.1].extend(merged);
+        history.push((best.0, clusters.clone()));
+    }
+    // Cut before the merge with the largest relative jump, if it is clear.
+    let mut chosen = history.last().map(|h| h.1.clone()).unwrap_or_default();
+    let mut best_ratio = SPEAKER_JUMP_RATIO;
+    for k in 2..history.len() {
+        let earlier = history[1..k].iter().map(|h| h.0).sum::<f64>() / (k - 1) as f64;
+        let next = history[k].0;
+        let groups = history[k - 1].1.len();
+        if earlier > 1e-9 && groups <= MAX_SPEAKERS && next / earlier >= best_ratio {
+            best_ratio = next / earlier;
+            chosen = history[k - 1].1.clone();
         }
     }
+    // Groups whose mean pitch differs by less than about 10% are one voice:
+    // spectral detail alone splits a single speaker by what is said.
+    let pitch = |g: &Vec<usize>| -> f64 {
+        g.iter()
+            .map(|&i| embeddings[i].as_ref().map_or(0.0, |e| e[DIAR_CEPSTRA]))
+            .sum::<f64>()
+            / g.len().max(1) as f64
+    };
+    loop {
+        let mut pair = None;
+        'scan: for i in 0..chosen.len() {
+            for j in i + 1..chosen.len() {
+                if (pitch(&chosen[i]) - pitch(&chosen[j])).abs() < MIN_PITCH_SEPARATION {
+                    pair = Some((i, j));
+                    break 'scan;
+                }
+            }
+        }
+        let Some((i, j)) = pair else { break };
+        let merged = chosen.remove(j);
+        chosen[i].extend(merged);
+    }
     let mut cluster_of = vec![None; spans.len()];
-    for (c, members) in clusters.iter().enumerate() {
+    for (c, members) in chosen.iter().enumerate() {
         for &m in members {
             cluster_of[m] = Some(c);
         }
@@ -455,13 +557,10 @@ pub fn diarize(format: PcmFormat, pcm: &[u8], spans: &[(u64, u64)]) -> Vec<u16> 
         .iter()
         .map(|c| {
             if let Some(c) = c {
-                let index = match order.iter().position(|o| o == c) {
-                    Some(p) => p,
-                    None => {
-                        order.push(*c);
-                        order.len() - 1
-                    }
-                };
+                let index = order.iter().position(|o| o == c).unwrap_or_else(|| {
+                    order.push(*c);
+                    order.len() - 1
+                });
                 previous = u16::try_from(index + 1).unwrap_or(u16::MAX);
             }
             previous
