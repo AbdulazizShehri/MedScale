@@ -201,18 +201,23 @@ type InsightsVm = {
   risk_state: string; trend_state: string; gap_state: string; recommendation_state: string; assistant_default: string;
 };
 
+type GroundedAnswer = {
+  answer: { abstained: boolean; unsupported_terms: string[]; note: string; citations: Array<{ sentence: string; doc_id: string; content_digest: string; support: number; conflict_marker: string | null; freshness_marker: string | null }> };
+  corpus_id: string; corpus_version: string;
+};
+
 export function Insights() {
   const { navigate } = useApp();
   const { state, reload } = useCommand<InsightsVm>("insights_overview");
   const [q, setQ] = useState("");
-  const [answer, setAnswer] = useState<string | null>(null);
+  const [answer, setAnswer] = useState<GroundedAnswer | null>(null);
   const [err, setErr] = useState<CmdError | null>(null);
 
   async function ask(e: FormEvent) {
     e.preventDefault();
     if (!q.trim()) return;
     setErr(null);
-    try { setAnswer(await call<string>("insights_ask", { query: q })); } catch (x) { setErr(x as CmdError); }
+    try { setAnswer(await call<GroundedAnswer>("insights_ask", { query: q })); } catch (x) { setErr(x as CmdError); }
   }
 
   if (state.status === "loading") return <div className="pane"><Skeleton /></div>;
@@ -279,13 +284,27 @@ export function Insights() {
               </div>
             ))}
           </Section>
-          <Section title="Ask about this cohort">
+          <Section title="Ask the evidence">
             <form onSubmit={ask} className="stack" style={{ gap: 8 }}>
-              <input type="text" value={q} onChange={(e) => setQ(e.target.value)} placeholder="e.g. coverage gaps" maxLength={256} aria-label="Question about the cohort" />
+              <input type="text" value={q} onChange={(e) => setQ(e.target.value)} placeholder="e.g. metformin dose in diabetes" maxLength={256} aria-label="Question for the evidence corpus" />
               <div><button type="submit" className="btn btn-s">Ask</button></div>
             </form>
             {err && <ErrorState error={err} />}
-            <p className="t-sm i2" style={{ marginTop: 10 }}>{answer ?? v.assistant_default}</p>
+            {!answer && <p className="t-sm i3" style={{ marginTop: 10 }}>Answers are sentences extracted from retrieved documents, each with its citation. When nothing supports a question, MedScale says so.</p>}
+            {answer && (answer.answer.abstained
+              ? <Notice kind="unknown" title="No supporting evidence.">No passage in {answer.corpus_id} supports an answer to this question.</Notice>
+              : <div className="stack" style={{ gap: 8, marginTop: 10 }}>
+                  {answer.answer.citations.map((c, i) => (
+                    <div key={i} className="t-sm">
+                      <span>{c.sentence}</span>{" "}
+                      <Stamp k={c.doc_id} v={c.content_digest.slice(0, 10)} />
+                      {c.conflict_marker && <Status kind="conflict" weight="weak">conflict</Status>}
+                      {c.freshness_marker && <Status kind="limited" weight="weak">{c.freshness_marker}</Status>}
+                    </div>
+                  ))}
+                  {answer.answer.unsupported_terms.length > 0 && <p className="t-sm i3">Not supported by any cited sentence: {answer.answer.unsupported_terms.join(", ")}.</p>}
+                </div>)}
+            {answer && <p className="t-sm i3" style={{ marginTop: 6 }}>{answer.answer.note}</p>}
           </Section>
           <Authority>Evidence-context only. Answers come from the trusted projection; they are not clinical advice.</Authority>
         </div>
