@@ -10,7 +10,7 @@
 //   node scripts/e2e/desktop-journey.mjs <path-to-app.exe> <screenshot-dir>
 import fs from "node:fs";
 import path from "node:path";
-import { spawn } from "node:child_process";
+import { execFileSync, spawn } from "node:child_process";
 
 const [app, shots = "target/e2e-shots"] = process.argv.slice(2);
 if (!app) throw new Error("usage: desktop-journey.mjs <app> [shots]");
@@ -41,8 +41,20 @@ async function launch() {
     env: { ...process.env, WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS: `--remote-debugging-port=${DEBUG_PORT}` },
     stdio: "ignore",
   });
-  const end = Date.now() + 60000;
+  // A fresh runner profile can take minutes to start WebView2 the first time.
+  const started = Date.now();
+  const end = started + 180000;
+  let lastLog = 0;
   for (;;) {
+    if (Date.now() - lastLog > 15000) {
+      lastLog = Date.now();
+      let webviews = "?";
+      try {
+        webviews = execFileSync("tasklist", ["/FI", "IMAGENAME eq msedgewebview2.exe", "/NH"], { encoding: "utf8" })
+          .split(String.fromCharCode(10)).filter((l) => l.includes("msedgewebview2")).length;
+      } catch {}
+      console.log(`waiting for WebView2: ${Math.round((Date.now() - started) / 1000)} s, app ${child.exitCode === null ? "running" : `exited ${child.exitCode}`}, msedgewebview2 processes: ${webviews}`);
+    }
     try {
       const r = await fetch(`http://127.0.0.1:${DEBUG_PORT}/json/version`);
       if (r.ok) break;
