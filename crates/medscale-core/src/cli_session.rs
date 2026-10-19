@@ -232,6 +232,12 @@ impl CliSession {
         let bytes = std::fs::read(path).map_err(|e| AuthorityError::InvalidArgument {
             message: e.to_string(),
         })?;
+        self.ingest_fhir_bytes(bytes)
+    }
+
+    /// [`Self::ingest_fhir_file`] for bytes the caller already read, for
+    /// example under its own size bound.
+    pub fn ingest_fhir_bytes(&mut self, bytes: Vec<u8>) -> Result<OpaqueId, AuthorityError> {
         let resp = self.dispatch(
             Capability::IngestFhirSynthetic,
             RequestBody::IngestFhirSynthetic {

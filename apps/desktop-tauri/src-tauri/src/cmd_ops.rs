@@ -944,20 +944,12 @@ pub fn audio_import_wav(
     let project_id = host::bounded_id(&project_id)?.to_owned();
     let path = host::bounded_text(&path, 1024)?;
     let file = std::path::Path::new(&path);
-    let meta =
-        std::fs::metadata(file).map_err(|_| CmdError::new("missing", "Missing: file not found"))?;
-    if !file.is_absolute()
-        || !meta.is_file()
-        || meta.len() == 0
-        || meta.len() > WAV_IMPORT_MAX_BYTES
-        || !path.to_ascii_lowercase().ends_with(".wav")
-    {
+    if !file.is_absolute() || !path.to_ascii_lowercase().ends_with(".wav") {
         return Err(CmdError::invalid(
             "Invalid: choose an absolute .wav file of at most 64 MiB",
         ));
     }
-    let wav =
-        std::fs::read(file).map_err(|_| CmdError::unavailable("Unavailable: file not readable"))?;
+    let wav = host::read_bounded(file, WAV_IMPORT_MAX_BYTES)?;
     let label = file
         .file_name()
         .map(|n| n.to_string_lossy().into_owned())
@@ -1075,10 +1067,13 @@ pub fn audio_draft_note(
             .cloned()
             .unwrap_or_default();
         for e in entities {
-            let (Some(start), Some(end)) = (e["start"].as_u64(), e["end"].as_u64()) else {
+            // An entity without offsets or a label cannot be cited; skip it.
+            let (Some(start), Some(end), Some(label)) =
+                (e["start"].as_u64(), e["end"].as_u64(), e["label"].as_str())
+            else {
                 continue;
             };
-            let label = e["label"].as_str().unwrap_or("ENTITY").to_owned();
+            let label = label.to_owned();
             let span: String = text
                 .chars()
                 .skip(usize::try_from(start).unwrap_or(0))

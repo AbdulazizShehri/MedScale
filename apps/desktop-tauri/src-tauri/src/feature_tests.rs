@@ -769,6 +769,16 @@ fn medagent_workbench_agent_context_evidence_and_resume() {
             .iter()
             .any(|s| s["id"] == imported["source_id"])
     );
+    // The 1 MiB bound applies to the bytes read.
+    std::fs::write(dir.join("big.json"), vec![b' '; (1 << 20) + 1]).unwrap();
+    assert_eq!(
+        h.call(
+            "documents_import_fhir",
+            json!({ "path": dir.join("big.json").display().to_string(), "subjectRef": "synthetic-subject-import" }),
+        )
+        .unwrap_err()["kind"],
+        "invalid"
+    );
     std::fs::write(dir.join("not-json.json"), b"not json").unwrap();
     assert_eq!(
         h.call(
