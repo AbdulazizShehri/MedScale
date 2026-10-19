@@ -9,7 +9,7 @@ The live, repository-backed handoff for autonomous sessions. Each session verifi
 | PR | Scope | State at handoff |
 |---|---|---|
 | #256 | Desktop E2E: nine WebDriver journeys on the real release binary (run 39247413184, 9/9), release-isolated `e2e-webdriver` test build, New project form fix | CI |
-| branch `brand/logo-12` | Founder-approved Logo 12 replaces the paired-M identity: SVG masters, lockups, icons, desktop `brand.tsx`, docs, tests | CI |
+| #257 | Founder-approved Logo 12 replaces the paired-M identity: SVG masters, lockups, icons, desktop `brand.tsx`, docs, tests | CI |
 | this PR | Status refresh | after the above |
 
 Merged 2026-10-18/19: #241–#255 (desktop integration #247, desktop P1 #251, OpenMed head-to-head #248, subject export #250, Spec 106 local ASR #249, desktop AudioFlow and Exports #252, `recommended` decoding #253, grounded Insights #254, diarization #255).
@@ -28,7 +28,7 @@ Merged 2026-10-18/19: #241–#255 (desktop integration #247, desktop P1 #251, Op
 
 ## Next eligible repository work
 
-1. Merge #256 and the Logo 12 branding PR as each turns green. Verify main after each.
+1. Merge #256 and #257 (Logo 12) as each turns green. Verify main after each.
 2. Candle warm-latency profiling on tiny models (per-operation overhead).
 3. Release-candidate documentation pass over the packaged Windows and macOS builds.
 4. Drop the candle `[patch.crates-io]` backport when a candle release on zip >= 9 is adopted.
