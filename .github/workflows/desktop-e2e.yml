@@ -1,6 +1,8 @@
 # End-to-end user journeys against the real MedScale desktop binary.
 #
-# Builds the release desktop (custom protocol, bundled frontend), starts
+# Builds the release desktop (custom protocol, bundled frontend; plus the
+# test-only e2e-webdriver feature, which turns off WebView2 InPrivate so Edge
+# WebDriver can attach), starts
 # tauri-driver with the runner's Microsoft Edge WebDriver for WebView2, and
 # runs scripts/e2e/desktop-journey.mjs: open the synthetic workspace,
 # patients, projects, MedAgent (agent, run, evidence), the model catalog,
@@ -55,7 +57,7 @@ jobs:
           npm ci --ignore-scripts --no-audit --no-fund
           npm run build
       - name: Build the release desktop
-        run: cargo build --manifest-path apps/desktop-tauri/src-tauri/Cargo.toml --features custom-protocol --release --locked
+        run: cargo build --manifest-path apps/desktop-tauri/src-tauri/Cargo.toml --features custom-protocol,e2e-webdriver --release --locked
       - name: Install tauri-driver (pinned)
         run: cargo install tauri-driver --version 2.1.0 --locked
       - name: Run the journeys

@@ -143,7 +143,11 @@ fn main() {
                         startup_failure::mark_ready();
                     }
                 })
-                .incognito(true)
+                // InPrivate keeps no browsing state on disk. The test-only
+                // `e2e-webdriver` build turns it off because WebView2 then
+                // writes no DevTools port file for Edge WebDriver; release
+                // builds never enable that feature.
+                .incognito(!cfg!(feature = "e2e-webdriver"))
                 .build()?;
             Ok(())
         })
