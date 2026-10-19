@@ -968,7 +968,7 @@ fn transcript_json(revision: &medscale_contracts::audio::TranscriptRevision) -> 
         "state": revision.state,
         "origin": revision.origin,
         "segments": revision.segments.iter().map(|s| json!({
-            "seq": s.seq, "start_ms": s.start_ms, "end_ms": s.end_ms,
+            "seq": s.seq, "start_ms": s.start_ms, "end_ms": s.end_ms, "speaker": s.speaker,
             "status": s.status, "text": s.text,
         })).collect::<Vec<_>>(),
     })
@@ -982,6 +982,7 @@ pub fn audio_transcribe(
     project_id: String,
     source_id: String,
     route: String,
+    diarize: Option<bool>,
 ) -> CmdResult<Value> {
     use medscale_contracts::audio::{AudioRoute, AudioRouteRequest, VoiceInputMode};
     let route = match route.as_str() {
@@ -997,7 +998,8 @@ pub fn audio_transcribe(
         route,
         mode: VoiceInputMode::Dictation,
         language: Some("en".to_owned()),
-        diarization_required: false,
+        // Optional speaker grouping: unvalidated acoustic clustering (Spec 106).
+        diarization_required: diarize.unwrap_or(false),
     })?;
     Ok(json!({
         "decision": view.receipt.decision,

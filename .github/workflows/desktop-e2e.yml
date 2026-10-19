@@ -13,7 +13,7 @@ name: desktop-e2e
 
 on:
   push:
-    branches: ["e2e/**"]
+    branches: ["e2e/**", main]
   pull_request:
     paths:
       - apps/desktop-tauri/**
