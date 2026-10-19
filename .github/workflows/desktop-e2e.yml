@@ -58,6 +58,14 @@ jobs:
           npm run build
       - name: Build the release desktop
         run: cargo build --manifest-path apps/desktop-tauri/src-tauri/Cargo.toml --features custom-protocol,e2e-webdriver --release --locked
+      - name: Allow WebView2 remote debugging on this disposable runner
+        shell: pwsh
+        run: |
+          foreach ($k in 'HKLM:\SOFTWARE\Policies\Microsoft\Edge', 'HKLM:\SOFTWARE\Policies\Microsoft\Edge\WebView2', 'HKLM:\SOFTWARE\WOW6432Node\Policies\Microsoft\Edge') {
+            if (Test-Path $k) { "== $k"; Get-ItemProperty $k | Format-List | Out-String -Width 200 }
+          }
+          New-Item -Path 'HKLM:\SOFTWARE\Policies\Microsoft\Edge' -Force | Out-Null
+          Set-ItemProperty -Path 'HKLM:\SOFTWARE\Policies\Microsoft\Edge' -Name RemoteDebuggingAllowed -Value 1 -Type DWord
       - name: Run the journeys
         shell: pwsh
         run: |
