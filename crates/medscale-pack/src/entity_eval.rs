@@ -332,8 +332,54 @@ pub fn evaluate(set: &EvalSet, predictions: &BTreeMap<String, Vec<PredictedSpan>
     }
 }
 
+/// Latency summary over per-document wall times in milliseconds: count,
+/// mean, p50, p95 and max (nearest-rank percentiles). Evaluation evidence.
+#[must_use]
+pub fn latency_summary(samples_ms: &[f64]) -> Value {
+    if samples_ms.is_empty() {
+        return serde_json::json!({ "count": 0 });
+    }
+    let mut sorted = samples_ms.to_vec();
+    sorted.sort_by(f64::total_cmp);
+    let rank = |q: f64| {
+        let n = sorted.len();
+        let idx = ((q * n as f64).ceil() as usize).clamp(1, n) - 1;
+        sorted[idx]
+    };
+    let mean = sorted.iter().sum::<f64>() / sorted.len() as f64;
+    serde_json::json!({
+        "count": sorted.len(),
+        "mean": mean,
+        "p50": rank(0.50),
+        "p95": rank(0.95),
+        "max": sorted[sorted.len() - 1],
+    })
+}
+
+/// Peak resident set size of this process in KiB (`VmHWM`), where the
+/// platform reports it (Linux). `None` elsewhere: not measured, not zero.
+#[must_use]
+pub fn peak_rss_kib() -> Option<u64> {
+    let status = std::fs::read_to_string("/proc/self/status").ok()?;
+    status
+        .lines()
+        .find_map(|l| l.strip_prefix("VmHWM:"))
+        .and_then(|v| v.trim().trim_end_matches("kB").trim().parse().ok())
+}
+
 #[cfg(test)]
 mod tests {
+    #[test]
+    fn latency_summary_uses_nearest_rank() {
+        let v = super::latency_summary(&[4.0, 1.0, 3.0, 2.0]);
+        assert_eq!(v["count"], 4);
+        assert_eq!(v["p50"], 2.0);
+        assert_eq!(v["p95"], 4.0);
+        assert_eq!(v["max"], 4.0);
+        assert_eq!(v["mean"], 2.5);
+        assert_eq!(super::latency_summary(&[])["count"], 0);
+    }
+
     use super::*;
     use serde_json::json;
 

@@ -117,7 +117,9 @@ fn safetensors_catalog_row_to_local_execution() {
         .ok()
         .filter(|p| !p.is_empty())
     {
-        use medscale_pack::entity_eval::{EvalSet, evaluate, predicted_spans_at};
+        use medscale_pack::entity_eval::{
+            EvalSet, evaluate, latency_summary, peak_rss_kib, predicted_spans_at,
+        };
         // Repository-relative paths resolve against the workspace root
         // (`cargo test` runs in the crate directory).
         let path = std::path::Path::new(&path);
@@ -168,17 +170,28 @@ fn safetensors_catalog_row_to_local_execution() {
         ];
         for (config, options, field) in configs {
             let mut predictions = std::collections::BTreeMap::new();
+            let mut doc_ms = Vec::with_capacity(set.documents.len());
             for doc in &set.documents {
+                let started = Instant::now();
                 let payload = prepared
                     .run_document(&manifest.pack_id, &doc.text, options)
                     .expect("gold document run")
                     .proposal_payload;
+                doc_ms.push(started.elapsed().as_secs_f64() * 1000.0);
                 predictions.insert(doc.id.clone(), predicted_spans_at(&payload, field));
             }
             let report = evaluate(&set, &predictions);
+            // Same-runner timing for the OpenMed head-to-head: prepare (cold
+            // start) once, then warm per-document wall time.
             println!(
                 "EVAL_METRICS {}",
-                serde_json::json!({"repo": meta.id, "revision": meta.sha, "config": config, "report": report})
+                serde_json::json!({
+                    "repo": meta.id, "revision": meta.sha, "config": config, "report": report,
+                    "runtime": "medscale",
+                    "prepare_ms": prepare_ms,
+                    "doc_latency_ms": latency_summary(&doc_ms),
+                    "peak_rss_kib": peak_rss_kib(),
+                })
             );
         }
     }
