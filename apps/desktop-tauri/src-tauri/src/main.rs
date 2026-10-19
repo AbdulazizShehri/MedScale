@@ -134,7 +134,15 @@ fn main() {
                 .windows
                 .first()
                 .ok_or("missing main window")?;
-            tauri::WebviewWindowBuilder::from_config(app, config)?
+            let builder = tauri::WebviewWindowBuilder::from_config(app, config)?;
+            // Test-only: the E2E build exposes WebView2's remote-debugging
+            // port to Edge WebDriver (wry's default flags are kept). Release
+            // builds never enable `e2e-webdriver`.
+            #[cfg(all(windows, feature = "e2e-webdriver"))]
+            let builder = builder.additional_browser_args(
+                "--disable-features=msWebOOUI,msPdfOOUI,msSmartScreenProtection --remote-debugging-port=39517",
+            );
+            builder
                 .on_navigation(|url| {
                     navigation_policy::is_local_application_url(url, cfg!(debug_assertions))
                 })
