@@ -75,7 +75,10 @@ jobs:
       - name: Qualify portable release package
         shell: pwsh
         run: ./scripts/qualify-portable-release-package.ps1
-        timeout-minutes: 30
+        # A warm build takes ~10 min; with the Rust cache evicted (the
+        # repository is at the 10 GB Actions cache limit) the release build
+        # runs cold and exceeds 30 min, and a failed job saves no cache.
+        timeout-minutes: 60
 
       - name: Upload portable release package evidence
         uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v4.6.2
