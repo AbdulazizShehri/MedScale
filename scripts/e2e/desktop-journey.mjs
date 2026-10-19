@@ -122,14 +122,30 @@ async function find(xpath, timeout = 30000) {
   throw new Error(`not found within ${timeout} ms: ${xpath}${last ? ` (${last.message})` : ""}`);
 }
 const text = (t) => `contains(normalize-space(.), ${JSON.stringify(t)})`;
+// Native WebDriver input first; if WebView2 reports the element as not
+// interactable on the CI desktop, fall back to DOM events on the same element.
 async function click(xpath, timeout) {
   const id = await find(xpath, timeout);
-  await wd("POST", `/session/${sid}/element/${id}/click`, {});
+  try {
+    await wd("POST", `/session/${sid}/element/${id}/click`, {});
+  } catch {
+    await wd("POST", `/session/${sid}/execute/sync`, { script: "arguments[0].click();", args: [{ [ELEMENT]: id }] });
+  }
 }
 async function type(xpath, value) {
   const id = await find(xpath);
-  await wd("POST", `/session/${sid}/element/${id}/clear`, {}).catch(() => {});
-  await wd("POST", `/session/${sid}/element/${id}/value`, { text: value });
+  try {
+    await wd("POST", `/session/${sid}/element/${id}/clear`, {});
+    await wd("POST", `/session/${sid}/element/${id}/value`, { text: value });
+  } catch {
+    // React tracks the value setter; use the prototype setter, then notify.
+    await wd("POST", `/session/${sid}/execute/sync`, {
+      script:
+        "const e = arguments[0]; const proto = e.tagName === 'TEXTAREA' ? HTMLTextAreaElement.prototype : HTMLInputElement.prototype;" +
+        " Object.getOwnPropertyDescriptor(proto, 'value').set.call(e, arguments[1]); e.dispatchEvent(new Event('input', { bubbles: true }));",
+      args: [{ [ELEMENT]: id }, value],
+    });
+  }
 }
 async function see(t, timeout) {
   await find(`//*[${text(t)} and not(.//*[${text(t)}])]`, timeout);
