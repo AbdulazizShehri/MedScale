@@ -41,7 +41,9 @@ jobs:
   native:
     name: tauri preview (${{ matrix.os }})
     runs-on: ${{ matrix.os }}
-    timeout-minutes: 60
+    # The release build and packaging take about 50 minutes on windows-latest;
+    # run 39197130805 hit the old 60-minute limit while saving the cache.
+    timeout-minutes: 90
     strategy:
       fail-fast: false
       matrix:
