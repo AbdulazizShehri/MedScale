@@ -317,6 +317,158 @@ impl AsrEngine for FixtureAsrEngine {
     }
 }
 
+/// Most speakers acoustic clustering reports.
+const MAX_SPEAKERS: usize = 8;
+/// Average-linkage distance below which two groups are one voice. Features
+/// are natural-log pitch and zero-crossing rate x 10, so 0.25 is roughly a
+/// 28% pitch difference.
+const SPEAKER_MERGE_DISTANCE: f64 = 0.25;
+
+/// Median pitch (Hz) of voiced frames and mean zero-crossing rate for one
+/// span of mono samples; `None` when no frame is voiced.
+fn voice_features(samples: &[f64], sample_rate: u32) -> Option<[f64; 2]> {
+    let rate = f64::from(sample_rate);
+    let frame = (rate * 0.040) as usize;
+    let hop = (rate * 0.010) as usize;
+    let (min_lag, max_lag) = ((rate / 400.0) as usize, (rate / 60.0) as usize);
+    if frame <= max_lag || hop == 0 || samples.len() < frame {
+        return None;
+    }
+    let energies: Vec<f64> = samples
+        .windows(frame)
+        .step_by(hop)
+        .map(|w| w.iter().map(|x| x * x).sum::<f64>() / frame as f64)
+        .collect();
+    let mut sorted = energies.clone();
+    sorted.sort_by(f64::total_cmp);
+    let floor = sorted[sorted.len() / 2].max(1e-6);
+    let mut pitches = Vec::new();
+    let mut zcrs = Vec::new();
+    for (k, w) in samples.windows(frame).step_by(hop).enumerate() {
+        if energies[k] < floor {
+            continue;
+        }
+        let r0: f64 = w.iter().map(|x| x * x).sum();
+        let (mut best, mut best_lag) = (0.0, 0);
+        for lag in min_lag..=max_lag.min(frame - 1) {
+            let r: f64 = w[..frame - lag]
+                .iter()
+                .zip(&w[lag..])
+                .map(|(a, b)| a * b)
+                .sum();
+            if r > best {
+                best = r;
+                best_lag = lag;
+            }
+        }
+        if best_lag > 0 && best > 0.3 * r0 {
+            pitches.push(rate / best_lag as f64);
+        }
+        let crossings = w
+            .windows(2)
+            .filter(|p| (p[0] >= 0.0) != (p[1] >= 0.0))
+            .count();
+        zcrs.push(crossings as f64 / frame as f64);
+    }
+    if pitches.is_empty() {
+        return None;
+    }
+    pitches.sort_by(f64::total_cmp);
+    let zcr = zcrs.iter().sum::<f64>() / zcrs.len().max(1) as f64;
+    Some([pitches[pitches.len() / 2].ln(), zcr * 10.0])
+}
+
+/// Spec 106: groups VAD segments by voice with unsupervised acoustic
+/// clustering (pitch and zero-crossing rate, average-linkage agglomerative
+/// clustering under a fixed distance). Returns a 1-based speaker index per
+/// segment, numbered in order of first appearance; a segment without voiced
+/// frames joins the previous segment's speaker. Unvalidated: labels are
+/// groups of similar-sounding segments, never identity.
+#[must_use]
+pub fn diarize(format: PcmFormat, pcm: &[u8], spans: &[(u64, u64)]) -> Vec<u16> {
+    let channels = usize::from(format.channels.max(1));
+    let samples: Vec<f64> = pcm
+        .chunks_exact(2 * channels)
+        .map(|frame| {
+            let sum: f64 = frame
+                .chunks_exact(2)
+                .map(|s| f64::from(i16::from_le_bytes([s[0], s[1]])) / 32768.0)
+                .sum();
+            sum / channels as f64
+        })
+        .collect();
+    let per_ms = f64::from(format.sample_rate) / 1000.0;
+    let features: Vec<Option<[f64; 2]>> = spans
+        .iter()
+        .map(|&(start, end)| {
+            let a = ((start as f64 * per_ms) as usize).min(samples.len());
+            let b = ((end as f64 * per_ms) as usize).min(samples.len());
+            voice_features(&samples[a..b], format.sample_rate)
+        })
+        .collect();
+    // Average-linkage agglomerative clustering over voiced segments.
+    let mut clusters: Vec<Vec<usize>> = features
+        .iter()
+        .enumerate()
+        .filter(|(_, f)| f.is_some())
+        .map(|(i, _)| vec![i])
+        .collect();
+    let dist = |a: usize, b: usize| {
+        let (x, y) = (
+            features[a].unwrap_or_default(),
+            features[b].unwrap_or_default(),
+        );
+        ((x[0] - y[0]).powi(2) + (x[1] - y[1]).powi(2)).sqrt()
+    };
+    loop {
+        let mut best: Option<(f64, usize, usize)> = None;
+        for i in 0..clusters.len() {
+            for j in i + 1..clusters.len() {
+                let total: f64 = clusters[i]
+                    .iter()
+                    .flat_map(|&a| clusters[j].iter().map(move |&b| (a, b)))
+                    .map(|(a, b)| dist(a, b))
+                    .sum();
+                let d = total / (clusters[i].len() * clusters[j].len()) as f64;
+                if best.is_none_or(|(bd, _, _)| d < bd) {
+                    best = Some((d, i, j));
+                }
+            }
+        }
+        match best {
+            Some((d, i, j)) if d < SPEAKER_MERGE_DISTANCE || clusters.len() > MAX_SPEAKERS => {
+                let merged = clusters.remove(j);
+                clusters[i].extend(merged);
+            }
+            _ => break,
+        }
+    }
+    let mut cluster_of = vec![None; spans.len()];
+    for (c, members) in clusters.iter().enumerate() {
+        for &m in members {
+            cluster_of[m] = Some(c);
+        }
+    }
+    let mut order: Vec<usize> = Vec::new();
+    let mut previous = 1u16;
+    cluster_of
+        .iter()
+        .map(|c| {
+            if let Some(c) = c {
+                let index = match order.iter().position(|o| o == c) {
+                    Some(p) => p,
+                    None => {
+                        order.push(*c);
+                        order.len() - 1
+                    }
+                };
+                previous = u16::try_from(index + 1).unwrap_or(u16::MAX);
+            }
+            previous
+        })
+        .collect()
+}
+
 /// Local speech recognition from an admitted Audio Pack (Spec 106): a candle
 /// Whisper model. Real recognition, but medical accuracy is unmeasured and a
 /// transcript stays a proposal for review.
@@ -765,7 +917,6 @@ impl Audio<'_> {
         }
         let vad = VadParameters::FROZEN;
         let deny = match request.route {
-            _ if request.diarization_required => Some(AudioRouteDenyReason::DiarizationUnavailable),
             AudioRoute::CloudAsr => Some(AudioRouteDenyReason::CloudRouteForbidden),
             AudioRoute::LocalAsrPack if self.local_engine.is_none() => {
                 Some(AudioRouteDenyReason::RouteUnavailable)
@@ -784,7 +935,11 @@ impl Audio<'_> {
         let mut limitations = vec![
             AudioLimitation::TranscriptNotClinicalTruth,
             AudioLimitation::SpeakerLabelsAreNotIdentity,
-            AudioLimitation::DiarizationUnavailable,
+            if request.diarization_required {
+                AudioLimitation::DiarizationIsUnvalidatedClustering
+            } else {
+                AudioLimitation::DiarizationUnavailable
+            },
             AudioLimitation::MedicalAccuracyUnmeasured,
         ];
         if engine_identity.as_ref().is_some_and(|e| e.is_fixture) {
@@ -829,22 +984,33 @@ impl Audio<'_> {
                 }
                 _ => vec![None; spans.len()],
             };
+            let speakers: Vec<SpeakerLabel> = if request.diarization_required {
+                diarize(source.format, pcm, &spans)
+                    .into_iter()
+                    .map(|index| SpeakerLabel::Anonymous { index })
+                    .collect()
+            } else {
+                vec![SpeakerLabel::Unknown; spans.len()]
+            };
             let segments: Vec<TranscriptSegment> = spans
                 .iter()
                 .zip(texts)
+                .zip(speakers)
                 .enumerate()
-                .map(|(i, (&(start_ms, end_ms), text))| TranscriptSegment {
-                    seq: u32::try_from(i + 1).unwrap_or(u32::MAX),
-                    start_ms,
-                    end_ms,
-                    speaker: SpeakerLabel::Unknown,
-                    status: if text.is_some() {
-                        SegmentStatus::Transcribed
-                    } else {
-                        SegmentStatus::Untranscribed
+                .map(
+                    |(i, ((&(start_ms, end_ms), text), speaker))| TranscriptSegment {
+                        seq: u32::try_from(i + 1).unwrap_or(u32::MAX),
+                        start_ms,
+                        end_ms,
+                        speaker,
+                        status: if text.is_some() {
+                            SegmentStatus::Transcribed
+                        } else {
+                            SegmentStatus::Untranscribed
+                        },
+                        text,
                     },
-                    text,
-                })
+                )
                 .collect();
             let latest = self
                 .meta
@@ -865,7 +1031,11 @@ impl Audio<'_> {
                 },
                 mode: request.mode,
                 language: request.language.clone(),
-                diarization: DiarizationState::NotRequested,
+                diarization: if request.diarization_required {
+                    DiarizationState::AcousticClustering
+                } else {
+                    DiarizationState::NotRequested
+                },
                 state: TranscriptRevision::derived_state(&segments),
                 segments,
             };
@@ -1037,6 +1207,61 @@ impl Audio<'_> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// Mono 16 kHz PCM of voiced segments: each is a harmonic "voice" at
+    /// `f0` Hz (or silence for 0), `ms` long.
+    fn voices(parts: &[(u32, f64)]) -> (Vec<u8>, Vec<(u64, u64)>) {
+        let mut pcm = Vec::new();
+        let mut spans = Vec::new();
+        let mut t0 = 0u64;
+        for &(ms, f0) in parts {
+            let n = u64::from(ms) * 16;
+            for i in 0..n {
+                let t = i as f64 / 16_000.0;
+                let v = if f0 > 0.0 {
+                    (1..=6)
+                        .map(|h| {
+                            (2.0 * std::f64::consts::PI * f0 * f64::from(h) * t).sin()
+                                / f64::from(h)
+                        })
+                        .sum::<f64>()
+                        * 0.2
+                } else {
+                    0.0
+                };
+                pcm.extend_from_slice(&((v * 32_767.0) as i16).to_le_bytes());
+            }
+            if f0 > 0.0 {
+                spans.push((t0, t0 + u64::from(ms)));
+            }
+            t0 += u64::from(ms);
+        }
+        (pcm, spans)
+    }
+
+    #[test]
+    fn diarize_separates_two_voices_and_keeps_one_voice_together() {
+        let fmt = PcmFormat::mono_16k();
+        let (pcm, spans) = voices(&[
+            (600, 120.0),
+            (300, 0.0),
+            (600, 230.0),
+            (300, 0.0),
+            (600, 125.0),
+            (300, 0.0),
+            (600, 225.0),
+        ]);
+        assert_eq!(diarize(fmt, &pcm, &spans), vec![1, 2, 1, 2]);
+        let (pcm, spans) = voices(&[
+            (600, 150.0),
+            (300, 0.0),
+            (600, 155.0),
+            (300, 0.0),
+            (600, 148.0),
+        ]);
+        assert_eq!(diarize(fmt, &pcm, &spans), vec![1, 1, 1]);
+        assert!(diarize(fmt, &[], &[]).is_empty());
+    }
 
     fn fmt() -> PcmFormat {
         PcmFormat::mono_16k()
