@@ -345,10 +345,45 @@ pub fn insights_overview(host: tauri::State<'_, Host>) -> CmdResult<Value> {
 }
 
 #[tauri::command(async)]
-pub fn insights_ask(host: tauri::State<'_, Host>, query: String) -> CmdResult<String> {
+/// Answers a question from the evidence corpus by extraction: Core's lexical
+/// retrieval ranks documents, and the best-supported sentences are returned
+/// with their document and content digest. Abstains when nothing supports
+/// the question; nothing is generated.
+pub fn insights_ask(host: tauri::State<'_, Host>, query: String) -> CmdResult<Value> {
     let query = host::bounded_text(&query, 256)?;
     let mut state = lock(&host)?;
-    Ok(insights_vm(&mut state)?.answer_query(&query))
+    let corpus = default_synthetic_corpus();
+    let result = state.session()?.retrieve_lexical(LexicalRetrieveRequest {
+        query: query.clone(),
+        corpus_id: corpus.corpus_id.clone(),
+        max_hits: 10,
+        include_retracted: false,
+    })?;
+    let passages: Vec<crate::synthesis::Passage<'_>> = result
+        .hits
+        .iter()
+        .filter_map(|hit| {
+            let doc = corpus
+                .documents
+                .iter()
+                .find(|d| d.doc_id == hit.doc_id.as_str())?;
+            Some(crate::synthesis::Passage {
+                doc_id: &doc.doc_id,
+                text: &doc.text,
+                content_digest: doc.content_digest.to_hex(),
+                retracted: hit.retracted,
+                conflict_marker: hit.conflict_marker.clone(),
+                freshness_marker: hit.freshness_marker.clone(),
+            })
+        })
+        .collect();
+    let answer = crate::synthesis::answer(&query, &passages);
+    Ok(json!({
+        "answer": answer,
+        "corpus_id": result.corpus_id,
+        "corpus_version": result.corpus_version,
+        "evaluation_id": result.evaluation_id.as_str(),
+    }))
 }
 
 // ───────────────────────────── governance ─────────────────────────────

@@ -17,6 +17,7 @@ mod cmd_research;
 mod host;
 mod navigation_policy;
 mod startup_failure;
+mod synthesis;
 
 #[cfg(test)]
 mod feature_tests;
