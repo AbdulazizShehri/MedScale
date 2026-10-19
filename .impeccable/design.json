@@ -116,7 +116,7 @@
   ],
   "narrative": {
     "northStar": "The work is the interface",
-    "overview": "The following shared-system layer records the approved Tauri shell and Spec 097 Patients preparation. Frontmatter values are normative for this presentation scope and are extracted from apps/desktop-tauri/src/theme.css, not inferred from a generic preset. The CSS remains the implementation source; use its theme variables rather than literal theme colors in new components. The preceding sections and historical source references are retained.\n\nThe paired-M mark, one sidebar, quiet black/white hierarchy, Inter and exact data in JetBrains Mono NL remain the approved world. Light mode uses the same component relationships with its own neutral layers. This documentation does not qualify a populated clinical surface, privacy, accessibility or release.",
+    "overview": "The following shared-system layer records the approved Tauri shell and Spec 097 Patients preparation. Frontmatter values are normative for this presentation scope and are extracted from apps/desktop-tauri/src/theme.css, not inferred from a generic preset. The CSS remains the implementation source; use its theme variables rather than literal theme colors in new components. The preceding sections and historical source references are retained.\n\nThe Logo 12 mark, one sidebar, quiet black/white hierarchy, Inter and exact data in JetBrains Mono NL remain the approved world. Light mode uses the same component relationships with its own neutral layers. This documentation does not qualify a populated clinical surface, privacy, accessibility or release.",
     "keyCharacteristics": [
       "Clinical context and literal evidence states carry the interface.",
       "Thin separators, readable tables and bounded inspection organize the work.",
@@ -127,7 +127,7 @@
       "Do use shared primitives and theme variables for new supported surfaces.",
       "Do keep literal states, accessible labels and visible monochrome focus.",
       "Do keep exact identifiers in the locally bundled data font.",
-      "Do preserve the paired-M identity and the same relationships in light mode."
+      "Do preserve the Logo 12 identity and the same relationships in light mode."
     ],
     "donts": [
       "Don't substitute fixture patients or successful empty states for an unread roster.",

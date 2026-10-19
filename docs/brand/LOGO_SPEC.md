@@ -1,29 +1,71 @@
 # MedScale logo specification
 
-**Status:** CANONICAL_SPEC_095 — FOUNDER_APPROVED_PAIRED_MARK. The supplied mark is locked.
+**Status:** CANONICAL — FOUNDER_APPROVED_LOGO_12 (2026-10-19). The approved symbol and wordmark are locked. Do not reinterpret or redesign them.
 
-## Construction
+## Symbol construction
 
-Two equilateral triangle primitives, side 100 and height h=86.6025403784, have horizontal offset 60. Removing the overlap produces two filled lobes meeting at (80,0.6h), with triangular negative space below. Tight bounds are 160×h. Never substitute two disconnected full triangles or a single triangle.
+Three upright frames with rounded corners, sheared so their top edges rise to the right. They are drawn as one uniform stroke with round joins and butt ends. All frames overlap visibly and nothing is knocked out.
 
-The supplied raster illustrations are approximate. Reconstruction keeps their peaks, contact and lower void with exact equilateral edges; tight aspect ratio is 1.8475. No exact raster pixel equivalence is claimed. assets/brand/medscale-identity-proof.svg shows construction/inverses/lockups/minimum context for rendered review.
+- **Frame A** (back) is closed.
+- **Frames B and C** (middle and front) form one continuous open stroke:
+  - It starts at the foot of C's descender, rises along C's left side, crosses C's top and descends C's right side.
+  - The shared lower stroke then runs straight from C's lower-right corner to B's lower-left corner.
+  - From there it rises along B's left side, crosses B's top, and ends where B's right side meets the shared lower stroke.
+  - C's left side continues below the lower stroke as the descender, which is the lowest point of the symbol.
 
-## Assets and color
+The exact parameters, in reference pixels, are in `assets/brand/source/geometry.json`:
 
-assets/brand/mark-black.svg is the medscale-paired-m master. White inversion changes only fill. Native variants share the path. Horizontal/stacked/wordmark assets use deterministic Inter Semibold outlines. Written name: MedScale.
+- stroke 26.5
+- corner radius 51
+- top slope −0.4542; closed bottom slope −0.4767
+- frame offsets B = A + (97.5, 50.5) and C = A + (196, 106.5)
 
-Core color is only #000000 or #FFFFFF; no grey belongs to the logo. Black on light, white on dark, exact aspect ratio. App variants use plain monochrome square fields and compliant padding.
+`assets/brand/mark-black.svg` is the master. The symbol group is `id="medscale-frames"`, and every asset reuses its path data unchanged.
+
+## Wordmark
+
+Exactly `MedScale`. First-party monoline letterforms (`id="medscale-wordmark"`): squared bowls and counters, rounded corners, open terminals, one stroke width for every letter. The M's stems turn inward along a short top stroke before the diagonals meet at the V. No font is embedded or claimed.
+
+## Lockups and colour
+
+- **Vertical (primary):** the symbol is centred above the wordmark. The gap and proportions match the approved reference (symbol height ≈ 4.0 × wordmark height).
+- **Horizontal:** symbol height = 2.6 × wordmark height. Gap = 0.45 × wordmark height. The wordmark is centred vertically on the symbol.
+- **Colour:**
+  - The logo uses only `#000000` and `#FFFFFF`: white on dark (canonical), black on light.
+  - Transparent masters carry no background.
+  - The canonical and inverse files include their solid background.
 
 ## Size and clear space
 
-Minimum visible mark height 16px; padding is excluded. Keep at least h/2 outside every mark/full lockup side. Tight width is 1.8475h; a compliant square slot needs 2.8475h, or 45.56px for a 16px-high mark. The rail uses just over 16px visible height and measured surrounding space.
+- Keep clear space of at least 0.25 × lockup width around a full lockup, and at least 0.5 × symbol width around the standalone symbol.
+- **Minimum symbol height:** 24 px on screen. Prefer 32 px or larger.
+- **Optical masters keep the frames legible on small pixel grids.** They change only stroke weight and tile fill, never the geometry:
+  - `medscale-icon-small-dark.svg` (16–32 px; stroke × 2.4)
+  - `medscale-icon-medium-dark.svg` (48–64 px; stroke × 1.5)
+  - In the desktop UI, `Mark` below 48 px uses stroke × 1.6.
+- **16 px slots** (favicons, title bars) are a platform-size exception. The symbol reads as a compact frame cluster but the individual frames are not distinct. Use 24 px or larger wherever the platform allows.
+- **Application icons:**
+  - The symbol is centred on a solid square, at 64% of the tile height.
+  - macOS uses the 824/1024 rounded tile.
+  - The ICO carries separately rasterized 16–256 px bitmaps.
 
-A browser-owned 16px-square favicon cannot meet both rules mathematically. This is an explicit platform-sized exception, optically reviewed with unchanged geometry. Prefer larger slots. Do not call a 16px-square favicon a 16px-high mark.
+## Misuse
 
-Horizontal gap starts at half mark height; optically align against cap height. Stacked lockups center both elements with reference-derived rhythm. External clear space surrounds composite bounds. Outlines are deterministic; native headings remain accessible text.
+Never:
 
-## Misuse and history
+- redraw, stretch, squeeze, rotate or re-slant the symbol
+- move one frame on its own, close C's descender, or separate the shared lower stroke
+- fill the frames
+- add a fourth frame
+- change stroke weights within the symbol or the wordmark, or bold part of the word
+- set the wordmark in a font
+- add a tagline to the primary logo
+- use colour, gradients, blue, shadows, glows, 3D, outlines or animation
+- use medical crosses, hearts, DNA, shields, sparkles or AI stars
+- place it on busy imagery without a solid field
 
-No redesign, stretching, squeezing, rotation, rounding, stroke, independent triangle movement, filled negative space, retired circular field, color-split wordmark, gradient, medical cross/heart/DNA/shield/sparkle/AI star, pseudo-3D or logo animation. Raster screenshots are not vector masters.
+Raster screenshots are not vector masters.
 
-Historical Spec 073 MedScale Shelf is SUPERSEDED_BY_SPEC_095 for active branding. Old commits and closed 068–094 artifacts remain intact.
+## History
+
+The Spec 095 paired-M mark and the Spec 073 "Shelf" are SUPERSEDED_BY_LOGO_12 for active branding. Their commits, specs, provenance records and evidence remain intact.

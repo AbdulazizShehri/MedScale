@@ -1,7 +1,8 @@
 import { useMemo, useState, type FormEvent } from "react";
 import { useApp } from "../lib/app";
 import { useAction, type CmdError } from "../lib/ipc";
-import { Glyph, Mark } from "../components/ui";
+import { Mark, Wordmark } from "../components/brand";
+import { Glyph } from "../components/ui";
 
 /** Provenance topology: a height field rendered as dots, with a source →
  *  digest → assertion → projection → review chain. Decorative; the chain uses
@@ -64,8 +65,8 @@ export function Welcome({ onContinue }: { onContinue: () => void }) {
       <div className="gate-fade" />
       <div style={{ position: "relative", height: "100%", minHeight: 600, display: "flex", flexDirection: "column", justifyContent: "space-between", padding: "56px 64px 48px", maxWidth: 640 }}>
         <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
-          <Mark width={46} />
-          <span style={{ fontSize: 24, fontWeight: 600, letterSpacing: "-0.03em" }}>MedScale</span>
+          <Mark height={44} />
+          <Wordmark height={18} />
         </div>
         <div className="stack" style={{ gap: 28 }}>
           <h1 style={{ margin: 0, fontSize: 60, lineHeight: "60px", fontWeight: 600, letterSpacing: "-0.04em" }}>Local Clinical<br />Intelligence</h1>
@@ -126,7 +127,7 @@ export function Access({ onBack }: { onBack: () => void }) {
       <div className="access">
         <section>
           <button type="button" onClick={onBack} style={{ display: "flex", alignItems: "center", gap: 12, width: "max-content" }} aria-label="Back to Welcome">
-            <Mark width={32} /><span style={{ fontSize: 16, fontWeight: 600, letterSpacing: "-0.02em" }}>MedScale</span>
+            <Mark height={26} /><Wordmark height={12} />
           </button>
           <div style={{ flex: 1, display: "flex", alignItems: "center", padding: "32px 0" }}>
             {codes ? (

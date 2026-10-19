@@ -3,7 +3,8 @@ import { useApp } from "../lib/app";
 import { call, useAction, useCommand, type CmdError } from "../lib/ipc";
 import { ProjectScope } from "../components/project";
 import { MOD } from "../components/shell";
-import { Authority, Empty, ErrorState, Glyph, KV, Ledger, Mark, Notice, PageHead, Section, Skeleton, Status, glyphFor, useOutcome } from "../components/ui";
+import { Mark, Wordmark } from "../components/brand";
+import { Authority, Empty, ErrorState, Glyph, KV, Ledger, Notice, PageHead, Section, Skeleton, Status, glyphFor, useOutcome } from "../components/ui";
 
 type Row = { label: string; value: string; detail: string; status: string };
 type Gov = {
@@ -222,8 +223,8 @@ export function About() {
     <div className="pane">
       <div style={{ maxWidth: 980 }} className="stack">
         <div className="row-gap" style={{ alignItems: "flex-end", gap: 40, paddingBottom: 32, borderBottom: "1px solid var(--line)", marginBottom: 28 }}>
-          <Mark width={132} />
-          <div className="stack" style={{ gap: 6, flex: 1, minWidth: 260 }}><span style={{ fontSize: 40, lineHeight: "40px", fontWeight: 600, letterSpacing: "-0.035em" }}>{a.product}</span><span style={{ fontSize: 15, color: "var(--ink-2)" }}>{a.tagline}</span></div>
+          <Mark height={96} />
+          <div className="stack" style={{ gap: 6, flex: 1, minWidth: 260 }}><Wordmark height={34} title={a.product} /><span style={{ fontSize: 15, color: "var(--ink-2)" }}>{a.tagline}</span></div>
           <div className="stack" style={{ alignItems: "flex-end", gap: 6 }}><span className="mono" style={{ fontSize: 20 }}>{a.version}</span><span style={{ fontSize: 11, letterSpacing: "0.28em", textTransform: "uppercase", color: "var(--ink-3)" }}>Evidence. Privacy. Scale.</span></div>
         </div>
         <div className="grid-2">

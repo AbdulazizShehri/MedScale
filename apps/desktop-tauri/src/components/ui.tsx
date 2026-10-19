@@ -1,15 +1,6 @@
 import { createContext, useCallback, useContext, useState, type ReactNode } from "react";
 import type { CmdError } from "../lib/ipc";
 
-/* ───────────── Logo (measured two-triangle M, even-odd knockout) ───────────── */
-export function Mark({ width = 28, className }: { width?: number; className?: string }) {
-  return (
-    <svg width={width} height={Math.round((width * 76) / 160)} viewBox="0 0 160 76" className={className} aria-hidden="true">
-      <path d="M0 76 50 0 100 76Z M60 76 110 0 160 76Z" fill="currentColor" fillRule="evenodd" />
-    </svg>
-  );
-}
-
 /* ───────────── Icons: solid geometric, 20-unit grid ───────────── */
 const ICONS = {
   home: "M10 2 18 9V18H12V13H8V18H2V9Z",

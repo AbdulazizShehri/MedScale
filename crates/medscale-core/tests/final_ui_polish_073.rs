@@ -20,15 +20,15 @@ fn approved_monochrome_mark_is_runtime_bound() {
         "crates/medscale-desktop/ui/assets/medscale-app-icon.svg",
     ] {
         let svg = std::fs::read_to_string(root.join(asset)).expect("logo asset");
-        // The founder-approved Spec 095 mark supersedes the historical circular mark forward.
+        // Founder-approved Logo 12 (2026-10-19) supersedes the Spec 095 paired mark and the historical circle.
         assert!(
             !svg.contains("<circle"),
             "superseded field returned: {asset}"
         );
         assert!(svg.contains("#000000"), "approved black missing: {asset}");
         assert!(
-            svg.contains("id=\"medscale-paired-m\""),
-            "MedScale paired geometry missing: {asset}"
+            svg.contains("id=\"medscale-frames\""),
+            "MedScale Logo 12 frames missing: {asset}"
         );
         for forbidden in ["#0A66FF", "purple", "gradient", "heartbeat", "sparkle"] {
             assert!(
