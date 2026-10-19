@@ -1,17 +1,21 @@
 // End-to-end user journeys against the real MedScale desktop binary.
 //
-// Drives the release build through WebDriver (tauri-driver + Microsoft Edge
-// WebDriver for WebView2) with no npm dependencies: plain HTTP to the
-// WebDriver endpoint. Synthetic data only; the app opens its own synthetic
+// Drives the release build through Microsoft Edge WebDriver in WebView2
+// attach mode with no npm dependencies: the script launches the app with a
+// fixed WebView2 remote-debugging port, and Edge WebDriver attaches through
+// `ms:edgeOptions.debuggerAddress` (Microsoft's documented WebView2
+// automation path). Plain HTTP to the WebDriver endpoint. Synthetic data only; the app opens its own synthetic
 // workspace from a fresh data directory. Each step saves a screenshot for
 // visual review. Usage:
 //   node scripts/e2e/desktop-journey.mjs <path-to-app.exe> <screenshot-dir>
 import fs from "node:fs";
 import path from "node:path";
+import { spawn } from "node:child_process";
 
 const [app, shots = "target/e2e-shots"] = process.argv.slice(2);
 if (!app) throw new Error("usage: desktop-journey.mjs <app> [shots]");
-const WD = process.env.WEBDRIVER_URL ?? "http://127.0.0.1:4444";
+const WD = process.env.WEBDRIVER_URL ?? "http://127.0.0.1:9515";
+const DEBUG_PORT = Number(process.env.WEBVIEW2_DEBUG_PORT ?? 9222);
 fs.mkdirSync(shots, { recursive: true });
 
 async function wd(method, url, body) {
@@ -27,20 +31,42 @@ async function wd(method, url, body) {
 
 const ELEMENT = "element-6066-11e4-a52e-4f735466cecc";
 let sid;
+let child;
 let step = 0;
 const results = [];
+const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
 async function launch() {
+  child = spawn(path.resolve(app), [], {
+    env: { ...process.env, WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS: `--remote-debugging-port=${DEBUG_PORT}` },
+    stdio: "ignore",
+  });
+  const end = Date.now() + 60000;
+  for (;;) {
+    try {
+      const r = await fetch(`http://127.0.0.1:${DEBUG_PORT}/json/version`);
+      if (r.ok) break;
+    } catch {}
+    if (Date.now() > end) throw new Error("the app opened no WebView2 debugging port");
+    await sleep(500);
+  }
   const s = await wd("POST", "/session", {
-    capabilities: { alwaysMatch: { browserName: "wry", "tauri:options": { application: path.resolve(app) } } },
+    capabilities: {
+      alwaysMatch: { browserName: "webview2", "ms:edgeOptions": { debuggerAddress: `127.0.0.1:${DEBUG_PORT}` } },
+    },
   });
   sid = s.sessionId;
 }
 async function quit() {
   if (sid) await wd("DELETE", `/session/${sid}`).catch(() => {});
   sid = undefined;
+  if (child) {
+    child.kill();
+    await new Promise((r) => (child.exitCode !== null ? r() : child.once("exit", r)));
+    child = undefined;
+    await sleep(2000);
+  }
 }
-const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 async function find(xpath, timeout = 30000) {
   const end = Date.now() + timeout;
   let last;
