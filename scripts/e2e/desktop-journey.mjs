@@ -15,7 +15,7 @@ import { execFileSync, spawn } from "node:child_process";
 const [app, shots = "target/e2e-shots"] = process.argv.slice(2);
 if (!app) throw new Error("usage: desktop-journey.mjs <app> [shots]");
 const WD = process.env.WEBDRIVER_URL ?? "http://127.0.0.1:9515";
-const DEBUG_PORT = Number(process.env.WEBVIEW2_DEBUG_PORT ?? 9222);
+const DEBUG_PORT = Number(process.env.WEBVIEW2_DEBUG_PORT ?? 39517);
 fs.mkdirSync(shots, { recursive: true });
 
 async function wd(method, url, body) {
@@ -60,6 +60,15 @@ async function launch() {
       if (r.ok) break;
     } catch {}
     if (Date.now() > end) {
+      try {
+        const ps = [
+          "Get-CimInstance Win32_Process -Filter \"Name='msedgewebview2.exe'\" | Where-Object { $_.CommandLine -match 'medscale-desktop-tauri' } | Select-Object -First 2 ProcessId, CommandLine | Format-List | Out-String -Width 400",
+          "Get-NetTCPConnection -State Listen | Where-Object { (Get-Process -Id $_.OwningProcess -ErrorAction SilentlyContinue).ProcessName -match 'msedgewebview2|medscale' } | Format-Table LocalAddress, LocalPort, OwningProcess | Out-String",
+        ].join("; ");
+        console.log(execFileSync("pwsh", ["-NoProfile", "-Command", ps], { encoding: "utf8" }));
+      } catch (err) {
+        console.log(`diagnostics failed: ${err.message}`);
+      }
       const state = child.exitCode === null ? "still running" : `exited with code ${child.exitCode}`;
       throw new Error(`the app opened no WebView2 debugging port (app ${state})`);
     }
