@@ -1,7 +1,10 @@
 # Same-runner A/B of warm candle encoder latency: the profiling example built
-# against main's vendored candle-core (A) and this branch's (B), run
-# alternately on one machine. Random weights, real model configs; no model
-# downloads beyond config.json. Runs only on `perf-ab/**` branches.
+# against a baseline vendored candle-core (A, `perf-ab/base-ref` file or
+# origin/main) and this branch's (B), plus C, a byte-identical copy of A that
+# measures the noise floor. Six rounds cover every run order of A, B and C,
+# so no variant is favoured by running first or last. Random weights, real
+# model configs; no model downloads beyond config.json. Runs only on
+# `perf-ab/**` branches.
 name: perf-ab
 
 on:
@@ -40,20 +43,25 @@ jobs:
         run: |
           cargo build --release --locked -p medscale-pack --example candle_latency_profile
           cp target/release/examples/candle_latency_profile$([ "$RUNNER_OS" = Windows ] && echo .exe) "$RUNNER_TEMP/prof-b"
-      - name: Build A (main's candle-core, same example)
+      - name: Build A (baseline candle-core, same example) and its copy C
         shell: bash
         run: |
-          git checkout origin/main -- vendor/candle-core-0.9.1
+          base=origin/main
+          [ -f .github/perf-ab-base-ref ] && base=$(tr -d '[:space:]' < .github/perf-ab-base-ref)
+          echo "baseline: $base"
+          git checkout "$base" -- vendor/candle-core-0.9.1
           cargo build --release --locked -p medscale-pack --example candle_latency_profile
           cp target/release/examples/candle_latency_profile$([ "$RUNNER_OS" = Windows ] && echo .exe) "$RUNNER_TEMP/prof-a"
+          cp "$RUNNER_TEMP/prof-a" "$RUNNER_TEMP/prof-c"
           git checkout HEAD -- vendor/candle-core-0.9.1
-      - name: Alternate A and B
+      - name: Run A, B and C in every order
         shell: bash
         run: |
           set -euo pipefail
           nproc 2>/dev/null || sysctl -n hw.ncpu 2>/dev/null || echo "$NUMBER_OF_PROCESSORS"
-          for round in 1 2 3; do
-            for v in a b; do
+          orders=("a b c" "b c a" "c a b" "a c b" "b a c" "c b a")
+          for round in 1 2 3 4 5 6; do
+            for v in ${orders[$((round - 1))]}; do
               for m in OpenMed-NER-AnatomyDetect-TinyMed-135M OpenMed-NER-AnatomyDetect-BioMed-109M; do
                 "$RUNNER_TEMP/prof-$v" "$RUNNER_TEMP/cfg/$m.json" 8 16 32 64 | sed "s/^/AB round=$round variant=$v model=$m /"
               done
