@@ -8,10 +8,10 @@ This supersedes [RELEASE_CANDIDATE_2026-10-19.md](RELEASE_CANDIDATE_2026-10-19.m
 
 | | |
 |---|---|
-| Source | `main` at `eb1005ea676f172d8720fc8a376abd1a8ba51751` (#265 merge) |
-| CI build | tauri-preview run [39407253657](https://github.com/TheHalfMoon/MedScale/actions/runs/39407253657) |
-| Windows (x64) | `installer/MedScale_0.1.0_x64-setup.exe`, SHA-256 `bf1ea20bd7aed58a2cc95df26ffe2e099fdd3aad872c273709f1453663886311` |
-| macOS (arm64) | `installer/MedScale_0.1.0_aarch64.dmg`, SHA-256 `450dcb327c0940d9ea44133fd7927568b62e5b9aec18fd753132b80d33b8d669` |
+| Source | `main` at `f067d679701547684ffd6060b4e931fdd6ee0797` (#267 merge) |
+| CI build | tauri-preview run [39454195859](https://github.com/TheHalfMoon/MedScale/actions/runs/39454195859) |
+| Windows (x64) | `installer/MedScale_0.1.0_x64-setup.exe`, SHA-256 `1c3c0ffb297998c4750536646cda685ea813a5ff810638f8c28c189183ec89ff` |
+| macOS (arm64) | `installer/MedScale_0.1.0_aarch64.dmg`, SHA-256 `267c4252a6bbba312d94737e23163d18a5b60b0571481225b7828df7ac7cf95c` |
 
 The installers are in the run's `tauri-installer-windows-latest` and `tauri-installer-macos-latest` artifacts, retained until 2026-10-27. Each release set carries:
 
@@ -32,17 +32,18 @@ The release set is verified by `scripts/verify-tauri-release.ps1` (Spec 101).
   - 8 more end-to-end journeys.
 - **#264:** the few-row f32 matmul kernel. On x86_64 small encoders are 2–3x faster, and the median warm latency is 0.65x OpenMed's.
 - **#265:** the Windows setup program shows the Logo 12 icon. Before, it showed NSIS's default. Release-candidate verification of `29cbf50` found this.
+- **#267:** the Welcome screen illustration keeps only its dot field (founder request).
 
-## What was verified on `eb1005e`
+## What was verified on `f067d67`
 
-**Packaging (Spec 101, run 39407253657):**
+**Packaging (Spec 101, run 39454195859):**
 - Windows: install, launch and uninstall all pass.
 - macOS: DMG verify, mount, install, launch and uninstall all pass.
 
 **Identity:**
 - Founder-approved Logo 12 is in the installed app's icon, the Windows setup program (extracted from #265's installer build) and every in-app surface (`evidence/brand-logo-12/`).
 
-**End-to-end journeys on the release binary (`desktop-e2e` run 39407253662):** 17 of 17 pass on Windows. They cover:
+**End-to-end journeys on the release binary (`desktop-e2e` run 39454196018):** 17 of 17 pass on Windows. They cover:
 
 - opening the synthetic workspace
 - Patients

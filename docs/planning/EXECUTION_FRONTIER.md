@@ -21,6 +21,7 @@ Merged 2026-10-19/20:
 - #263 desktop invalid-argument reasons, Insights visibility and 8 more journeys (`fe15cb8`)
 - #264 few-row f32 matmul kernel (`29cbf50`)
 - #265 Windows installer Logo 12 icon (`eb1005e`)
+- #267 Welcome illustration: dot field only (`f067d67`)
 
 ## State
 
@@ -47,7 +48,7 @@ Merged 2026-10-19/20:
 
 **Feature freeze for v0.1.0** (founder decision 2026-10-20). Only fixes for correctness, security, broken user journeys, release packaging or critical regressions are allowed. The 1 GiB Model Pack bound is unchanged.
 
-1. Release candidate refreshed for `eb1005e`: `docs/product/RELEASE_CANDIDATE_2026-10-20.md`. All packaging checks pass, and 17/17 journeys pass.
+1. Release candidate for `f067d67`: `docs/product/RELEASE_CANDIDATE_2026-10-20.md`. All packaging checks pass (tauri-preview 39454195859), and 17/17 journeys pass (desktop-e2e 39454196018).
 2. Deferred work: `docs/product/POST_RELEASE_ROADMAP.md`. Production signing: `docs/product/PRODUCTION_SIGNING_REQUIREMENTS.md`.
 
 ## Tooling status

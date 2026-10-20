@@ -12,7 +12,7 @@ IDENTITY                  = founder-approved Logo 12 (#257); Spec 095 paired M s
 OPENMED_ACCURACY          = 11 wins, 10 ties, 0 losses (word-level decoding, synthetic gold sets)
 OPENMED_WARM_LATENCY      = median 0.65x OpenMed, same job (22 rows; faster 14, level 2, slower 5)
 HF_REFERENCE_DISTILBERT   = exact GELU; score delta vs Hugging Face 2.98e-08 (#262)
-RELEASE_CANDIDATE         = docs/product/RELEASE_CANDIDATE_2026-10-20.md (eb1005e)
+RELEASE_CANDIDATE         = docs/product/RELEASE_CANDIDATE_2026-10-20.md (f067d67)
 ```
 
 Corrections recorded on 2026-10-20:
