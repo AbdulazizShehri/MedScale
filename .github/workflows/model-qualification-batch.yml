@@ -130,6 +130,24 @@ jobs:
           "$py" scripts/evaluation/openmed_predict.py "$MEDSCALE_EVAL_SET" "$SNAPSHOT_DIR" "$REPO" "$revision" "$RUNNER_TEMP/openmed-predictions.json" | tee -a qualification.log
           MEDSCALE_OPENMED_PREDICTIONS="$RUNNER_TEMP/openmed-predictions.json"             cargo test --release --locked -p medscale-pack --test openmed_python_external_103             -- --ignored --nocapture 2>&1 | tee -a qualification.log
 
+      # Optional reference check ("reference": "hf"): Hugging Face Transformers
+      # runs the same snapshot and sample text, and its entities are compared
+      # with MedScale's SNAPSHOT_DOCUMENT (scripts/qualification/hf_reference_compare.py).
+      - name: Compare with the Hugging Face reference
+        if: matrix.reference == 'hf'
+        env:
+          TEXT: ${{ matrix.text }}
+        run: |
+          set -euo pipefail
+          python3 -m venv "$RUNNER_TEMP/hfref"
+          py="$RUNNER_TEMP/hfref/bin/python"
+          "$py" -m pip install --quiet --upgrade pip
+          "$py" -m pip install --quiet --index-url https://download.pytorch.org/whl/cpu "torch>=2.13.0"
+          "$py" -m pip install --quiet transformers==4.46.3 tokenizers==0.20.3 safetensors==0.4.5 numpy==2.1.3
+          "$py" scripts/qualification/hf_reference_compare.py "$SNAPSHOT_DIR" "$TEXT" qualification.log | tee reference.log
+          cat reference.log >> qualification.log
+          grep -E '^REFERENCE_' reference.log >> "$GITHUB_STEP_SUMMARY"
+
       - name: Keep the log (no weights)
         if: always()
         uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v4.6.2
