@@ -267,7 +267,7 @@ export function Insights() {
           </div>
         </Section>
       </div>
-      <aside className="inspector collapsible" aria-label="Conditions and evidence">
+      <aside className="inspector" aria-label="Conditions and evidence">
         <div className="ins-pad">
           <Section title="Conditions" count="present facts only">
             {v.condition_distribution.length ? v.condition_distribution.map((r) => (
