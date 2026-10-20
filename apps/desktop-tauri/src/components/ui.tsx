@@ -230,12 +230,21 @@ export function ToastHost({ children }: { children: ReactNode }) {
   );
 }
 
+/** Core messages often start with their kind ("Invalid: …"); the toast title already says it. */
+export function withoutKindPrefix(message: string, title: string): string {
+  const prefix = `${title}:`;
+  return message.toLowerCase().startsWith(prefix.toLowerCase()) ? message.slice(prefix.length).trimStart() : message;
+}
+
 /** Reports an action outcome as a toast and returns whether it succeeded. */
 export function useOutcome() {
   const toast = useToast();
   return useCallback(<T,>(result: { ok: true; data: T } | { ok: false; error: CmdError }, success: string): result is { ok: true; data: T } => {
     if (result.ok) toast({ kind: "completed", title: success });
-    else toast({ kind: ERROR_GLYPH[result.error.kind], title: result.error.kind[0]!.toUpperCase() + result.error.kind.slice(1), detail: result.error.message });
+    else {
+      const title = result.error.kind[0]!.toUpperCase() + result.error.kind.slice(1);
+      toast({ kind: ERROR_GLYPH[result.error.kind], title, detail: withoutKindPrefix(result.error.message, title) });
+    }
     return result.ok;
   }, [toast]);
 }

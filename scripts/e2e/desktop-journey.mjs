@@ -166,6 +166,18 @@ async function see(t, timeout) {
 async function nav(label) {
   await click(`//button[contains(@class,'nav') and ${text(label)}]`);
 }
+async function pageText() {
+  return wd("POST", `/session/${sid}/execute/sync`, { script: "return document.body.innerText;", args: [] });
+}
+async function waitForText(pattern, timeout = 60000) {
+  const end = Date.now() + timeout;
+  while (Date.now() < end) {
+    const m = (await pageText()).match(pattern);
+    if (m) return m[0];
+    await sleep(500);
+  }
+  throw new Error(`text ${pattern} not shown within ${timeout} ms`);
+}
 async function shot(name) {
   const png = await wd("GET", `/session/${sid}/screenshot`);
   fs.writeFileSync(path.join(shots, `${String(++step).padStart(2, "0")}-${name}.png`), Buffer.from(png, "base64"));
@@ -213,6 +225,58 @@ try {
     await type(`//input[@id='pn']`, "E2E study");
     await click(`//button[@type='submit' and ${text("Create project")}]`);
     await see("E2E study");
+  });
+  await journey("data-snapshot-and-analytics-query", async () => {
+    await nav("Data");
+    await click(`//button[${text("Add synthetic sample source")}]`);
+    await click(`//button[contains(@class,'lr') and ${text("Synthetic fixture table")}]`, 60000);
+    await click(`//button[${text("Import snapshot")}]`);
+    const snap = await waitForText(/snap-[A-Za-z0-9_-]+/);
+    await nav("Analytics");
+    await type(`//input[@aria-label='Bindings']`, `t=${snap}`);
+    await click(`//button[normalize-space(.)='Run']`);
+    await see("4 rows", 60000);
+  });
+  await journey("analytics-explains-invalid-bindings", async () => {
+    await type(`//input[@aria-label='Bindings']`, "not-a-binding");
+    await click(`//button[normalize-space(.)='Run']`);
+    await see("bindings are alias=snapshot_id pairs", 30000);
+  });
+  await journey("knowledge-index-and-search", async () => {
+    await nav("Knowledge");
+    await click(`//button[${text("Build index")}]`);
+    await see("Index built", 60000);
+    await type(`//input[@aria-label='Search indexed sources']`, "synthetic");
+    await click(`//button[@type='submit' and ${text("Search")}]`);
+    await find(`//pre[contains(@class,'pre')]`, 60000);
+  });
+  await journey("model-fleet-lanes", async () => {
+    await nav("Model Fleet");
+    await click(`//button[${text("Add two lanes")}]`);
+    await see("Two reviewer lanes created", 60000);
+  });
+  await journey("collaboration-room", async () => {
+    await nav("Collaboration");
+    await type(`//input[@aria-label='Room name']`, "E2E tumor board");
+    await click(`//button[@type='submit' and ${text("Add")}]`);
+    await see("E2E tumor board", 30000);
+  });
+  await journey("browse-default-deny", async () => {
+    await nav("Browse");
+    await type(`//input[@aria-label='URL']`, "https://example.org/");
+    await click(`//button[@type='submit' and ${text("Fetch")}]`);
+    await see("empty_allowlist", 30000);
+  });
+  await journey("insights-grounded-answer", async () => {
+    await nav("Insights");
+    await type(`//input[@aria-label='Question for the evidence corpus']`, "When is an asthma rescue inhaler used?");
+    await click(`//button[normalize-space(.)='Ask']`);
+    await see("doc-asthma", 30000);
+  });
+  await journey("audio-synthetic-tone-import", async () => {
+    await nav("Audio");
+    await click(`//button[${text("Import synthetic tone sample")}]`);
+    await see("Synthetic tone imported", 60000);
   });
   await journey("medagent-agent-run-evidence", async () => {
     await nav("MedAgent");
