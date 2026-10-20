@@ -2,15 +2,14 @@
 
 The live, repository-backed handoff for autonomous sessions. Each session verifies it against GitHub before acting and updates it in the next evidence PR. Status documents of record remain `BUILD_QUEUE.md`, `PROJECT_COMPLETION_STATUS.md` and `EXTERNAL_GATES.md`.
 
-**As of:** 2026-10-20. **Verified main:** `f58cd3f` (post-merge `ci` including Windows rust, `tauri-preview` and `desktop-e2e` all green; run 39347570160). Later merges are listed below with their own verification.
+**As of:** 2026-10-20. **Verified main:** `29cbf50` (#264 merge; post-merge `ci` run 39376193246, `tauri-preview` run 39376193297 and `desktop-e2e` run 39376193338 all green, 17/17 journeys).
 
 ## Open pull requests
 
 | PR | Scope | State at handoff |
 |---|---|---|
-| #263 | Desktop: Core's reason for invalid arguments reaches the person; Ask the evidence stays visible below 1180 px; 8 more real-binary journeys (17/17 on run 39361117009) | CI |
-| #264 | Vendored candle-core few-row f32 matmul kernel (x86_64 AVX2+FMA only) | CI |
-| this PR | Status refresh | after the above |
+| #265 | Windows installer shows the Logo 12 icon (it showed NSIS's default; found in release-candidate verification) | CI |
+| this PR | Status refresh | CI |
 
 Merged 2026-10-19/20:
 - #256 desktop E2E
@@ -20,6 +19,8 @@ Merged 2026-10-19/20:
 - #260 CI step timeout after cache eviction
 - #261 release-candidate notes
 - #262 DistilBERT exact GELU (`f7ea447`)
+- #263 desktop invalid-argument reasons, Insights visibility and 8 more journeys (`fe15cb8`)
+- #264 few-row f32 matmul kernel (`29cbf50`)
 
 ## State
 
@@ -44,10 +45,11 @@ Merged 2026-10-19/20:
 
 ## Next eligible repository work
 
-1. Merge #263 and #264 as each turns green. Verify main after each.
-2. Re-verify the release candidate on the new main: installers, Logo 12, the 17 journeys and the supply-chain checks.
-3. Apple Silicon: a NEON few-row kernel would need to beat gemm's NEON kernels. A portable loop measured 2.4–7.7x slower.
-4. Drop the candle `[patch.crates-io]` directory, with its re-applied performance items, when a candle release on zip >= 9 is adopted.
+1. Merge #265, then refresh `docs/product/RELEASE_CANDIDATE_2026-10-19.md` with that build's installer digests.
+   - Release-candidate verification of `29cbf50` passed: Windows install, launch and uninstall; macOS DMG verify, mount, install, launch and uninstall; 17/17 journeys; cargo-deny and the supply-chain policy.
+   - The one gap it found was the NSIS default installer icon, fixed in #265.
+2. Apple Silicon: a NEON few-row kernel would need to beat gemm's NEON kernels. A portable loop measured 2.4–7.7x slower.
+3. Drop the candle `[patch.crates-io]` directory, with its re-applied performance items, when a candle release on zip >= 9 is adopted.
 
 ## Tooling status
 
