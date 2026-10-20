@@ -1,8 +1,8 @@
 # candle-core 0.9.1, MedScale security backport
 
 This directory is the `candle-core` 0.9.1 crate as published on crates.io,
-with one targeted security change and one documented f32 performance
-change (item 5). It replaces the registry crate through
+with one targeted security change and documented f32 performance changes
+(items 5 and 6). It replaces the registry crate through
 `[patch.crates-io]` in the workspace `Cargo.toml`.
 
 ## Provenance
@@ -57,6 +57,26 @@ used; the vulnerable versions are removed from the dependency graph instead.
      DistilBERT 44.8 → 37.1 ms.
    - **Upstream:** this is an upstream-able optimisation. Re-apply it or drop it
      when this directory is removed.
+
+6. Performance (2026-10-20): `src/cpu_backend/skinny.rs` and one dispatch in
+   `src/cpu_backend/mod.rs` (`MatMul::f`, gemm build only).
+   - **When it applies:** f32 matmuls with at most 64 lhs rows (after batch
+     folding) whose rhs is the transposed view of a contiguous weight. This is
+     the layout `Linear` produces, and a weight of at least 16 Ki elements is
+     required. All other matmuls still go through gemm.
+   - **Why it helps:** at that size the multiply is bound by streaming the
+     weight. The kernel reads each block of four weight rows once and reuses
+     it for every lhs row, instead of packing weight panels per tile.
+     - On x86_64 it uses an AVX2+FMA 2x4 register-blocked dot kernel, selected
+       at run time.
+     - Elsewhere it uses a portable 8-accumulator dot product.
+     - Rayon tasks split the weight rows.
+   - **Accuracy:** within 2e-6·sqrt(k) of an f64 reference for `Linear`
+     (`crates/medscale-pack/tests/candle_skinny_matmul_accuracy.rs`), plus a
+     unit test in `skinny.rs`.
+   - **Local Windows, 12 threads, 16 tokens:** one 768x3072 `Linear` went from
+     1.06 to 0.58 ms. Warm BERT-base forward went from 68.7 to 30.5 ms, and
+     DistilBERT from 37.1 to 21.0 ms.
 
 No other file differs from the published crate. candle never calls
 `zip::ZipArchive::extract`, where the three advisories apply; the backport

@@ -5,6 +5,7 @@ use crate::{DType, Error, IntDType, Layout, Result, Shape, WithDType};
 use half::{bf16, f16};
 use rayon::prelude::*;
 
+mod skinny;
 mod utils;
 pub use utils::{
     binary_map, binary_map_vec, unary_map, unary_map_vec, Map1, Map1Any, Map2, Map2InPlace, Map2U8,
@@ -1328,6 +1329,7 @@ impl Map2 for MatMul {
         } else {
             Parallelism::None
         };
+        let batch = b;
         let (b, m, n, k) = if b_skip == 0 && a_skip == m * k {
             // a_skip and c_skip should be updated but step is always 0 so
             // it wouldn't matter.
@@ -1337,6 +1339,24 @@ impl Map2 for MatMul {
         } else {
             (b, m, n, k)
         };
+        // MedScale performance patch (MEDSCALE_PATCH.md item 6): few lhs rows
+        // times a transposed contiguous weight, as in `Linear` on short inputs.
+        if T::DTYPE == DType::F32
+            && b == 1
+            && m <= skinny::MAX_ROWS
+            && n * k >= skinny::MIN_WEIGHT
+            && lhs_cs == 1
+            && (batch == 1 || lhs_rs == k)
+            && rhs_rs == 1
+            && rhs_cs == k
+        {
+            // SAFETY: T is f32 (checked through DTYPE), so the slices and the
+            // result vector reinterpret without conversion.
+            let lhs32 = unsafe { std::slice::from_raw_parts(lhs.as_ptr() as *const f32, lhs.len()) };
+            let rhs32 = unsafe { std::slice::from_raw_parts(rhs.as_ptr() as *const f32, rhs.len()) };
+            let out = std::mem::ManuallyDrop::new(skinny::matmul_rows_by_wt(lhs32, lhs_rs, m, rhs32, n, k));
+            return Ok(unsafe { Vec::from_raw_parts(out.as_ptr() as *mut T, out.len(), out.capacity()) });
+        }
         for step in 0..b {
             let lhs_p = &lhs[step * a_skip..];
             let rhs_p = &rhs[step * b_skip..];
