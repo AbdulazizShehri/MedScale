@@ -54,7 +54,7 @@ Merged 2026-10-19/20:
 
 - **Alibaba Open Code Review** (`ocr` v1.13.1): used in delegated mode on every PR since #262 (`DELEGATED_CLAUDE_REVIEW`; the rules are applied by the authoring session, not an independent review). On #264 it found a missing `unsafe impl` rationale and unchecked bounds, both fixed. The local d1 server cannot serve as its engine.
 - **d1** (`d1-omni-600M`, local MCP `d1-local`): advisory triage only, never a gate. It rated #256's debugging-port feature and #264's unsafe kernel "medium" at low confidence; deterministic tests are the controls.
-- **Qodo:** a GitHub App installed on the owner account `TheHalfMoon`. Its trial ended, and it posts a billing notice on every PR. Collaborator tokens cannot uninstall an account's app (HTTP 403), and the repository holds no Qodo configuration. The owner removes it under GitHub Settings → Applications → Installed GitHub Apps. Qodo is not review evidence.
+- **Qodo:** a GitHub App installed on the owner account `TheHalfMoon`. Its trial ended, and it posts a billing notice on every PR, which is not review evidence and does not block release. GitHub's app-installation API accepts only tokens issued to a GitHub App, so the CLI token (classic, `repo`/`workflow` scopes) gets HTTP 403. The repository holds no Qodo configuration. The owner removes it in the browser: Settings → Applications → Installed GitHub Apps → Qodo.
 - **Jev** (`jevctl` 0.2.3): `JEV_STATUS=NOT_EXECUTED`; no zero-cost route is verified.
 - **PStack:** not installed. The npm and PyPI packages named `pstack` are unrelated.
 - **tester-army:** not published. E2E uses Microsoft Edge WebDriver attached to the app's WebView2.
