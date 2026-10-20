@@ -1,0 +1,35 @@
+[
+ {
+  "id": "00-OpenMed-NER-PharmaDetect-TinyMed-135M",
+  "repo": "OpenMed/OpenMed-NER-PharmaDetect-TinyMed-135M",
+  "weights": "model.safetensors",
+  "test": "safetensors_external_104",
+  "text": "Patient John Smith, born 12 March 1980, has type 2 diabetes and pain in the left knee.",
+  "labels": "",
+  "eval": "evidence/103-local-model-catalog/eval/ner-chemical-synthetic-en-v1.json",
+  "openmed": "true",
+  "reference": "hf"
+ },
+ {
+  "id": "01-OpenMed-NER-AnatomyDetect-TinyMed-135M",
+  "repo": "OpenMed/OpenMed-NER-AnatomyDetect-TinyMed-135M",
+  "weights": "model.safetensors",
+  "test": "safetensors_external_104",
+  "text": "Patient John Smith, born 12 March 1980, has type 2 diabetes and pain in the left knee.",
+  "labels": "",
+  "eval": "evidence/103-local-model-catalog/eval/ner-anatomy-synthetic-en-v1.json",
+  "openmed": "true",
+  "reference": "hf"
+ },
+ {
+  "id": "02-OpenMed-NER-AnatomyDetect-BioMed-109M",
+  "repo": "OpenMed/OpenMed-NER-AnatomyDetect-BioMed-109M",
+  "weights": "model.safetensors",
+  "test": "safetensors_external_104",
+  "text": "Patient John Smith, born 12 March 1980, has type 2 diabetes and pain in the left knee.",
+  "labels": "",
+  "eval": "evidence/103-local-model-catalog/eval/ner-anatomy-synthetic-en-v1.json",
+  "openmed": "true",
+  "reference": "hf"
+ }
+]
