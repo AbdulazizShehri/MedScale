@@ -1,5 +1,7 @@
 # MedScale 0.1.0 engineering-preview release candidate (2026-10-19)
 
+> **Superseded by [RELEASE_CANDIDATE_2026-10-20.md](RELEASE_CANDIDATE_2026-10-20.md)** (`eb1005e`). This record stays as history.
+
 **This is not a product release.** The packages are unsigned engineering-preview builds for synthetic data only. Every release flag stays false (`release_ready: false`, `signing: NOT_GRANTED`). MedScale is not clinically validated and not a medical device.
 
 ## Build identity

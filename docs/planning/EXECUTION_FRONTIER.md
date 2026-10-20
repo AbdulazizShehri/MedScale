@@ -8,7 +8,6 @@ The live, repository-backed handoff for autonomous sessions. Each session verifi
 
 | PR | Scope | State at handoff |
 |---|---|---|
-| #265 | Windows installer shows the Logo 12 icon (it showed NSIS's default; found in release-candidate verification) | CI |
 | this PR | Status refresh | CI |
 
 Merged 2026-10-19/20:
@@ -21,6 +20,7 @@ Merged 2026-10-19/20:
 - #262 DistilBERT exact GELU (`f7ea447`)
 - #263 desktop invalid-argument reasons, Insights visibility and 8 more journeys (`fe15cb8`)
 - #264 few-row f32 matmul kernel (`29cbf50`)
+- #265 Windows installer Logo 12 icon (`eb1005e`)
 
 ## State
 
@@ -41,13 +41,11 @@ Merged 2026-10-19/20:
   - DistilBERT now uses exact GELU, as in Hugging Face: AnatomyDetect-TinyMed's score delta against the Hugging Face reference fell from 1.31e-05 to 2.98e-08 (#262), with no F1 change.
 - **AudioFlow:** local Whisper, qualified on synthetic speech (WER 0.104 / 0.313). Optional speaker grouping is unvalidated, and two male voices are not separated reliably.
 - **Arabic:** every Arabic-capable OpenMed model is over the 1 GiB bound (`ARABIC_MODELS_OVER_1GIB_BOUND`).
-- **Release candidate:** see `docs/product/RELEASE_CANDIDATE_2026-10-19.md`. The installers are unsigned engineering previews: `release_ready: false`, `signing: NOT_GRANTED`.
+- **Release candidate:** see `docs/product/RELEASE_CANDIDATE_2026-10-20.md`. The installers are unsigned engineering previews: `release_ready: false`, `signing: NOT_GRANTED`.
 
 ## Next eligible repository work
 
-1. Merge #265, then refresh `docs/product/RELEASE_CANDIDATE_2026-10-19.md` with that build's installer digests.
-   - Release-candidate verification of `29cbf50` passed: Windows install, launch and uninstall; macOS DMG verify, mount, install, launch and uninstall; 17/17 journeys; cargo-deny and the supply-chain policy.
-   - The one gap it found was the NSIS default installer icon, fixed in #265.
+1. Release candidate refreshed for `eb1005e`: `docs/product/RELEASE_CANDIDATE_2026-10-20.md`. All packaging checks pass, and 17/17 journeys pass.
 2. Apple Silicon: a NEON few-row kernel would need to beat gemm's NEON kernels. A portable loop measured 2.4–7.7x slower.
 3. Drop the candle `[patch.crates-io]` directory, with its re-applied performance items, when a candle release on zip >= 9 is adopted.
 
