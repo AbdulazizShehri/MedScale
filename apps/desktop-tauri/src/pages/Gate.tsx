@@ -4,11 +4,9 @@ import { useAction, type CmdError } from "../lib/ipc";
 import { Mark, Wordmark } from "../components/brand";
 import { Glyph } from "../components/ui";
 
-/** Provenance topology: a height field rendered as dots, with a source →
- *  digest → assertion → projection → review chain. Decorative; the chain uses
- *  the sky-blue accent and the review node the orange attention accent. */
+/** A height field rendered as dots. Decorative. */
 function Topology() {
-  const { dots, nodes, chain } = useMemo(() => {
+  const dots = useMemo(() => {
     const cols = 58, rows = 30;
     const z = (u: number, v: number) =>
       Math.exp(-(((u - 0.6) ** 2) / 0.022 + ((v - 0.42) ** 2) / 0.05)) +
@@ -24,27 +22,11 @@ function Topology() {
       const u = i / (cols - 1), v = j / (rows - 1), p = P(u, v);
       dots.push({ x: p.x, y: p.y, r: 0.55 + 1.15 * p.d, o: Math.min(0.95, 0.12 + 0.55 * v + 0.35 * Math.min(1, p.h)) });
     }
-    const spec = [
-      { u: 0.3, v: 0.72, label: "source", fill: true, dash: false },
-      { u: 0.47, v: 0.52, label: "digest", fill: true, dash: false },
-      { u: 0.6, v: 0.42, label: "assertion", fill: true, dash: false },
-      { u: 0.76, v: 0.55, label: "projection", fill: false, dash: false },
-      { u: 0.86, v: 0.78, label: "review", fill: false, dash: true },
-    ];
-    const nodes = spec.map((s) => ({ ...s, ...P(s.u, s.v) }));
-    return { dots, nodes, chain: nodes.map((n) => `${n.x},${n.y}`).join(" ") };
+    return dots;
   }, []);
   return (
     <svg className="gate-topo" viewBox="0 0 900 760" preserveAspectRatio="xMidYMid slice" aria-hidden="true">
       {dots.map((d, i) => <circle key={i} cx={d.x} cy={d.y} r={d.r} fill="currentColor" fillOpacity={d.o} />)}
-      <polyline points={chain} fill="none" stroke="var(--brand-blue)" strokeOpacity={0.9} strokeWidth={1.1} />
-      {nodes.map((n) => (
-        <g key={n.label}>
-          <rect x={n.x - 4} y={n.y - 4} width={8} height={8} fill={n.fill ? (n.label === "assertion" ? "var(--brand-blue)" : "currentColor") : "var(--bg-app)"} stroke={n.label === "review" ? "var(--brand-orange)" : n.label === "assertion" ? "var(--brand-blue)" : "currentColor"} strokeWidth={1.2} strokeDasharray={n.dash ? "2 1.6" : undefined} />
-          <line x1={n.x} y1={n.y - 4} x2={n.x} y2={n.y - 50} stroke="currentColor" strokeOpacity={0.35} strokeWidth={0.8} />
-          <text x={n.x + 6} y={n.y - 46} fill="currentColor" fillOpacity={0.75} style={{ fontFamily: "var(--font-mono)", fontSize: 10.5 }}>{n.label}</text>
-        </g>
-      ))}
     </svg>
   );
 }
