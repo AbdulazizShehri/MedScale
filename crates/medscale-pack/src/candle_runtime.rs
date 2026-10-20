@@ -17,9 +17,10 @@ use std::fmt;
 use std::path::Path;
 use std::sync::atomic::{AtomicBool, Ordering};
 
+use crate::distilbert;
 use candle_core::{DType, Device, Module, Tensor};
 use candle_nn::{LayerNorm, Linear, VarBuilder};
-use candle_transformers::models::{bert, debertav2, distilbert, modernbert, xlm_roberta};
+use candle_transformers::models::{bert, debertav2, modernbert, xlm_roberta};
 use medscale_contracts::objects::{DigestSha256, OpaqueId};
 use medscale_contracts::packs::{ModelSourceProvenance, PackArtifactKind, PackManifestV0};
 use serde_json::{Value, json};

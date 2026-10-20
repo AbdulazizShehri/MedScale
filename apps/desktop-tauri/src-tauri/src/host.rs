@@ -67,7 +67,15 @@ impl From<AuthorityError> for CmdError {
             | AuthorityError::UnknownRequiresReconcile => "unavailable",
             AuthorityError::PathOutsideClaim | AuthorityError::Internal { .. } => "internal",
         };
-        let message = medscale_desktop_vm::project_workspace::status_message(&err);
+        // Core's own reason for an invalid argument tells the person what to
+        // fix (for example "bindings are alias=snapshot_id pairs"); the
+        // generic status string does not.
+        let message = match &err {
+            AuthorityError::InvalidArgument { message } if !message.trim().is_empty() => {
+                format!("Invalid: {}", message.trim())
+            }
+            _ => medscale_desktop_vm::project_workspace::status_message(&err).to_owned(),
+        };
         Self::new(kind, message)
     }
 }
@@ -597,4 +605,30 @@ pub fn bounded_text(raw: &str, max: usize) -> CmdResult<String> {
         )));
     }
     Ok(text.to_owned())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn invalid_arguments_carry_cores_reason() {
+        let err = CmdError::from(AuthorityError::InvalidArgument {
+            message: "bindings are alias=snapshot_id pairs".to_owned(),
+        });
+        assert_eq!(err.kind, "invalid");
+        assert_eq!(err.message, "Invalid: bindings are alias=snapshot_id pairs");
+        // Without a reason the generic status message stays.
+        let empty = CmdError::from(AuthorityError::InvalidArgument {
+            message: " ".to_owned(),
+        });
+        assert_eq!(
+            empty.message,
+            medscale_desktop_vm::project_workspace::status_message(
+                &AuthorityError::InvalidArgument {
+                    message: " ".to_owned()
+                }
+            )
+        );
+    }
 }

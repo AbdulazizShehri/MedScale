@@ -7,6 +7,7 @@ pub use asr_runtime::fixtures as asr_fixtures;
 mod candle_runtime;
 mod catalog;
 mod compatibility;
+mod distilbert;
 pub mod entity_eval;
 mod format;
 mod fp16_widen;
