@@ -1342,6 +1342,7 @@ impl Map2 for MatMul {
         // MedScale performance patch (MEDSCALE_PATCH.md item 6): few lhs rows
         // times a transposed contiguous weight, as in `Linear` on short inputs.
         if T::DTYPE == DType::F32
+            && skinny::available()
             && b == 1
             && m <= skinny::MAX_ROWS
             && n * k >= skinny::MIN_WEIGHT

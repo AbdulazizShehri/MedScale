@@ -4,6 +4,11 @@
 //! sequences. With few rows the multiply is bound by streaming the weight, so
 //! each block of weight rows is read once and reused for every lhs row (held
 //! in cache) instead of being packed per tile. Threads split the weight rows.
+//!
+//! x86_64 with AVX2 and FMA only. Elsewhere, including Apple Silicon where
+//! gemm's NEON kernels measured 2.4-7.7x faster than a portable loop on the
+//! same runner, every matmul stays on gemm.
+#![cfg_attr(not(target_arch = "x86_64"), allow(dead_code))]
 
 /// Largest row count served here; larger inputs use gemm.
 pub(crate) const MAX_ROWS: usize = 64;
@@ -47,6 +52,22 @@ pub(crate) fn matmul_rows_by_wt(
     dst
 }
 
+/// Whether this kernel serves the current CPU.
+pub(crate) fn available() -> bool {
+    #[cfg(target_arch = "x86_64")]
+    {
+        static OK: std::sync::OnceLock<bool> = std::sync::OnceLock::new();
+        *OK.get_or_init(|| {
+            std::arch::is_x86_feature_detected!("avx2") && std::arch::is_x86_feature_detected!("fma")
+        })
+    }
+    #[cfg(not(target_arch = "x86_64"))]
+    {
+        false
+    }
+}
+
+/// Callers check [`available`] first.
 #[allow(clippy::too_many_arguments)]
 unsafe fn block(
     lhs: &[f32],
@@ -60,49 +81,11 @@ unsafe fn block(
     out: &SyncPtr,
 ) {
     #[cfg(target_arch = "x86_64")]
+    x86::block(lhs, lhs_rs, m, w, n, k, n0, n1, out.0);
+    #[cfg(not(target_arch = "x86_64"))]
     {
-        if std::arch::is_x86_feature_detected!("avx2") && std::arch::is_x86_feature_detected!("fma") {
-            return x86::block(lhs, lhs_rs, m, w, n, k, n0, n1, out.0);
-        }
-    }
-    portable_block(lhs, lhs_rs, m, w, n, k, n0, n1, out.0)
-}
-
-#[inline(always)]
-fn dot(a: &[f32], b: &[f32]) -> f32 {
-    // Eight independent partial sums so the compiler can vectorize.
-    let mut acc = [0f32; 8];
-    let chunks = a.len() / 8;
-    for c in 0..chunks {
-        for l in 0..8 {
-            acc[l] += a[c * 8 + l] * b[c * 8 + l];
-        }
-    }
-    let mut s = acc.iter().sum::<f32>();
-    for i in chunks * 8..a.len() {
-        s += a[i] * b[i];
-    }
-    s
-}
-
-#[allow(clippy::too_many_arguments)]
-unsafe fn portable_block(
-    lhs: &[f32],
-    lhs_rs: usize,
-    m: usize,
-    w: &[f32],
-    n: usize,
-    k: usize,
-    n0: usize,
-    n1: usize,
-    dst: *mut f32,
-) {
-    for j in n0..n1 {
-        let wr = &w[j * k..j * k + k];
-        for i in 0..m {
-            let xr = &lhs[i * lhs_rs..i * lhs_rs + k];
-            *dst.add(i * n + j) = dot(xr, wr);
-        }
+        let _ = (lhs, lhs_rs, m, w, n, k, n0, n1, out);
+        unreachable!("few-row matmul is gated by available()");
     }
 }
 
@@ -241,6 +224,9 @@ mod tests {
 
     #[test]
     fn matches_a_double_precision_reference_across_shapes() {
+        if !available() {
+            return;
+        }
         let mut seed = 0x2545F4914F6CDD1Du64;
         let mut next = || {
             seed ^= seed << 13;

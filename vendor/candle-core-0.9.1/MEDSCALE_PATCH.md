@@ -67,10 +67,12 @@ used; the vulnerable versions are removed from the dependency graph instead.
    - **Why it helps:** at that size the multiply is bound by streaming the
      weight. The kernel reads each block of four weight rows once and reuses
      it for every lhs row, instead of packing weight panels per tile.
-     - On x86_64 it uses an AVX2+FMA 2x4 register-blocked dot kernel, selected
-       at run time.
-     - Elsewhere it uses a portable 8-accumulator dot product.
-     - Rayon tasks split the weight rows.
+     - It uses an AVX2+FMA 2x4 register-blocked dot kernel and only runs on
+       x86_64 CPUs that have both features, checked at run time. Rayon tasks
+       split the weight rows.
+     - Elsewhere every matmul stays on gemm. On Apple Silicon, gemm's NEON
+       kernels measured 2.4-7.7x faster than a portable version of this loop
+       on the same runner (perf-ab run 39357885288).
    - **Accuracy:** within 2e-6·sqrt(k) of an f64 reference for `Linear`
      (`crates/medscale-pack/tests/candle_skinny_matmul_accuracy.rs`), plus a
      unit test in `skinny.rs`.
