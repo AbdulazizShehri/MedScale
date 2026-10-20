@@ -46,6 +46,79 @@ pub fn erf(x: f64) -> f64 {
     }
 }
 
+/// Single-precision `erf`: a clamped rational approximation
+/// `x * P(x^2) / Q(x^2)` (the form Eigen and XLA use for `float`). Branch-free,
+/// so the f32 GELU map vectorizes. Max absolute error 4.3e-7 against the f64
+/// [`erf`] over [-10, 10]. MedScale performance patch; see MEDSCALE_PATCH.md.
+#[inline(always)]
+pub fn erf_f32(x: f32) -> f32 {
+    const ALPHA: [f32; 7] = [
+        -2.726_142_3e-10,
+        2.770_681_4e-08,
+        -2.101_024e-06,
+        -5.692_506_4e-05,
+        -7.349_906_3e-04,
+        -2.954_6e-03,
+        -1.609_603_3e-02,
+    ];
+    const BETA: [f32; 5] = [
+        -1.456_607_2e-05,
+        -2.133_740_6e-04,
+        -1.682_827e-03,
+        -7.373_329e-03,
+        -1.426_474e-02,
+    ];
+    let x = x.clamp(-4.0, 4.0);
+    let x2 = x * x;
+    let mut p = ALPHA[0];
+    for c in &ALPHA[1..] {
+        p = p * x2 + c;
+    }
+    let mut q = BETA[0];
+    for c in &BETA[1..] {
+        q = q * x2 + c;
+    }
+    x * p / q
+}
+
+/// Single-precision `tanh`: Eigen's clamped rational approximation, branch-free
+/// so the f32 GELU (tanh form) map vectorizes. Max error 6.6 ulp against the
+/// f64 `tanh` over [-12, 12]. MedScale performance patch; see MEDSCALE_PATCH.md.
+#[inline(always)]
+pub fn tanh_f32(x: f32) -> f32 {
+    const ALPHA: [f32; 7] = [
+        -2.760_768_5e-16,
+        2.000_187_9e-13,
+        -8.604_671_5e-11,
+        5.122_297e-08,
+        1.485_722_4e-05,
+        6.372_619_3e-04,
+        4.893_524_6e-03,
+    ];
+    const BETA: [f32; 4] = [
+        1.198_258_4e-06,
+        1.185_347_1e-04,
+        2.268_434_7e-03,
+        4.893_525_2e-03,
+    ];
+    let c = x.clamp(-7.905_311, 7.905_311);
+    let x2 = c * c;
+    let mut p = ALPHA[0];
+    for k in &ALPHA[1..] {
+        p = p * x2 + k;
+    }
+    let mut q = BETA[0];
+    for k in &BETA[1..] {
+        q = q * x2 + k;
+    }
+    let r = c * p / q;
+    if x.abs() < 0.0004 {
+        x
+    } else {
+        r
+    }
+}
+
 /// `erf_inv` calculates the inverse error function
 /// at `x`.
 pub fn erf_inv(x: f64) -> f64 {

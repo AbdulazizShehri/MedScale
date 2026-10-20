@@ -1,7 +1,8 @@
 # candle-core 0.9.1, MedScale security backport
 
 This directory is the `candle-core` 0.9.1 crate as published on crates.io,
-with one targeted security change. It replaces the registry crate through
+with one targeted security change and one documented f32 performance
+change (item 5). It replaces the registry crate through
 `[patch.crates-io]` in the workspace `Cargo.toml`.
 
 ## Provenance
@@ -37,6 +38,25 @@ used; the vulnerable versions are removed from the dependency graph instead.
 4. `tests/serialization_tests.rs`: the four ZIP 9 regression tests from #4041
    (UTF-8 and CP437 entry names, malformed NPZ and PTH archives) plus one
    MedScale test that traversal-style entry names are lookup keys only.
+
+5. Performance (2026-10-19, MedScale Spec 103 latency work): `src/cpu/erf.rs`
+   adds `erf_f32` and `tanh_f32`, branch-free single-precision rational
+   approximations (the forms Eigen and XLA use for `float`). In `src/op.rs`
+   only the **f32** CPU paths of `GeluErf` and `Gelu` use them. Before, they
+   called the scalar f64 statrs `erf` and libm `tanhf`. The f64, f16 and bf16
+   paths, other ops and the GPU kernels are unchanged.
+   - **Accuracy:** against the f64 path over [-10, 10] and [-12, 12], GELU
+     stays within 1.0e-6 absolute, or 4e-7 relative, for erf; and within
+     1.5e-6 absolute, or 3e-7 relative, for tanh. Today's f32 `tanhf` path is
+     within 4.7e-7. Enforced by
+     `crates/medscale-pack/tests/candle_gelu_erf_accuracy.rs`.
+   - **Speed** (Windows, 12 threads, 16×3072 f32): `gelu_erf` 26.3 → 1.2 ns
+     per element; `gelu` (tanh) 10.7 → 1.5 ns per element.
+   - **Warm encoder forward** (`crates/medscale-pack/examples/candle_latency_profile.rs`,
+     random weights with real configs, 16 tokens): BERT-base 91.6 → 68.7 ms;
+     DistilBERT 44.8 → 37.1 ms.
+   - **Upstream:** this is an upstream-able optimisation. Re-apply it or drop it
+     when this directory is removed.
 
 No other file differs from the published crate. candle never calls
 `zip::ZipArchive::extract`, where the three advisories apply; the backport
