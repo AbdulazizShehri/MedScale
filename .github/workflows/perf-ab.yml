@@ -17,7 +17,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-latest, windows-latest]
+        os: [ubuntu-latest, windows-latest, macos-latest]
     runs-on: ${{ matrix.os }}
     timeout-minutes: 60
     steps:
@@ -51,7 +51,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          nproc 2>/dev/null || echo "$NUMBER_OF_PROCESSORS"
+          nproc 2>/dev/null || sysctl -n hw.ncpu 2>/dev/null || echo "$NUMBER_OF_PROCESSORS"
           for round in 1 2 3; do
             for v in a b; do
               for m in OpenMed-NER-AnatomyDetect-TinyMed-135M OpenMed-NER-AnatomyDetect-BioMed-109M; do
