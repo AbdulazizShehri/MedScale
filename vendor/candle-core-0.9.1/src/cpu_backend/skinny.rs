@@ -15,7 +15,11 @@ pub(crate) const MAX_ROWS: usize = 64;
 /// Smallest weight (n * k) worth the dispatch; tiny products use gemm.
 pub(crate) const MIN_WEIGHT: usize = 16 * 1024;
 
+/// The output buffer shared by the rayon tasks of one call.
 struct SyncPtr(*mut f32);
+// SAFETY: every task writes a disjoint column range [n0, n1) of the m x n
+// output, and `matmul_rows_by_wt` keeps the buffer alive until all tasks
+// have joined, so sharing the pointer across threads cannot race or dangle.
 unsafe impl Send for SyncPtr {}
 unsafe impl Sync for SyncPtr {}
 
@@ -29,6 +33,10 @@ pub(crate) fn matmul_rows_by_wt(
     n: usize,
     k: usize,
 ) -> Vec<f32> {
+    // The kernel reads through raw pointers; these bounds make every read valid.
+    assert!(m > 0 && k > 0 && lhs_rs >= k, "few-row matmul shape");
+    assert!(lhs.len() >= (m - 1) * lhs_rs + k, "few-row matmul lhs bounds");
+    assert!(w.len() >= n * k, "few-row matmul weight bounds");
     let mut dst = vec![0f32; m * n];
     let threads = crate::utils::get_num_threads().max(1);
     // At least 32 weight rows per task so per-task overhead stays small.
