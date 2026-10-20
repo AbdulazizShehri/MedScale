@@ -1,5 +1,23 @@
 # MedScale Project Completion Status
 
+## Status — 2026-10-20
+
+```text
+ENGINEERING_COMPLETE      = NOT_CLAIMED (open items: docs/planning/EXECUTION_FRONTIER.md)
+PRODUCT_RELEASE_READY     = FALSE (unsigned engineering-preview installers; signing NOT_GRANTED)
+CLINICALLY_QUALIFIED      = FALSE (no authorized clinical evaluation; real PHI not authorized)
+DESKTOP                   = Windows + macOS on real Core; 17 real-binary E2E journeys (#256, #263)
+IDENTITY                  = founder-approved Logo 12 (#257); Spec 095 paired M superseded
+OPENMED_ACCURACY          = 11 wins, 10 ties, 0 losses (word-level decoding, synthetic gold sets)
+OPENMED_WARM_LATENCY      = median 0.65x OpenMed, same job (22 rows; faster 14, level 2, slower 5)
+HF_REFERENCE_DISTILBERT   = exact GELU; score delta vs Hugging Face 2.98e-08 (#262)
+RELEASE_CANDIDATE         = docs/product/RELEASE_CANDIDATE_2026-10-19.md
+```
+
+Corrections recorded on 2026-10-20:
+- The candle path does run Clinical Longformer (#225); the "candle has no Longformer encoder" line below is historical.
+- #259's latency gain, re-measured with the balanced A/B design, is 15–27% on Ubuntu and 5–25% on Windows. #259 had reported 20–27% and 6–23% from an unbalanced design.
+
 ## Current program — 2026-09-29
 
 CURRENT_PROGRAM = MEDSCALE_IDENTITY_AND_DESKTOP_PRODUCTIZATION
