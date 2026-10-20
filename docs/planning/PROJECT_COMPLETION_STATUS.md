@@ -3,6 +3,7 @@
 ## Status — 2026-10-20
 
 ```text
+FEATURE_FREEZE            = ACTIVE for v0.1.0 (founder decision 2026-10-20; 1 GiB Pack bound unchanged)
 ENGINEERING_COMPLETE      = NOT_CLAIMED (open items: docs/planning/EXECUTION_FRONTIER.md)
 PRODUCT_RELEASE_READY     = FALSE (unsigned engineering-preview installers; signing NOT_GRANTED)
 CLINICALLY_QUALIFIED      = FALSE (no authorized clinical evaluation; real PHI not authorized)

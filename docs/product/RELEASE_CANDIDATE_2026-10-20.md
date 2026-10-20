@@ -73,6 +73,30 @@ The release set is verified by `scripts/verify-tauri-release.ps1` (Spec 101).
 - Warm latency: median 0.65x OpenMed over 22 rows. MedScale is faster on 14, level on 2 and slower on 5.
 - Evidence: `evidence/103-local-model-catalog/eval/`.
 
+## Supported operating systems
+
+| Platform | v0.1.0 | Notes |
+|---|---|---|
+| Windows 10/11, x64 | Desktop installer (NSIS, per-user) | Needs the Microsoft Edge WebView2 Runtime. Windows 11 includes it, and the installer does not download it. |
+| macOS 10.15 or later, Apple Silicon (arm64) | Desktop DMG | No Intel or universal build in v0.1.0. |
+| Linux | CLI and Core only | No desktop (`TAURI_LINUX_DESKTOP_GTK3`). |
+
+## Security
+
+- **Trust and privacy model:** [`docs/security/TRUST_AND_PRIVACY_MODEL.md`](../security/TRUST_AND_PRIVACY_MODEL.md).
+- **Local by default:** network egress is denied unless an allowlisted, governed action allows it. Browse records `empty_allowlist` denials. This is verified by the `browse-default-deny` journey.
+- **Encrypted workspaces:** vaults are SQLCipher-encrypted and sealed on close. Desktop feature tests cover create, lock, unlock and the wrong passphrase.
+- **WebView isolation:**
+  - Only the local application origin can invoke commands.
+  - Generic privileged and plugin commands are refused. `permission_tests.rs` covers both.
+  - The test-only WebDriver build (`e2e-webdriver`) can never reach packaging. `bundle-config.test.ts` guards this.
+- **Supply chain:**
+  - cargo-deny (advisories, licences, bans) and the supply-chain policy run on every PR and on `main`.
+  - Each release set carries a CycloneDX SBOM, notices, licences and MPL sources.
+  - No RustSec ignores. The vulnerable `zip` versions are removed through the documented candle-core backport.
+- **Unsigned binaries:** verify the SHA-256 digests above before installing. Production signing requirements: [PRODUCTION_SIGNING_REQUIREMENTS.md](PRODUCTION_SIGNING_REQUIREMENTS.md).
+- **Data:** synthetic data only. Real PHI is not authorized.
+
 ## Installing an unsigned build
 
 - **Windows:** SmartScreen warns about an unknown publisher. Choose "More info", then "Run anyway". The installer is per-user, needs no administrator rights, and does not download WebView2.
@@ -90,6 +114,10 @@ Only install builds whose SHA-256 matches the table above.
 - **Speaker grouping** in AudioFlow is unvalidated. Two male voices are not separated reliably.
 - **The few-row matmul kernel** applies to x86_64 with AVX2 and FMA only. Apple Silicon uses candle's gemm.
 - **Small icon size:** at 16 px the Logo 12 icon reads as a frame cluster.
+
+## After v0.1.0
+
+Deferred items are listed in [POST_RELEASE_ROADMAP.md](POST_RELEASE_ROADMAP.md). The 1 GiB Model Pack bound stays unchanged for v0.1.0 (founder decision 2026-10-20).
 
 ## Readiness labels
 

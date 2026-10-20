@@ -45,9 +45,10 @@ Merged 2026-10-19/20:
 
 ## Next eligible repository work
 
+**Feature freeze for v0.1.0** (founder decision 2026-10-20). Only fixes for correctness, security, broken user journeys, release packaging or critical regressions are allowed. The 1 GiB Model Pack bound is unchanged.
+
 1. Release candidate refreshed for `eb1005e`: `docs/product/RELEASE_CANDIDATE_2026-10-20.md`. All packaging checks pass, and 17/17 journeys pass.
-2. Apple Silicon: a NEON few-row kernel would need to beat gemm's NEON kernels. A portable loop measured 2.4–7.7x slower.
-3. Drop the candle `[patch.crates-io]` directory, with its re-applied performance items, when a candle release on zip >= 9 is adopted.
+2. Deferred work: `docs/product/POST_RELEASE_ROADMAP.md`. Production signing: `docs/product/PRODUCTION_SIGNING_REQUIREMENTS.md`.
 
 ## Tooling status
 
