@@ -15,6 +15,11 @@ test("Windows installer is per-user and never downloads WebView2 at install time
   assert.equal(conf.bundle.windows.nsis.installMode, "currentUser");
 });
 
+test("the Windows installer carries the Logo 12 application icon, not the NSIS default", () => {
+  assert.equal(conf.bundle.windows.nsis.installerIcon, "icons/icon.ico");
+  assert.ok(conf.bundle.icon.includes("icons/icon.ico"));
+});
+
 test("product name changes do not move app data: identifier is unchanged", () => {
   assert.equal(conf.productName, "MedScale");
   assert.equal(conf.identifier, "org.medscale.desktop.preview");
