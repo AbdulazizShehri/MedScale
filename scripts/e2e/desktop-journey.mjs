@@ -159,6 +159,26 @@ async function type(xpath, value) {
       args: [{ [ELEMENT]: id }, value],
     });
   }
+  // Under runner load the next click can land before the field holds the
+  // text (a stale value then runs instead). Wait until it does; if native
+  // typing left another value, set it through React's setter once more.
+  const read = () => wd("POST", `/session/${sid}/execute/sync`, { script: "return arguments[0].value;", args: [{ [ELEMENT]: id }] });
+  const end = Date.now() + 5000;
+  let forced = false;
+  while ((await read()) !== value) {
+    if (Date.now() > end) throw new Error(`field ${xpath} did not take the typed value`);
+    if (!forced) {
+      forced = true;
+      await wd("POST", `/session/${sid}/execute/sync`, {
+        script:
+          "const e = arguments[0]; const proto = e.tagName === 'TEXTAREA' ? HTMLTextAreaElement.prototype : HTMLInputElement.prototype;" +
+          " Object.getOwnPropertyDescriptor(proto, 'value').set.call(e, arguments[1]); e.dispatchEvent(new Event('input', { bubbles: true }));",
+        args: [{ [ELEMENT]: id }, value],
+      });
+    }
+    await sleep(100);
+  }
+  await sleep(300);
 }
 async function see(t, timeout) {
   await find(`//*[${text(t)} and not(.//*[${text(t)}])]`, timeout);
