@@ -75,6 +75,12 @@ type CatalogRow = {
 };
 type CatalogPage = { repository: string; commit: string; total_rows: number; total_matching: number; next_offset: number | null; status_counts: Record<string, number>; rows: CatalogRow[] };
 
+/** UI-only MedScale catalog label; the source's immutable repo_id remains unchanged. */
+function catalogDisplayName(repoId: string): string {
+  const slug = repoId.split("/").at(-1) ?? repoId;
+  return slug.replace(/^OpenMed[-_]?/i, "").replace(/[-_]+/g, " ").trim() || "Model";
+}
+
 function CatalogTab() {
   const [draft, setDraft] = useState({ text: "", task: "", format: "", status: "" });
   const [query, setQuery] = useState({ text: "", task: "", format: "", status: "", offset: 0 });
@@ -105,7 +111,7 @@ function CatalogTab() {
         <table className="tb"><thead><tr><th style={{ width: "34%" }}>Model</th><th style={{ width: "18%" }}>Task</th><th className="col-p3" style={{ width: "14%" }}>Formats</th><th style={{ width: "10%" }}>Disk</th><th style={{ width: "14%" }}>Expectation</th><th>Status</th></tr></thead>
           <tbody>{p.rows.map((r) => (
             <tr key={r.repo_id} className="r2">
-              <td><div style={{ display: "flex", flexDirection: "column", minWidth: 0 }}><span className="mono trunc" style={{ fontSize: 12.5 }}>{r.repo_id}</span><span className="t-sm i3 trunc">{[r.family, r.tier, r.license_claim].filter(Boolean).join(" · ")}</span></div></td>
+              <td><div style={{ display: "flex", flexDirection: "column", minWidth: 0 }}><span className="mono trunc" style={{ fontSize: 12.5 }}>{catalogDisplayName(r.repo_id)}</span><span className="t-sm i3 trunc">{[r.family, r.tier, r.license_claim].filter(Boolean).join(" · ")}</span></div></td>
               <td className="t-sm i2"><span className="trunc">{r.task ?? "—"}</span></td>
               <td className="col-p3 mono t-mono-sm i2"><span className="trunc">{r.formats.join(", ")}</span></td>
               <td className="mono t-mono-sm i2">{r.disk?.megabytes != null ? `${Math.round(r.disk.megabytes)} MB` : "—"}</td>
@@ -114,7 +120,7 @@ function CatalogTab() {
             </tr>
           ))}</tbody></table>
         <div className="row-gap" style={{ gap: 8, marginTop: 10, justifyContent: "space-between" }}>
-          <span className="t-sm i3">{p.repository} @ <span className="mono">{p.commit.slice(0, 12)}</span> · rows {query.offset + 1}–{query.offset + p.rows.length}</span>
+          <span className="t-sm i3">MedScale catalog snapshot <span className="mono">{p.commit.slice(0, 12)}</span> · rows {query.offset + 1}–{query.offset + p.rows.length}</span>
           <span className="row-gap" style={{ gap: 8 }}>
             <button type="button" className="btn btn-g" disabled={query.offset === 0} onClick={() => setQuery({ ...query, offset: Math.max(0, query.offset - 50) })}>Previous</button>
             <button type="button" className="btn btn-g" disabled={p.next_offset == null} onClick={() => setQuery({ ...query, offset: p.next_offset ?? query.offset })}>Next</button>
