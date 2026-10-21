@@ -6,15 +6,13 @@ import { Authority, Empty, ErrorState, Glyph, Icon, KV, Ledger, Notice, PageHead
 /* ───────────────────────────── Models ───────────────────────────── */
 type ModelsVm = {
   model_runtime_summary: string; model_runtime_boundary: string; model_source_summary: string; model_inventory_summary: string;
-  openmed_baseline: string; competitive_summary: string;
   models: Array<{ scope: string; task: string; model: string; source: string; runtime: string; device: string; trust: string; benchmark: string; digest: string; state: string }>;
-  evidence: Array<{ capability: string; medscale: string; openmed: string; verdict: string; evidence: string; limitations: string }>;
 };
 
 export function Models() {
   const { state, reload } = useCommand<ModelsVm>("models_overview");
   const [sel, setSel] = useState(0);
-  const [tab, setTab] = useState<"packs" | "catalog" | "evaluate" | "comparative">("packs");
+  const [tab, setTab] = useState<"packs" | "catalog" | "evaluate">("packs");
   const { pending, run } = useAction();
   const outcome = useOutcome();
   async function admit() { const r = await run("admit", "models_admit_fixture_pack"); if (outcome(r, "Fixture pack submitted to Core")) await reload(); }
@@ -34,7 +32,6 @@ export function Models() {
           <button type="button" role="tab" aria-selected={tab === "packs"} className={`tab ${tab === "packs" ? "on" : ""}`} onClick={() => setTab("packs")}>Packs <span className="mono">{v.models.length}</span></button>
           <button type="button" role="tab" aria-selected={tab === "catalog"} className={`tab ${tab === "catalog" ? "on" : ""}`} onClick={() => setTab("catalog")}>MedScale Catalog</button>
           <button type="button" role="tab" aria-selected={tab === "evaluate"} className={`tab ${tab === "evaluate" ? "on" : ""}`} onClick={() => setTab("evaluate")}>Try a model</button>
-          <button type="button" role="tab" aria-selected={tab === "comparative"} className={`tab ${tab === "comparative" ? "on" : ""}`} onClick={() => setTab("comparative")}>Comparative evidence <span className="mono">static</span></button>
         </div>
         {tab === "packs" && (v.models.length ? (
           <table className="tb"><thead><tr><th style={{ width: "30%" }}>Model</th><th style={{ width: "18%" }}>Task</th><th className="col-p3" style={{ width: "18%" }}>Runtime</th><th style={{ width: "17%" }}>State</th><th>Trust</th></tr></thead>
@@ -49,12 +46,6 @@ export function Models() {
         ) : <Empty icon="models" title="No admitted packs">Admit the bundled synthetic ONNX fixture pack. Core verifies its manifest, digests and signature before admission.</Empty>)}
         {tab === "catalog" && <CatalogTab />}
         {tab === "evaluate" && <EvaluateTab />}
-        {tab === "comparative" && <Section title="Comparative evidence" count="MedScale vs OpenMed · static ledger">
-          <p className="t-sm i2" style={{ marginBottom: 10 }}>{v.competitive_summary} {v.openmed_baseline}</p>
-          <table className="tb"><thead><tr><th style={{ width: "22%" }}>Capability</th><th style={{ width: "20%" }}>MedScale</th><th style={{ width: "20%" }}>OpenMed</th><th style={{ width: "14%" }}>Verdict</th><th>Limitations</th></tr></thead>
-            <tbody>{v.evidence.map((e, i) => <tr key={i}><td className="t-sm">{e.capability}</td><td className="t-sm i2"><span className="trunc">{e.medscale}</span></td><td className="t-sm i2"><span className="trunc">{e.openmed}</span></td><td><Status kind={glyphFor(e.verdict)}>{e.verdict}</Status></td><td className="t-sm i3"><span className="trunc">{e.limitations}</span></td></tr>)}</tbody></table>
-          <p className="note" style={{ marginTop: 8 }}>“Ahead” is shown only where a bound comparative result exists. This is a pinned ledger, not live benchmarking.</p>
-        </Section>}
         <Section n="02" title="How model output is treated">
           <div className="grid-2">
             <Notice kind="proposal" title="Proposal.">Every output stays an outline-triangle proposal until a person accepts it.</Notice>
@@ -136,9 +127,9 @@ function CatalogTab() {
 }
 
 // "recommended" is Core's task-aware decoding: word-first plus the PII merger
-// for PII models, word-first otherwise. It scored at or above OpenMed 3.0.0 on
+// for PII models, word-first otherwise. It scored at or above the pinned baseline on
 // every synthetic head-to-head row (evidence/103-local-model-catalog/eval/).
-const DECODINGS: Array<[string, string]> = [["recommended", "Recommended (task-aware)"], ["word_first", "Word: first sub-token"], ["", "OpenMed-compatible (ONNX decoder)"], ["word_average", "Word: average"], ["word_max", "Word: most confident"], ["pii_merge", "PII merge"], ["word_first_pii_merge", "Word first + PII merge"]];
+const DECODINGS: Array<[string, string]> = [["recommended", "Recommended (task-aware)"], ["word_first", "Word: first sub-token"], ["", "Default ONNX token decoder"], ["word_average", "Word: average"], ["word_max", "Word: most confident"], ["pii_merge", "PII merge"], ["word_first_pii_merge", "Word first + PII merge"]];
 
 function EvaluateTab() {
   const models = useCommand<Model[]>("medagent_models");
