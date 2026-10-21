@@ -58,13 +58,15 @@ test("product name and window title are MedScale", () => {
   assert.match(read("apps/desktop-tauri/index.html"), /<title>MedScale[^<]*<\/title>/);
 });
 
-test("MedScale catalog branding keeps the real external catalog and comparator provenance visible", () => {
+test("MedScale catalog and model evaluation do not brand product features as competitors", () => {
   const models = read("apps/desktop-tauri/src/pages/Intelligence.tsx");
   assert.match(models, />MedScale Catalog<\/button>/);
   assert.doesNotMatch(models, />Catalog\s*<span[^>]*>OpenMed/i);
-  // A MedScale-branded browsing surface must still identify the snapshot origin.
+  assert.doesNotMatch(models, /MedScale vs OpenMed · static ledger/);
+  assert.doesNotMatch(models, /OpenMed-compatible \(ONNX decoder\)/);
+  // Preserve exact repo IDs and pinned source revision for model traceability.
   assert.match(models, /\{p\.repository\}/);
-  assert.match(models, /MedScale vs OpenMed · static ledger/);
+  assert.match(models, /\{r\.repo_id\}/);
 });
 
 test("license, provenance and release notice sources are present", () => {
