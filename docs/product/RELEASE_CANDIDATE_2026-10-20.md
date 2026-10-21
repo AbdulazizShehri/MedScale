@@ -8,12 +8,12 @@ This supersedes [RELEASE_CANDIDATE_2026-10-19.md](RELEASE_CANDIDATE_2026-10-19.m
 
 | | |
 |---|---|
-| Source | `main` at `f067d679701547684ffd6060b4e931fdd6ee0797` (#267 merge) |
-| CI build | tauri-preview run [39454195859](https://github.com/TheHalfMoon/MedScale/actions/runs/39454195859) |
-| Windows (x64) | `installer/MedScale_0.1.0_x64-setup.exe`, SHA-256 `1c3c0ffb297998c4750536646cda685ea813a5ff810638f8c28c189183ec89ff` |
-| macOS (arm64) | `installer/MedScale_0.1.0_aarch64.dmg`, SHA-256 `267c4252a6bbba312d94737e23163d18a5b60b0571481225b7828df7ac7cf95c` |
+| Source | `main` at `97a4e708664461cc68b568adc69958f38c239f00` (#269 merge) |
+| CI build | tauri-preview run [39516754197](https://github.com/TheHalfMoon/MedScale/actions/runs/39516754197) |
+| Windows (x64) | `installer/MedScale_0.1.0_x64-setup.exe`, SHA-256 `33adbe1492cd0cd672b9aa6a085e2b7b74e21cc46b10294d0db85776ec466f1b` |
+| macOS (arm64) | `installer/MedScale_0.1.0_aarch64.dmg`, SHA-256 `f93030e81d56d3dfbeeda6f5894cd04af3faa00f330cf9c2e3e3ba90c50039b6` |
 
-The installers are in the run's `tauri-installer-windows-latest` and `tauri-installer-macos-latest` artifacts, retained until 2026-10-27. Each release set carries:
+The installers are in the run's `tauri-installer-windows-latest` and `tauri-installer-macos-latest` artifacts, retained until 2026-10-28. Each release set carries:
 
 - `SHA256SUMS`
 - `SBOM.cdx.json` (CycloneDX)
@@ -33,17 +33,19 @@ The release set is verified by `scripts/verify-tauri-release.ps1` (Spec 101).
 - **#264:** the few-row f32 matmul kernel. On x86_64 small encoders are 2–3x faster, and the median warm latency is 0.65x OpenMed's.
 - **#265:** the Windows setup program shows the Logo 12 icon. Before, it showed NSIS's default. Release-candidate verification of `29cbf50` found this.
 - **#267:** the Welcome screen illustration keeps only its dot field (founder request).
+- **#269 (security):** `rustls-webpki` 0.103.16 and `webpki-roots` 1.0.10 fix RUSTSEC-2026-0381 and RUSTSEC-2026-0382 (distrusted emSign intermediates). cargo-deny is green again, with no ignores.
+- **#268:** E2E harness only. `type()` waits for the typed text, removing a timing flake.
 
-## What was verified on `f067d67`
+## What was verified on `97a4e70`
 
-**Packaging (Spec 101, run 39454195859):**
+**Packaging (Spec 101, run 39516754197):**
 - Windows: install, launch and uninstall all pass.
 - macOS: DMG verify, mount, install, launch and uninstall all pass.
 
 **Identity:**
 - Founder-approved Logo 12 is in the installed app's icon, the Windows setup program (extracted from #265's installer build) and every in-app surface (`evidence/brand-logo-12/`).
 
-**End-to-end journeys on the release binary (`desktop-e2e` run 39454196018):** 17 of 17 pass on Windows. They cover:
+**End-to-end journeys on the release binary (`desktop-e2e` run 39516754223):** 17 of 17 pass on Windows. They cover:
 
 - opening the synthetic workspace
 - Patients
