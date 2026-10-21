@@ -81,9 +81,9 @@ cargo run -p medscale-cli --locked -- doctor
 - [GLM 5.3 Reconciliation V2](docs/planning/GLM53_RECONCILIATION_V2.md)
 
 
-## Comparisons and provenance
+## Engineering evidence and source records
 
-MedScale measures itself against named external baselines without depending on them. OpenMed is used as a **pinned comparator** (`v2.2.0` frozen in Spec 071; a separate `v3.0.0` snapshot in Spec 103). Any comparative claim needs measured evidence; none of superiority is made here. MESC is a separate scientific project and owns no MedScale clinical truth. Adapted third-party material keeps its license and attribution: see [`third_party/provenance`](third_party/provenance), the [identity and provenance audit](docs/brand/PRE_RELEASE_IDENTITY_AND_PROVENANCE_AUDIT.md), the generated `NOTICE.md` and SBOM in every release set, and the [source acquisition plan](docs/planning/SOURCE_ACQUISITION_AND_COPY_PLAN.md).
+MedScale is an independently branded product. Synthetic-only runtime comparisons are documented in the [evaluation evidence](evidence/103-local-model-catalog/eval/) and [release candidate](docs/product/RELEASE_CANDIDATE_2026-10-20.md), with their original comparator names and measured limitations retained in those technical records. Exact third-party model identities and required legal notices remain traceable under [`third_party/provenance`](third_party/provenance), the [identity and provenance audit](docs/brand/PRE_RELEASE_IDENTITY_AND_PROVENANCE_AUDIT.md), and the generated `NOTICE.md` and SBOM. Historical inter-project boundaries are recorded separately in the engineering specs.
 
 ## License
 
