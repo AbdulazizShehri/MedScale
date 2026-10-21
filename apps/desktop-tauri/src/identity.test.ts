@@ -4,6 +4,7 @@
 // they document source history and must not be rewritten.
 import { test } from "node:test";
 import assert from "node:assert/strict";
+import { createHash } from "node:crypto";
 import { existsSync, readdirSync, readFileSync, statSync } from "node:fs";
 import { join } from "node:path";
 
@@ -85,6 +86,24 @@ test("MedScale cache and CLI display labels avoid superseded product-source name
   assert.match(cli, /"medscale_research_artifact: present=/);
   assert.doesNotMatch(cli, /"mesc_artifact: present=/);
 });
+test("renamed MedScale model-catalog path preserves original pinned bytes and legal notices", () => {
+  const target = "third_party/medscale-model-catalog-v3/";
+  const expected = [
+    ["models.jsonl", "805e79f7db5514cf308c6deffa67d72c4ce9a59bf4e54487d2783eecbb1e34ab"],
+    ["LICENSE", "c71d239df91726fc519c6eb72d318ec65820627232b2f796219e87dcf35d0ab4"],
+    ["NOTICE", "94bcb50459cf2603cb9ce8cbdeb00b0e09ebd82616844c87931ce7270e4ba1c2"],
+  ] as const;
+  for (const [file, hash] of expected) {
+    assert.equal(createHash("sha256").update(readFileSync(join(repo, target, file))).digest("hex"), hash);
+  }
+  const commands = read("apps/desktop-tauri/src-tauri/src/cmd_ops.rs");
+  assert.match(commands, /third_party\/medscale-model-catalog-v3\/models\.jsonl/);
+  assert.doesNotMatch(commands, /third_party\/openmed-v3\.0\.0/);
+  const packager = read("scripts/package-tauri-preview.ps1");
+  assert.match(packager, /licenses\/medscale-model-catalog-v3/);
+  assert.doesNotMatch(packager, /licenses\/openmed-v3\.0\.0/);
+});
+
 test("license, provenance and release notice sources are present", () => {
   assert.ok(existsSync(join(repo, "LICENSE")));
   assert.match(read("LICENSE"), /Apache License/);

@@ -5,7 +5,7 @@ Generated using `py -3 scripts/audit_medscale_rename.py` against tracked files.
 **Interpretation:** A match is not proof of non-compliant branding. Immutable measurements, third-party copyright notices, model identifiers, and required scientific citations must remain accurate. This inventory tracks first-party migration work without modifying source content.
 
 - Files containing tracked source-name terms: **430**
-- Occurrences: **13723**
+- Occurrences: **13710**
 
 | Disposition | Matched files |
 |---|---:|
@@ -27,15 +27,15 @@ Generated using `py -3 scripts/audit_medscale_rename.py` against tracked files.
 | OTHER_REVIEW | `.cursor/rules/00-medscale-foundation.mdc` | mesc: 2 |
 | OTHER_REVIEW | `.cursor/rules/05-authority-supersession.mdc` | mesc: 1 |
 | OTHER_REVIEW | `.cursor/rules/30-source-acquisition.mdc` | mesc: 1, openmed: 1 |
-| OTHER_REVIEW | `.gitattributes` | mesc: 1, openmed: 1 |
+| OTHER_REVIEW | `.gitattributes` | mesc: 1 |
 | OTHER_REVIEW | `AGENTS.md` | mesc: 3, openmed: 2 |
 | OTHER_REVIEW | `CURSOR.md` | openmed: 1 |
 | OTHER_REVIEW | `DESIGN.md` | mesc: 1 |
-| OTHER_REVIEW | `README.md` | mesc: 1, openmed: 3 |
-| ACTIVE_PRODUCT | `apps/desktop-tauri/src-tauri/src/cmd_ops.rs` | openmed: 8 |
+| OTHER_REVIEW | `README.md` | mesc: 1, openmed: 2 |
+| ACTIVE_PRODUCT | `apps/desktop-tauri/src-tauri/src/cmd_ops.rs` | openmed: 5 |
 | ACTIVE_PRODUCT | `apps/desktop-tauri/src-tauri/src/feature_tests.rs` | openmed: 1 |
-| ACTIVE_PRODUCT | `apps/desktop-tauri/src/identity.test.ts` | openmed: 5 |
-| ACTIVE_CLI | `crates/medscale-cli/src/main.rs` | mesc: 13, openmed: 4 |
+| ACTIVE_PRODUCT | `apps/desktop-tauri/src/identity.test.ts` | mesc: 1, openmed: 8 |
+| ACTIVE_CLI | `crates/medscale-cli/src/main.rs` | mesc: 11, openmed: 4 |
 | FIRST_PARTY_TECHNICAL | `crates/medscale-contracts/src/doctor/mod.rs` | mesc: 4 |
 | FIRST_PARTY_TECHNICAL | `crates/medscale-contracts/src/envelopes/mod.rs` | mesc: 14 |
 | FIRST_PARTY_TECHNICAL | `crates/medscale-contracts/src/fixture_ui/mod.rs` | mesc: 3 |
@@ -73,8 +73,8 @@ Generated using `py -3 scripts/audit_medscale_rename.py` against tracked files.
 | FIRST_PARTY_TECHNICAL | `crates/medscale-pack/src/residency.rs` | openmed: 2 |
 | FIRST_PARTY_TECHNICAL | `crates/medscale-pack/src/token_windows.rs` | openmed: 14 |
 | FIRST_PARTY_TECHNICAL | `crates/medscale-pack/src/variant_selection.rs` | openmed: 42 |
-| OTHER_REVIEW | `docs/brand/FULL_MEDScale_RENAME_EXECUTION.md` | everhealth: 1, medorigin: 1, mesc: 2, openmed: 3 |
-| OTHER_REVIEW | `docs/brand/PRE_RELEASE_IDENTITY_AND_PROVENANCE_AUDIT.md` | openmed: 7 |
+| OTHER_REVIEW | `docs/brand/FULL_MEDScale_RENAME_EXECUTION.md` | everhealth: 1, medorigin: 1, mesc: 2, openmed: 4 |
+| OTHER_REVIEW | `docs/brand/PRE_RELEASE_IDENTITY_AND_PROVENANCE_AUDIT.md` | openmed: 6 |
 | OTHER_REVIEW | `docs/engineering/CONTRIBUTING.md` | mesc: 1 |
 | OTHER_REVIEW | `docs/product/POST_RELEASE_ROADMAP.md` | openmed: 2 |
 | OTHER_REVIEW | `docs/product/RELEASE_CANDIDATE_2026-10-19.md` | openmed: 3 |

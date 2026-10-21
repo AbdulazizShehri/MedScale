@@ -7,6 +7,6 @@ apps/desktop-tauri/src-tauri/icons/*.ico -text -whitespace
 apps/desktop-tauri/src-tauri/icons/*.icns -text -whitespace
 specs/096-tauri-foundation/** text eol=lf
 crates/medscale-desktop/ui/assets/icons-v2/**/*.svg text eol=lf
-third_party/openmed-v3.0.0/** -text -whitespace
+third_party/medscale-model-catalog-v3/** -text -whitespace
 assets/brand/*.svg text eol=lf
 crates/medscale-desktop/ui/assets/*.svg text eol=lf

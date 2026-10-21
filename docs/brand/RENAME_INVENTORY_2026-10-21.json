@@ -14,8 +14,8 @@
   "term_counts": {
     "everhealth": 1,
     "medorigin": 1,
-    "mesc": 907,
-    "openmed": 12814
+    "mesc": 906,
+    "openmed": 12802
   },
   "files_with_matches": 430,
   "files": [
@@ -56,10 +56,9 @@
       "path": ".gitattributes",
       "category": "OTHER_REVIEW",
       "occurrences": {
-        "mesc": 1,
-        "openmed": 1
+        "mesc": 1
       },
-      "total": 2
+      "total": 1
     },
     {
       "path": ".github/PULL_REQUEST_TEMPLATE.md",
@@ -132,17 +131,17 @@
       "category": "OTHER_REVIEW",
       "occurrences": {
         "mesc": 1,
-        "openmed": 3
+        "openmed": 2
       },
-      "total": 4
+      "total": 3
     },
     {
       "path": "apps/desktop-tauri/src-tauri/src/cmd_ops.rs",
       "category": "ACTIVE_PRODUCT",
       "occurrences": {
-        "openmed": 8
+        "openmed": 5
       },
-      "total": 8
+      "total": 5
     },
     {
       "path": "apps/desktop-tauri/src-tauri/src/feature_tests.rs",
@@ -156,18 +155,19 @@
       "path": "apps/desktop-tauri/src/identity.test.ts",
       "category": "ACTIVE_PRODUCT",
       "occurrences": {
-        "openmed": 5
+        "mesc": 1,
+        "openmed": 8
       },
-      "total": 5
+      "total": 9
     },
     {
       "path": "crates/medscale-cli/src/main.rs",
       "category": "ACTIVE_CLI",
       "occurrences": {
-        "mesc": 13,
+        "mesc": 11,
         "openmed": 4
       },
-      "total": 17
+      "total": 15
     },
     {
       "path": "crates/medscale-contracts/src/doctor/mod.rs",
@@ -658,17 +658,17 @@
         "everhealth": 1,
         "medorigin": 1,
         "mesc": 2,
-        "openmed": 3
+        "openmed": 4
       },
-      "total": 7
+      "total": 8
     },
     {
       "path": "docs/brand/PRE_RELEASE_IDENTITY_AND_PROVENANCE_AUDIT.md",
       "category": "OTHER_REVIEW",
       "occurrences": {
-        "openmed": 7
+        "openmed": 6
       },
-      "total": 7
+      "total": 6
     },
     {
       "path": "docs/engineering/CONTRIBUTING.md",
@@ -1012,9 +1012,9 @@
       "path": "docs/planning/SOURCE_REUSE_MATRIX_2026-10-18.md",
       "category": "HISTORICAL_OR_SCIENTIFIC_RECORD",
       "occurrences": {
-        "openmed": 6
+        "openmed": 5
       },
-      "total": 6
+      "total": 5
     },
     {
       "path": "docs/planning/SPECKIT_MASTER_ROADMAP_V2.md",
@@ -2067,9 +2067,9 @@
       "path": "scripts/package-tauri-preview.ps1",
       "category": "BUILD_OR_EVALUATION",
       "occurrences": {
-        "openmed": 12
+        "openmed": 4
       },
-      "total": 12
+      "total": 4
     },
     {
       "path": "scripts/qualification/hf_reference_compare.py",
@@ -3504,7 +3504,7 @@
       "total": 1
     },
     {
-      "path": "third_party/openmed-v3.0.0/NOTICE",
+      "path": "third_party/medscale-model-catalog-v3/NOTICE",
       "category": "SOURCE_LEGAL_OR_VENDOR",
       "occurrences": {
         "openmed": 10
@@ -3512,7 +3512,7 @@
       "total": 10
     },
     {
-      "path": "third_party/openmed-v3.0.0/models.jsonl",
+      "path": "third_party/medscale-model-catalog-v3/models.jsonl",
       "category": "SOURCE_LEGAL_OR_VENDOR",
       "occurrences": {
         "openmed": 7325
@@ -3523,9 +3523,9 @@
       "path": "third_party/provenance/103-openmed-v3-model-catalog.md",
       "category": "SOURCE_LEGAL_OR_VENDOR",
       "occurrences": {
-        "openmed": 5
+        "openmed": 4
       },
-      "total": 5
+      "total": 4
     },
     {
       "path": "third_party/provenance/_TEMPLATE-openmed-component.md",

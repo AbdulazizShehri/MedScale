@@ -28,3 +28,11 @@ Audit the *whole tracked repository*, not only desktop JSX. The initial 2026-10-
 7. Output a full name-inventory report with before/after paths, semantic exceptions, remaining blockers and final release gates. Do not claim complete rename without verified scans.
 
 The rename authorization is granted. Third-party provenance and licensing are records of underlying facts rather than MedScale product branding. The aim is a genuinely independent MedScale product, not broken dependencies, misleading model ownership, rewritten research evidence, or a falsely claimed production/clinical release.
+
+## 2026-10-21 catalog-path migration (PR #270)
+
+The bundled, byte-identical third-party model-catalog snapshot has moved from `third_party/openmed-v3.0.0/` to `third_party/medscale-model-catalog-v3/`; the packager now places its original license/notice files under `licenses/medscale-model-catalog-v3/`. The source URI, revision, original copyright, source LICENSE/NOTICE, and pinned model IDs are unchanged. Hashes were verified before and after relocation against the provenance record. The desktop integration and packaging references, source matrix, `.gitattributes`, and identity tests were updated together. This is a **path/identity migration**, not a claim to own or have republished the 2,266 third-party model weights.
+
+Local qualification for the path migration: desktop tests **22/22**, TypeScript/Vite production frontend build green, PowerShell packaging script parses without errors, and `cargo fmt --all -- --check` green. Full native/packaging CI on the exact PR head and final main remains required before merge or installer publication.
+
+Keep this task distinct from a new model-mirror program: no functional model acquisition or benchmark repository ID may be replaced with `MedScale/*` until those repositories and complete, licensed assets actually exist and have passed replayable integrity and download tests.

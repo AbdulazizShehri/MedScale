@@ -8,7 +8,7 @@
 | Original path(s) | `models.jsonl`, `LICENSE`, `NOTICE` |
 | Content identity (hash) | `models.jsonl` sha256 `805e79f7db5514cf308c6deffa67d72c4ce9a59bf4e54487d2783eecbb1e34ab` (2,266 rows, 3,057,702 bytes); `LICENSE` sha256 `c71d239df91726fc519c6eb72d318ec65820627232b2f796219e87dcf35d0ab4`; `NOTICE` sha256 `94bcb50459cf2603cb9ce8cbdeb00b0e09ebd82616844c87931ce7270e4ba1c2` |
 | License / NOTICE / permission | Apache-2.0 (upstream `LICENSE`, copied alongside); upstream `NOTICE` copied unchanged |
-| Local target path | `third_party/openmed-v3.0.0/` |
+| Local target path | `third_party/medscale-model-catalog-v3/` |
 | Modifications | None. Byte-identical copy |
 | Transitive dependencies | None (data file) |
 | Security placement | P2: read-only listing data. Core verifies the snapshot against the pinned repository and commit before listing; a listing implies no download or execution |
