@@ -64,9 +64,10 @@ test("MedScale catalog and model evaluation do not brand product features as com
   assert.doesNotMatch(models, />Catalog\s*<span[^>]*>OpenMed/i);
   assert.doesNotMatch(models, /MedScale vs OpenMed · static ledger/);
   assert.doesNotMatch(models, /OpenMed-compatible \(ONNX decoder\)/);
-  // Preserve exact repo IDs and pinned source revision for model traceability.
-  assert.match(models, /\{p\.repository\}/);
-  assert.match(models, /\{r\.repo_id\}/);
+  // Preserve exact repository IDs in the Core data contract; display only a friendly alias.
+  assert.match(models, /catalogDisplayName\(r\.repo_id\)/);
+  assert.match(models, /p\.commit\.slice\(0, 12\)/);
+  assert.doesNotMatch(models, />\{p\.repository\} @/);
 });
 
 test("license, provenance and release notice sources are present", () => {
