@@ -1600,7 +1600,9 @@ mod tests {
             "nphies_authorized",
             "online_packs",
             "broker_required",
-            "medscale_research_artifact",
+            // The doctor JSON wire key is preserved for compatibility; the
+            // human-readable terminal heading uses MedScale branding instead.
+            "mesc_artifact",
             "artifact_admitted",
             "record_semantics",
             "precision_aware_time",
