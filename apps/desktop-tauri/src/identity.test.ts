@@ -77,6 +77,14 @@ test("legacy reference presentation uses MedScale labels for the evidence worksp
   assert.doesNotMatch(slint, /MedScale × OpenMed/);
   assert.doesNotMatch(slint, /Pinned OpenMed evidence/);
 });
+test("MedScale cache and CLI display labels avoid superseded product-source names", () => {
+  const commands = read("apps/desktop-tauri/src-tauri/src/cmd_ops.rs");
+  assert.match(commands, /medscale-model-catalog-v3\.jsonl/);
+  assert.doesNotMatch(commands, /\.join\("openmed-v3\.0\.0-models\.jsonl"\)/);
+  const cli = read("crates/medscale-cli/src/main.rs");
+  assert.match(cli, /"medscale_research_artifact: present=/);
+  assert.doesNotMatch(cli, /"mesc_artifact: present=/);
+});
 test("license, provenance and release notice sources are present", () => {
   assert.ok(existsSync(join(repo, "LICENSE")));
   assert.match(read("LICENSE"), /Apache License/);

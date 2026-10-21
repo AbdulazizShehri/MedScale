@@ -77,7 +77,7 @@ cargo run -p medscale-cli --locked -- doctor
 - [Spec Kit Master Roadmap V2](docs/planning/SPECKIT_MASTER_ROADMAP_V2.md)
 - [Canonical Source Register V2](docs/planning/CANONICAL_SOURCE_REGISTER_V2.md)
 - [OSS / Code Absorption Matrix V2](docs/planning/OSS_CODE_ABSORPTION_MATRIX_V2.md)
-- [OpenMed Parity / Surpass Matrix V2](docs/planning/OPENMED_PARITY_SURPASS_MATRIX_V2.md)
+- [External baseline evidence matrix](docs/planning/OPENMED_PARITY_SURPASS_MATRIX_V2.md)
 - [GLM 5.3 Reconciliation V2](docs/planning/GLM53_RECONCILIATION_V2.md)
 
 

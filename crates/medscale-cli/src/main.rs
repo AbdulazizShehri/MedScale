@@ -799,7 +799,7 @@ fn run() -> Result<()> {
                     report.online_packs.broker_required
                 );
                 println!(
-                    "mesc_artifact: present={} admitted={} verifier_ready_base={} gate={} required={} integration_status={}",
+                    "medscale_research_artifact: present={} admitted={} verifier_ready_base={} gate={} required={} integration_status={}",
                     report.mesc_artifact.present,
                     report.mesc_artifact.artifact_admitted,
                     report.mesc_artifact.verifier_ready_base,
@@ -1600,7 +1600,7 @@ mod tests {
             "nphies_authorized",
             "online_packs",
             "broker_required",
-            "mesc_artifact",
+            "medscale_research_artifact",
             "artifact_admitted",
             "record_semantics",
             "precision_aware_time",
