@@ -46,7 +46,7 @@ PRODUCT_RUNTIME_EGRESS = DEFAULT_DENY
 
 See the [whole-product review](docs/planning/WHOLE_PRODUCT_REVIEW_2026-09-09.md) and
 [prioritized delivery plan](docs/planning/TRUSTED_V1_DELIVERY_PLAN.md) for current gaps and
-follow-on work. OpenMed superiority has not been measured.
+follow-on work. Synthetic-only OpenMed comparisons are recorded in the [evaluation evidence](evidence/103-local-model-catalog/eval/) and the [v0.1.0 release-candidate notes](docs/product/RELEASE_CANDIDATE_2026-10-20.md). Those results do not establish clinical superiority.
 
 ### Engineering bootstrap (historical foundation)
 
