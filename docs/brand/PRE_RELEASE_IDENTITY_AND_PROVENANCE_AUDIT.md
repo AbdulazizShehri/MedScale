@@ -1,5 +1,17 @@
 # Pre-release identity and provenance audit (issue #182)
 
+> **2026-10-21 prepublication review (main at `4676924`):** Tauri is now on `main`, the founder-approved Logo 12 is shipped, and `ci`, `tauri-preview`, and `desktop-e2e` pass on that commit. The 2026-10-09 observations below are historical; statements that Tauri is still awaiting integration no longer describe the current branch. This addendum records an additional narrowly scoped product-name correction, not authorization for a production or clinical release.
+
+## 2026-10-21 active release-facing identity
+
+- **Canonical product name:** `MedScale`. Tauri `productName`, window title, publisher, bundle copyright, HTML document title, CLI, app icons and Logo 12 masters all use MedScale. The `org.medscale.desktop.preview` app identifier intentionally remains stable to avoid orphaning preview application data.
+- **Model browsing:** the catalog tab is branded **MedScale Catalog** rather than showing a competitor name as the title of a MedScale feature. The catalog still displays the actual upstream snapshot's `repository`, pinned `commit`, and unmodified model `repo_id` values. MedScale must never imply it authored or owns third-party model weights.
+- **Comparative evidence:** the competitor-branded comparison tab is no longer part of the active product UI. The reproducible benchmark ledger and original comparison methodology remain in historical research records. The ONNX default decoding label is vendor-neutral, while its unchanged contract and technical provenance remain available in code and evidence.
+- **Upstream preservation:** `third_party/medscale-model-catalog-v3/{models.jsonl,LICENSE,NOTICE}`, their hashes and the associated provenance record remain unchanged. Exact upstream names in licenses, copyright notices, historical specs, evidence, dependency identities and model cards are not bulk-renamed.
+- **README status:** comparison claims now point to measured synthetic evidence, not a superseded statement that measurements never happened. Synthetic accuracy and latency comparisons do not establish clinical performance.
+- **Release boundary:** as of this review the repository has no published GitHub Release. Its Windows/macOS installers remain unsigned engineering previews, restricted to synthetic-only usage. Signing, notarization, real patient data and clinical qualification are outside this naming pass.
+- **Verification:** the desktop identity guard checks for MedScale-first feature naming and traceable model catalog metadata. Run full exact-head `ci`, `desktop-e2e` and `tauri-preview` gates after merging before treating regenerated installers as the branding baseline.
+
 > **2026-10-19 update:** the founder-approved Logo 12 replaced the paired-triangle M in brand assets, app icons and desktop surfaces ([logo specification](LOGO_SPEC.md), [provenance](../../third_party/provenance/logo-12-approved-identity.md)). The findings below are the 2026-10-09 record and stay unchanged.
 
 **Rule:** product-facing identity is MedScale's own. Technical source provenance, licenses and history are kept, accurate and separate. No history rewrite. No removal of required notices.

@@ -45,9 +45,10 @@ pub fn models_admit_fixture_pack(host: tauri::State<'_, Host>) -> CmdResult<Valu
     Ok(json!(result))
 }
 
-/// The pinned OpenMed v3.0.0 model catalog, copied byte for byte with its
+/// Immutable externally sourced catalog snapshot for MedScale Model Catalog.
 /// license (`third_party/provenance/103-openmed-v3-model-catalog.md`).
-const CATALOG_JSONL: &[u8] = include_bytes!("../../../../third_party/openmed-v3.0.0/models.jsonl");
+const CATALOG_JSONL: &[u8] =
+    include_bytes!("../../../../third_party/medscale-model-catalog-v3/models.jsonl");
 const CATALOG_REPOSITORY: &str = "maziyarpanahi/openmed";
 const CATALOG_COMMIT: &str = "ea920f36fadd7b45935247d639f0ffa1ef493b23";
 
@@ -55,7 +56,7 @@ fn catalog_path(state: &State) -> CmdResult<String> {
     let path = state
         .data_dir()?
         .join("catalog")
-        .join("openmed-v3.0.0-models.jsonl");
+        .join("medscale-model-catalog-v3.jsonl");
     let current = std::fs::metadata(&path)
         .map(|m| m.len() == CATALOG_JSONL.len() as u64)
         .unwrap_or(false);

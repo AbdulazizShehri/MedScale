@@ -433,7 +433,7 @@ enum PacksCmd {
         max_params: Option<u64>,
         #[arg(long)]
         max_disk_mb: Option<f64>,
-        /// OpenMed size tier, for example Tiny, Small, Base or Large.
+        /// Model catalog size tier, for example Tiny, Small, Base or Large.
         #[arg(long)]
         tier: Option<String>,
         #[arg(long, default_value_t = 0)]
@@ -488,7 +488,7 @@ enum PacksCmd {
         commit: String,
         #[arg(long, default_value = "maziyarpanahi/openmed")]
         repository: String,
-        /// Catalog repository id, for example OpenMed/<model>.
+        /// Actual model repository ID, in the format provider/model.
         #[arg(long)]
         repo_id: String,
         #[arg(long, default_value = "model.onnx")]
@@ -799,7 +799,7 @@ fn run() -> Result<()> {
                     report.online_packs.broker_required
                 );
                 println!(
-                    "mesc_artifact: present={} admitted={} verifier_ready_base={} gate={} required={} integration_status={}",
+                    "medscale_research_artifact: present={} admitted={} verifier_ready_base={} gate={} required={} integration_status={}",
                     report.mesc_artifact.present,
                     report.mesc_artifact.artifact_admitted,
                     report.mesc_artifact.verifier_ready_base,
@@ -1600,6 +1600,8 @@ mod tests {
             "nphies_authorized",
             "online_packs",
             "broker_required",
+            // The doctor JSON wire key is preserved for compatibility; the
+            // human-readable terminal heading uses MedScale branding instead.
             "mesc_artifact",
             "artifact_admitted",
             "record_semantics",

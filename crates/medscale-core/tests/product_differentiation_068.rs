@@ -50,8 +50,8 @@ fn models_and_competitive_evidence_are_first_class_and_truthful() {
 
     assert!(app.contains("label: \"Models\""));
     assert!(app.contains("label: \"Evidence\""));
-    assert!(app.contains("MedScale × OpenMed"));
-    assert!(app.contains("Pinned OpenMed evidence · measured claims only · limitations explicit"));
+    assert!(app.contains("MedScale Evidence Center"));
+    assert!(app.contains("MedScale evidence · measured claims only · limitations explicit"));
     assert!(app.contains("model-runtime-summary"));
     assert!(product.contains("real portable ONNX runtime admitted"));
     assert!(product.contains("production clinical model not promoted"));

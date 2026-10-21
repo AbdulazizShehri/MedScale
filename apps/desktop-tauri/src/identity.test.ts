@@ -4,6 +4,7 @@
 // they document source history and must not be rewritten.
 import { test } from "node:test";
 import assert from "node:assert/strict";
+import { createHash } from "node:crypto";
 import { existsSync, readdirSync, readFileSync, statSync } from "node:fs";
 import { join } from "node:path";
 
@@ -56,6 +57,51 @@ test("product name and window title are MedScale", () => {
   assert.equal(conf.productName, "MedScale");
   assert.ok(conf.app.windows.every((w: { title: string }) => w.title === "MedScale"));
   assert.match(read("apps/desktop-tauri/index.html"), /<title>MedScale[^<]*<\/title>/);
+});
+
+test("MedScale catalog and model evaluation do not brand product features as competitors", () => {
+  const models = read("apps/desktop-tauri/src/pages/Intelligence.tsx");
+  assert.match(models, />MedScale Catalog<\/button>/);
+  assert.doesNotMatch(models, />Catalog\s*<span[^>]*>OpenMed/i);
+  assert.doesNotMatch(models, /MedScale vs OpenMed · static ledger/);
+  assert.doesNotMatch(models, /OpenMed-compatible \(ONNX decoder\)/);
+  // Preserve exact repository IDs in the Core data contract; display only a friendly alias.
+  assert.match(models, /catalogDisplayName\(r\.repo_id\)/);
+  assert.match(models, /p\.commit\.slice\(0, 12\)/);
+  assert.doesNotMatch(models, />\{p\.repository\} @/);
+});
+
+test("legacy reference presentation uses MedScale labels for the evidence workspace", () => {
+  const slint = read("crates/medscale-desktop/ui/app.slint");
+  assert.match(slint, /MedScale Evidence Center/);
+  assert.match(slint, /MedScale evidence ledger/);
+  assert.doesNotMatch(slint, /MedScale × OpenMed/);
+  assert.doesNotMatch(slint, /Pinned OpenMed evidence/);
+});
+test("MedScale cache and CLI display labels avoid superseded product-source names", () => {
+  const commands = read("apps/desktop-tauri/src-tauri/src/cmd_ops.rs");
+  assert.match(commands, /medscale-model-catalog-v3\.jsonl/);
+  assert.doesNotMatch(commands, /\.join\("openmed-v3\.0\.0-models\.jsonl"\)/);
+  const cli = read("crates/medscale-cli/src/main.rs");
+  assert.match(cli, /"medscale_research_artifact: present=/);
+  assert.doesNotMatch(cli, /"mesc_artifact: present=/);
+});
+test("renamed MedScale model-catalog path preserves original pinned bytes and legal notices", () => {
+  const target = "third_party/medscale-model-catalog-v3/";
+  const expected = [
+    ["models.jsonl", "805e79f7db5514cf308c6deffa67d72c4ce9a59bf4e54487d2783eecbb1e34ab"],
+    ["LICENSE", "c71d239df91726fc519c6eb72d318ec65820627232b2f796219e87dcf35d0ab4"],
+    ["NOTICE", "94bcb50459cf2603cb9ce8cbdeb00b0e09ebd82616844c87931ce7270e4ba1c2"],
+  ] as const;
+  for (const [file, hash] of expected) {
+    assert.equal(createHash("sha256").update(readFileSync(join(repo, target, file))).digest("hex"), hash);
+  }
+  const commands = read("apps/desktop-tauri/src-tauri/src/cmd_ops.rs");
+  assert.match(commands, /third_party\/medscale-model-catalog-v3\/models\.jsonl/);
+  assert.doesNotMatch(commands, /third_party\/openmed-v3\.0\.0/);
+  const packager = read("scripts/package-tauri-preview.ps1");
+  assert.match(packager, /licenses\/medscale-model-catalog-v3/);
+  assert.doesNotMatch(packager, /licenses\/openmed-v3\.0\.0/);
 });
 
 test("license, provenance and release notice sources are present", () => {

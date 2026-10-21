@@ -24,12 +24,12 @@ Lock the workspace from Settings or with `Ctrl/Cmd + Shift + L`. Locking closes 
 ## 3. Models
 
 - **Packs:** the Packs admitted in this session.
-- **Catalog:** the pinned OpenMed v3.0.0 catalog (2,266 rows, Apache-2.0, bundled unchanged).
+- **MedScale Catalog:** a pinned, read-only catalog snapshot with documented upstream provenance, model licenses and per-model IDs. A listing does not mean MedScale owns the model or has rights to distribute its weights.
   - Search, filter and page through it. Each row shows MedScale's pre-download expectation (for example *executed tested* or *known unsupported*).
   - A listing is not a download and not an executable model.
 - **Try a model:**
   - Run an admitted Pack on synthetic text.
-  - For token classification, choose the entity decoding. *Word: first sub-token* is preselected because it scored at or above the OpenMed-compatible decoder on every synthetic head-to-head row.
+  - For token classification, choose the entity decoding. *Word: first sub-token* is preselected because it scored at or above the original baseline decoder on every synthetic head-to-head row.
   - For GLiNER, enter labels.
   - The result is evaluation evidence only.
 

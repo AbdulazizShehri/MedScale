@@ -6,15 +6,13 @@ import { Authority, Empty, ErrorState, Glyph, Icon, KV, Ledger, Notice, PageHead
 /* ───────────────────────────── Models ───────────────────────────── */
 type ModelsVm = {
   model_runtime_summary: string; model_runtime_boundary: string; model_source_summary: string; model_inventory_summary: string;
-  openmed_baseline: string; competitive_summary: string;
   models: Array<{ scope: string; task: string; model: string; source: string; runtime: string; device: string; trust: string; benchmark: string; digest: string; state: string }>;
-  evidence: Array<{ capability: string; medscale: string; openmed: string; verdict: string; evidence: string; limitations: string }>;
 };
 
 export function Models() {
   const { state, reload } = useCommand<ModelsVm>("models_overview");
   const [sel, setSel] = useState(0);
-  const [tab, setTab] = useState<"packs" | "catalog" | "evaluate" | "comparative">("packs");
+  const [tab, setTab] = useState<"packs" | "catalog" | "evaluate">("packs");
   const { pending, run } = useAction();
   const outcome = useOutcome();
   async function admit() { const r = await run("admit", "models_admit_fixture_pack"); if (outcome(r, "Fixture pack submitted to Core")) await reload(); }
@@ -32,9 +30,8 @@ export function Models() {
         <Ledger items={[{ k: "runtime", v: v.model_runtime_summary }, { k: "source", v: v.model_source_summary }, { k: "inventory", v: v.model_inventory_summary }]} />
         <div className="tabs" role="tablist" style={{ marginBottom: 14 }}>
           <button type="button" role="tab" aria-selected={tab === "packs"} className={`tab ${tab === "packs" ? "on" : ""}`} onClick={() => setTab("packs")}>Packs <span className="mono">{v.models.length}</span></button>
-          <button type="button" role="tab" aria-selected={tab === "catalog"} className={`tab ${tab === "catalog" ? "on" : ""}`} onClick={() => setTab("catalog")}>Catalog <span className="mono">OpenMed v3.0.0</span></button>
+          <button type="button" role="tab" aria-selected={tab === "catalog"} className={`tab ${tab === "catalog" ? "on" : ""}`} onClick={() => setTab("catalog")}>MedScale Catalog</button>
           <button type="button" role="tab" aria-selected={tab === "evaluate"} className={`tab ${tab === "evaluate" ? "on" : ""}`} onClick={() => setTab("evaluate")}>Try a model</button>
-          <button type="button" role="tab" aria-selected={tab === "comparative"} className={`tab ${tab === "comparative" ? "on" : ""}`} onClick={() => setTab("comparative")}>Comparative evidence <span className="mono">static</span></button>
         </div>
         {tab === "packs" && (v.models.length ? (
           <table className="tb"><thead><tr><th style={{ width: "30%" }}>Model</th><th style={{ width: "18%" }}>Task</th><th className="col-p3" style={{ width: "18%" }}>Runtime</th><th style={{ width: "17%" }}>State</th><th>Trust</th></tr></thead>
@@ -49,12 +46,6 @@ export function Models() {
         ) : <Empty icon="models" title="No admitted packs">Admit the bundled synthetic ONNX fixture pack. Core verifies its manifest, digests and signature before admission.</Empty>)}
         {tab === "catalog" && <CatalogTab />}
         {tab === "evaluate" && <EvaluateTab />}
-        {tab === "comparative" && <Section title="Comparative evidence" count="MedScale vs OpenMed · static ledger">
-          <p className="t-sm i2" style={{ marginBottom: 10 }}>{v.competitive_summary} {v.openmed_baseline}</p>
-          <table className="tb"><thead><tr><th style={{ width: "22%" }}>Capability</th><th style={{ width: "20%" }}>MedScale</th><th style={{ width: "20%" }}>OpenMed</th><th style={{ width: "14%" }}>Verdict</th><th>Limitations</th></tr></thead>
-            <tbody>{v.evidence.map((e, i) => <tr key={i}><td className="t-sm">{e.capability}</td><td className="t-sm i2"><span className="trunc">{e.medscale}</span></td><td className="t-sm i2"><span className="trunc">{e.openmed}</span></td><td><Status kind={glyphFor(e.verdict)}>{e.verdict}</Status></td><td className="t-sm i3"><span className="trunc">{e.limitations}</span></td></tr>)}</tbody></table>
-          <p className="note" style={{ marginTop: 8 }}>“Ahead” is shown only where a bound comparative result exists. This is a pinned ledger, not live benchmarking.</p>
-        </Section>}
         <Section n="02" title="How model output is treated">
           <div className="grid-2">
             <Notice kind="proposal" title="Proposal.">Every output stays an outline-triangle proposal until a person accepts it.</Notice>
@@ -83,6 +74,16 @@ type CatalogRow = {
   runtime_expectation: { kind: string; [k: string]: unknown };
 };
 type CatalogPage = { repository: string; commit: string; total_rows: number; total_matching: number; next_offset: number | null; status_counts: Record<string, number>; rows: CatalogRow[] };
+
+/** UI-only MedScale catalog label; the source's immutable repo_id remains unchanged. */
+function catalogDisplayName(repoId: string): string {
+  const [namespace, ...pathParts] = repoId.split("/");
+  const slug = pathParts.at(-1) ?? namespace ?? "";
+  const segments = slug.split(/[-_]+/).filter(Boolean);
+  // Remove duplicated source-namespace prefixes from user-facing labels only.
+  if (segments.length > 1 && segments[0]?.toLowerCase() === namespace?.toLowerCase()) segments.shift();
+  return segments.join(" ") || "Model";
+}
 
 function CatalogTab() {
   const [draft, setDraft] = useState({ text: "", task: "", format: "", status: "" });
@@ -114,7 +115,7 @@ function CatalogTab() {
         <table className="tb"><thead><tr><th style={{ width: "34%" }}>Model</th><th style={{ width: "18%" }}>Task</th><th className="col-p3" style={{ width: "14%" }}>Formats</th><th style={{ width: "10%" }}>Disk</th><th style={{ width: "14%" }}>Expectation</th><th>Status</th></tr></thead>
           <tbody>{p.rows.map((r) => (
             <tr key={r.repo_id} className="r2">
-              <td><div style={{ display: "flex", flexDirection: "column", minWidth: 0 }}><span className="mono trunc" style={{ fontSize: 12.5 }}>{r.repo_id}</span><span className="t-sm i3 trunc">{[r.family, r.tier, r.license_claim].filter(Boolean).join(" · ")}</span></div></td>
+              <td><div style={{ display: "flex", flexDirection: "column", minWidth: 0 }}><span className="mono trunc" style={{ fontSize: 12.5 }}>{catalogDisplayName(r.repo_id)}</span><span className="t-sm i3 trunc">{[r.family, r.tier, r.license_claim].filter(Boolean).join(" · ")}</span></div></td>
               <td className="t-sm i2"><span className="trunc">{r.task ?? "—"}</span></td>
               <td className="col-p3 mono t-mono-sm i2"><span className="trunc">{r.formats.join(", ")}</span></td>
               <td className="mono t-mono-sm i2">{r.disk?.megabytes != null ? `${Math.round(r.disk.megabytes)} MB` : "—"}</td>
@@ -123,7 +124,7 @@ function CatalogTab() {
             </tr>
           ))}</tbody></table>
         <div className="row-gap" style={{ gap: 8, marginTop: 10, justifyContent: "space-between" }}>
-          <span className="t-sm i3">{p.repository} @ <span className="mono">{p.commit.slice(0, 12)}</span> · rows {query.offset + 1}–{query.offset + p.rows.length}</span>
+          <span className="t-sm i3">MedScale catalog snapshot <span className="mono">{p.commit.slice(0, 12)}</span> · rows {query.offset + 1}–{query.offset + p.rows.length}</span>
           <span className="row-gap" style={{ gap: 8 }}>
             <button type="button" className="btn btn-g" disabled={query.offset === 0} onClick={() => setQuery({ ...query, offset: Math.max(0, query.offset - 50) })}>Previous</button>
             <button type="button" className="btn btn-g" disabled={p.next_offset == null} onClick={() => setQuery({ ...query, offset: p.next_offset ?? query.offset })}>Next</button>
@@ -136,9 +137,9 @@ function CatalogTab() {
 }
 
 // "recommended" is Core's task-aware decoding: word-first plus the PII merger
-// for PII models, word-first otherwise. It scored at or above OpenMed 3.0.0 on
+// for PII models, word-first otherwise. It scored at or above the pinned baseline on
 // every synthetic head-to-head row (evidence/103-local-model-catalog/eval/).
-const DECODINGS: Array<[string, string]> = [["recommended", "Recommended (task-aware)"], ["word_first", "Word: first sub-token"], ["", "OpenMed-compatible (ONNX decoder)"], ["word_average", "Word: average"], ["word_max", "Word: most confident"], ["pii_merge", "PII merge"], ["word_first_pii_merge", "Word first + PII merge"]];
+const DECODINGS: Array<[string, string]> = [["recommended", "Recommended (task-aware)"], ["word_first", "Word: first sub-token"], ["", "Default ONNX token decoder"], ["word_average", "Word: average"], ["word_max", "Word: most confident"], ["pii_merge", "PII merge"], ["word_first_pii_merge", "Word first + PII merge"]];
 
 function EvaluateTab() {
   const models = useCommand<Model[]>("medagent_models");

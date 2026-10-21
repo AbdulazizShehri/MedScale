@@ -70,10 +70,10 @@ Copy-Item -LiteralPath (Join-Path $taskRepoRoot 'assets/brand/fonts/FONT_NOTICE.
 $taskFontNotice = Get-Content -LiteralPath (Join-Path $taskRepoRoot 'assets/brand/fonts/FONT_NOTICE.md') -Raw
 # Bundled data: the pinned OpenMed v3.0.0 model catalog (Apache-2.0), byte-identical
 # (third_party/provenance/103-openmed-v3-model-catalog.md).
-$taskOpenMedLicenses = Join-Path $taskPackageRoot 'licenses/openmed-v3.0.0'
-New-Item -ItemType Directory -Force -Path $taskOpenMedLicenses | Out-Null
-foreach ($taskOpenMedFile in @('LICENSE','NOTICE')) {
-    Copy-Item -LiteralPath (Join-Path $taskRepoRoot "third_party/openmed-v3.0.0/$taskOpenMedFile") -Destination $taskOpenMedLicenses
+$taskCatalogLicenses = Join-Path $taskPackageRoot 'licenses/medscale-model-catalog-v3'
+New-Item -ItemType Directory -Force -Path $taskCatalogLicenses | Out-Null
+foreach ($taskCatalogLicenseFile in @('LICENSE','NOTICE')) {
+    Copy-Item -LiteralPath (Join-Path $taskRepoRoot "third_party/medscale-model-catalog-v3/$taskCatalogLicenseFile") -Destination $taskCatalogLicenses
 }
 @"
 # MedScale Tauri presentation preview notices
@@ -88,7 +88,7 @@ MPL-SOURCE-NOTICE.txt. Dependency admission is recorded in evidence/096-tauri-pr
 The desktop bundles the OpenMed v3.0.0 model catalog (models.jsonl, commit
 ea920f36fadd7b45935247d639f0ffa1ef493b23, Apache-2.0, unmodified) from
 https://github.com/maziyarpanahi/openmed. Its LICENSE and NOTICE are under
-licenses/openmed-v3.0.0. The catalog lists models; it grants no rights to model
+licenses/medscale-model-catalog-v3. The catalog lists models; it grants no rights to model
 weights or datasets.
 
 $taskFontNotice
