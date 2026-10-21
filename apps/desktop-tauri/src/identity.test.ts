@@ -70,6 +70,13 @@ test("MedScale catalog and model evaluation do not brand product features as com
   assert.doesNotMatch(models, />\{p\.repository\} @/);
 });
 
+test("legacy reference presentation uses MedScale labels for the evidence workspace", () => {
+  const slint = read("crates/medscale-desktop/ui/app.slint");
+  assert.match(slint, /MedScale Evidence Center/);
+  assert.match(slint, /MedScale evidence ledger/);
+  assert.doesNotMatch(slint, /MedScale × OpenMed/);
+  assert.doesNotMatch(slint, /Pinned OpenMed evidence/);
+});
 test("license, provenance and release notice sources are present", () => {
   assert.ok(existsSync(join(repo, "LICENSE")));
   assert.match(read("LICENSE"), /Apache License/);

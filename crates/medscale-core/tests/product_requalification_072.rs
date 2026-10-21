@@ -66,7 +66,7 @@ fn rebuilt_model_and_evidence_surfaces_preserve_truth_boundaries() {
         "Local Pack operator.",
         "Admit local Pack",
         "Refresh",
-        "OpenMed evidence comparison.",
+        "MedScale evidence ledger.",
         "Claim state ",
         "Limitations · ",
     ] {

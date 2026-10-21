@@ -77,8 +77,12 @@ type CatalogPage = { repository: string; commit: string; total_rows: number; tot
 
 /** UI-only MedScale catalog label; the source's immutable repo_id remains unchanged. */
 function catalogDisplayName(repoId: string): string {
-  const slug = repoId.split("/").at(-1) ?? repoId;
-  return slug.replace(/^OpenMed[-_]?/i, "").replace(/[-_]+/g, " ").trim() || "Model";
+  const [namespace, ...pathParts] = repoId.split("/");
+  const slug = pathParts.at(-1) ?? namespace ?? "";
+  const segments = slug.split(/[-_]+/).filter(Boolean);
+  // Remove duplicated source-namespace prefixes from user-facing labels only.
+  if (segments.length > 1 && segments[0]?.toLowerCase() === namespace?.toLowerCase()) segments.shift();
+  return segments.join(" ") || "Model";
 }
 
 function CatalogTab() {
