@@ -25,7 +25,7 @@ The product should feel precise, quiet, fast, inspectable and unmistakably MedSc
 
 Models are a first-class product concept. Users must be able to see what model is installed/admitted, where it came from, what task it serves, what runtime/device executes it, its provenance/trust state, benchmark state, and promotion/rollback state. Hugging Face may be a governed model source, but never becomes an authority plane.
 
-Competitive evidence is also a first-class product concept. The product may show where MedScale has a proven advantage over OpenMed and must equally show where OpenMed remains ahead. “MedScale beats OpenMed” is forbidden unless the exact capability has a bound comparative result.
+Comparative research remains an evidence-governed engineering practice, not a competitor-branded product surface. Any claimed advantage over an external baseline must be supported by a complete, reproducible benchmark manifest. The original comparator identities and outcomes remain in technical evidence records.
 
 MedScale is a **Clinical Intelligence OS** with the operating principle **Evidence first. Action second.** The 2026-09-30 founder decision selects staged Tauri 2 + React/TypeScript/Vite/Tailwind presentation migration over the existing Rust Core. Slint remains the functional reference until required parity, native/privacy evidence and a separate retirement decision. Spec 095 retains its Slint-era brand meaning; the new shell starts as a synthetic-only preparatory 096 package.
 
@@ -47,4 +47,4 @@ Desktop and CLI must ultimately cover the same trusted product capabilities: sta
 The Desktop and CLI should feel like two expressions of one product: same data semantics, same authority rules, same vocabulary, same privacy posture, and equivalent power appropriate to each interaction model.
 
 ## Product differentiation sequence (2026-09-15)
-Specs 068–072 are freshly promoted after the founder rejected the prior UI/product positioning. The sequence rebuilds identity and information architecture, admits a real bounded local model runtime and governed Hugging Face pack path, productizes Model Center and OpenMed Evidence Center, and then requalifies the resulting release candidate. Until this sequence closes, `MEDSCALE_IMPLEMENTATION_COMPLETE=false` is the honest state.
+Specs 068–072 are freshly promoted after the founder rejected the prior UI/product positioning. The sequence rebuilds identity and information architecture, admits a real bounded local model runtime and governed Hugging Face pack path, productizes Model Center and the evidence-verification workflow, and then requalifies the resulting release candidate. Until this sequence closes, `MEDSCALE_IMPLEMENTATION_COMPLETE=false` is the honest state.
