@@ -409,11 +409,8 @@ enum PacksCmd {
         /// Exact 40-hex commit the snapshot was taken from.
         #[arg(long)]
         commit: String,
-        #[arg(
-            long,
-            default_value = "maziyarpanahi/openmed",
-            hide_default_value = true
-        )]
+        /// Catalog source identity; never inferred from another product.
+        #[arg(long)]
         repository: String,
         #[arg(long)]
         text: Option<String>,
@@ -452,11 +449,8 @@ enum PacksCmd {
         snapshot: PathBuf,
         #[arg(long)]
         commit: String,
-        #[arg(
-            long,
-            default_value = "maziyarpanahi/openmed",
-            hide_default_value = true
-        )]
+        /// Catalog source identity; never inferred from another product.
+        #[arg(long)]
         repository: String,
         #[arg(long)]
         repo_id: String,
@@ -472,11 +466,8 @@ enum PacksCmd {
         snapshot: PathBuf,
         #[arg(long)]
         commit: String,
-        #[arg(
-            long,
-            default_value = "maziyarpanahi/openmed",
-            hide_default_value = true
-        )]
+        /// Catalog source identity; never inferred from another product.
+        #[arg(long)]
         repository: String,
         /// Directory with metadata.json, config.json, tokenizer.json and the ONNX file.
         #[arg(long)]
@@ -498,11 +489,8 @@ enum PacksCmd {
         snapshot: PathBuf,
         #[arg(long)]
         commit: String,
-        #[arg(
-            long,
-            default_value = "maziyarpanahi/openmed",
-            hide_default_value = true
-        )]
+        /// Catalog source identity; never inferred from another product.
+        #[arg(long)]
         repository: String,
         /// Actual model repository ID, in the format provider/model.
         #[arg(long)]
@@ -1589,6 +1577,68 @@ mod tests {
     use medscale_contracts::objects::{AuthorityScopeId, OpaqueId, RealmId};
     use medscale_core::CliSession;
     use std::fs;
+
+    #[test]
+    fn medscale_catalog_commands_require_explicit_source_identity() {
+        let scenarios: &[&[&str]] = &[
+            &[
+                "packs",
+                "catalog",
+                "--snapshot",
+                "catalog.jsonl",
+                "--commit",
+                "1234567890123456789012345678901234567890",
+            ],
+            &[
+                "packs",
+                "variants",
+                "--snapshot",
+                "catalog.jsonl",
+                "--commit",
+                "1234567890123456789012345678901234567890",
+                "--repo-id",
+                "example/test",
+            ],
+            &[
+                "packs",
+                "admit-snapshot",
+                "--snapshot",
+                "catalog.jsonl",
+                "--commit",
+                "1234567890123456789012345678901234567890",
+            ],
+            &[
+                "packs",
+                "acquire",
+                "--snapshot",
+                "catalog.jsonl",
+                "--commit",
+                "1234567890123456789012345678901234567890",
+            ],
+        ];
+        for scenario in scenarios {
+            let args = std::iter::once("medscale").chain(scenario.iter().copied());
+            let error = Cli::try_parse_from(args)
+                .expect_err("catalog must have a caller-specified repository");
+            assert_eq!(
+                error.kind(),
+                clap::error::ErrorKind::MissingRequiredArgument
+            );
+            assert!(error.to_string().contains("--repository"), "{error}");
+        }
+        let args = [
+            "medscale",
+            "packs",
+            "catalog",
+            "--snapshot",
+            "catalog.jsonl",
+            "--commit",
+            "1234567890123456789012345678901234567890",
+            "--repository",
+            "owner/catalog",
+        ];
+        assert!(Cli::try_parse_from(args).is_ok());
+    }
 
     #[test]
     fn doctor_json_has_required_axes_and_no_secrets() {
