@@ -154,3 +154,7 @@ jobs:
           test -f deny.toml
           test -f supply-chain/config.toml
           test -f supply-chain/audits.toml
+      - name: Verify MedScale catalog bundle (no network)
+        run: |
+          python3 -m unittest scripts/tests/test_medscale_catalog_bundle.py
+          python3 scripts/verify_medscale_catalog_bundle.py

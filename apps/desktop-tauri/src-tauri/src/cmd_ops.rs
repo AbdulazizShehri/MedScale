@@ -45,12 +45,51 @@ pub fn models_admit_fixture_pack(host: tauri::State<'_, Host>) -> CmdResult<Valu
     Ok(json!(result))
 }
 
-/// Immutable externally sourced catalog snapshot for MedScale Model Catalog.
-/// license (`third_party/provenance/103-openmed-v3-model-catalog.md`).
+/// MedScale's offline catalog bundle. The pinned source metadata stays in the
+/// technical catalog directory; no external catalog is a MedScale identity.
 const CATALOG_JSONL: &[u8] =
     include_bytes!("../../../../third_party/medscale-model-catalog-v3/models.jsonl");
-const CATALOG_REPOSITORY: &str = "maziyarpanahi/openmed";
-const CATALOG_COMMIT: &str = "ea920f36fadd7b45935247d639f0ffa1ef493b23";
+const CATALOG_SOURCE_JSON: &str =
+    include_str!("../../../../third_party/medscale-model-catalog-v3/source.json");
+
+#[derive(Debug, serde::Deserialize)]
+#[serde(deny_unknown_fields)]
+struct BundledCatalogSource {
+    repository: String,
+    commit: String,
+    manifest_sha256: String,
+}
+
+fn bundled_catalog_source() -> CmdResult<BundledCatalogSource> {
+    let source: BundledCatalogSource = serde_json::from_str(CATALOG_SOURCE_JSON)
+        .map_err(|_| CmdError::unavailable("Unavailable: invalid MedScale catalog metadata"))?;
+    if source.repository.trim().is_empty()
+        || source.commit.len() != 40
+        || !source.commit.bytes().all(|b| b.is_ascii_hexdigit())
+        || source.manifest_sha256.len() != 64
+        || !source.manifest_sha256.bytes().all(|b| b.is_ascii_hexdigit())
+    {
+        return Err(CmdError::unavailable("Unavailable: invalid MedScale catalog source identity"));
+    }
+    Ok(source)
+}
+
+#[cfg(test)]
+mod bundled_catalog_tests {
+    #[test]
+    fn medscale_bundle_metadata_matches_imported_catalog_bytes() {
+        let source = super::bundled_catalog_source().expect("bundled metadata must be valid");
+        let catalog = medscale_pack::ModelCatalog::import(
+            &source.repository,
+            &source.commit,
+            super::CATALOG_JSONL,
+        )
+        .expect("MedScale catalog snapshot must import");
+        assert_eq!(catalog.source.manifest_sha256, source.manifest_sha256);
+        assert_eq!(catalog.source.commit, source.commit);
+        assert_eq!(catalog.source.repository, source.repository);
+    }
+}
 
 fn catalog_path(state: &State) -> CmdResult<String> {
     let path = state
@@ -91,11 +130,12 @@ pub fn models_catalog(
 ) -> CmdResult<Value> {
     let mut state = lock(&host)?;
     let snapshot_path = catalog_path(&state)?;
+    let source = bundled_catalog_source()?;
     let page = state.session()?.model_catalog_query(
         medscale_contracts::model_catalog::ModelCatalogQueryRequest {
             snapshot_path,
-            repository: CATALOG_REPOSITORY.to_owned(),
-            commit: CATALOG_COMMIT.to_owned(),
+            repository: source.repository,
+            commit: source.commit,
             text: filter(text)?,
             task: filter(task)?,
             family: filter(family)?,
@@ -106,6 +146,9 @@ pub fn models_catalog(
             ..Default::default()
         },
     )?;
+    if page.manifest_sha256 != source.manifest_sha256 {
+        return Err(CmdError::unavailable("Unavailable: bundled MedScale catalog hash mismatch"));
+    }
     Ok(json!(page))
 }
 

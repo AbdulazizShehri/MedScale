@@ -13,7 +13,7 @@ Weight files are chosen from Hub sizes so every artifact fits the unchanged
 Qualification tooling only (network: Hugging Face API for file sizes).
 
 Usage:
-  medscale packs catalog --snapshot models.jsonl --commit <sha> --limit 500 --offset N > page_N.json
+  medscale packs catalog --snapshot models.jsonl --commit <sha> --repository <catalog-owner/repository> --limit 500 --offset N > page_N.json
   select_batch.py page_0.json page_500.json ... --count 24 --out qualification/batch.json
 """
 
