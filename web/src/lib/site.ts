@@ -35,11 +35,11 @@ export const nav = [
 
 /** Real screenshots of the desktop app, captured by the desktop-e2e journeys on the synthetic workspace. */
 export const shots = {
-  patients: { src: "/shots/patients.webp", w: 1028, h: 749, alt: "MedScale Patients view listing two synthetic subjects with coverage and review status" },
-  insightsHero: { src: "/shots/insights-hero.webp", w: 1028, h: 620, alt: "MedScale Insights view showing cohort coverage, conflicts and an evidence-grounded answer for synthetic records" },
-  insights: { src: "/shots/insights.webp", w: 1028, h: 749, alt: "MedScale Insights view showing cohort coverage, conflicts and an evidence-grounded answer for synthetic records" },
-  medagent: { src: "/shots/medagent.webp", w: 1028, h: 749, alt: "MedScale MedAgent view with an agent run bound to selected synthetic sources" },
-  models: { src: "/shots/models.webp", w: 1028, h: 749, alt: "MedScale Models view with the local runtime state and the browsable model catalog" },
+  patients: { src: "/shots/patients-dark.webp", w: 1028, h: 749, alt: "MedScale Patients view listing two synthetic subjects with coverage and review status" },
+  insightsHero: { src: "/shots/insights-hero-dark.webp", w: 1028, h: 620, alt: "MedScale Insights view showing cohort coverage, conflicts and an evidence-grounded answer for synthetic records" },
+  insights: { src: "/shots/insights-dark.webp", w: 1028, h: 749, alt: "MedScale Insights view showing cohort coverage, conflicts and an evidence-grounded answer for synthetic records" },
+  medagent: { src: "/shots/medagent-dark.webp", w: 1028, h: 749, alt: "MedScale MedAgent view with an agent run bound to selected synthetic sources" },
+  models: { src: "/shots/models-dark.webp", w: 1028, h: 749, alt: "MedScale Models view with the local runtime state and the browsable model catalog" },
   audit: { src: "/shots/audit.webp", w: 1028, h: 749, alt: "MedScale Audit Trail listing a recorded synthetic disclosure" },
   knowledge: { src: "/shots/knowledge.webp", w: 1028, h: 749, alt: "MedScale Knowledge view with a local index and search receipt" },
 } as const;
