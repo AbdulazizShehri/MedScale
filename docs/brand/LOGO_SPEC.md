@@ -1,6 +1,6 @@
 # MedScale logo specification
 
-**Status:** CANONICAL — FOUNDER_APPROVED_LOGO_12 (2026-10-19). The approved symbol and wordmark are locked. Do not reinterpret or redesign them.
+**Status:** CANONICAL — FOUNDER_APPROVED_LOGO_12 symbol (2026-10-19) with the FOUNDER_APPROVED_WORDMARK (2026-10-22, direction A). Both are locked. Do not reinterpret or redesign either.
 
 ## Symbol construction
 
@@ -24,12 +24,19 @@ The exact parameters, in reference pixels, are in `assets/brand/source/geometry.
 
 ## Wordmark
 
-Exactly `MedScale`. First-party monoline letterforms (`id="medscale-wordmark"`): squared bowls and counters, rounded corners, open terminals, one stroke width for every letter. The M's stems turn inward along a short top stroke before the diagonals meet at the V. No font is embedded or claimed.
+Exactly `MedScale` (`id="medscale-wordmark"`), approved by the founder on 2026-10-22 after a four-direction comparison. Provenance: [`third_party/provenance/medscale-wordmark-2026-10-22.md`](../../third_party/provenance/medscale-wordmark-2026-10-22.md).
+
+- **Letterforms:** filled outlines drawn from Plus Jakarta Sans at weight 590, one path per letter.
+- **Spacing:** the font's pair kerning, tracking −0.018 em, and −0.012 em extra before "S".
+- **Artwork, not text:** every surface draws the path data. No font file is embedded or loaded to render the logo.
+
+The earlier monoline wordmark is SUPERSEDED_BY_WORDMARK_2026_10_22 and kept as history in `evidence/brand-logo-12/`.
 
 ## Lockups and colour
 
 - **Vertical (primary):** the symbol is centred above the wordmark. The gap and proportions match the approved reference (symbol height ≈ 4.0 × wordmark height).
-- **Horizontal:** symbol height = 2.6 × wordmark height. Gap = 0.45 × wordmark height. The wordmark is centred vertically on the symbol.
+- **Vertical gap:** 58 reference px between the symbol and the cap height, unchanged from Logo 12.
+- **Horizontal:** symbol height = 2.05 × the wordmark cap height, drawn with a 1.5× optical stroke so the frames match the letter weight. Gap = 0.5 × cap height. The symbol is centred on the cap height and nudged down 4% of its height.
 - **Colour:**
   - The logo uses only `#000000` and `#FFFFFF`: white on dark (canonical), black on light.
   - Transparent masters carry no background.
@@ -57,8 +64,9 @@ Never:
 - move one frame on its own, close C's descender, or separate the shared lower stroke
 - fill the frames
 - add a fourth frame
-- change stroke weights within the symbol or the wordmark, or bold part of the word
-- set the wordmark in a font
+- change stroke weights within the symbol, change the wordmark's weight, or bold part of the word
+- retype the wordmark as live text in any font, Inter included
+- re-space the letters or change the lockup proportions
 - add a tagline to the primary logo
 - use colour, gradients, blue, shadows, glows, 3D, outlines or animation
 - use medical crosses, hearts, DNA, shields, sparkles or AI stars
@@ -68,4 +76,5 @@ Raster screenshots are not vector masters.
 
 ## History
 
+- The Logo 12 monoline wordmark (2026-10-19) is SUPERSEDED_BY_WORDMARK_2026_10_22. Its reconstruction record and evidence remain intact.
 The Spec 095 paired-M mark and the Spec 073 "Shelf" are SUPERSEDED_BY_LOGO_12 for active branding. Their commits, specs, provenance records and evidence remain intact.

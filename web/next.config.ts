@@ -6,5 +6,7 @@ const nextConfig: NextConfig = {
   basePath,
   reactStrictMode: true,
   images: { unoptimized: true },
+  // Inline the (small) stylesheet so first paint does not wait on a CSS request.
+  experimental: { inlineCss: true },
 };
 export default nextConfig;

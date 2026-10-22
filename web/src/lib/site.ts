@@ -33,15 +33,15 @@ export const nav = [
   { href: "/community/", label: "Community" },
 ] as const;
 
-/** Real screenshots of the desktop app, captured by the desktop-e2e journeys on the synthetic workspace. */
+/** Real screenshots of the desktop app in its dark theme, captured by the desktop-e2e journeys (run 39830458420) on the synthetic workspace. */
 export const shots = {
   patients: { src: "/shots/patients-dark.webp", w: 1028, h: 749, alt: "MedScale Patients view listing two synthetic subjects with coverage and review status" },
   insightsHero: { src: "/shots/insights-hero-dark.webp", w: 1028, h: 620, alt: "MedScale Insights view showing cohort coverage, conflicts and an evidence-grounded answer for synthetic records" },
   insights: { src: "/shots/insights-dark.webp", w: 1028, h: 749, alt: "MedScale Insights view showing cohort coverage, conflicts and an evidence-grounded answer for synthetic records" },
   medagent: { src: "/shots/medagent-dark.webp", w: 1028, h: 749, alt: "MedScale MedAgent view with an agent run bound to selected synthetic sources" },
   models: { src: "/shots/models-dark.webp", w: 1028, h: 749, alt: "MedScale Models view with the local runtime state and the browsable model catalog" },
-  audit: { src: "/shots/audit.webp", w: 1028, h: 749, alt: "MedScale Audit Trail listing a recorded synthetic disclosure" },
-  knowledge: { src: "/shots/knowledge.webp", w: 1028, h: 749, alt: "MedScale Knowledge view with a local index and search receipt" },
+  audit: { src: "/shots/audit-dark.webp", w: 1028, h: 749, alt: "MedScale Audit Trail listing a recorded synthetic disclosure" },
+  knowledge: { src: "/shots/knowledge-dark.webp", w: 1028, h: 749, alt: "MedScale Knowledge view with a local index and search receipt" },
 } as const;
 export type ShotKey = keyof typeof shots;
 
