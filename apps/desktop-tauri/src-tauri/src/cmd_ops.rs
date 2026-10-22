@@ -67,28 +67,16 @@ fn bundled_catalog_source() -> CmdResult<BundledCatalogSource> {
         || source.commit.len() != 40
         || !source.commit.bytes().all(|b| b.is_ascii_hexdigit())
         || source.manifest_sha256.len() != 64
-        || !source.manifest_sha256.bytes().all(|b| b.is_ascii_hexdigit())
+        || !source
+            .manifest_sha256
+            .bytes()
+            .all(|b| b.is_ascii_hexdigit())
     {
-        return Err(CmdError::unavailable("Unavailable: invalid MedScale catalog source identity"));
+        return Err(CmdError::unavailable(
+            "Unavailable: invalid MedScale catalog source identity",
+        ));
     }
     Ok(source)
-}
-
-#[cfg(test)]
-mod bundled_catalog_tests {
-    #[test]
-    fn medscale_bundle_metadata_matches_imported_catalog_bytes() {
-        let source = super::bundled_catalog_source().expect("bundled metadata must be valid");
-        let catalog = medscale_pack::ModelCatalog::import(
-            &source.repository,
-            &source.commit,
-            super::CATALOG_JSONL,
-        )
-        .expect("MedScale catalog snapshot must import");
-        assert_eq!(catalog.source.manifest_sha256, source.manifest_sha256);
-        assert_eq!(catalog.source.commit, source.commit);
-        assert_eq!(catalog.source.repository, source.repository);
-    }
 }
 
 fn catalog_path(state: &State) -> CmdResult<String> {
@@ -147,7 +135,9 @@ pub fn models_catalog(
         },
     )?;
     if page.manifest_sha256 != source.manifest_sha256 {
-        return Err(CmdError::unavailable("Unavailable: bundled MedScale catalog hash mismatch"));
+        return Err(CmdError::unavailable(
+            "Unavailable: bundled MedScale catalog hash mismatch",
+        ));
     }
     Ok(json!(page))
 }

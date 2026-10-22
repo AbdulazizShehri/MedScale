@@ -20,7 +20,7 @@ cargo test -p medscale-cli --locked
 cargo check --manifest-path apps/desktop-tauri/src-tauri/Cargo.toml --locked
 ```
 
-The first-party catalog verifier uses only the Python standard library and refuses missing metadata, altered bytes, and mismatched workflow pins. GitHub's required supply-chain policy check runs the same verifier. The Tauri unit test compares the metadata SHA with the Rust `ModelCatalog::import` digest.
+The first-party catalog verifier uses only the Python standard library and refuses missing metadata, altered bytes, and mismatched workflow pins. GitHub's required supply-chain policy check runs the same verifier. The root-workspace Rust test `crates/medscale-pack/tests/medscale_catalog_source_integrity.rs` independently compares the metadata SHA with the Rust `ModelCatalog::import` digest across CI operating systems.
 
 ## Remaining native-model work
 
