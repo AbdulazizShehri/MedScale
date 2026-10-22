@@ -92,12 +92,11 @@ fn spec_062_keeps_mesc_phi_and_release_claims_out_of_scope() {
     let spec =
         std::fs::read_to_string(root.join("specs/062-population-insights-assistant-ux/spec.md"))
             .expect("Spec 062");
-    let clarifications = std::fs::read_to_string(
-        root.join("specs/062-population-insights-assistant-ux/clarifications.md"),
-    )
-    .expect("Spec 062 clarifications");
+    let public_scope =
+        std::fs::read_to_string(root.join("docs/qualification/INTEROPERABILITY_SCOPE.md"))
+            .expect("public cross-project authority scope");
 
     assert!(spec.contains("Real PHI, MESC"));
     assert!(spec.contains("release-readiness claims remain out of scope"));
-    assert!(clarifications.contains("Spec 012/MESC remains optional/deferred and untouched"));
+    assert!(public_scope.contains("not MedScale runtime authority"));
 }
