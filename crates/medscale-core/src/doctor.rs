@@ -9,7 +9,7 @@ use medscale_contracts::doctor::{
     ReleaseQualificationDoctorStatus, Spec043VaultPrivacyInput, SyncRisk, VaultPrivacyDoctorStatus,
 };
 use medscale_contracts::evidence::EvidenceCorpusDoctorStatus;
-use medscale_contracts::external_artifact::MescArtifactDoctorStatus;
+use medscale_contracts::external_artifact::ExternalArtifactDoctorStatus;
 use medscale_contracts::fhir::{FhirInterchangeDoctorStatus, FhirSupportMatrix};
 use medscale_contracts::mobile::MobileDoctorStatus;
 use medscale_contracts::network::NetworkBrokerDoctorStatus;
@@ -157,7 +157,7 @@ pub fn build_doctor_report_full(
         mobile: MobileDoctorStatus::ready_base(),
         controlled_actions: ControlledActionsDoctorStatus::ready_base(),
         online_packs: OnlinePacksDoctorStatus::ready_base(),
-        mesc_artifact: MescArtifactDoctorStatus::separate_project(),
+        mesc_artifact: ExternalArtifactDoctorStatus::separate_project(),
         vault_privacy: VaultPrivacyDoctorStatus::spec_043_honest(Spec043VaultPrivacyInput {
             os_keyring_available: key_posture.os_keyring_available,
             os_keyring_used: key_posture.os_keyring_used,

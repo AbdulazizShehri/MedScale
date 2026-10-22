@@ -36,7 +36,7 @@ use crate::documents::{
 use crate::evidence::{LexicalRetrieveRequest, LexicalRetrieveResult};
 use crate::extensions::{ExtensionCapability, ExtensionLifecycleReceipt, ExtensionPublisher};
 use crate::external_artifact::{
-    MescArtifactAdmitRequest, MescArtifactVerifyRequest, MescVerifyReport,
+    ExternalArtifactAdmitRequest, ExternalArtifactVerifyReport, ExternalArtifactVerifyRequest,
 };
 use crate::hub::{
     DeviceIdentity, HubChallenge, HubEvent, HubEventPage, HubHandshake, HubIdentity, HubInvitation,
@@ -718,10 +718,10 @@ pub enum RequestBody {
         request: OnlinePackAcquireRequest,
     },
     MescArtifactAdmit {
-        request: MescArtifactAdmitRequest,
+        request: ExternalArtifactAdmitRequest,
     },
     MescArtifactVerify {
-        request: MescArtifactVerifyRequest,
+        request: ExternalArtifactVerifyRequest,
     },
     OpenSession {
         holder_id: OpaqueId,
@@ -1871,7 +1871,7 @@ pub enum ResponseBody {
         records: Vec<DisclosureRecord>,
     },
     MescVerify {
-        report: MescVerifyReport,
+        report: ExternalArtifactVerifyReport,
     },
     // Spec 074 typed results (revisioned, scope-checked, no raw payloads).
     Project {

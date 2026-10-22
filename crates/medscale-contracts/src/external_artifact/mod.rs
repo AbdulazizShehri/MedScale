@@ -16,7 +16,7 @@ use crate::objects::DigestSha256;
 /// Doctor axis for MESC artifact integration.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
-pub struct MescArtifactDoctorStatus {
+pub struct ExternalArtifactDoctorStatus {
     pub present: bool,
     pub artifact_admitted: bool,
     /// Spec 036: synthetic release-manifest verifier READY_BASE present.
@@ -39,7 +39,7 @@ fn default_mesc_integration_status() -> String {
     "NOT_CONFIGURED".to_owned()
 }
 
-impl MescArtifactDoctorStatus {
+impl ExternalArtifactDoctorStatus {
     /// Historical compatibility default retained for decoding/tests from Specs 012/036.
     #[must_use]
     pub fn not_configured() -> Self {
@@ -116,7 +116,7 @@ impl MescArtifactDoctorStatus {
 /// Request to admit a released MESC artifact through Pack (gated).
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
-pub struct MescArtifactAdmitRequest {
+pub struct ExternalArtifactAdmitRequest {
     pub artifact_uri: String,
     pub content_digest: DigestSha256,
     pub rights_uri: String,
@@ -131,7 +131,7 @@ pub struct MescArtifactAdmitRequest {
 /// Never installs or enables a Pack. Digests establish byte identity only.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
-pub struct MescArtifactVerifyRequest {
+pub struct ExternalArtifactVerifyRequest {
     /// Absolute or vault-relative path to a directory containing `manifest.json` + files.
     pub release_dir: String,
 }
@@ -139,7 +139,7 @@ pub struct MescArtifactVerifyRequest {
 /// Explicit refuse of MESC Python / ambient service paths.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
-pub enum MescIntegrationMode {
+pub enum ExternalArtifactIntegrationMode {
     ArtifactImportOnly,
     PythonRuntimeForbidden,
     SharedDbForbidden,
@@ -150,7 +150,7 @@ pub enum MescIntegrationMode {
 /// Admission / verification state machine (Spec 012 acceptance contract).
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
-pub enum MescAdmissionState {
+pub enum ExternalArtifactAdmissionState {
     Discovered,
     Quarantined,
     Verified,
@@ -163,7 +163,7 @@ pub enum MescAdmissionState {
 /// Stable reject / verify reason codes (Spec 036).
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
-pub enum MescVerifyReason {
+pub enum ExternalArtifactVerifyReason {
     Ok,
     MissingManifest,
     MalformedManifest,
@@ -184,7 +184,7 @@ pub enum MescVerifyReason {
     GateBlocked,
 }
 
-impl MescVerifyReason {
+impl ExternalArtifactVerifyReason {
     #[must_use]
     pub fn as_str(self) -> &'static str {
         match self {
@@ -213,7 +213,7 @@ impl MescVerifyReason {
 /// One file in a synthetic MESC release.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
-pub struct MescArtifactFile {
+pub struct ExternalArtifactFile {
     pub kind: String,
     pub path: String,
     pub byte_length: u64,
@@ -226,7 +226,7 @@ pub struct MescArtifactFile {
 /// real TheHalfMoon/MESC release exists.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
-pub struct MescReleaseManifestV0 {
+pub struct ExternalReleaseManifestV0 {
     pub schema_version: u32,
     pub producer_id: String,
     pub release_id: String,
@@ -248,19 +248,19 @@ pub struct MescReleaseManifestV0 {
     pub runtime_requirements: String,
     /// Monotonic anti-rollback epoch for this producer.
     pub epoch: u64,
-    pub artifacts: Vec<MescArtifactFile>,
+    pub artifacts: Vec<ExternalArtifactFile>,
 }
 
-impl MescReleaseManifestV0 {
+impl ExternalReleaseManifestV0 {
     pub const SCHEMA_VERSION: u32 = 1;
 }
 
 /// Result of verifying a local synthetic MESC release directory.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
-pub struct MescVerifyReport {
-    pub state: MescAdmissionState,
-    pub reason: MescVerifyReason,
+pub struct ExternalArtifactVerifyReport {
+    pub state: ExternalArtifactAdmissionState,
+    pub reason: ExternalArtifactVerifyReason,
     pub detail: String,
     pub producer_id: Option<String>,
     pub release_id: Option<String>,
@@ -269,11 +269,11 @@ pub struct MescVerifyReport {
     pub product_admit_authorized: bool,
 }
 
-impl MescVerifyReport {
+impl ExternalArtifactVerifyReport {
     #[must_use]
-    pub fn rejected(reason: MescVerifyReason, detail: impl Into<String>) -> Self {
+    pub fn rejected(reason: ExternalArtifactVerifyReason, detail: impl Into<String>) -> Self {
         Self {
-            state: MescAdmissionState::Rejected,
+            state: ExternalArtifactAdmissionState::Rejected,
             reason,
             detail: detail.into(),
             producer_id: None,
@@ -286,8 +286,8 @@ impl MescVerifyReport {
     #[must_use]
     pub fn verified_synthetic(producer_id: String, release_id: String, epoch: u64) -> Self {
         Self {
-            state: MescAdmissionState::Verified,
-            reason: MescVerifyReason::Ok,
+            state: ExternalArtifactAdmissionState::Verified,
+            reason: ExternalArtifactVerifyReason::Ok,
             detail: "synthetic manifest verified; product admit remains gate-blocked".to_owned(),
             producer_id: Some(producer_id),
             release_id: Some(release_id),
@@ -296,3 +296,24 @@ impl MescVerifyReport {
         }
     }
 }
+
+// Historical Rust API names remain available for source compatibility.
+// Persisted schema and wire identifiers are unchanged by this refactor.
+#[doc(hidden)]
+pub use ExternalArtifactAdmissionState as MescAdmissionState;
+#[doc(hidden)]
+pub use ExternalArtifactAdmitRequest as MescArtifactAdmitRequest;
+#[doc(hidden)]
+pub use ExternalArtifactDoctorStatus as MescArtifactDoctorStatus;
+#[doc(hidden)]
+pub use ExternalArtifactFile as MescArtifactFile;
+#[doc(hidden)]
+pub use ExternalArtifactIntegrationMode as MescIntegrationMode;
+#[doc(hidden)]
+pub use ExternalArtifactVerifyReason as MescVerifyReason;
+#[doc(hidden)]
+pub use ExternalArtifactVerifyReport as MescVerifyReport;
+#[doc(hidden)]
+pub use ExternalArtifactVerifyRequest as MescArtifactVerifyRequest;
+#[doc(hidden)]
+pub use ExternalReleaseManifestV0 as MescReleaseManifestV0;

@@ -3,7 +3,7 @@
 use serde::{Deserialize, Serialize};
 
 use crate::actions::ControlledActionsDoctorStatus;
-use crate::external_artifact::MescArtifactDoctorStatus;
+use crate::external_artifact::ExternalArtifactDoctorStatus;
 use crate::fhir::{FhirInterchangeDoctorStatus, FhirSupportMatrix};
 use crate::mobile::MobileDoctorStatus;
 use crate::network::NetworkBrokerDoctorStatus;
@@ -712,7 +712,7 @@ pub struct DoctorReport {
     pub mobile: MobileDoctorStatus,
     pub controlled_actions: ControlledActionsDoctorStatus,
     pub online_packs: OnlinePacksDoctorStatus,
-    pub mesc_artifact: MescArtifactDoctorStatus,
+    pub mesc_artifact: ExternalArtifactDoctorStatus,
     pub vault_privacy: VaultPrivacyDoctorStatus,
     pub host_authority: HostAuthorityDoctorStatus,
     pub record_semantics: RecordSemanticsDoctorStatus,

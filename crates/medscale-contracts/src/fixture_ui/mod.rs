@@ -287,7 +287,8 @@ mod tests {
             mobile: MobileDoctorStatus::ready_base(),
             controlled_actions: ControlledActionsDoctorStatus::ready_base(),
             online_packs: OnlinePacksDoctorStatus::ready_base(),
-            mesc_artifact: crate::external_artifact::MescArtifactDoctorStatus::separate_project(),
+            mesc_artifact: crate::external_artifact::ExternalArtifactDoctorStatus::separate_project(
+            ),
             vault_privacy: VaultPrivacyDoctorStatus::spec_023_honest(),
             host_authority: HostAuthorityDoctorStatus::ready_base(),
             record_semantics: RecordSemanticsDoctorStatus::ready_base(),

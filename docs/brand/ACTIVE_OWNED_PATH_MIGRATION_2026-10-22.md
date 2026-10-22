@@ -17,13 +17,14 @@ Move first-party Rust module and test **path names** away from a retired adjacen
 
 The canonical Rust import path for new code is `medscale_contracts::external_artifact`. The old `medscale_contracts::mesc` public re-export is retained, marked `doc(hidden)`, exclusively to preserve source consumers and historic integration test imports while downstream users migrate. Runtime product presentation remains MedScale-only.
 
-The older `Mesc*` public type names, the doctor JSON wire key `mesc_artifact`, legacy schema values and persisted compatibility fields remain stable at this stage. A future renaming of machine-consumed contracts must provide explicit versioned migration and actual replay fixtures rather than replacing existing data silently. Current product doctor output already renders `medscale_research_artifact` as its human-facing heading.
+The canonical source types are now `ExternalArtifact*` (and `ExternalReleaseManifestV0`), with `ExternalArtifactEpochStore`, `ExternalArtifactVerifyError` and `verify_external_artifact_release_dir` in MedScale Pack. The former `Mesc*` public symbols and `verify_mesc_release_dir` are retained only as hidden Rust aliases so older consumers compile; the doctor JSON wire key `mesc_artifact`, legacy schema values, and persisted compatibility fields remain byte-stable. A future renaming of machine-consumed contracts must provide explicit versioned migration and actual replay fixtures rather than replacing existing data silently. Current product doctor output already renders `medscale_research_artifact` as its human-facing heading.
 
 ## Verification
 
-- New integration test `external_artifact_import_compatibility` confirms old and new public import paths yield identical serialized doctor-state bytes.
+- New integration test `external_artifact_import_compatibility` confirms canonical `ExternalArtifactDoctorStatus` and the old Rust import yield identical serialized doctor-state bytes.
 - `cargo fmt --all -- --check` passed locally on macOS after the move.
 - `cargo test -p medscale-contracts --locked` passed locally with no failed tests.
+- `cargo check -p medscale-pack --locked` passed locally on macOS after the owned type/path migration.
 - Full repository CI and platform desktop/E2E qualification still gate PR merge. No release published.
 
 ## Honest scope boundaries

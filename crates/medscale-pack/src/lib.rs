@@ -51,7 +51,15 @@ pub use compatibility::{
     SAFETENSORS_EVIDENCED_ARCHITECTURES, SAFETENSORS_KNOWN_UNSUPPORTED, executed_model,
     runtime_expectation,
 };
-pub use external_artifact_verify::{MescEpochStore, MescVerifyError, verify_mesc_release_dir};
+pub use external_artifact_verify::{
+    ExternalArtifactEpochStore, ExternalArtifactVerifyError, verify_external_artifact_release_dir,
+};
+/// Compatibility aliases for existing downstream Rust consumers.
+#[doc(hidden)]
+pub use external_artifact_verify::{
+    ExternalArtifactEpochStore as MescEpochStore, ExternalArtifactVerifyError as MescVerifyError,
+    verify_external_artifact_release_dir as verify_mesc_release_dir,
+};
 pub use format::{admit_pack_dir, forbidden_reason};
 #[cfg(feature = "synthetic-fixtures")]
 #[doc(hidden)]
