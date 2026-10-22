@@ -7,7 +7,7 @@ on:
       - ".github/workflows/website.yml"
       - "site/**"
   push:
-    branches: [main]
+    branches: [main, 'preview/medscale-site-live']
     paths:
       - "web/**"
       - ".github/workflows/website.yml"
@@ -46,14 +46,14 @@ jobs:
       - name: Verify static pages, brand assets and download honesty
         working-directory: web
         run: npm run check
-      - name: Upload Pages artifact on protected main
-        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+      - name: Upload site artifact on main or isolated preview branch
+        if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/preview/medscale-site-live')
         uses: actions/upload-pages-artifact@7b1f4a764d45c48632c6b24a0339c27f5614fb0b # v4
         with:
           path: web/out
 
   deploy:
-    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/preview/medscale-site-live')
     needs: build
     runs-on: ubuntu-latest
     permissions:
