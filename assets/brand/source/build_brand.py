@@ -1,7 +1,7 @@
 """Generate the MedScale Logo 12 SVG masters from the fitted geometry.
 
 Symbol: three stroked, sheared rounded frames (symbol_fit.symbol_paths).
-Wordmark: first-party monoline letterforms (wordmark.wordmark_paths).
+Wordmark: filled outlines from wordmark.wordmark_paths (founder amendment 2026-10-22).
 Both are normalized so each artwork's own geometry starts at (0, 0); every
 asset places the same path data with a translate/scale transform, so the
 geometry is byte-identical across lockups, icons and inverses.
@@ -21,7 +21,7 @@ OUT.mkdir(parents=True, exist_ok=True)
 Q = (json.loads(Path(sys.argv[2]).read_text()) if len(sys.argv) > 2
      else json.loads(Path(__file__).with_name("geometry.json").read_text())["symbol_params_reference_px"])
 SYM_SW = Q["sw"]
-WM_SW = DEFAULT["sw"]
+CAP = DEFAULT["cap"]
 
 
 def shift(d, dx, dy):
@@ -46,24 +46,16 @@ def bbox(mask):
 
 sym_mask = render(sym_svg(Q), "bbox_sym")
 sx0, sy0, sx1, sy1 = bbox(sym_mask)
-wm_d = wordmark_paths(DEFAULT)
-wm_svg = (
-    '<svg xmlns="http://www.w3.org/2000/svg" width="1304" height="1180"><rect width="1304" height="1180" fill="#000"/>'
-    f'<g fill="none" stroke="#fff" stroke-width="{WM_SW}" stroke-linejoin="round" stroke-linecap="butt">'
-    + "".join(f'<path d="{d}"/>' for d in wm_d) + "</g></svg>"
-)
-wm_mask = render(wm_svg, "bbox_wm")
-wx0, wy0, wx1, wy1 = bbox(wm_mask)
 SYM = [shift(d, sx0, sy0) for d in symbol_paths(Q)]
-WM = [shift(d, wx0, wy0) for d in wm_d]
+# The wordmark comes out of wordmark.py already normalized; its box is exact, not rasterized.
+WM, WW_, WH_, CAP_TOP = wordmark_paths(DEFAULT)
 SW_, SH_ = int(sx1 - sx0), int(sy1 - sy0)
-WW_, WH_ = int(wx1 - wx0), int(wy1 - wy0)
 print("symbol", SW_, SH_, "wordmark", WW_, WH_)
 
 STATEMENT = (
-    "MedScale Logo 12, founder-approved 2026-10-19. First-party vector reconstruction of the approved "
-    "reference: three stroked rounded frames and monoline geometric letterforms. No font is embedded "
-    "or claimed; the wordmark is constructed geometry with one uniform stroke."
+    "MedScale identity. Symbol: Logo 12 three-frame mark, founder-approved 2026-10-19, first-party vector "
+    "reconstruction. Wordmark: founder amendment 2026-10-22, filled outlines drawn from Inter Display "
+    "(SIL OFL 1.1) with custom spacing and ascender cuts at the frame slope. No font file is embedded."
 )
 
 
@@ -78,8 +70,7 @@ def symbol_group(color, tx, ty, s, sw=SYM_SW, gid="medscale-frames"):
 def wordmark_group(color, tx, ty, s):
     paths = "".join(f'<path d="{d}"/>' for d in WM)
     return (
-        f'<g id="medscale-wordmark" transform="translate({tx:.3f} {ty:.3f}) scale({s:.6f})" fill="none" stroke="{color}" '
-        f'stroke-width="{WM_SW}" stroke-linejoin="round" stroke-linecap="butt">{paths}</g>'
+        f'<g id="medscale-wordmark" transform="translate({tx:.3f} {ty:.3f}) scale({s:.6f})" fill="{color}">{paths}</g>'
     )
 
 
@@ -109,11 +100,12 @@ for c in FG:
 for c in FG:
     files[f"medscale-wordmark-{c}.svg"] = doc(
         WW_, WH_, f"MedScale wordmark - {c}",
-        "MedScale in first-party monoline geometric letterforms with one uniform stroke weight.",
+        "MedScale in filled letterforms with ascender tops cut at the symbol's frame slope.",
         wordmark_group(FG[c], 0, 0, 1))
 
-# Stacked (vertical) lockup: the reference composition, symbol centered above the wordmark.
-gap = (wy0 - sy1)
+# Stacked (vertical) lockup: symbol centered above the wordmark. The gap keeps the Logo 12
+# reference spacing (58 reference px between the symbol and the cap height).
+gap = 58 - CAP_TOP
 st_w = max(SW_, WW_)
 st_h = SH_ + gap + WH_
 for c in FG:
@@ -123,16 +115,16 @@ for c in FG:
         "Primary vertical lockup: the symbol centered above the wordmark, matching the approved reference proportions.",
         body)
 
-# Horizontal lockup: symbol at 2.6x the wordmark cap height, wordmark vertically centered.
-hs = 2.6 * WH_ / SH_
+# Horizontal lockup: symbol at 2.6x the cap height; the cap height is centered on the symbol.
+hs = 2.6 * CAP / SH_
 hsw, hsh = SW_ * hs, SH_ * hs
-hgap = 0.45 * WH_
+hgap = 0.45 * CAP
 hw = hsw + hgap + WW_
 for c in FG:
-    body = symbol_group(FG[c], 0, 0, hs) + wordmark_group(FG[c], hsw + hgap, (hsh - WH_) / 2, 1)
+    body = symbol_group(FG[c], 0, 0, hs) + wordmark_group(FG[c], hsw + hgap, (hsh - CAP) / 2 - CAP_TOP, 1)
     files[f"medscale-horizontal-{c}.svg"] = doc(
         hw, hsh, f"MedScale horizontal lockup - {c}",
-        "Horizontal lockup: the symbol left of the wordmark; the gap is 0.45 of the wordmark height.",
+        "Horizontal lockup: the symbol left of the wordmark; the gap is 0.45 of the cap height.",
         body)
 
 # Canonical presentations on their backgrounds (white-on-black is canonical).
@@ -180,18 +172,19 @@ files["medscale-favicon.svg"] = files["medscale-icon-small-dark.svg"].replace(
 for name, text in files.items():
     (OUT / name).write_text(text, encoding="utf-8", newline="\n")
 (OUT / "geometry.json").write_text(json.dumps({
-    "symbol_params_reference_px": Q, "wordmark_params_reference_px": {k: v for k, v in DEFAULT.items()},
+    "symbol_params_reference_px": Q, "wordmark_params": DEFAULT,
     "symbol_bbox_reference_px": [int(sx0), int(sy0), int(sx1), int(sy1)],
-    "wordmark_bbox_reference_px": [int(wx0), int(wy0), int(wx1), int(wy1)],
+    "wordmark_box": [WW_, WH_], "wordmark_cap_top": CAP_TOP,
 }, indent=1), encoding="utf-8")
 print("wrote", len(files), "files to", OUT)
 
 # Desktop brand component: the same normalized path data, drawn with currentColor.
 SMALL_SW = round(SYM_SW * 1.6, 1)  # UI marks below 48 px (no tile)
-tsx = f'''// MedScale Logo 12 (founder-approved 2026-10-19). Generated from the brand
+tsx = f'''// MedScale identity: Logo 12 symbol (founder-approved 2026-10-19) and the
+// wordmark of the 2026-10-22 founder amendment. Generated from the brand
 // masters in assets/brand; the path data must stay identical to them
 // (crates/medscale-core/tests/brand_foundation_095.rs enforces this).
-// The wordmark is first-party monoline geometry, not a font.
+// The wordmark is filled outline artwork; no font is loaded to draw it.
 
 const FRAMES = {json.dumps(SYM, indent=2)};
 const WORDMARK = {json.dumps(WM, indent=2)};
@@ -211,12 +204,12 @@ export function Mark({{ height = 32, className, title }}: {{ height?: number; cl
   );
 }}
 
-/** The MedScale wordmark at a given cap-to-baseline height, one uniform stroke. */
+/** The MedScale wordmark at a given box height (overshoots included). */
 export function Wordmark({{ height = 16, className, title = "MedScale" }}: {{ height?: number; className?: string; title?: string }}) {{
   const [w, h] = WORDMARK_BOX;
   return (
     <svg height={{height}} width={{Math.round((height * w) / h)}} viewBox={{`0 0 ${{w}} ${{h}}`}} className={{className}} role="img" aria-label={{title}}>
-      <g fill="none" stroke="currentColor" strokeWidth={{{WM_SW}}} strokeLinejoin="round" strokeLinecap="butt">
+      <g fill="currentColor">
         {{WORDMARK.map((d) => <path key={{d}} d={{d}} />)}}
       </g>
     </svg>

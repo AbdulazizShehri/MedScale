@@ -14,7 +14,7 @@ Three overlapping, upright frames: layered evidence and records that stay separa
   - Primary vertical lockup: `medscale-stacked-*`. It follows the approved reference, with the symbol centred above the wordmark.
   - Horizontal lockup: `medscale-horizontal-*`.
   - Standalone symbol: `mark-*`.
-- **Wordmark:** exactly `MedScale`. Squared, geometric, monoline letterforms with one uniform stroke across the whole word. No bold "Scale", no weight contrast, no tagline in the primary logo.
+- **Wordmark (founder amendment 2026-10-22):** exactly `MedScale`. Filled letterforms from Inter Display at weight 480, with hand spacing. The ascender tops of "d" and "l" are cut at the symbol's frame slope. No bold "Scale", no weight contrast, no tagline in the primary logo. The Logo 12 monoline wordmark is superseded.
 - No gradients, blue, shadows, glows, embossing, 3D, outlines-of-outlines or decorative effects. The logo uses only `#000000` and `#FFFFFF`. Product UI accents never recolour it.
 
 Construction, sizes and misuse rules: [LOGO_SPEC.md](LOGO_SPEC.md). Provenance and reconstruction method: [`third_party/provenance/logo-12-approved-identity.md`](../../third_party/provenance/logo-12-approved-identity.md).
@@ -31,7 +31,7 @@ Construction, sizes and misuse rules: [LOGO_SPEC.md](LOGO_SPEC.md). Provenance a
 
 ## Typography and UI
 
-Inter is the UI typeface and JetBrains Mono NL is used for exact data and metadata. Both fonts are admitted with recorded hashes in [`third_party/provenance/095-native-typography.md`](../../third_party/provenance/095-native-typography.md). The logo wordmark is first-party geometry and does not use either font. Other system rules are unchanged:
+Inter is the UI typeface and JetBrains Mono NL is used for exact data and metadata. Both fonts are admitted with recorded hashes in [`third_party/provenance/095-native-typography.md`](../../third_party/provenance/095-native-typography.md). The logo wordmark is outline artwork drawn from Inter Display and modified (see `LOGO_SPEC.md`). Surfaces render it from path data, never as live text. Other system rules are unchanged:
 
 - four-pixel spacing base
 - thin borders
@@ -49,4 +49,4 @@ Use factual labels and explain uncertainty near claims. State denied, unsupporte
 
 The paired-M identity (Spec 095, 2026-09-29) is SUPERSEDED_BY_LOGO_12 for active branding. Its provenance record, specs, evidence snapshots and closed 068–101 artifacts remain intact as history.
 
-The Logo 12 vector is a measured reconstruction of the approved raster: symbol IoU 0.925, wordmark IoU 0.911. Rendered review does not claim pixel equivalence, and compilation is not visual acceptance.
+The Logo 12 symbol is a measured reconstruction of the approved raster (symbol IoU 0.925). The 2026-10-22 wordmark is generated, not reconstructed, so it has no IoU. Rendered review does not claim pixel equivalence, and compilation is not visual acceptance.

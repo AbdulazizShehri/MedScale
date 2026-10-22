@@ -1,5 +1,6 @@
 //! Brand asset, redistribution, and non-color presentation contracts.
 //! Logo 12 (founder-approved 2026-10-19) supersedes the Spec 095 paired mark.
+//! The wordmark follows the founder amendment of 2026-10-22: filled outlines.
 //! These deterministic checks do not establish rendered UI or WCAG qualification.
 
 use medscale_contracts::objects::DigestSha256;
@@ -76,6 +77,14 @@ fn assert_monochrome_stroke(open_tag: &str, color: &str) {
         .parse()
         .expect("numeric stroke width");
     assert!(width > 0.0 && width.is_finite());
+}
+
+fn assert_monochrome_fill(open_tag: &str, color: &str) {
+    assert_eq!(attribute(open_tag, "fill"), color);
+    assert!(
+        !open_tag.contains("stroke"),
+        "the wordmark is filled artwork, never outlined"
+    );
 }
 
 fn assert_no_decoration(svg: &str, asset: &str) {
@@ -168,12 +177,16 @@ fn every_asset_reuses_the_identical_symbol_and_wordmark_geometry() {
     let (_, symbol) = group(&mark, FRAMES);
     let wordmark_svg = read("assets/brand/medscale-wordmark-black.svg");
     let (wordmark_tag, wordmark) = group(&wordmark_svg, WORDMARK);
-    assert_monochrome_stroke(wordmark_tag, "#000000");
+    assert_monochrome_fill(wordmark_tag, "#000000");
     assert_eq!(
         wordmark.len(),
-        10,
-        "M e d S c a l e: d and a use two strokes"
+        8,
+        "M e d S c a l e: one filled outline per letter"
     );
+    let white_svg = read("assets/brand/medscale-wordmark-white.svg");
+    let (white_tag, white) = group(&white_svg, WORDMARK);
+    assert_monochrome_fill(white_tag, "#FFFFFF");
+    assert_eq!(white, wordmark, "inverse wordmark drift");
     for (master, native) in [
         (
             "assets/brand/mark-black.svg",
@@ -221,11 +234,8 @@ fn every_asset_reuses_the_identical_symbol_and_wordmark_geometry() {
         if svg.contains(WORDMARK) {
             let (tag, paths) = group(&svg, WORDMARK);
             assert_eq!(paths, wordmark, "wordmark drift: {asset}");
-            assert_eq!(
-                attribute(tag, "stroke-width"),
-                attribute(wordmark_tag, "stroke-width"),
-                "one stroke weight across the whole word"
-            );
+            assert!(!tag.contains("stroke"), "filled wordmark: {asset}");
+            assert!(matches!(attribute(tag, "fill"), "#000000" | "#FFFFFF"));
         }
     }
     for color in ["black", "white"] {
@@ -267,6 +277,21 @@ fn application_icons_center_the_symbol_with_clear_space() {
         );
         assert!(y >= 1024.0 * 0.15, "clear space above and below the symbol");
     }
+    let wordmark = read("third_party/provenance/medscale-wordmark-2026-10-22.md");
+    for required in [
+        "2026-10-22",
+        "InterVariable.ttf",
+        "SIL Open Font License",
+        "0.4542",
+    ] {
+        assert!(
+            wordmark.contains(required),
+            "wordmark provenance: {required}"
+        );
+    }
+    // The ascender cut uses the symbol's own top slope.
+    let geometry = read("assets/brand/source/geometry.json");
+    assert!(geometry.contains("\"ts\": -0.4542") && geometry.contains("\"cut_slope\": 0.4542"));
     let provenance = read("third_party/provenance/logo-12-approved-identity.md");
     assert!(provenance.contains("2026-10-19"));
     assert!(provenance.to_lowercase().contains("no font"));
