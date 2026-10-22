@@ -15,6 +15,7 @@ test("platform detection", () => {
   assert.equal(detectPlatform("Windows"), "windows");
   assert.equal(detectPlatform("MacIntel"), "macos");
   assert.equal(detectPlatform("macOS"), "macos");
+  assert.equal(detectPlatform("Darwin"), "macos", "darwin must not match win");
   assert.equal(detectPlatform("Linux x86_64"), "linux");
   assert.equal(detectPlatform("Linux armv81 Android"), "unknown");
   assert.equal(detectPlatform("iPhone"), "unknown");

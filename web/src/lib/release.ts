@@ -20,8 +20,9 @@ export const releaseQualified = QUALIFIED_RELEASE_TAGS.length > 0;
 
 export function detectPlatform(platform: string): Platform {
   const p = platform.toLowerCase();
-  if (p.includes("win")) return "windows";
+  // macOS first: "darwin" contains "win".
   if (p.includes("mac") || p.includes("darwin")) return "macos";
+  if (p.includes("win")) return "windows";
   if (p.includes("linux") && !p.includes("android")) return "linux";
   return "unknown";
 }

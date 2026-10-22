@@ -1,6 +1,6 @@
 "use client";
 import { useEffect, useState } from "react";
-import { detectPlatform, platformStatus, releaseQualified, type Platform } from "@/lib/release";
+import { detectPlatform, platformStatus, type Platform } from "@/lib/release";
 import { docs } from "@/lib/site";
 import { ArrowUpRight, PlatformIcon, type PlatformName } from "./Icons";
 
@@ -21,7 +21,11 @@ function useVisitorPlatform(): Platform {
   return p;
 }
 
-/** Platform cards. Today no release is qualified, so every card links to build instructions, never to an installer. */
+/**
+ * Platform cards. No release is qualified (src/lib/release.ts), so every card links to build
+ * instructions. Linking an installer requires wiring pickInstaller here in the same reviewed
+ * change that adds a tag to QUALIFIED_RELEASE_TAGS.
+ */
 export function DownloadCards() {
   const visitor = useVisitorPlatform();
   return (
@@ -37,7 +41,7 @@ export function DownloadCards() {
             </div>
             <h3>{titles[key]}</h3>
             <div className="platform-sub">{s.surface} · {s.arch}</div>
-            <span className="platform-state">{releaseQualified ? "Available" : s.state}</span>
+            <span className="platform-state">{s.state}</span>
             <p className="platform-note">{s.note}</p>
             <a className={"btn " + (current ? "btn-primary" : "btn-secondary")} href={guide[key].href}>{guide[key].label} <ArrowUpRight /></a>
           </article>
