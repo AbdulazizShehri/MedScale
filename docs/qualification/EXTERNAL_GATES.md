@@ -52,7 +52,7 @@ MESC is a separate project/repository from MedScale. It is not a MedScale extern
 ## Whole-product qualification refinement (2026-09-09)
 
 Observed 2026-09-09: MESC v0.1.0 has no release assets; a v0.2.0 tag is insufficient.
-Spec 012 is DEFERRED_BY_CANONICAL_DESIGN as an optional integration; MESC absence never blocks MedScale completion or release; see [acceptance contract](MESC_ARTIFACT_ACCEPTANCE.md).
+Spec 012 is DEFERRED_BY_CANONICAL_DESIGN as an optional integration; MESC absence never blocks MedScale completion or release; see [public interoperability scope](INTEROPERABILITY_SCOPE.md).
 OS sandbox/key/ownership qualification includes ordinary engineering work; lack of proof
 blocks the affected readiness claim, not independent specification work. Repository required
 checks/protection are now configured by founder-authorized ruleset `23259329`; `main` is protected,

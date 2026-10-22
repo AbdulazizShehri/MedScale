@@ -25,6 +25,7 @@ BLOCKED_PREFIXES = (
 BLOCKED_BASENAMES = {
     "plan.md", "tasks.md", "research.md", "requirements.md",
     "analyze-notes.md", "converge-notes.md", "MUSE_EXECUTION_PLAN.md",
+    "clarifications.md", "quickstart.md",
 }
 
 

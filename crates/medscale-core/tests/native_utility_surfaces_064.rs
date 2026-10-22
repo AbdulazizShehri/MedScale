@@ -77,11 +77,10 @@ fn spec_064_keeps_release_phi_and_mesc_claims_honest() {
     let spec =
         std::fs::read_to_string(root.join("specs/064-audit-exports-settings-integrations/spec.md"))
             .expect("spec");
-    let clarity = std::fs::read_to_string(
-        root.join("specs/064-audit-exports-settings-integrations/clarifications.md"),
-    )
-    .expect("clarifications");
+    let public_scope =
+        std::fs::read_to_string(root.join("docs/qualification/INTEROPERABILITY_SCOPE.md"))
+            .expect("public cross-project authority scope");
     assert!(spec.contains("Real PHI, production partner integrations"));
     assert!(spec.contains("release readiness remain out of scope"));
-    assert!(clarity.contains("MESC remains optional/deferred"));
+    assert!(public_scope.contains("not MedScale runtime authority"));
 }
