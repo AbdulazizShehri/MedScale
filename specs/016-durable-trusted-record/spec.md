@@ -6,7 +6,7 @@
 
 **Status**: Package complete; `QUALIFIED` for implementation after analyze PASS (T01–T03)
 
-**Input**: Close the Q02 gap identified by the 2026-09-09 whole-product review: `CoreFacade` / `InMemoryAuthorityStore` authority objects do not survive process restart. Deliver cross-process durable persistence of the full trusted-record object graph through the existing Rust authority path, using synthetic data only. Parent planning: `docs/planning/TRUSTED_V1_DELIVERY_PLAN.md`, `specs/review-trusted-v1-2026-09-09/README.md`. This unit promotes **one bounded** Spec 016 successor; remaining advanced/deferred capabilities stay `017+` / `DEFERRED_BY_CANONICAL_DESIGN`.
+**Input**: Close the Q02 gap identified by the 2026-09-09 whole-product review: `CoreFacade` / `InMemoryAuthorityStore` authority objects do not survive process restart. Deliver cross-process durable persistence of the full trusted-record object graph through the existing Rust authority path, using synthetic data only. Historical planning inputs are preserved in the private maintainer archive. This unit promotes **one bounded** Spec 016 successor; remaining advanced/deferred capabilities stay `017+` / `DEFERRED_BY_CANONICAL_DESIGN`.
 
 **Depends on**: Specs 002–006 `CLOSED_CANONICAL` (object model, ingest durability, presentation, vault, CLI facade).
 

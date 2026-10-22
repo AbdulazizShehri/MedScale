@@ -39,15 +39,15 @@ This was source-backed architecture review, not exhaustive line-by-line vulnerab
 No real PHI, production integrations, model execution, donor installation, clinical benchmark,
 OS sandbox experiment, device qualification or malicious-input exploitation was performed.
 Historical source inventory was not exhaustively requalified. Donor scope and citations are in
-[source review](../../docs/planning/source-register/2026-09-09-source-review.md).
+the archived source-review record (private maintainer archive).
 
 ## Deliverables
 
-- [Whole-product review](../../docs/planning/WHOLE_PRODUCT_REVIEW_2026-09-09.md)
+- Whole-product review — historical record retained in the private maintainer archive
 - [Trust and privacy model](../../docs/security/TRUST_AND_PRIVACY_MODEL.md)
-- [Prioritized delivery plan](../../docs/planning/TRUSTED_V1_DELIVERY_PLAN.md)
-- [MESC acceptance contract](../../docs/planning/MESC_ARTIFACT_ACCEPTANCE.md)
-- [Bounded follow-on package](../../specs/review-trusted-v1-2026-09-09/README.md)
+- Prioritized delivery plan — historical record retained in the private maintainer archive
+- Historical artifact acceptance contract — retained in the private maintainer archive
+- Bounded follow-on planning package — retained in the private maintainer archive
 
 Release readiness: FALSE. OpenMed superiority: NOT_MEASURED. MESC gate: BLOCKED.
 Planning readiness and runtime qualification are separate axes.
