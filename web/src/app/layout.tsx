@@ -1,25 +1,40 @@
 import type { Metadata, Viewport } from "next";
+import localFont from "next/font/local";
 import "./globals.css";
-import "./premium.css";
 import { Header } from "@/components/Header";
 import { Footer } from "@/components/Footer";
+import { asset } from "@/lib/site";
+
+// Latin subsets of the repository's admitted OFL fonts (licenses in /fonts/).
+const inter = localFont({ src: "../fonts/InterVariable-latin.woff2", variable: "--font-inter", weight: "100 900", display: "swap" });
+const mono = localFont({ src: "../fonts/JetBrainsMonoNL-latin.woff2", variable: "--font-jbm", weight: "400", display: "swap", preload: false });
+
+const site = process.env.NEXT_PUBLIC_SITE_URL || "https://abdulazizshehri.github.io/MedScale";
+const title = "MedScale — Your health AI. One open workspace.";
+const description = "Open-source, local-first workspace for health records, evidence and AI models. Engineering preview for synthetic data.";
 
 export const metadata: Metadata = {
-  title: { default: "MedScale — Evidence first. Action second.", template: "%s | MedScale" },
-  description: "MedScale is an open-source, local-first health intelligence workspace. Explore records, evidence, models, and governed workflows. Engineering preview — synthetic data only.",
+  metadataBase: new URL(site.endsWith("/") ? site : site + "/"),
+  title: { default: title, template: "%s — MedScale" },
+  description,
   applicationName: "MedScale",
-  keywords: ["MedScale", "open source", "health informatics", "FHIR", "Rust", "local-first", "clinical intelligence"],
+  keywords: ["MedScale", "open source", "health AI", "clinical intelligence", "local-first", "FHIR", "Rust", "evidence", "provenance"],
+  icons: {
+    icon: [{ url: asset("/brand/medscale-favicon.svg"), type: "image/svg+xml" }, { url: asset("/brand/favicon-32.png"), sizes: "32x32", type: "image/png" }],
+    apple: asset("/brand/apple-touch-icon.png"),
+  },
+  openGraph: { type: "website", siteName: "MedScale", title, description, images: [{ url: "og.png", width: 1200, height: 630, alt: "MedScale — Your health AI. One open workspace." }] },
+  twitter: { card: "summary_large_image", title, description, images: ["og.png"] },
   robots: { index: true, follow: true },
-  openGraph: { title: "MedScale — Evidence first. Action second.", description: "Open-source clinical intelligence, with the evidence in view. Engineering preview for synthetic data only.", type: "website", siteName: "MedScale" },
 };
-export const viewport: Viewport = { width: "device-width", initialScale: 1, themeColor: "#0a0b0c" };
 
-export default function RootLayout({ children }: Readonly<{children:React.ReactNode}>) {
+export const viewport: Viewport = { width: "device-width", initialScale: 1, themeColor: "#08090a", colorScheme: "dark" };
+
+export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
   return (
-    <html lang="en">
+    <html lang="en" className={`${inter.variable} ${mono.variable}`}>
       <body>
         <a className="skip-link" href="#main">Skip to content</a>
-        <div className="top-notice"><span className="notice-light" aria-hidden="true" /> ENGINEERING PREVIEW <span className="notice-separator" /> Synthetic data only. Not for clinical use. <a href="https://github.com/AbdulazizShehri/MedScale/blob/main/docs/qualification/EXTERNAL_GATES.md">Read qualification status <span aria-hidden="true">↗</span></a></div>
         <Header />
         {children}
         <Footer />

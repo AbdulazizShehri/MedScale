@@ -1,82 +1,231 @@
 import Link from "next/link";
-import { PreviewBoard } from "@/components/PreviewBoard";
-import { ProductExplorer } from "@/components/ProductExplorer";
+import type { Metadata } from "next";
 import { DownloadCards } from "@/components/DownloadCards";
-import { docs, github } from "@/lib/site";
+import { EvidenceExample } from "@/components/EvidenceExample";
+import { ArrowRight, ArrowUpRight, Check, GitHub, Monitor, Plus, Terminal } from "@/components/Icons";
+import { ProductTour } from "@/components/ProductTour";
+import { Quickstart } from "@/components/Quickstart";
+import { Shot } from "@/components/Shot";
+import { asset, docs, github, pageMeta } from "@/lib/site";
 
-const principles = [
- {k:"01",title:"The source matters.",copy:"Keep every summary connected to its origin, context, and review state.",icon:"⌁"},
- {k:"02",title:"Local means control.",copy:"A trusted Rust Core with offline-first workflows and governed network actions.",icon:"◎"},
- {k:"03",title:"Models aren't authority.",copy:"Inspect runtime, provenance, and qualification states before you put a model to work.",icon:"◈"}
-];
-const answers = [
- {q:"Is MedScale ready for real patient records?",a:"No. MedScale is an open-source engineering preview for synthetic data only. Real patient information, production deployment, and clinical decisions are not authorized."},
- {q:"Can I download the desktop app?",a:"The Windows and macOS desktop projects have engineering build paths, but no signed or notarized production installers have been released. You can inspect or build the source using the setup guides. Linux currently supports Core and CLI workflows; the Linux desktop is deferred."},
- {q:"Does MedScale require cloud services?",a:"Basic Core workflows are local-first. Network actions are governed and default-denied. This does not establish complete endpoint security or a production privacy qualification."},
- {q:"Can I contribute to MedScale?",a:"Yes. Start with the contribution guide and open issues. Reports, examples, and tests must use synthetic data and must not include patient information or confidential materials."}
+const homeMeta = pageMeta("/", "Your health AI. One open workspace.", "Open-source, local-first workspace for health records, evidence and AI models. Engineering preview for synthetic data.");
+const homeTitle = "MedScale — Your health AI. One open workspace.";
+export const metadata: Metadata = { ...homeMeta, title: { absolute: homeTitle }, openGraph: { ...homeMeta.openGraph, title: homeTitle }, twitter: { ...homeMeta.twitter, title: homeTitle } };
+
+const strip = [
+  ["Open source", "Apache-2.0 code, built in public."],
+  ["Local first", "The Core runs on your machine."],
+  ["Source-aware", "Every insight keeps its evidence."],
+  ["People decide", "AI proposes. You approve."],
 ];
 
-export default function Home(){
- return <main id="main" className="premium-home">
-  <section className="p-hero" aria-labelledby="hero-title">
-   <div className="p-orbit p-orbit-left" aria-hidden="true"/><div className="p-orbit p-orbit-right" aria-hidden="true"/>
-   <div className="shell p-hero-inner">
-    <div className="p-kicker"><span className="p-kicker-dot"/> INTRODUCING MEDSCALE <span className="p-kicker-slash">/</span> OPEN-SOURCE ENGINEERING PREVIEW</div>
-    <h1 id="hero-title">A clearer view of<br/><em>health intelligence.</em></h1>
-    <p className="p-hero-desc">Health information is complex. Understanding it shouldn&apos;t hide the evidence. Explore records, models, and governed workflows in one local-first, source-aware workspace.</p>
-    <div className="p-actions">
-      <Link className="p-primary" href="/features/">Explore the platform <span aria-hidden="true">↗</span></Link>
-      <a className="p-secondary" href={github}>View the source <span aria-hidden="true">↗</span></a>
-    </div>
-    <div className="p-hero-download"><span className="p-mini-orbit" aria-hidden="true">↘</span><span>Built for <strong>Windows + macOS desktop</strong> and <strong>cross-platform Rust CLI</strong></span><Link href="/download/">Build status <span aria-hidden="true">→</span></Link></div>
-   </div>
-   <div className="shell p-stage-wrap">
-    <div className="p-stage-label"><span>THE MEDSCALE EXPERIENCE</span><span>INTERACTIVE CONCEPT · SYNTHETIC EXAMPLES</span></div>
-    <div className="p-stage-glow" aria-hidden="true"/>
-    <PreviewBoard/>
-    <div className="p-stage-bottom"><span><i/> DESIGNED AROUND EVIDENCE</span><span>CONCEPTUAL INTERFACE — NOT A REAL CLINICAL RECORD OR PRODUCT SCREENSHOT</span></div>
-   </div>
-  </section>
-  <div className="p-principle-strip"><div className="shell"><span><i/> LOCAL FIRST</span><span><i/> SOURCE-AWARE</span><span><i/> HUMAN OVERSIGHT</span><span><i/> OPEN SOURCE</span></div></div>
-  <section className="p-section shell" id="experience">
-    <div className="p-heading"><div className="p-eyebrow"><span/> 01 / A DIFFERENT KIND OF WORKSPACE</div><div><h2>Everything in context.<br/><em>Nothing lost in translation.</em></h2><p>Move between the record, the evidence behind it, the models available, and the action that needs a human decision.</p></div></div>
-    <ProductExplorer/>
-    <div className="p-between-link"><span>DESIGNED FOR INSPECTION, NOT BLIND AUTOMATION</span><Link href="/features/">Explore all capabilities <span>↗</span></Link></div>
-  </section>
-  <section className="p-values" aria-labelledby="values-title"><div className="shell">
-   <div className="p-values-header"><span className="p-eyebrow">02 / OUR APPROACH</span><h2 id="values-title">The intelligence is powerful.<br/><em>The context is essential.</em></h2><p>MedScale&apos;s architecture separates what is observed, what is inferred, and what is permitted. That distinction is the product.</p></div>
-   <div className="p-values-grid">{principles.map(p=><article className="p-value" key={p.k}><div className="p-value-head"><span>{p.k} / PRINCIPLE</span><b aria-hidden="true">{p.icon}</b></div><div className="p-value-art" aria-hidden="true"><span/><span/><span/></div><h3>{p.title}</h3><p>{p.copy}</p></article>)}</div>
-  </div></section>
-  <section className="p-section p-architecture shell" aria-labelledby="architecture-title">
-    <div className="p-heading"><div className="p-eyebrow"><span/> 03 / BUILT ON SOMETHING REAL</div><div><h2 id="architecture-title">One trusted Core.<br/><em>Multiple ways to work.</em></h2><p>Different experiences, one Rust authority boundary. Every supported surface builds around the same source-aware Core.</p></div></div>
-    <div className="p-system">
-      <div className="p-system-illustration" aria-label="Architecture illustration of a Rust Core providing Desktop and CLI interfaces">
-        <div className="p-system-grid" aria-hidden="true"/>
-        <div className="p-system-chip p-chip-top">LOCAL-FIRST ARCHITECTURE</div>
-        <div className="p-system-node p-node-left"><span>01 / INTERFACE</span><strong>Desktop</strong><small>Tauri · React</small></div>
-        <div className="p-system-node p-node-right"><span>02 / INTERFACE</span><strong>CLI</strong><small>Rust commands</small></div>
-        <div className="p-system-path p-path-one" aria-hidden="true"/><div className="p-system-path p-path-two" aria-hidden="true"/>
-        <div className="p-system-core"><span>SHARED AUTHORITY</span><strong>MEDSCALE CORE</strong><small>Rust · records · provenance · policy</small><i aria-hidden="true"/></div>
-        <div className="p-system-footnote">Illustrative architecture — not a runtime monitoring view</div>
-      </div>
-      <div className="p-system-copy"><span className="p-eyebrow">YOUR DATA / YOUR CONTEXT</span><h3>The work stays close.<br/>The boundaries stay clear.</h3><p>Inspect synthetic FHIR records and local model states without relying on an external account for basic Core workflows. Network actions stay explicitly governed and default-denied.</p><ul><li>Source-aware longitudinal records</li><li>Inspectable model provenance and state</li><li>Bounded FHIR R4 interchange</li><li>Reviewable actions and audit history</li></ul><a href={docs.source} className="p-text-link">Explore the Rust Core <span>↗</span></a></div>
-    </div>
-  </section>
-  <section className="p-download" id="download"><div className="shell">
-    <div className="p-heading"><div className="p-eyebrow"><span/> 04 / RUN MEDSCALE</div><div><h2>The platform is open.<br/><em>Start with the source.</em></h2><p>Build and explore locally. Desktop engineering builds exist, but no signed, production-qualified installer is available for direct download yet.</p></div></div>
-    <DownloadCards/>
-    <div className="p-download-foot"><p>Engineering preview only. No real patient information or clinical use.</p><Link href="/download/">See all platform details <span>↗</span></Link></div>
-  </div></section>
-  <section className="p-community" id="community"><div className="shell p-community-grid"><div>
-   <div className="p-eyebrow"><span/> 05 / BUILT IN THE OPEN</div>
-   <h2>Better, together.<br/><em>In the open.</em></h2>
-   <p>Everything starts with inspectable source. Study the architecture, contribute a synthetic test case, or take part in the design conversation.</p>
-   <div className="p-actions"><Link className="p-primary" href="/community/">Join the community <span>↗</span></Link><a className="p-secondary" href={github}>GitHub repository <span>↗</span></a></div>
-  </div><div className="p-community-card"><div className="p-community-card-head"><span>MEDSCALE / OPEN SOURCE</span><span className="p-connected-dot">● PUBLIC REPOSITORY</span></div>
-   <div className="p-community-word">The code is the conversation<span>.</span></div>
-   <div className="p-community-row"><span>FIRST-PARTY LICENSE</span><strong>Apache-2.0</strong></div><div className="p-community-row"><span>CONTRIBUTIONS</span><strong>Issues · Pull requests</strong></div><div className="p-community-row"><span>RELEASE STATE</span><strong>Engineering preview</strong></div><a href={docs.contribution}>Read the contribution guide <span>↗</span></a>
-  </div></div></section>
-  <section className="p-faq shell" aria-labelledby="faq-title"><div className="p-faq-intro"><div className="p-eyebrow"><span/> 06 / QUESTIONS</div><h2 id="faq-title">Before you begin.</h2><p>Clear answers about the project&apos;s current boundaries.</p></div><div className="p-faq-list">{answers.map(({q,a})=><details key={q}><summary>{q}<span aria-hidden="true">+</span></summary><p>{a}</p></details>)}</div></section>
-  <section className="p-end"><div className="shell"><div className="p-end-ring" aria-hidden="true"/><div className="p-eyebrow">MEDSCALE / THE NEXT CHAPTER</div><h2>Evidence first.<br/><em>Action second.</em></h2><p>Built for better questions, clearer context, and deliberate decisions.</p><div className="p-actions"><Link href="/features/" className="p-primary">Explore MedScale <span>↗</span></Link><a href={docs.qualification} className="p-secondary">Qualification status <span>↗</span></a></div><div className="p-end-disclosure">SYNTHETIC DATA ONLY. NOT CLINICALLY VALIDATED OR AUTHORIZED FOR REAL PATIENT RECORDS.</div></div></section>
- </main>;
+const faq = [
+  ["Can I use MedScale with real patient records?", "No. MedScale is an open-source engineering preview. It is authorized for synthetic data only, is not clinically validated and is not a medical device. Real patient data, clinical decisions and production deployments are out of scope until the external gates are met."],
+  ["Is there an installer I can download?", "Not a public one yet. CI builds unsigned engineering-preview packages for Windows and macOS to test the release process, but they are not signed, notarized or qualified for public use. You can build the desktop app from source on Windows and macOS today, and the CLI on Windows, macOS and Linux."],
+  ["Does MedScale need the cloud or an account?", "No. The Rust Core runs locally and network access is denied by default; browsing and egress are explicit, governed actions. Local workspace access is not organizational sign-in, and a full privacy qualification is still an open gate."],
+  ["Which AI models does it run?", "Models run locally through MedScale's own runtime, from admitted model packs. The desktop app includes a browsable catalog of models with their source, task, format and size. A model being listed in the catalog does not mean it is qualified for any clinical task."],
+  ["What does 'all your health AI in one place' mean today?", "One workspace for records, evidence, local models and agents, sharing one Core. It is the direction of the project, not a claim that every model or workflow is supported. The product page lists what exists now."],
+  ["How can I contribute?", "Read the contributing guide, pick an issue or start a discussion. Every report, example and test must use synthetic data. Never include patient information or confidential material."],
+];
+
+export default function Home() {
+  return (
+    <main id="main">
+      <section className="hero" aria-labelledby="hero-title">
+        <div className="shell">
+          <div className="hero-copy">
+            <a className="status-pill" href={docs.qualification}><b>Preview</b><span>Open source · synthetic data only</span><ArrowRight size={14} /></a>
+            <h1 id="hero-title" className="display">Your health AI.<br /><span className="mute">One open workspace.</span></h1>
+            <p className="lede">MedScale brings records, evidence and local AI models into one source-aware desktop workspace. Open source, local-first, and built so a person stays in charge of every decision.</p>
+            <div className="actions">
+              <Link className="btn btn-primary" href="/download/">Get MedScale <ArrowRight /></Link>
+              <a className="btn btn-secondary" href={github}><GitHub size={16} /> View on GitHub</a>
+            </div>
+            <div className="hero-meta">
+              <span><Monitor /> Desktop for Windows and macOS</span>
+              <span><Terminal /> CLI for Windows, macOS and Linux</span>
+            </div>
+          </div>
+          <div className="hero-stage reveal reveal-4">
+            <Shot name="insightsHero" title="Insights" priority fade />
+          </div>
+        </div>
+        <div className="strip">
+          <div className="shell strip-grid">
+            {strip.map(([t, d]) => <div className="strip-item" key={t}><strong>{t}</strong><span>{d}</span></div>)}
+          </div>
+        </div>
+      </section>
+
+      <section className="section" aria-labelledby="tour-title">
+        <div className="shell">
+          <div className="section-head split">
+            <div style={{ display: "grid", gap: 20 }}>
+              <span className="eyebrow">One workspace</span>
+              <h2 id="tour-title" className="h2"><span className="mute">Stop stitching tools together.</span> One window for all of it.</h2>
+            </div>
+            <p className="body">Every area runs on the same Rust Core, so the patient you open, the evidence you check and the model you run all follow the same rules for privacy, provenance and authority.</p>
+          </div>
+          <ProductTour />
+        </div>
+      </section>
+
+      <section className="section" aria-labelledby="evidence-title">
+        <div className="shell">
+          <div className="section-head split">
+            <div style={{ display: "grid", gap: 20 }}>
+              <span className="eyebrow">Evidence first</span>
+              <h2 id="evidence-title" className="h2"><span className="mute">Most AI gives you an answer.</span> MedScale shows the source behind it.</h2>
+            </div>
+            <p className="body">Generated text is a proposal until it is checked. Each statement is either supported by a cited record, in conflict with another one, or without evidence, and MedScale keeps that difference visible.</p>
+          </div>
+          <EvidenceExample />
+        </div>
+      </section>
+
+      <section className="section" aria-labelledby="control-title">
+        <div className="shell">
+          <div className="section-head">
+            <span className="eyebrow">Local first · human oversight</span>
+            <h2 id="control-title" className="h2"><span className="mute">The intelligence is powerful.</span> The boundaries are explicit.</h2>
+          </div>
+          <div className="pillars">
+            <article className="pillar">
+              <div className="pillar-art" aria-hidden="true">
+                <svg width="220" height="80" viewBox="0 0 220 80" fill="none" stroke="currentColor" strokeWidth="1.4"><rect x="20" y="14" width="96" height="52" rx="10" /><text x="68" y="45" fill="var(--ink-2)" stroke="none" fontSize="12" textAnchor="middle" fontFamily="var(--font-mono)">Core</text><path d="M120 40h52" strokeDasharray="4 5" /><path d="M176 30l14 20M190 30l-14 20" stroke="var(--orange)" strokeWidth="1.8" /></svg>
+              </div>
+              <h3 className="h3">Local by default</h3>
+              <p className="body">The Core and your workspace stay on your machine. There is no default network egress, and browsing is denied until you allow it.</p>
+            </article>
+            <article className="pillar">
+              <div className="pillar-art" aria-hidden="true">
+                <svg width="220" height="80" viewBox="0 0 220 80" fill="none" stroke="currentColor" strokeWidth="1.4"><rect x="12" y="22" width="84" height="36" rx="8" strokeDasharray="4 4" /><text x="54" y="44" fill="var(--ink-3)" stroke="none" fontSize="11" textAnchor="middle" fontFamily="var(--font-mono)">proposal</text><path d="M102 40h22m-6-6 6 6-6 6" /><rect x="130" y="22" width="78" height="36" rx="8" stroke="var(--blue)" /><text x="169" y="44" fill="var(--ink)" stroke="none" fontSize="11" textAnchor="middle" fontFamily="var(--font-mono)">you decide</text></svg>
+              </div>
+              <h3 className="h3">AI proposes. You decide.</h3>
+              <p className="body">Summaries and agent runs are recorded as proposals. Changes that carry authority stay explicit, so nothing important happens silently.</p>
+            </article>
+            <article className="pillar">
+              <div className="pillar-art" aria-hidden="true">
+                <svg width="220" height="80" viewBox="0 0 220 80" fill="none" stroke="currentColor" strokeWidth="1.4">{[18, 36, 54].map((y, i) => <g key={y}><circle cx="28" cy={y + 4} r="3" fill={i === 0 ? "var(--blue)" : "currentColor"} stroke="none" /><path d={`M40 ${y + 4}h${110 - i * 22}`} /><path d={`M164 ${y + 4}h26`} stroke="var(--ink-3)" /></g>)}</svg>
+              </div>
+              <h3 className="h3">Everything leaves a trail</h3>
+              <p className="body">Disclosures and exports are recorded by the Core in an audit trail you can read and cannot edit. FHIR export shows what leaves before it does.</p>
+            </article>
+          </div>
+        </div>
+      </section>
+
+      <section className="section" aria-labelledby="models-title">
+        <div className="shell">
+          <div className="section-head split">
+            <div style={{ display: "grid", gap: 20 }}>
+              <span className="eyebrow">Models</span>
+              <h2 id="models-title" className="h2"><span className="mute">A model is more than a name.</span> Know what it is before you use it.</h2>
+            </div>
+            <div style={{ display: "grid", gap: 20, justifyItems: "start" }}>
+              <p className="body">MedScale separates finding a model from trusting it. Each step is a visible state, and the last one is never granted by the software alone.</p>
+              <Link className="text-link" href="/models/">How models work in MedScale <ArrowRight size={14} /></Link>
+            </div>
+          </div>
+          <div className="states">
+            <div className="state"><small>01</small><strong>Listed</strong><p>In the catalog, with source, task, format and size. Not installed.</p></div>
+            <div className="state"><small>02</small><strong>Admitted</strong><p>A local pack whose manifest and digests the Core has verified.</p></div>
+            <div className="state"><small>03</small><strong>Running</strong><p>Executed by the local runtime on your device, with a receipt per run.</p></div>
+            <div className="state gate"><small>04</small><strong>Qualified</strong><p>Needs independent evaluation for a specific task. No model has this today.</p></div>
+          </div>
+        </div>
+      </section>
+
+      <section className="section" aria-labelledby="arch-title">
+        <div className="shell arch">
+          <div style={{ display: "grid", gap: 22 }}>
+            <span className="eyebrow">Built on something real</span>
+            <h2 id="arch-title" className="h2"><span className="mute">One trusted Core.</span> Two ways to work.</h2>
+            <p className="body">The desktop app is for daily work. The CLI is for scripts and automation. Both are thin surfaces over the same Rust Core, which owns records, provenance, policy and storage.</p>
+            <ul className="checklist">
+              <li><Check /> Tauri 2 desktop with a React interface</li>
+              <li><Check /> Encrypted local storage and FHIR R4 interchange</li>
+              <li><Check /> Tests on Windows, macOS and Linux for every pull request</li>
+            </ul>
+            <a className="text-link" href={docs.crates}>Explore the Rust workspace <ArrowUpRight /></a>
+          </div>
+          <div className="arch-diagram" aria-label="Diagram: the desktop app and the CLI both use the MedScale Rust Core">
+            <div className="arch-row">
+              <div className="arch-node"><small>Surface</small><strong>Desktop</strong><span>Tauri 2 · React</span></div>
+              <div className="arch-node"><small>Surface</small><strong>CLI</strong><span>medscale-cli</span></div>
+            </div>
+            <div className="arch-links" aria-hidden="true"><i /><i /></div>
+            <div className="arch-node arch-core"><small>Authority</small><strong>MedScale Core</strong><span>Records · provenance · policy · audit</span></div>
+            <div className="crate-list">{["medscale-core", "medscale-storage", "medscale-fhir", "medscale-pack", "medscale-network", "medscale-keys", "medscale-contracts"].map((c) => <code key={c}>{c}</code>)}</div>
+          </div>
+        </div>
+      </section>
+
+      <section className="section" id="download" aria-labelledby="download-title">
+        <div className="shell">
+          <div className="download-hero">
+            <span className="eyebrow">Download</span>
+            <h2 id="download-title" className="h2">Get MedScale.</h2>
+            <p className="lede">The source is open today. A signed public installer is not released yet, so each platform shows exactly what you can run now.</p>
+          </div>
+          <DownloadCards />
+          <div className="download-foot"><span>Engineering preview · synthetic data only · not for clinical use</span><Link className="text-link" href="/download/" style={{ fontSize: 13 }}>Full release status</Link></div>
+        </div>
+      </section>
+
+      <section className="section" aria-labelledby="dev-title">
+        <div className="shell dev">
+          <div style={{ display: "grid", gap: 22 }}>
+            <span className="eyebrow">For developers</span>
+            <h2 id="dev-title" className="h2"><span className="mute">Read the code.</span> Run it in four commands.</h2>
+            <p className="body">MedScale is a Rust workspace with a desktop app and a CLI. Clone it, build it and run the health check. Contributions start with an issue, a synthetic test case or a design question.</p>
+            <div className="actions">
+              <a className="btn btn-secondary" href={docs.contributing}>Contributing guide <ArrowUpRight /></a>
+              <Link className="btn btn-secondary" href="/docs/">Documentation <ArrowRight /></Link>
+            </div>
+          </div>
+          <Quickstart />
+        </div>
+      </section>
+
+      <section className="section" aria-labelledby="docs-title">
+        <div className="shell">
+          <div className="section-head">
+            <span className="eyebrow">Explore</span>
+            <h2 id="docs-title" className="h2">Find your way in.</h2>
+          </div>
+          <div className="cards">
+            <Link className="card" href="/product/"><div className="card-top"><small>Product</small><ArrowRight /></div><strong>What MedScale does</strong><p>Records, insights, agents, models and governance, area by area.</p></Link>
+            <Link className="card" href="/models/"><div className="card-top"><small>Models</small><ArrowRight /></div><strong>Model discovery</strong><p>Catalog, local runtime and the states a model moves through.</p></Link>
+            <Link className="card" href="/docs/"><div className="card-top"><small>Docs</small><ArrowRight /></div><strong>Get started</strong><p>Setup, desktop, CLI, security and the qualification boundaries.</p></Link>
+          </div>
+        </div>
+      </section>
+
+      <section className="section" aria-labelledby="faq-title">
+        <div className="shell faq">
+          <div style={{ display: "grid", gap: 20, alignContent: "start" }}>
+            <span className="eyebrow">Questions</span>
+            <h2 id="faq-title" className="h2">Before you begin.</h2>
+            <p className="body">Plain answers about what MedScale is today, and what it is not yet.</p>
+          </div>
+          <div className="faq-list">
+            {faq.map(([q, a]) => <details key={q}><summary>{q}<Plus /></summary><p>{a}</p></details>)}
+          </div>
+        </div>
+      </section>
+
+      <section className="closing" aria-labelledby="closing-title">
+        <div className="shell inner">
+          <img src={asset("/brand/mark-white.svg")} alt="" width={53} height={72} />
+          <h2 id="closing-title" className="display" style={{ fontSize: "clamp(40px, 6vw, 72px)" }}>Every insight,<br /><span className="mute">with its source.</span></h2>
+          <p className="lede" style={{ margin: "0 auto" }}>Open the workspace, inspect the evidence and decide for yourself.</p>
+          <div className="actions">
+            <Link className="btn btn-primary" href="/download/">Get MedScale <ArrowRight /></Link>
+            <a className="btn btn-secondary" href={github}><GitHub size={16} /> Star on GitHub</a>
+          </div>
+        </div>
+      </section>
+    </main>
+  );
 }

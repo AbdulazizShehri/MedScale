@@ -1,2 +1,12 @@
 import Link from "next/link";
-export default function NotFound(){return <main id="main" className="shell not-found"><div className="eyebrow">404 / NOT FOUND</div><h1>Nothing here.<br/><em>Return to the evidence.</em></h1><p>This page is not available.</p><Link className="button button-white" href="/">Back to MedScale <span>↗</span></Link></main>}
+import { ArrowRight } from "@/components/Icons";
+
+export default function NotFound() {
+  return (
+    <main id="main" className="shell page-hero" style={{ minHeight: "60vh", alignContent: "center" }}>
+      <span className="eyebrow">404</span>
+      <h1 className="display" style={{ fontSize: "clamp(40px, 6vw, 72px)" }}>Nothing here.<br /><span className="mute">Try the front door.</span></h1>
+      <div className="actions"><Link className="btn btn-primary" href="/">Back to MedScale <ArrowRight /></Link><Link className="btn btn-secondary" href="/docs/">Documentation</Link></div>
+    </main>
+  );
+}

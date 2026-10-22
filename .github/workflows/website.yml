@@ -6,6 +6,7 @@ on:
       - "web/**"
       - ".github/workflows/website.yml"
       - "site/**"
+      - "assets/brand/**"
   push:
     branches: [main]
     paths:
@@ -37,6 +38,16 @@ jobs:
       - name: Install pinned dependencies
         working-directory: web
         run: npm ci --no-audit --no-fund
+      - name: Release-selector unit tests
+        working-directory: web
+        run: npm test
+      - name: Build and verify a root-domain export (future medscale.si)
+        working-directory: web
+        env:
+          NEXT_PUBLIC_SITE_BASE_PATH: ""
+          NEXT_PUBLIC_SITE_URL: https://medscale.si
+          NEXT_TELEMETRY_DISABLED: "1"
+        run: npm run build && npm run check
       - name: Build static Next.js site for project Pages path
         working-directory: web
         env:
@@ -45,6 +56,8 @@ jobs:
         run: npm run build
       - name: Verify static pages, brand assets and download honesty
         working-directory: web
+        env:
+          NEXT_PUBLIC_SITE_BASE_PATH: /MedScale
         run: npm run check
       - name: Upload Pages artifact on protected main
         if: github.event_name == 'push' && github.ref == 'refs/heads/main'
