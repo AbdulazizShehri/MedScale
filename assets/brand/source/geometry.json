@@ -18,51 +18,17 @@
   "ts": -0.4542,
   "bs": -0.4767
  },
- "wordmark_params_reference_px": {
-  "sw": 23,
-  "r": 18,
-  "base": 1121,
-  "cap": 944,
-  "asc": 941,
-  "xh": 988,
-  "M": [
-   97,
-   284
-  ],
-  "M_v": 1110,
-  "M_k": 22.7,
-  "r_M": 26,
-  "e": [
-   315,
-   438
-  ],
-  "e_mid": 1054,
-  "d": [
-   465,
-   587
-  ],
-  "S": [
-   619,
-   753
-  ],
-  "S_mid": 1031,
-  "c": [
-   782,
-   889
-  ],
-  "a": [
-   912,
-   1031
-  ],
-  "a_mid": 1052,
-  "l": [
-   1061,
-   1086
-  ],
-  "e2": [
-   1116,
-   1238
-  ]
+ "wordmark_params": {
+  "word": "MedScale",
+  "font": "assets/brand/fonts/PlusJakartaSans-Variable.ttf",
+  "instance": {
+   "wght": 590
+  },
+  "tracking": -0.018,
+  "kern": {
+   "3": -0.012
+  },
+  "cap": 180
  },
  "symbol_bbox_reference_px": [
   403,
@@ -70,10 +36,15 @@
   931,
   883
  ],
- "wordmark_bbox_reference_px": [
-  97,
-  941,
-  1238,
-  1121
- ]
+ "wordmark_box": [
+  1105.37,
+  185.8
+ ],
+ "wordmark_cap_top": 2.9,
+ "horizontal_lockup": {
+  "symbol_to_cap": 2.05,
+  "symbol_stroke": 1.5,
+  "gap_to_cap": 0.5,
+  "symbol_drop": 0.04
+ }
 }

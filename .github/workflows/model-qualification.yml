@@ -25,6 +25,7 @@ concurrency:
 env:
   CARGO_TERM_COLOR: always
   CATALOG_COMMIT: ea920f36fadd7b45935247d639f0ffa1ef493b23
+  CATALOG_REPOSITORY: maziyarpanahi/openmed
 
 jobs:
   qualify:
@@ -90,10 +91,10 @@ jobs:
           ONNX: ${{ matrix.onnx }}
         run: |
           set -euo pipefail
-          curl -sfL -A medscale-qualification             "https://raw.githubusercontent.com/maziyarpanahi/openmed/$CATALOG_COMMIT/models.jsonl"             -o "$RUNNER_TEMP/models.jsonl"
+          python3 scripts/verify_medscale_catalog_bundle.py --output "$RUNNER_TEMP/models.jsonl"
           cargo build --release --locked -p medscale-cli
           dir="$RUNNER_TEMP/snapshot"
-          target/release/medscale packs acquire --snapshot "$RUNNER_TEMP/models.jsonl"             --commit "$CATALOG_COMMIT" --repo-id "$REPO" --onnx-file "$ONNX"             --approve-bytes 1100000000 --i-consent-to-download --out "$dir"
+          target/release/medscale packs acquire --snapshot "$RUNNER_TEMP/models.jsonl"             --commit "$CATALOG_COMMIT" --repository "$CATALOG_REPOSITORY" --repo-id "$REPO" --onnx-file "$ONNX"             --approve-bytes 1100000000 --i-consent-to-download --out "$dir"
           ls -l "$dir"
           echo "SNAPSHOT_DIR=$dir" >> "$GITHUB_ENV"
 
@@ -176,9 +177,7 @@ jobs:
 
       - name: Catalog snapshot
         run: |
-          curl -sfL -A medscale-qualification \
-            "https://raw.githubusercontent.com/maziyarpanahi/openmed/$CATALOG_COMMIT/models.jsonl" \
-            -o "$RUNNER_TEMP/models.jsonl"
+          python3 scripts/verify_medscale_catalog_bundle.py --output "$RUNNER_TEMP/models.jsonl"
 
       - name: Refusals before any download
         run: |
@@ -186,13 +185,13 @@ jobs:
           cargo build --release --locked -p medscale-cli
           bin=target/release/medscale
           # No consent flag: refused.
-          if "$bin" packs acquire --snapshot "$RUNNER_TEMP/models.jsonl" --commit "$CATALOG_COMMIT" \
+          if "$bin" packs acquire --snapshot "$RUNNER_TEMP/models.jsonl" --commit "$CATALOG_COMMIT" --repository "$CATALOG_REPOSITORY" \
               --repo-id "${{ matrix.repo }}" --onnx-file "${{ matrix.file }}" \
               --approve-bytes "${{ matrix.approve }}" --out "$RUNNER_TEMP/denied"; then
             echo "acquisition without consent must fail"; exit 1
           fi
           # Byte ceiling below the files' exact size: refused before any file download.
-          if "$bin" packs acquire --snapshot "$RUNNER_TEMP/models.jsonl" --commit "$CATALOG_COMMIT" \
+          if "$bin" packs acquire --snapshot "$RUNNER_TEMP/models.jsonl" --commit "$CATALOG_COMMIT" --repository "$CATALOG_REPOSITORY" \
               --repo-id "${{ matrix.repo }}" --onnx-file "${{ matrix.file }}" \
               --approve-bytes 1000 --i-consent-to-download --out "$RUNNER_TEMP/denied"; then
             echo "acquisition over the approved bytes must fail"; exit 1
@@ -202,7 +201,7 @@ jobs:
       - name: Acquire through the product CLI (live)
         run: |
           target/release/medscale packs acquire --snapshot "$RUNNER_TEMP/models.jsonl" \
-            --commit "$CATALOG_COMMIT" --repo-id "${{ matrix.repo }}" \
+            --commit "$CATALOG_COMMIT" --repository "$CATALOG_REPOSITORY" --repo-id "${{ matrix.repo }}" \
             --onnx-file "${{ matrix.file }}" --approve-bytes "${{ matrix.approve }}" \
             --i-consent-to-download --out "$RUNNER_TEMP/acquired" | tee acquisition.json
           ls -l "$RUNNER_TEMP/acquired"

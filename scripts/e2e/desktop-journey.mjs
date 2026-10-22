@@ -340,6 +340,32 @@ try {
     await see("summarize the bound sources", 60000);
     await see("completed");
   });
+  // Switch to the dark theme through the command palette, as a user would,
+  // then capture the main product areas in it.
+  await journey("dark-theme-via-command-palette", async () => {
+    await click(`//button[${text("Search or run")}]`);
+    await type(`//input[@aria-label='Search or run']`, "dark");
+    await click(`//*[@role='option' and ${text("Switch to dark theme")}]`);
+    const theme = await wd("POST", `/session/${sid}/execute/sync`, { script: "return document.querySelector('.ms')?.getAttribute('data-theme');", args: [] });
+    if (theme !== "dark") throw new Error(`theme is ${theme}, expected dark`);
+    for (const [route, expect] of [["Patients", "Ada Synthetic"], ["Insights", "cohort_size"], ["Knowledge", null], ["MedAgent", "summarize the bound sources"], ["Models", "MedScale Catalog"], ["Audit Trail", /synthetic-subject-ada|No disclosures recorded/]]) {
+      await nav(route);
+      if (route === "Knowledge") {
+        // The restart starts a fresh session: rebuild the index and search again.
+        await click(`//button[${text("Build index")}]`);
+        await see("Index built", 60000);
+        await type(`//input[@aria-label='Search indexed sources']`, "synthetic");
+        await click(`//button[@type='submit' and ${text("Search")}]`);
+        await find(`//pre[contains(@class,'pre')]`, 60000);
+      } else if (expect instanceof RegExp) {
+        await waitForText(expect, 30000);
+      } else {
+        await see(expect, 30000);
+      }
+      await sleep(900);
+      await shot(`dark-${route.toLowerCase().replace(/\s+/g, "-")}`);
+    }
+  });
 } finally {
   await quit();
   fs.writeFileSync(path.join(shots, "results.json"), JSON.stringify(results, null, 1));

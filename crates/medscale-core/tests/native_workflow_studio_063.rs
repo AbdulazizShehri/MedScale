@@ -75,10 +75,9 @@ fn spec_063_keeps_external_authority_and_mesc_out_of_scope() {
     let spec =
         std::fs::read_to_string(root.join("specs/063-workflow-studio-tasks-messages/spec.md"))
             .expect("Spec 063");
-    let clarifications = std::fs::read_to_string(
-        root.join("specs/063-workflow-studio-tasks-messages/clarifications.md"),
-    )
-    .expect("clarifications");
+    let public_scope =
+        std::fs::read_to_string(root.join("docs/qualification/INTEROPERABILITY_SCOPE.md"))
+            .expect("public cross-project authority scope");
     assert!(spec.contains("Real PHI, MESC, NPHIES authorization, external messaging"));
-    assert!(clarifications.contains("Spec 012/MESC remains optional/deferred and untouched"));
+    assert!(public_scope.contains("not MedScale runtime authority"));
 }
