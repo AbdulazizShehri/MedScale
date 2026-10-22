@@ -340,6 +340,21 @@ try {
     await see("summarize the bound sources", 60000);
     await see("completed");
   });
+  // Switch to the dark theme through the command palette, as a user would,
+  // then capture the main product areas in it.
+  await journey("dark-theme-via-command-palette", async () => {
+    await click(`//button[${text("Search or run")}]`);
+    await type(`//input[@aria-label='Search or run']`, "dark");
+    await click(`//*[@role='option' and ${text("Switch to dark theme")}]`);
+    const theme = await wd("POST", `/session/${sid}/execute/sync`, { script: "return document.querySelector('.ms')?.getAttribute('data-theme');", args: [] });
+    if (theme !== "dark") throw new Error(`theme is ${theme}, expected dark`);
+    for (const [route, expect] of [["Patients", "Ada Synthetic"], ["Insights", "cohort_size"], ["Knowledge", "search receipts and canvases"], ["MedAgent", "summarize the bound sources"], ["Models", "MedScale Catalog"], ["Audit Trail", "Disclosure history recorded by Core"]]) {
+      await nav(route);
+      await see(expect, 30000);
+      await sleep(600);
+      await shot(`dark-${route.toLowerCase().replace(/\s+/g, "-")}`);
+    }
+  });
 } finally {
   await quit();
   fs.writeFileSync(path.join(shots, "results.json"), JSON.stringify(results, null, 1));
