@@ -1,0 +1,43 @@
+name: Feature proposal
+description: Propose a community feature or engineering improvement
+title: "[Proposal]: "
+body:
+  - type: markdown
+    attributes:
+      value: |
+        MedScale is synthetic-only engineering software; proposals must not assume clinical/production readiness or permission to process real patient data.
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem to solve
+      description: Describe the user or developer problem, not only the proposed solution
+    validations:
+      required: true
+  - type: textarea
+    id: approach
+    attributes:
+      label: Proposed approach
+      description: Include alternatives if known and what existing component might be affected
+    validations:
+      required: true
+  - type: dropdown
+    id: scope
+    attributes:
+      label: Area
+      options:
+        - Rust Core and CLI
+        - Desktop UI and accessibility
+        - Synthetic fixtures and reproducibility
+        - FHIR / interoperability
+        - Local model evaluation
+        - Documentation / community
+        - Other
+    validations:
+      required: true
+  - type: textarea
+    id: safety
+    attributes:
+      label: Safety, privacy, compatibility or licensing implications
+      description: State known risks and unknowns; use "none known" only if justified
+    validations:
+      required: true

@@ -5,86 +5,80 @@
   <img src="assets/brand/medscale-horizontal-black.svg" alt="MedScale" width="280">
 </picture>
 
-MedScale is a local-first clinical intelligence platform. A Rust Core owns every source, assertion, provenance record and authority decision. The desktop and command-line surfaces only present and request through it.
+**Local-first clinical intelligence, built with verifiable evidence and explicit human oversight.**
 
-- **Local by default.** Records, vaults and models stay on the device. Network egress is denied unless an explicit, governed action allows it.
-- **Evidence you can inspect.** Every statement links back to its source, its coverage and its review state. Unknown, conflicting and unsupported data are shown as such, never filled in.
-- **Encrypted workspaces.** Vaults are SQLCipher-encrypted at rest and sealed on close, with recovery codes.
-- **Local models, honestly labelled.** Models run offline through signed MedScale Packs and propose; people decide. Catalog listings are kept separate from downloaded, admitted, tested and qualified models.
-- **One Core, several surfaces.** The CLI and the Tauri desktop ([`apps/desktop-tauri`](apps/desktop-tauri/README.md)) share the same Core semantics. The desktop is built for Windows and macOS; a Linux desktop waits on an upstream Tauri move off GTK 3 / `glib` 0.18 (see [external gates](docs/planning/EXTERNAL_GATES.md), `TAURI_GLIB_ADVISORY_F096_T01`). The CLI and Core stay supported on Linux. The Slint desktop (`crates/medscale-desktop`) is kept only as a legacy reference implementation.
+[![CI](https://github.com/AbdulazizShehri/MedScale/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/AbdulazizShehri/MedScale/actions/workflows/ci.yml)
+[![Desktop E2E](https://github.com/AbdulazizShehri/MedScale/actions/workflows/desktop-e2e.yml/badge.svg?branch=main)](https://github.com/AbdulazizShehri/MedScale/actions/workflows/desktop-e2e.yml)
+[![License: Apache-2.0](https://img.shields.io/badge/license-Apache--2.0-blue.svg)](LICENSE)
 
-> **Status: engineering preview, synthetic data only.** MedScale is not release-ready, not clinically validated and not a medical device. Real patient data is not authorized. See [external gates](docs/planning/EXTERNAL_GATES.md).
+MedScale is an open-source Rust-based platform for exploring evidence-backed health information in local workspaces. The trusted Rust Core owns records, provenance, validation, policy decisions and audit trails. The desktop and CLI present that Core's results rather than becoming independent sources of authority.
 
-Design: [brand identity system](docs/brand/BRAND_IDENTITY_SYSTEM.md) (founder-approved Logo 12, [logo specification](docs/brand/LOGO_SPEC.md)) and [`DESIGN.md`](DESIGN.md). Desktop: [`apps/desktop-tauri`](apps/desktop-tauri/README.md). Product program: [productization](docs/planning/PRODUCTIZATION_PROGRAM.md).
+> [!IMPORTANT]
+> **Engineering preview — synthetic data only.** This repository is open for development and review, **not** a clinically validated product, certified medical device, authorized patient-data processor, or signed production release. Do not enter real patient data, identifying health records, credentials, or confidential materials. No medical diagnosis or treatment decisions should rely on this software. See [current external gates](docs/planning/EXTERNAL_GATES.md).
 
-## Working on MedScale (engineering and agents)
+## Why MedScale?
 
-### Cursor: start here
+- **Local first:** useful Core functionality does not require a cloud account; network actions are explicitly governed and default-denied.
+- **Evidence before conclusions:** source identity, coverage, conflicts and review state remain visible; unsupported claims are not silently filled in.
+- **Protected workspaces:** SQLCipher-encrypted vaults with explicit lock/unlock and recovery controls; this is not a claim of complete endpoint or private-data security.
+- **Model transparency:** local model listings, downloads, admission and qualification are separate states; a catalog entry is not an endorsement.
+- **Interoperability:** bounded, evidence-led FHIR R4 interchange rather than a claim of full FHIR conformance.
+- **One trusted Core:** Rust interfaces shared by the CLI, the Windows/macOS Tauri desktop and engineering test surfaces.
 
-Open the repository in Cursor and tell it to read [`CURSOR.md`](CURSOR.md) and continue MedScale from live repository truth. The repository contains standing founder authorization and an autonomous build queue; Cursor should not need routine founder decisions.
+## Project status
 
-Read order:
+| Area | Current scope |
+| --- | --- |
+| Core and CLI | Rust; tested in CI on Windows, macOS and Linux |
+| Desktop | Tauri 2 + React/TypeScript; unsigned engineering installers for Windows and macOS |
+| Linux desktop | Not shipped; see the [GTK security/dependency gate](docs/planning/EXTERNAL_GATES.md) |
+| Data | Synthetic fixtures only; real PHI **not authorized** |
+| Release | Source available; production/clinical deployment **not qualified** |
 
-1. [`CURSOR.md`](CURSOR.md)
-2. [`AGENTS.md`](AGENTS.md)
-3. [`docs/planning/START_HERE.md`](docs/planning/START_HERE.md)
-4. [`docs/planning/BUILD_QUEUE.md`](docs/planning/BUILD_QUEUE.md)
-5. [`docs/planning/MASTER_BUILD_PLAN_V2.md`](docs/planning/MASTER_BUILD_PLAN_V2.md)
+See [the desktop guide](apps/desktop-tauri/README.md) and [external qualification gates](docs/planning/EXTERNAL_GATES.md). Historical engineering artifacts and comparison data are reproducible evidence, not marketing or clinical claims.
 
-### Active state
+## Get started
 
-```text
-PLAN = CANONICAL_V2
-SPEC_000 = CLOSED_CANONICAL
-CURRENT_EXECUTION_QUEUE = docs/planning/BUILD_QUEUE.md
-PRODUCT_MATURITY = SYNTHETIC_FOUNDATION_NOT_RELEASE_READY
-CURSOR_AUTONOMOUS_IMPLEMENTATION = AUTHORIZED_WITHIN_PLAN
-REAL_PHI = NOT_AUTHORIZED
-MESC_MUTATION = NOT_AUTHORIZED
-PRODUCT_RUNTIME_EGRESS = DEFAULT_DENY
-```
+**Requirements:** a Rust toolchain matching [`rust-toolchain.toml`](rust-toolchain.toml) and the platform build dependencies documented for the selected surface.
 
-See the [whole-product review](docs/planning/WHOLE_PRODUCT_REVIEW_2026-09-09.md) and
-[prioritized delivery plan](docs/planning/TRUSTED_V1_DELIVERY_PLAN.md) for current gaps and
-follow-on work. Synthetic-only OpenMed comparisons are recorded in the [evaluation evidence](evidence/103-local-model-catalog/eval/) and the [v0.1.0 release-candidate notes](docs/product/RELEASE_CANDIDATE_2026-10-20.md). Those results do not establish clinical superiority.
-
-### Engineering bootstrap (historical foundation)
-
-- Spec Kit constitution: [`.specify/memory/constitution.md`](.specify/memory/constitution.md)
-- Closed Spec 001 package: [`specs/001-rust-repository-speckit-bootstrap/`](specs/001-rust-repository-speckit-bootstrap/)
-- Contributing: [`docs/engineering/CONTRIBUTING.md`](docs/engineering/CONTRIBUTING.md)
-- Dependency direction: [`docs/engineering/DEPENDENCY_DIRECTION.md`](docs/engineering/DEPENDENCY_DIRECTION.md)
-
-```powershell
-cargo test --workspace --locked
+```sh
+git clone https://github.com/AbdulazizShehri/MedScale.git
+cd MedScale
+cargo fmt --all -- --check
 cargo run -p medscale-cli --locked -- --version
 cargo run -p medscale-cli --locked -- doctor
 ```
 
-### Execution support
+For the desktop, follow [`apps/desktop-tauri/README.md`](apps/desktop-tauri/README.md). Windows desktop builds require Strawberry Perl for the vendored SQLCipher/OpenSSL dependency; unsigned installers are testing artifacts, not end-user releases.
 
-- [Cursor execution playbook](docs/planning/CURSOR_EXECUTION_PLAYBOOK.md)
-- [Implementation authority](docs/planning/IMPLEMENTATION_AUTHORITY.md)
-- [Decision defaults](docs/planning/IMPLEMENTATION_DECISION_DEFAULTS.md)
-- [Definition of done](docs/planning/DEFINITION_OF_DONE.md)
-- [External gates](docs/planning/EXTERNAL_GATES.md)
-- [Source acquisition and copy plan](docs/planning/SOURCE_ACQUISITION_AND_COPY_PLAN.md)
-- [v0 UI integration contract (historical; superseded by Specs 095–101)](docs/planning/V0_UI_INTEGRATION_CONTRACT.md)
+## Architecture
 
-### Canonical architecture and planning
+| Path | Purpose |
+| --- | --- |
+| [`crates/`](crates/) | Trusted Core, storage, contracts, FHIR, local model packs and CLI |
+| [`apps/desktop-tauri/`](apps/desktop-tauri/) | Windows/macOS desktop shell and frontend |
+| [`fixtures/`](fixtures/) | Synthetic test data |
+| [`docs/`](docs/) | Architecture, design, engineering and research documentation |
+| [`specs/`](specs/) · [`evidence/`](evidence/) | Auditable technical decisions, tests and historical evidence |
+| [`third_party/`](third_party/) · [`vendor/`](vendor/) | Pinned third-party resources and their licenses/provenance |
 
-- [Master Build Plan V2](docs/planning/MASTER_BUILD_PLAN_V2.md)
-- [Spec Kit Master Roadmap V2](docs/planning/SPECKIT_MASTER_ROADMAP_V2.md)
-- [Canonical Source Register V2](docs/planning/CANONICAL_SOURCE_REGISTER_V2.md)
-- [OSS / Code Absorption Matrix V2](docs/planning/OSS_CODE_ABSORPTION_MATRIX_V2.md)
-- [External baseline evidence matrix](docs/planning/OPENMED_PARITY_SURPASS_MATRIX_V2.md)
-- [GLM 5.3 Reconciliation V2](docs/planning/GLM53_RECONCILIATION_V2.md)
+The older Slint desktop is preserved as an engineering reference, not the current consumer-facing desktop. See [the design system](DESIGN.md) for UI principles.
 
+## Join the community
 
-## Engineering evidence and source records
+**Contributions are welcome:** issues, documentation, reproducible bug reports, tests, accessibility improvements, FHIR interoperability work and reviewed implementation changes.
 
-MedScale is an independently branded product. Synthetic-only runtime comparisons are documented in the [evaluation evidence](evidence/103-local-model-catalog/eval/) and [release candidate](docs/product/RELEASE_CANDIDATE_2026-10-20.md), with their original comparator names and measured limitations retained in those technical records. Exact third-party model identities and required legal notices remain traceable under [`third_party/provenance`](third_party/provenance), the [identity and provenance audit](docs/brand/PRE_RELEASE_IDENTITY_AND_PROVENANCE_AUDIT.md), and the generated `NOTICE.md` and SBOM. Historical inter-project boundaries are recorded separately in the engineering specs.
+- [Start contributing](CONTRIBUTING.md) · [Community governance](GOVERNANCE.md)
+- [Issues](https://github.com/AbdulazizShehri/MedScale/issues) · [Discussions](https://github.com/AbdulazizShehri/MedScale/discussions)
+- [Community standards](CODE_OF_CONDUCT.md) · [Getting help](SUPPORT.md)
+- [Report a security vulnerability privately](SECURITY.md)
 
-## License
+If you are new, start with a documentation change or a small synthetic-fixture bug. Check existing Issues and the [live engineering queue](docs/planning/BUILD_QUEUE.md) before proposing larger changes. No real patient records, even in screenshots or debugging logs.
 
-MedScale first-party source is licensed under the [Apache License 2.0](LICENSE). Crates remain `publish = false`; the source license decision does not imply release readiness or authorize restricted data, credentials, terminology, model assets, or partner integrations.
+## Security, attribution and license
+
+MedScale first-party code is licensed under the **[Apache License 2.0](LICENSE)**. This does **not** relicense bundled third-party code, model weights, data sets, fonts, or research records; their original provenance, licenses and notices remain authoritative. Consult [source provenance](third_party/provenance/) and the repository's supply-chain records before redistributing a bundled asset.
+
+For vulnerabilities use [private security reporting](SECURITY.md), **not public Issues**. For ordinary questions use [Discussions](https://github.com/AbdulazizShehri/MedScale/discussions).
+
+Maintainers and engineering agents: [`AGENTS.md`](AGENTS.md), [`CURSOR.md`](CURSOR.md), [engineering guide](docs/engineering/CONTRIBUTING.md) and [current project plan](docs/planning/START_HERE.md). These detailed execution records are preserved for continuity, but are not prerequisites for reading or joining the project.

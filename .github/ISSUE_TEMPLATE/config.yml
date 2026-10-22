@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Questions and community discussions
+    url: https://github.com/AbdulazizShehri/MedScale/discussions
+    about: Ask questions, share ideas or propose larger changes
+  - name: Private security report
+    url: https://github.com/AbdulazizShehri/MedScale/security/advisories/new
+    about: Report vulnerabilities privately; do not use public issues
