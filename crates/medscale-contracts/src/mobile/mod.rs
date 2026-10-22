@@ -67,7 +67,7 @@ impl MobileDoctorStatus {
 pub fn ios_arm64_ffi_stub() -> FfiAdmissionRecord {
     FfiAdmissionRecord {
         component_name: "medscale-ffi-ios-stub".to_owned(),
-        upstream_url: "https://github.com/TheHalfMoon/MedScale".to_owned(),
+        upstream_url: "https://github.com/AbdulazizShehri/MedScale".to_owned(),
         revision: "spec-009-ready-base".to_owned(),
         build_flags: "TBD_when_uniffi_admitted".to_owned(),
         abi_notes: "arm64-apple-ios; no panic across extern C".to_owned(),
@@ -89,7 +89,7 @@ pub fn ios_arm64_ffi_stub() -> FfiAdmissionRecord {
 pub fn android_arm64_16kb_ffi_stub() -> FfiAdmissionRecord {
     FfiAdmissionRecord {
         component_name: "medscale-ffi-android-stub".to_owned(),
-        upstream_url: "https://github.com/TheHalfMoon/MedScale".to_owned(),
+        upstream_url: "https://github.com/AbdulazizShehri/MedScale".to_owned(),
         revision: "spec-009-ready-base".to_owned(),
         build_flags: "TBD_16kb_page_size_link".to_owned(),
         abi_notes: "arm64-v8a; Android 16KB page-size compatibility required before ship"

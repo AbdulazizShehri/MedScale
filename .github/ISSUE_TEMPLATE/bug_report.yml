@@ -1,0 +1,71 @@
+name: Bug report
+description: Report a reproducible MedScale defect using synthetic data only
+title: "[Bug]: "
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thank you for helping improve MedScale. **Do not include real patient information, credentials, private keys or exploit details.** Security vulnerabilities belong in the private channel described in SECURITY.md.
+  - type: input
+    id: version
+    attributes:
+      label: Commit or version
+      description: Commit SHA or engineering build identifier
+      placeholder: "e.g., main at <commit>"
+    validations:
+      required: true
+  - type: dropdown
+    id: surface
+    attributes:
+      label: Affected area
+      options:
+        - Rust Core / storage / contracts
+        - CLI
+        - Tauri desktop / UI
+        - Models and packs
+        - FHIR interchange
+        - Build / CI / documentation
+        - Other
+    validations:
+      required: true
+  - type: input
+    id: environment
+    attributes:
+      label: Operating system and toolchain
+      placeholder: "Windows 11 x64 / macOS arm64 / Linux, rustc ..."
+    validations:
+      required: true
+  - type: textarea
+    id: reproduction
+    attributes:
+      label: Steps to reproduce
+      description: Use only repository synthetic fixtures and redacted commands
+      placeholder: "1. ... 2. ..."
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected behavior
+    validations:
+      required: true
+  - type: textarea
+    id: actual
+    attributes:
+      label: Actual behavior
+    validations:
+      required: true
+  - type: textarea
+    id: logs
+    attributes:
+      label: Redacted logs or screenshots (optional)
+      description: Do not attach PHI, secrets, live patient records or security exploit details
+    validations:
+      required: false
+  - type: checkboxes
+    id: safety
+    attributes:
+      label: Safety confirmation
+      options:
+        - label: This report contains synthetic data only and no confidential information or security exploit details
+          required: true

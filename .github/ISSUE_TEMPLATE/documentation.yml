@@ -1,0 +1,24 @@
+name: Documentation improvement
+description: Suggest a correction or submit a docs issue
+title: "[Docs]: "
+body:
+  - type: input
+    id: location
+    attributes:
+      label: Page or file
+      placeholder: "README.md or docs/..."
+    validations:
+      required: true
+  - type: textarea
+    id: problem
+    attributes:
+      label: What is unclear or incorrect?
+      description: Explain what a newcomer needs to understand or reproduce
+    validations:
+      required: true
+  - type: textarea
+    id: suggestion
+    attributes:
+      label: Suggested improvement
+    validations:
+      required: false

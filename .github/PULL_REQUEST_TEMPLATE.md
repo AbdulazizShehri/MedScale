@@ -1,23 +1,31 @@
-## Summary
+## What changes?
 
--
+Describe the problem and the proposed solution in plain language. Link an Issue or Discussion if relevant.
 
-## Spec / queue
+## Scope
 
-- Spec:
-- BUILD_QUEUE impact:
+- [ ] Focused change; unrelated refactors and generated churn excluded
+- [ ] No real patient data, secrets or confidential logs/fixtures
+- [ ] Existing Rust Core authority, local-first and default-deny safeguards preserved
+- [ ] Wire/data compatibility preserved, or migration and tests provided
+- [ ] Third-party source licenses, attribution and provenance preserved when applicable
 
-## Constitution / anti-scope
+## Verification
 
-- [ ] Does not bypass Rust authority path
-- [ ] No unauthorized PHI / MESC mutation / product runtime egress
-- [ ] Donor/source acquisition followed if applicable
+Specify exact commands and results; leave unrun tests clearly identified.
 
-## Evidence
+- [ ] `cargo fmt --all -- --check` (or not applicable)
+- [ ] `cargo clippy --workspace --all-targets --locked -- -D warnings` (or not applicable)
+- [ ] `cargo test --workspace --locked` (or not applicable)
+- [ ] Desktop tests/build when affected (`npm test`, `npm run build`, native/E2E where applicable)
+- [ ] Relevant documentation and synthetic regression fixtures updated
 
-- [ ] Exact-head commands/results recorded when claiming PASS
-- [ ] Dependencies admitted with template when load-bearing
+## Risks, limitations and evidence
 
-## Test plan
+Note changes in security/privacy, compatibility, performance, user experience, release-gate requirements and areas not validated. Link verifiable synthetic test receipts when making qualification claims.
 
-- [ ]
+## References
+
+- [Contributing](https://github.com/AbdulazizShehri/MedScale/blob/main/CONTRIBUTING.md)
+- [Security policy](https://github.com/AbdulazizShehri/MedScale/blob/main/SECURITY.md)
+- [Engineering-specific contributor guidance](https://github.com/AbdulazizShehri/MedScale/blob/main/docs/engineering/CONTRIBUTING.md)
