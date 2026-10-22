@@ -19,7 +19,7 @@ CURSOR_IMPLEMENTATION_AUTHORITY = YES_WITHIN_CANONICAL_V2_PLAN
 ASK_FOUNDER_FOR_ORDINARY_IMPLEMENTATION_DECISIONS = NO
 CONTINUE_TO_NEXT_ELIGIBLE_UNIT = YES
 REAL_PHI_AUTHORITY = NO
-MESC_PROJECT_AUTHORITY = OUT_OF_SCOPE_SEPARATE_REPOSITORY
+UNRELATED_REPOSITORY_MUTATIONS = NOT_AUTHORIZED
 PRODUCT_RUNTIME_NETWORK_EGRESS = DEFAULT_DENY
 ```
 
@@ -65,18 +65,18 @@ If a real human/external gate is required, record it in `EXTERNAL_GATES.md`, con
 - FHIR R4 4.0.1 is initial interchange, not canonical DB; validator output is evidence only.
 - One Rust authority path serves all product surfaces.
 - Workers receive no ambient canonical DB, master keys, unrestricted filesystem, network, secrets, or authority.
-- MESC is a separate repository/project and outside MedScale execution authority. Historical interoperability artifacts do not create current MedScale scope.
+- Unrelated repositories are outside MedScale execution authority. Legacy interoperability contracts do not authorize cross-repository changes.
 - External-action `UNKNOWN` is never blindly retried.
 
 ## Donor and source rule
 
-`docs/planning/SOURCE_ACQUISITION_AND_COPY_PLAN.md` is mandatory before donor use. Never wholesale-copy OpenMed or another repository. Every copied/ported/vendor component must bind exact upstream URL/revision/path, rights/license/NOTICE, content identity, local target, modifications, tests, security placement, maintenance/update/exit strategy, and SBOM/provenance.
+`docs/planning/SOURCE_ACQUISITION_AND_COPY_PLAN.md` is mandatory before donor use. Use permitted sources through the documented MedScale acquisition process. Every copied/ported/vendor component must bind exact upstream URL/revision/path, rights/license/NOTICE, content identity, local target, modifications, tests, security placement, maintenance/update/exit strategy, and SBOM/provenance.
 
 Permission to copy code does not imply permission to redistribute model weights, datasets, licensed terminology, or other assets.
 
 ## H0 boundary
 
-H0-A/H0-B are synthetic-only and LLM-free. No real PHI, models, OpenMed integration, work in the separate MESC project, OCR/ASR/vector/agents, live SMART/NPHIES, external actions, or product runtime network.
+H0-A/H0-B are synthetic-only and LLM-free. No real PHI, unqualified models, external research-project integration, cross-repository mutation, OCR/ASR/vector/agents, live SMART/NPHIES, external actions, or product runtime network.
 
 ## Mutation discipline
 

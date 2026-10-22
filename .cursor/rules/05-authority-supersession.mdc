@@ -9,7 +9,7 @@ alwaysApply: true
 
 Any older V2 planning/review/source artifact that still contains metadata such as `Implementation authorization: NO`, `PRODUCT_IMPLEMENTATION = NOT_STARTED`, or `next gate = founder implementation authorization` records the historical planning phase only. Those authorization-only statements are superseded and MUST NOT cause Cursor to stop, ask the founder again, or refuse ordinary canonical implementation.
 
-The architecture, safety, privacy, source, dependency, evidence, PHI, MESC, legal, credential, and external-action constraints in those same documents remain fully binding.
+The architecture, safety, privacy, source, dependency, evidence, PHI, cross-repository scope, legal, credential, and external-action constraints in those same documents remain fully binding.
 
 If authorization wording conflicts, apply this order:
 

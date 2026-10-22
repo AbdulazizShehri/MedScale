@@ -12,10 +12,10 @@ use medscale_core::CliSession;
 use serde_json::Value;
 use std::collections::HashSet;
 
-const OPENMED_CLAIM_LEDGER_JSON: &str =
+const MEDSCALE_REFERENCE_CLAIM_LEDGER_JSON: &str =
     include_str!("../../../evidence/071-openmed-evidence-center/CLAIM_LEDGER.json");
-const OPENMED_BASELINE_COMMIT: &str = "59d9cb0a2e0ccbba8fa3d891a66d83ffaf45e837";
-const OPENMED_BASELINE_TREE: &str = "1c949e35b2b8f2ea69da4284b370074fc4bf84ab";
+const MEDSCALE_REFERENCE_BASELINE_COMMIT: &str = "59d9cb0a2e0ccbba8fa3d891a66d83ffaf45e837";
+const MEDSCALE_REFERENCE_BASELINE_TREE: &str = "1c949e35b2b8f2ea69da4284b370074fc4bf84ab";
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ModelStatusVm {
@@ -35,7 +35,7 @@ pub struct ModelStatusVm {
 pub struct CompetitiveEvidenceVm {
     pub capability: String,
     pub medscale: String,
-    pub openmed: String,
+    pub reference: String,
     pub verdict: String,
     pub evidence: String,
     pub limitations: String,
@@ -77,11 +77,11 @@ fn summarize_claim_ledger(raw: &str) -> ClaimLedgerSummary {
     let baseline_ok = baseline
         .and_then(|entry| entry.get("baseline_commit"))
         .and_then(Value::as_str)
-        == Some(OPENMED_BASELINE_COMMIT)
+        == Some(MEDSCALE_REFERENCE_BASELINE_COMMIT)
         && baseline
             .and_then(|entry| entry.get("baseline_tree"))
             .and_then(Value::as_str)
-            == Some(OPENMED_BASELINE_TREE);
+            == Some(MEDSCALE_REFERENCE_BASELINE_TREE);
     let benchmark_manifests = value
         .get("benchmark_manifest_count")
         .and_then(Value::as_u64)
@@ -107,7 +107,8 @@ fn summarize_claim_ledger(raw: &str) -> ClaimLedgerSummary {
         };
         if capability_id.is_empty()
             || !capability_ids.insert(capability_id)
-            || row.get("baseline_commit").and_then(Value::as_str) != Some(OPENMED_BASELINE_COMMIT)
+            || row.get("baseline_commit").and_then(Value::as_str)
+                != Some(MEDSCALE_REFERENCE_BASELINE_COMMIT)
             || row.get("parity_claim").and_then(Value::as_bool) != Some(false)
             || row.get("surpass_claim").and_then(Value::as_bool) != Some(false)
             || row
@@ -138,7 +139,7 @@ pub struct ProductIntelligenceVm {
     pub model_runtime_boundary: String,
     pub model_source_summary: String,
     pub model_inventory_summary: String,
-    pub openmed_baseline: String,
+    pub reference_baseline: String,
     pub competitive_summary: String,
     pub models: Vec<ModelStatusVm>,
     pub evidence: Vec<CompetitiveEvidenceVm>,
@@ -213,12 +214,12 @@ impl ProductIntelligenceVm {
             state: "NOT ADMITTED".to_owned(),
         });
 
-        let ledger = summarize_claim_ledger(OPENMED_CLAIM_LEDGER_JSON);
+        let ledger = summarize_claim_ledger(MEDSCALE_REFERENCE_CLAIM_LEDGER_JSON);
         let evidence = vec![
             CompetitiveEvidenceVm {
                 capability: "Source custody".to_owned(),
                 medscale: "Immutable source bytes + explicit transformation/loss chain".to_owned(),
-                openmed: "Pinned v2.2.0 documents provenance and signed audit/review evidence surfaces".to_owned(),
+                reference: "Pinned v2.2.0 documents provenance and signed audit/review evidence surfaces".to_owned(),
                 verdict: "STRUCTURAL ONLY".to_owned(),
                 evidence: "MedScale Specs 002/003 · Pinned source docs/feature-map.md @ 59d9cb0a · claim ledger: source-custody".to_owned(),
                 limitations: "Different semantic targets; no matched BenchmarkManifest proves comparative superiority.".to_owned(),
@@ -226,7 +227,7 @@ impl ProductIntelligenceVm {
             CompetitiveEvidenceVm {
                 capability: "Identity safety".to_owned(),
                 medscale: "Explicit IdentityAssertion; no silent patient merge".to_owned(),
-                openmed: "Pinned baseline has provenance/clinical processing surfaces; identity authority is not a matched benchmark axis".to_owned(),
+                reference: "Pinned baseline has provenance/clinical processing surfaces; identity authority is not a matched benchmark axis".to_owned(),
                 verdict: "STRUCTURAL ONLY".to_owned(),
                 evidence: "MedScale Specs 002/019 · Pinned source feature map · claim ledger: identity".to_owned(),
                 limitations: "Structural contract difference only; no parity or surpass claim.".to_owned(),
@@ -234,7 +235,7 @@ impl ProductIntelligenceVm {
             CompetitiveEvidenceVm {
                 capability: "Longitudinal truth / conflict".to_owned(),
                 medscale: "Versioned assertions, absence/freshness/conflict without silent resolution".to_owned(),
-                openmed: "Pinned baseline documents timeline/provenance capabilities".to_owned(),
+                reference: "Pinned baseline documents timeline/provenance capabilities".to_owned(),
                 verdict: "STRUCTURAL ONLY".to_owned(),
                 evidence: "MedScale Specs 004/019 · Pinned source feature map · claim ledger: longitudinal-truth-conflict".to_owned(),
                 limitations: "No matched longitudinal benchmark; superiority is not claimed.".to_owned(),
@@ -242,7 +243,7 @@ impl ProductIntelligenceVm {
             CompetitiveEvidenceVm {
                 capability: "Controlled actions".to_owned(),
                 medscale: "Durable intent + payload identity + UNKNOWN reconciliation; blind retry forbidden".to_owned(),
-                openmed: "Pinned baseline documents service, agent and operational surfaces".to_owned(),
+                reference: "Pinned baseline documents service, agent and operational surfaces".to_owned(),
                 verdict: "STRUCTURAL ONLY".to_owned(),
                 evidence: "MedScale Specs 014/034/063 · Pinned source feature map · claim ledger: controlled-external-actions".to_owned(),
                 limitations: "Authority semantics differ; no matched BenchmarkManifest proves an advantage.".to_owned(),
@@ -250,7 +251,7 @@ impl ProductIntelligenceVm {
             CompetitiveEvidenceVm {
                 capability: "Clinical NER".to_owned(),
                 medscale: "Real portable ONNX execution is proven; clinical-domain quality comparison is not measured".to_owned(),
-                openmed: "Pinned v2.2.0 exposes clinical NER families and an evaluation harness".to_owned(),
+                reference: "Pinned v2.2.0 exposes clinical NER families and an evaluation harness".to_owned(),
                 verdict: "UNMEASURED".to_owned(),
                 evidence: "MedScale Spec 069 · Pinned source docs/feature-map.md + docs/eval-harness.md · claim ledger: clinical-ner".to_owned(),
                 limitations: "No same-model/same-corpus F1, precision, recall, latency and RSS BenchmarkManifest.".to_owned(),
@@ -258,7 +259,7 @@ impl ProductIntelligenceVm {
             CompetitiveEvidenceVm {
                 capability: "PII / de-identification".to_owned(),
                 medscale: "Runtime path exists; no production de-identification model or PHI benchmark is promoted".to_owned(),
-                openmed: "Pinned baseline documents multilingual PII, de-identification methods and validation/eval contracts".to_owned(),
+                reference: "Pinned baseline documents multilingual PII, de-identification methods and validation/eval contracts".to_owned(),
                 verdict: "UNMEASURED".to_owned(),
                 evidence: "Pinned source docs/anonymization.md + docs/clinical-validation-protocol.md @ 59d9cb0a · claim ledger: pii-detection/de-identification".to_owned(),
                 limitations: "Feature presence is verified; matched recall/leakage/false-negative comparison is absent.".to_owned(),
@@ -266,7 +267,7 @@ impl ProductIntelligenceVm {
             CompetitiveEvidenceVm {
                 capability: "Model registry breadth".to_owned(),
                 medscale: "Signed provenance-first Pack lifecycle; raw catalogue cardinality is deliberately not a success metric".to_owned(),
-                openmed: "Pinned models.jsonl contains 2266 manifest rows and a manifest-backed registry".to_owned(),
+                reference: "Pinned models.jsonl contains 2266 manifest rows and a manifest-backed registry".to_owned(),
                 verdict: "ANTI-METRIC".to_owned(),
                 evidence: "Pinned source docs/model-registry.md + models.jsonl @ 59d9cb0a · claim ledger: model-catalogue-breadth".to_owned(),
                 limitations: "2266 is dated inventory context only; model count does not establish quality, trust or parity.".to_owned(),
@@ -274,7 +275,7 @@ impl ProductIntelligenceVm {
             CompetitiveEvidenceVm {
                 capability: "Apple Silicon inference".to_owned(),
                 medscale: "tract CPU baseline measured; no accelerated Apple Silicon runtime is admitted".to_owned(),
-                openmed: "Pinned v2.2.0 documents Python MLX and Swift MLX paths for supported model families".to_owned(),
+                reference: "Pinned v2.2.0 documents Python MLX and Swift MLX paths for supported model families".to_owned(),
                 verdict: "UNMEASURED".to_owned(),
                 evidence: "MedScale evidence/071/RUNTIME_COMPARISON.md · Pinned source docs/mlx-backend.md @ 59d9cb0a · claim ledger: apple-silicon-mlx".to_owned(),
                 limitations: "No same-model/same-corpus/same-hardware BenchmarkManifest; runtime winner is explicitly refused.".to_owned(),
@@ -293,9 +294,9 @@ impl ProductIntelligenceVm {
             } else {
                 format!("{admitted} Core-admitted Pack(s) in this Desktop session. Restart persistence is not claimed.")
             },
-            openmed_baseline: format!(
+            reference_baseline: format!(
                 "Pinned reference · commit {} · tree {}",
-                OPENMED_BASELINE_COMMIT, OPENMED_BASELINE_TREE
+                MEDSCALE_REFERENCE_BASELINE_COMMIT, MEDSCALE_REFERENCE_BASELINE_TREE
             ),
             competitive_summary: if ledger.valid {
                 format!(
@@ -371,8 +372,8 @@ fn runtime_device(runtime: &str) -> &'static str {
 #[cfg(test)]
 mod tests {
     use super::{
-        OPENMED_BASELINE_COMMIT, OPENMED_BASELINE_TREE, OPENMED_CLAIM_LEDGER_JSON,
-        ProductIntelligenceVm, summarize_claim_ledger,
+        MEDSCALE_REFERENCE_BASELINE_COMMIT, MEDSCALE_REFERENCE_BASELINE_TREE,
+        MEDSCALE_REFERENCE_CLAIM_LEDGER_JSON, ProductIntelligenceVm, summarize_claim_ledger,
     };
     use medscale_contracts::objects::{DigestSha256, OpaqueId};
     use medscale_contracts::packs::{
@@ -421,7 +422,7 @@ mod tests {
         assert_eq!(row.state, "CURRENT");
         assert!(row.model.contains("pack-model-center-070"));
         assert!(row.runtime.contains("Declared"));
-        assert!(row.runtime.contains("tract-onnx"));
+        assert!(row.runtime.contains("MedScale portable ONNX runtime"));
         assert!(row.trust.contains("synthetic-pack-trust-v1"));
         assert_eq!(row.digest, expected_digest);
         assert!(row.benchmark.contains("evidence://070/runtime"));
@@ -459,7 +460,52 @@ mod tests {
     }
 
     #[test]
-    fn current_truth_never_fakes_model_runtime_or_openmed_superiority() {
+    fn medscale_product_projection_uses_first_party_identity() {
+        let vm = ProductIntelligenceVm::current_truth();
+        let mut labels = vec![
+            vm.model_runtime_summary,
+            vm.model_runtime_boundary,
+            vm.model_source_summary,
+            vm.model_inventory_summary,
+            vm.reference_baseline,
+            vm.competitive_summary,
+        ];
+        for model in vm.models {
+            labels.extend([
+                model.scope,
+                model.task,
+                model.model,
+                model.source,
+                model.runtime,
+                model.device,
+                model.trust,
+                model.benchmark,
+                model.state,
+            ]);
+        }
+        for row in vm.evidence {
+            labels.extend([
+                row.capability,
+                row.medscale,
+                row.reference,
+                row.verdict,
+                row.evidence,
+                row.limitations,
+            ]);
+        }
+        for label in labels {
+            let normalized = label.to_ascii_lowercase();
+            for source_identity in ["openmed", "mesc", "medorigin", "everhealth"] {
+                assert!(
+                    !normalized.contains(source_identity),
+                    "MedScale product output leaks a legacy name: {label}"
+                );
+            }
+        }
+    }
+
+    #[test]
+    fn current_truth_never_fakes_comparator_superiority() {
         let vm = ProductIntelligenceVm::current_truth();
         assert!(
             vm.model_runtime_summary
@@ -482,14 +528,20 @@ mod tests {
         assert!(vm.competitive_summary.contains("39/39 accounted"));
         assert!(vm.competitive_summary.contains("0 BenchmarkManifest(s)"));
         assert!(vm.competitive_summary.contains("No parity, surpass"));
-        assert!(vm.openmed_baseline.contains(OPENMED_BASELINE_COMMIT));
-        assert!(vm.openmed_baseline.contains(OPENMED_BASELINE_TREE));
+        assert!(
+            vm.reference_baseline
+                .contains(MEDSCALE_REFERENCE_BASELINE_COMMIT)
+        );
+        assert!(
+            vm.reference_baseline
+                .contains(MEDSCALE_REFERENCE_BASELINE_TREE)
+        );
         assert!(vm.model_source_summary.contains("not signature authority"));
     }
 
     #[test]
     fn spec_071_claim_ledger_is_complete_and_fail_closed() {
-        let summary = summarize_claim_ledger(OPENMED_CLAIM_LEDGER_JSON);
+        let summary = summarize_claim_ledger(MEDSCALE_REFERENCE_CLAIM_LEDGER_JSON);
         assert!(summary.valid);
         assert_eq!(summary.total, 39);
         assert_eq!(summary.unmeasured, 22);
@@ -502,7 +554,8 @@ mod tests {
     #[test]
     fn duplicate_capability_claim_ledger_fails_closed() {
         let mut value: serde_json::Value =
-            serde_json::from_str(OPENMED_CLAIM_LEDGER_JSON).expect("valid canonical ledger");
+            serde_json::from_str(MEDSCALE_REFERENCE_CLAIM_LEDGER_JSON)
+                .expect("valid canonical ledger");
         let rows = value["rows"].as_array_mut().expect("ledger rows");
         rows[1]["capability_id"] = rows[0]["capability_id"].clone();
         let malformed = serde_json::to_string(&value).expect("serialize malformed ledger");
