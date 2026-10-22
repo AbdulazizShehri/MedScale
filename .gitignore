@@ -34,5 +34,30 @@ __pycache__/
 .idea/
 *.iml
 
-# Graft local context cache (developer tooling only; see AGENTS.md)
+# Graft local context cache (developer tooling only)
 graft/
+
+
+# Private maintainer plans and editor-specific automation are not public source.
+AGENTS.md
+CURSOR.md
+.cursor/
+.specify/
+.impeccable/
+docs/planning/
+docs/matrices/
+docs/product/POST_RELEASE_ROADMAP.md
+docs/product/RELEASE_CANDIDATE_*.md
+docs/community/OPEN_SOURCE_HANDOFF_*.md
+docs/brand/RENAME_INVENTORY_*
+docs/brand/ACTIVE_OWNED_PATH_MIGRATION_*
+docs/brand/FULL_MEDScale_RENAME_EXECUTION.md
+docs/brand/MEDSCALE_NATIVE_PROJECT_IDENTITY.md
+docs/brand/PRE_RELEASE_IDENTITY_AND_PROVENANCE_AUDIT.md
+specs/**/plan.md
+specs/**/tasks.md
+specs/**/research.md
+specs/**/requirements.md
+specs/**/analyze-notes.md
+specs/**/converge-notes.md
+specs/**/MUSE_EXECUTION_PLAN.md

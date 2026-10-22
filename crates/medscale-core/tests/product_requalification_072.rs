@@ -199,7 +199,7 @@ fn release_residuals_remain_exactly_external_after_rebuild() {
         root.join("evidence/072-product-requalification/RELEASE_RESIDUAL_AUDIT.md"),
     )
     .expect("Spec 072 residual audit");
-    let gates = std::fs::read_to_string(root.join("docs/planning/EXTERNAL_GATES.md"))
+    let gates = std::fs::read_to_string(root.join("docs/qualification/EXTERNAL_GATES.md"))
         .expect("external gates");
     for class in &expected {
         assert!(audit.contains(class), "residual not mapped: {class}");
@@ -210,14 +210,15 @@ fn release_residuals_remain_exactly_external_after_rebuild() {
     );
     assert!(!gates.contains("| MESC_RELEASED_ARTIFACT |"));
     let completion =
-        std::fs::read_to_string(root.join("docs/planning/PROJECT_COMPLETION_STATUS.md"))
+        std::fs::read_to_string(root.join("docs/qualification/PRODUCT_QUALIFICATION_STATUS.md"))
             .expect("completion status");
     assert!(!completion.contains("MESC_RELEASE_BLOCKING"));
-    let separation = std::fs::read_to_string(root.join("docs/planning/MESC_PROJECT_SEPARATION.md"))
-        .expect("MESC project separation decision");
+    let separation =
+        std::fs::read_to_string(root.join("docs/qualification/INTEROPERABILITY_SCOPE.md"))
+            .expect("MESC project separation decision");
     assert!(separation.contains("separate project/repository"));
     let closure =
-        std::fs::read_to_string(root.join("docs/planning/REPOSITORY_IMPLEMENTATION_CLOSURE.md"))
+        std::fs::read_to_string(root.join("docs/qualification/IMPLEMENTATION_CLOSURE.md"))
             .expect("repository implementation closure");
     assert!(closure.contains("STATUS = REPOSITORY_IMPLEMENTATION_COMPLETE_PENDING_EXTERNAL_GATES"));
     assert!(closure.contains("PROMOTED_REPOSITORY_OWNED_RESIDUALS = 0"));

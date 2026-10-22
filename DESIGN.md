@@ -130,7 +130,7 @@ components:
 
 # MedScale design system
 
-**Current authority:** Spec 095 and the founder-approved identity supplied 2026-09-29. See [productization](docs/planning/PRODUCTIZATION_PROGRAM.md); launch UI is not frozen.
+**Design authority:** the public MedScale identity and design tokens documented here and in [the brand system](docs/brand/BRAND_IDENTITY_SYSTEM.md). The desktop UI remains subject to accessibility and release qualification.
 
 ## Identity
 

@@ -20,8 +20,8 @@ fn read(path: &str) -> String {
 fn readme_intro() -> String {
     let readme = read("README.md");
     let end = readme
-        .find("## Working on MedScale")
-        .expect("README keeps a separate engineering section");
+        .find("## Maintainer and contributor guidance")
+        .expect("README keeps a separate public contributor section");
     readme[..end].to_owned()
 }
 
@@ -86,7 +86,9 @@ fn records_required_by_licenses_are_present() {
         "assets/brand/fonts/Inter-OFL.txt",
         "assets/brand/fonts/JetBrainsMono-OFL.txt",
         "assets/brand/fonts/InstrumentSans-OFL.txt",
-        "docs/brand/PRE_RELEASE_IDENTITY_AND_PROVENANCE_AUDIT.md",
+        "docs/qualification/EXTERNAL_GATES.md",
+        "docs/qualification/PRODUCT_QUALIFICATION_STATUS.md",
+        "third_party/provenance/095-approved-medscale-identity.md",
     ] {
         assert!(Path::new(&root.join(path)).exists(), "{path} must exist");
     }

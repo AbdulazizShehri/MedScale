@@ -104,5 +104,8 @@ fn spec_and_evidence_present() {
         root.join("evidence/056-fixture-a11y-semantics/SUMMARY.md")
             .is_file()
     );
-    assert!(root.join("docs/planning/SPEC_056_PROMOTION.md").is_file());
+    assert!(
+        root.join("docs/qualification/promotions/SPEC_056_PROMOTION.md")
+            .is_file()
+    );
 }

@@ -57,7 +57,10 @@ fn required_checks_owner_action_and_evidence_present() {
         root.join("evidence/051-required-checks-sync/OWNER_BRANCH_PROTECTION_ACTION.md")
             .is_file()
     );
-    assert!(root.join("docs/planning/SPEC_051_PROMOTION.md").is_file());
+    assert!(
+        root.join("docs/qualification/promotions/SPEC_051_PROMOTION.md")
+            .is_file()
+    );
     assert!(
         root.join("evidence/051-required-checks-sync/RULESET_QUALIFICATION_2026-09-14.md")
             .is_file()

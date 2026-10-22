@@ -46,7 +46,7 @@ fn living_release_documents_encode_external_only_residual_truth() {
         root.join("evidence/022-release-qualification-prep/SIGNING_PROVENANCE_PREP.md"),
     )
     .expect("read signing packet");
-    let gates = std::fs::read_to_string(root.join("docs/planning/EXTERNAL_GATES.md"))
+    let gates = std::fs::read_to_string(root.join("docs/qualification/EXTERNAL_GATES.md"))
         .expect("read external gates");
 
     for stale in [

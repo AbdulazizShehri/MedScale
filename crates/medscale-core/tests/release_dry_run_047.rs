@@ -47,5 +47,8 @@ fn release_dry_run_scripts_and_evidence_present() {
         root.join("evidence/047-release-dry-run-verifier/native-deps-inventory.json")
             .is_file()
     );
-    assert!(root.join("docs/planning/SPEC_047_PROMOTION.md").is_file());
+    assert!(
+        root.join("docs/qualification/promotions/SPEC_047_PROMOTION.md")
+            .is_file()
+    );
 }

@@ -69,6 +69,7 @@ test("MedScale catalog and model evaluation do not brand product features as com
   assert.doesNotMatch(models, /OpenMed-compatible \(ONNX decoder\)/);
   // Preserve exact repository IDs in the Core data contract; display only a friendly alias.
   assert.match(models, /catalogDisplayName\(r\.repo_id\)/);
+  assert.match(models, /r\.medscale_id/);
   assert.match(models, /p\.commit\.slice\(0, 12\)/);
   assert.doesNotMatch(models, />\{p\.repository\} @/);
 });
