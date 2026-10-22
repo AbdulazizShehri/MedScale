@@ -3,8 +3,8 @@
 use serde::{Deserialize, Serialize};
 
 use crate::actions::ControlledActionsDoctorStatus;
+use crate::external_artifact::MescArtifactDoctorStatus;
 use crate::fhir::{FhirInterchangeDoctorStatus, FhirSupportMatrix};
-use crate::mesc::MescArtifactDoctorStatus;
 use crate::mobile::MobileDoctorStatus;
 use crate::network::NetworkBrokerDoctorStatus;
 use crate::online_packs::OnlinePacksDoctorStatus;

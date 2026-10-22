@@ -6,7 +6,7 @@
 use medscale_contracts::envelopes::{
     AuthorityError, AuthorityRequest, Capability, RequestBody, ResponseBody,
 };
-use medscale_contracts::mesc::{
+use medscale_contracts::external_artifact::{
     MescAdmissionState, MescArtifactAdmitRequest, MescArtifactVerifyRequest, MescVerifyReason,
 };
 use medscale_contracts::objects::{AuthorityScopeId, DigestSha256, OpaqueId, RealmId, VaultId};

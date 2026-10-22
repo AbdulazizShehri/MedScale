@@ -16,10 +16,10 @@ mod gliner_runtime;
 #[cfg(feature = "synthetic-fixtures")]
 #[doc(hidden)]
 pub use gliner_runtime::fixtures as gliner_fixtures;
+mod external_artifact_verify;
 mod hf_snapshot;
 mod hir_const_matmul;
 pub mod identifier_validators;
-mod mesc_verify;
 mod mlx_layout;
 mod onnx_optional_inputs;
 mod onnx_runtime;
@@ -51,6 +51,7 @@ pub use compatibility::{
     SAFETENSORS_EVIDENCED_ARCHITECTURES, SAFETENSORS_KNOWN_UNSUPPORTED, executed_model,
     runtime_expectation,
 };
+pub use external_artifact_verify::{MescEpochStore, MescVerifyError, verify_mesc_release_dir};
 pub use format::{admit_pack_dir, forbidden_reason};
 #[cfg(feature = "synthetic-fixtures")]
 #[doc(hidden)]
@@ -70,7 +71,6 @@ pub use hf_snapshot::{
     labels_from_config, reproducibility_hash, snapshot_tokenizer_source, tokenizer_source_repo,
     verify_against_catalog, verify_file,
 };
-pub use mesc_verify::{MescEpochStore, MescVerifyError, verify_mesc_release_dir};
 pub use mlx_layout::{is_mlx_export, mlx_key};
 pub use onnx_runtime::{
     DocumentRunOptions, ONNX_TOKEN_CLASSIFIER_RUNTIME_ID, OnnxRuntimeError,

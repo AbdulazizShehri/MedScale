@@ -2,7 +2,7 @@
 //! MESC is a separate project/repository and is not a MedScale completion,
 //! startup, workflow, release, or execution authority.
 
-use medscale_contracts::mesc::MescArtifactDoctorStatus;
+use medscale_contracts::external_artifact::MescArtifactDoctorStatus;
 use medscale_core::build_doctor_report;
 
 #[test]
@@ -49,7 +49,7 @@ fn malformed_optional_artifact_verify_fails_closed() {
     let err = medscale_pack::verify_mesc_release_dir(&dir).unwrap_err();
     assert_eq!(
         err.report().reason,
-        medscale_contracts::mesc::MescVerifyReason::MalformedManifest
+        medscale_contracts::external_artifact::MescVerifyReason::MalformedManifest
     );
     let _ = std::fs::remove_dir_all(&dir);
 }

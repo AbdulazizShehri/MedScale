@@ -7,7 +7,7 @@ use std::collections::HashSet;
 use std::fs;
 use std::path::Path;
 
-use medscale_contracts::mesc::{
+use medscale_contracts::external_artifact::{
     MescAdmissionState, MescReleaseManifestV0, MescVerifyReason, MescVerifyReport,
 };
 use medscale_contracts::objects::DigestSha256;

@@ -9,8 +9,8 @@ use medscale_contracts::doctor::{
     ReleaseQualificationDoctorStatus, Spec043VaultPrivacyInput, SyncRisk, VaultPrivacyDoctorStatus,
 };
 use medscale_contracts::evidence::EvidenceCorpusDoctorStatus;
+use medscale_contracts::external_artifact::MescArtifactDoctorStatus;
 use medscale_contracts::fhir::{FhirInterchangeDoctorStatus, FhirSupportMatrix};
-use medscale_contracts::mesc::MescArtifactDoctorStatus;
 use medscale_contracts::mobile::MobileDoctorStatus;
 use medscale_contracts::network::NetworkBrokerDoctorStatus;
 use medscale_contracts::online_packs::OnlinePacksDoctorStatus;
