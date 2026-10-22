@@ -56,6 +56,9 @@ pub enum SizeMb {
 
 #[derive(Debug, Clone, PartialEq, Serialize)]
 pub struct CatalogRow {
+    /// Stable first-party MedScale catalog lookup ID, never a model-ownership claim.
+    pub medscale_id: String,
+    /// Actual source repository identity used for verification and download.
     pub repo_id: String,
     pub family: String,
     pub task: String,
@@ -176,6 +179,18 @@ fn non_empty(field: &str, value: &str, line: usize) -> Result<(), CatalogError> 
     Ok(())
 }
 
+/// Deterministic catalog-local identifier. This names MedScale's index entry,
+/// not the source model or its authored weights; the raw source ID is preserved.
+fn medscale_catalog_id(repo_id: &str) -> String {
+    let digest = Sha256::digest(repo_id.as_bytes());
+    let mut id = String::from("medscale-");
+    use std::fmt::Write as _;
+    for byte in &digest[..12] {
+        write!(&mut id, "{byte:02x}").expect("formatting into String cannot fail");
+    }
+    id
+}
+
 fn row_from_raw(raw: RawRow, line: usize) -> Result<CatalogRow, CatalogError> {
     non_empty("repo_id", &raw.repo_id, line)?;
     non_empty("family", &raw.family, line)?;
@@ -200,6 +215,7 @@ fn row_from_raw(raw: RawRow, line: usize) -> Result<CatalogRow, CatalogError> {
     Ok(CatalogRow {
         disk: disk_size(raw.disk_mb, raw.param_count, &formats),
         device_fit: device_fit(&formats),
+        medscale_id: medscale_catalog_id(&raw.repo_id),
         repo_id: raw.repo_id,
         family: raw.family,
         task: raw.task,
@@ -310,6 +326,7 @@ impl ModelCatalog {
         let text = std::str::from_utf8(manifest).map_err(|_| CatalogError::NotUtf8)?;
         let mut rows = Vec::new();
         let mut seen = HashSet::new();
+        let mut seen_ids = HashSet::new();
         for (index, line) in text.lines().enumerate() {
             let line_no = index + 1;
             if line.trim().is_empty() {
@@ -330,6 +347,12 @@ impl ModelCatalog {
                 return Err(CatalogError::Duplicate {
                     line: line_no,
                     repo_id: row.repo_id,
+                });
+            }
+            if !seen_ids.insert(row.medscale_id.clone()) {
+                return Err(CatalogError::InvalidRow {
+                    line: line_no,
+                    reason: "duplicate MedScale catalog ID".to_owned(),
                 });
             }
             rows.push(row);
@@ -433,6 +456,22 @@ mod tests {
             .unwrap();
         }
         out
+    }
+
+    #[test]
+    fn medscale_catalog_ids_are_stable_and_dont_spoof_upstream_ownership() {
+        let one = ModelCatalog::import("s/f", COMMIT, synthetic(10).as_bytes()).unwrap();
+        let two = ModelCatalog::import("other/fixture", COMMIT, synthetic(10).as_bytes()).unwrap();
+        let mut unique = std::collections::HashSet::new();
+        for (a, b) in one.rows().iter().zip(two.rows()) {
+            assert!(a.medscale_id.starts_with("medscale-"));
+            assert_eq!(a.medscale_id.len(), 33);
+            assert_eq!(a.medscale_id, b.medscale_id);
+            assert!(!a.medscale_id.contains("Synthetic"));
+            assert!(unique.insert(a.medscale_id.clone()));
+            assert_eq!(a.repo_id, b.repo_id);
+        }
+        assert_eq!(unique.len(), 10);
     }
 
     #[test]
