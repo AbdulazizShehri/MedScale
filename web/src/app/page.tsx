@@ -147,6 +147,10 @@ export default function Home() {
               <li><Check /> Encrypted local storage and FHIR R4 interchange</li>
               <li><Check /> Tests on Windows, macOS and Linux for every pull request</li>
             </ul>
+            <div className="built-on" aria-label="Built on">
+              <span>Built on</span>
+              {["Rust", "Tauri 2", "React", "SQLCipher", "FHIR R4", "tract ONNX", "Candle"].map((t) => <b key={t}>{t}</b>)}
+            </div>
             <a className="text-link" href={docs.crates}>Explore the Rust workspace <ArrowUpRight /></a>
           </div>
           <div className="arch-diagram" aria-label="Diagram: the desktop app and the CLI both use the MedScale Rust Core">

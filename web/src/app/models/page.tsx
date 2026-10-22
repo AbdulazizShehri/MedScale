@@ -51,8 +51,8 @@ export default function Models() {
             <h2 className="h2" style={{ fontSize: "clamp(28px, 3.4vw, 40px)" }}><span className="mute">On your machine,</span> within clear limits.</h2>
           </div>
           <div className="cards">
-            <div className="card"><div className="card-top"><small>Runtime</small></div><strong>ONNX</strong><p>A portable ONNX runtime for admitted packs, executed locally by the Core.</p></div>
-            <div className="card"><div className="card-top"><small>Runtime</small></div><strong>Rust encoders</strong><p>Small encoder models such as token classifiers run in pure Rust on the CPU.</p></div>
+            <div className="card"><div className="card-top"><small>Runtime</small></div><strong>ONNX</strong><p>Admitted packs run on tract, a pure-Rust ONNX runtime, inside the Core. No native runtime to install.</p></div>
+            <div className="card"><div className="card-top"><small>Runtime</small></div><strong>Rust encoders</strong><p>Small encoder models such as token classifiers run on Candle, in Rust, on the CPU.</p></div>
             <div className="card"><div className="card-top"><small>Audio</small></div><strong>Local speech-to-text</strong><p>Transcription runs on device. It has been checked on synthetic speech only.</p></div>
           </div>
           <div className="notice"><strong>Current limits</strong><p>Model packs are bounded to 1 GiB, so large generative and multimodal models are not supported yet. No model is qualified for any clinical task.</p></div>

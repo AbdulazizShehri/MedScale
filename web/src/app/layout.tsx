@@ -5,8 +5,10 @@ import { Header } from "@/components/Header";
 import { Footer } from "@/components/Footer";
 import { asset } from "@/lib/site";
 
-// Latin subsets of the repository's admitted OFL fonts (licenses in /fonts/).
+// Latin subsets of the repository's OFL fonts (licenses in /fonts/): Inter for text, Plus Jakarta
+// Sans (the wordmark family) for headlines, JetBrains Mono NL for data.
 const inter = localFont({ src: "../fonts/InterVariable-latin.woff2", variable: "--font-inter", weight: "100 900", display: "swap" });
+const display = localFont({ src: "../fonts/PlusJakartaSans-latin.woff2", variable: "--font-pjs", weight: "200 800", display: "swap" });
 const mono = localFont({ src: "../fonts/JetBrainsMonoNL-latin.woff2", variable: "--font-jbm", weight: "400", display: "swap", preload: false });
 
 const site = process.env.NEXT_PUBLIC_SITE_URL || "https://abdulazizshehri.github.io/MedScale";
@@ -32,7 +34,7 @@ export const viewport: Viewport = { width: "device-width", initialScale: 1, them
 
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
   return (
-    <html lang="en" className={`${inter.variable} ${mono.variable}`}>
+    <html lang="en" className={`${inter.variable} ${display.variable} ${mono.variable}`}>
       <body>
         <a className="skip-link" href="#main">Skip to content</a>
         <Header />
