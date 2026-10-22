@@ -1,0 +1,9 @@
+\section{Qualification Methodology}
+
+MedScale's repository process binds promoted work to exact revisions, deterministic qualification, exact-head CI, merge evidence, and post-main verification. The whole-platform qualification campaign (Spec 092) is the principal pre-existing integrated evidence source for this paper.
+
+At the frozen snapshot, the Spec 092 matrix classifies 35 areas using a conservative status vocabulary rather than treating all implemented behavior as proven. The integrated campaign exercises Research OS planes in one synthetic vault across backup, restore, consistency verification, and restart. Exact-head and post-merge CI were green on hosted Linux, Windows, and macOS jobs for the qualified synthetic profile.
+
+Two failures discovered during integrated qualification are scientifically important because they demonstrate that the methodology was capable of falsifying expected behavior. One defect lost ID-sequence state across restore, creating a post-restore collision/refusal risk; it was repaired with a restore regression test. A second failure arose from nondeterministic privacy leak checking when a short value collided with substrings of digests/identifiers/timestamps; the failed run was retained as evidence, the matcher was made boundary-aware, and a regression test was added. Neither defect is presented as a clinical event.
+
+The new paper campaign extends this repository qualification with controlled provenance mutations, a structured failure corpus, repeated recovery experiments, and measurements intended specifically for publication.

@@ -1,0 +1,17 @@
+\section{Methods}
+
+\subsection{Frozen snapshot and data policy}
+All experiments are bound to commit \texttt{1e2b7d94e970256b38bda15fa91f62bc397e825a} unless an explicitly recorded successor snapshot is adopted. Synthetic data only is used. Real patient data and production credentials are excluded.
+
+\subsection{Research questions}
+\begin{description}
+  \item[RQ1:] To what extent does MedScale detect or refuse invalid provenance bindings under controlled mutation of source digests, revisions or identities, receipts, lineage, project scope, and recovery material?
+  \item[RQ2:] How consistently do authority and fail-closed boundaries produce the specified outcomes under adversarial and recovery faults across storage, privacy, compute, adapters, and federation?
+  \item[RQ3:] Which deterministic and recovery properties are reproducible under repeated execution at the frozen snapshot, and which claims are supported across hosted Linux, Windows, and macOS CI?
+  \item[RQ4:] What latency and storage costs are associated with provenance recording/verification and recovery operations as synthetic artifact counts scale?
+\end{description}
+
+A fifth question comparing explicit multi-state reporting with binary pass/fail reporting is deferred unless a defensible isolated harness and measurable endpoint are defined before data collection.
+
+\subsection{Analysis discipline}
+For mutation and adversarial suites we report counts by pre-specified class, false acceptance of invalid cases, and false refusal of valid controls. Performance experiments report the environment, repetitions, warm-up policy, scale, median, tail latency, dispersion, and raw measurements. A causal ``overhead'' claim is made only when a valid paired baseline exists; otherwise results are described as absolute operation costs.

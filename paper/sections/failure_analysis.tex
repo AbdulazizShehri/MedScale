@@ -1,0 +1,5 @@
+\section{Failure Analysis}
+
+The paper treats failures as primary evidence. Each observed failure will be classified by triggering condition, expected behavior, observed behavior, detection surface, user-visible/system-visible state, persistence/recovery implications, and repair status. Historical qualification defects are analyzed separately from the new controlled paper corpus so that repaired historical bugs are not counted as prospective experimental failures.
+
+A key distinction is between a \emph{refusal caused by an invalid test case} and a \emph{system defect}. The former may be the intended fail-closed outcome; the latter is behavior inconsistent with the pre-specified contract. This separation prevents a high refusal count from being misrepresented as either uniformly good or uniformly bad.

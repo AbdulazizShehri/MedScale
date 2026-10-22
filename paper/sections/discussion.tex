@@ -1,0 +1,9 @@
+\section{Discussion}
+
+The central hypothesis is that auditability improves when authority and epistemic distinctions are represented in executable system contracts rather than reconstructed after an output is generated. This approach complements rather than replaces model-level calibration, citation verification, retrieval evaluation, or clinical validation.
+
+One implication is that provenance should not be treated as a single metadata field. Source identity, content integrity, transform identity, evidence relation, review state, and action/effect evidence answer different audit questions. Similarly, ``the system failed'' is often too coarse: an unavailable external transport, an explicitly unknown evidence axis, a corrupt backup, and a denied capability are operationally different conditions even when none yields a successful action.
+
+A second implication concerns evaluation. Integrated qualification is more informative when it can expose defects. The historical restore-sequence and privacy-matcher failures provide examples of why a publication should preserve failed evidence and regression repairs rather than report only final green CI. The new paper experiments extend this principle prospectively by fixing mutation classes and outcome definitions before measurement.
+
+These engineering properties cannot establish clinical benefit. Their value is narrower: they can make later clinical, security, and regulatory evaluation easier to audit because the system exposes where authority came from, what was known, what failed, and whether an external effect was actually authorized and observed.

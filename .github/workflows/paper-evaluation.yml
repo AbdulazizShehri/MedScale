@@ -1,0 +1,158 @@
+name: paper-evaluation
+
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - "paper/**"
+      - "crates/medscale-contracts/tests/paper_*.rs"
+      - "crates/medscale-core/tests/paper_*.rs"
+      - ".github/workflows/paper-evaluation.yml"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: paper-evaluation-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  CARGO_TERM_COLOR: always
+  RUSTFLAGS: -Dwarnings
+
+jobs:
+  paper-conformance:
+    name: paper conformance (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v4
+        with:
+          # Pull-request workflows otherwise test GitHub's synthetic merge ref.
+          # The paper requires evidence bound to the exact research head revision.
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@d1031067263f94b142dd6c0ce24c5eb9d02d52a0
+        with:
+          toolchain: "1.97.1"
+
+      - name: Cache cargo
+        uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6
+
+      - name: Install Perl (Windows OpenSSL vendor build)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          choco install strawberryperl -y --no-progress
+          echo "C:\Strawberry\perl\bin" | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
+
+      - name: Install OpenSSL/Perl (macOS SQLCipher vendor build)
+        if: runner.os == 'macOS'
+        run: |
+          brew install openssl@3 perl
+          echo "OPENSSL_DIR=$(brew --prefix openssl@3)" >> "$GITHUB_ENV"
+          echo "$(brew --prefix perl)/bin" >> "$GITHUB_PATH"
+
+      - name: Capture environment manifest
+        run: python paper/artifact/scripts/evidence_io.py manifest
+
+      - name: Experiment A0 — contract provenance controls
+        if: always()
+        run: >-
+          python paper/artifact/scripts/evidence_io.py run --label a0 --
+          cargo test -p medscale-contracts --test paper_provenance_contracts --locked -- --nocapture
+
+      - name: Experiment A1 — Core provenance binding
+        if: always()
+        run: >-
+          python paper/artifact/scripts/evidence_io.py run --label a1 --
+          cargo test -p medscale-core --test paper_provenance_system --locked -- --nocapture
+
+      - name: Experiment B0 — authority/effect conformance
+        if: always()
+        run: >-
+          python paper/artifact/scripts/evidence_io.py run --label b0 --
+          cargo test -p medscale-core --test paper_authority_effects --locked -- --nocapture
+
+      - name: Experiment C1.1 — fresh-vault recovery repeat 1
+        if: always()
+        run: >-
+          python paper/artifact/scripts/evidence_io.py run --label c1-r1 --
+          cargo test -p medscale-core --test whole_platform_092 --locked
+          every_plane_survives_backup_restore_and_restart_through_core -- --exact --nocapture
+
+      - name: Experiment C1.2 — fresh-vault recovery repeat 2
+        if: always()
+        run: >-
+          python paper/artifact/scripts/evidence_io.py run --label c1-r2 --
+          cargo test -p medscale-core --test whole_platform_092 --locked
+          every_plane_survives_backup_restore_and_restart_through_core -- --exact --nocapture
+
+      - name: Experiment C1.3 — fresh-vault recovery repeat 3
+        if: always()
+        run: >-
+          python paper/artifact/scripts/evidence_io.py run --label c1-r3 --
+          cargo test -p medscale-core --test whole_platform_092 --locked
+          every_plane_survives_backup_restore_and_restart_through_core -- --exact --nocapture
+
+      - name: Experiment D0-cold — absolute Core latency
+        if: always()
+        env:
+          MEDSCALE_PAPER_PERF_MODE: cold
+          MEDSCALE_PAPER_PERF_WARMUP: "0"
+          MEDSCALE_PAPER_PERF_RUNS: "1"
+          MEDSCALE_PAPER_PERF_TIMELINE_EVENTS: "1000"
+          MEDSCALE_PAPER_PERF_FHIR_BYTES: "131072"
+          MEDSCALE_PAPER_PERF_OUTPUT: paper/artifact/raw/ci/d0-cold/perf-${{ runner.os }}.json
+        run: >-
+          python paper/artifact/scripts/evidence_io.py run --label d0-cold --
+          cargo test -p medscale-core --test paper_performance --locked
+          paper_rq4_d0_absolute_latency -- --exact --nocapture
+
+      - name: Experiment D0-warm — absolute Core latency
+        if: always()
+        env:
+          MEDSCALE_PAPER_PERF_MODE: warm
+          MEDSCALE_PAPER_PERF_WARMUP: "5"
+          MEDSCALE_PAPER_PERF_RUNS: "100"
+          MEDSCALE_PAPER_PERF_TIMELINE_EVENTS: "1000"
+          MEDSCALE_PAPER_PERF_FHIR_BYTES: "131072"
+          MEDSCALE_PAPER_PERF_OUTPUT: paper/artifact/raw/ci/d0-warm/perf-${{ runner.os }}.json
+        run: >-
+          python paper/artifact/scripts/evidence_io.py run --label d0-warm --
+          cargo test -p medscale-core --test paper_performance --locked
+          paper_rq4_d0_absolute_latency -- --exact --nocapture
+
+      - name: Prepare D1 synthetic storage campaign
+        id: d1clean
+        if: always()
+        run: python paper/artifact/scripts/storage_probe.py clean
+
+      - name: Experiment D1 — integrated recovery/storage campaign
+        id: d1run
+        if: ${{ always() && steps.d1clean.outcome == 'success' }}
+        run: >-
+          python paper/artifact/scripts/evidence_io.py run --label d1 --
+          cargo test -p medscale-core --test whole_platform_092 --locked
+          every_plane_survives_backup_restore_and_restart_through_core -- --exact --nocapture
+
+      - name: Measure D1 persisted storage
+        if: ${{ always() && steps.d1run.outcome == 'success' }}
+        run: python paper/artifact/scripts/storage_probe.py measure
+
+      - name: Hash raw evidence
+        if: always()
+        run: python paper/artifact/scripts/evidence_io.py hash
+
+      - name: Upload paper evaluation evidence
+        if: always()
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v4.6.2
+        with:
+          name: medscale-paper-evaluation-${{ matrix.os }}
+          path: paper/artifact/raw/ci/
+          if-no-files-found: error
