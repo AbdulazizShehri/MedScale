@@ -69,7 +69,7 @@ export function Models() {
 }
 
 type CatalogRow = {
-  repo_id: string; task: string | null; family: string | null; formats: string[]; tier: string | null; status: string;
+  medscale_id: string; repo_id: string; task: string | null; family: string | null; formats: string[]; tier: string | null; status: string;
   license_claim: string | null; device_fit: string; disk: { kind: string; megabytes?: number } | null;
   runtime_expectation: { kind: string; [k: string]: unknown };
 };
@@ -115,7 +115,7 @@ function CatalogTab() {
         <table className="tb"><thead><tr><th style={{ width: "34%" }}>Model</th><th style={{ width: "18%" }}>Task</th><th className="col-p3" style={{ width: "14%" }}>Formats</th><th style={{ width: "10%" }}>Disk</th><th style={{ width: "14%" }}>Expectation</th><th>Status</th></tr></thead>
           <tbody>{p.rows.map((r) => (
             <tr key={r.repo_id} className="r2">
-              <td><div style={{ display: "flex", flexDirection: "column", minWidth: 0 }}><span className="mono trunc" style={{ fontSize: 12.5 }}>{catalogDisplayName(r.repo_id)}</span><span className="t-sm i3 trunc">{[r.family, r.tier, r.license_claim].filter(Boolean).join(" · ")}</span></div></td>
+              <td><div style={{ display: "flex", flexDirection: "column", minWidth: 0 }}><span className="mono trunc" style={{ fontSize: 12.5 }}>{catalogDisplayName(r.repo_id)}</span><span className="t-sm i3 trunc">{[r.family, r.tier, r.license_claim].filter(Boolean).join(" · ")}</span><span className="t-sm i3 mono trunc" title="MedScale catalog entry ID (not an assertion of model authorship)">{r.medscale_id}</span></div></td>
               <td className="t-sm i2"><span className="trunc">{r.task ?? "—"}</span></td>
               <td className="col-p3 mono t-mono-sm i2"><span className="trunc">{r.formats.join(", ")}</span></td>
               <td className="mono t-mono-sm i2">{r.disk?.megabytes != null ? `${Math.round(r.disk.megabytes)} MB` : "—"}</td>
