@@ -348,10 +348,19 @@ try {
     await click(`//*[@role='option' and ${text("Switch to dark theme")}]`);
     const theme = await wd("POST", `/session/${sid}/execute/sync`, { script: "return document.querySelector('.ms')?.getAttribute('data-theme');", args: [] });
     if (theme !== "dark") throw new Error(`theme is ${theme}, expected dark`);
-    for (const [route, expect] of [["Patients", "Ada Synthetic"], ["Insights", "cohort_size"], ["Knowledge", "search receipts and canvases"], ["MedAgent", "summarize the bound sources"], ["Models", "MedScale Catalog"], ["Audit Trail", "Disclosure history recorded by Core"]]) {
+    for (const [route, expect] of [["Patients", "Ada Synthetic"], ["Insights", "cohort_size"], ["Knowledge", null], ["MedAgent", "summarize the bound sources"], ["Models", "MedScale Catalog"], ["Audit Trail", "synthetic-subject-ada"]]) {
       await nav(route);
-      await see(expect, 30000);
-      await sleep(600);
+      if (route === "Knowledge") {
+        // The restart starts a fresh session: rebuild the index and search again.
+        await click(`//button[${text("Build index")}]`);
+        await see("Index built", 60000);
+        await type(`//input[@aria-label='Search indexed sources']`, "synthetic");
+        await click(`//button[@type='submit' and ${text("Search")}]`);
+        await find(`//pre[contains(@class,'pre')]`, 60000);
+      } else {
+        await see(expect, 30000);
+      }
+      await sleep(900);
       await shot(`dark-${route.toLowerCase().replace(/\s+/g, "-")}`);
     }
   });
