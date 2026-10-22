@@ -1,44 +1,27 @@
-# Contributing to MedScale
+# MedScale engineering contribution guide
 
-## Authority
+MedScale is an Apache-2.0, maintainer-led community project. Review the root [CONTRIBUTING.md](../../CONTRIBUTING.md), [SECURITY.md](../../SECURITY.md), [DESIGN.md](../../DESIGN.md) and the [public qualification status](../qualification/) before changing Core code.
 
-Read `CURSOR.md`, `AGENTS.md`, and `docs/planning/BUILD_QUEUE.md` before material work.
-Ordinary decisions use `docs/planning/IMPLEMENTATION_DECISION_DEFAULTS.md`.
+## Safe engineering workflow
 
-## Branching
+- Work in a focused feature branch and open a Pull Request against protected `main`.
+- Describe intended behavior and tests. Only synthetic examples/fixtures are authorized; do not publish real health data or secrets.
+- Keep Rust Core as the single source of authority; no unauthorized product network calls or client-side claim elevation.
+- Keep third-party licenses, actual source identities, dependencies and [provenance records](../../third_party/provenance/) accurate.
+- Review the [dependency admission requirements](DEPENDENCY_ADMISSION_TEMPLATE.md) before adding packages or model resources.
+- Required workflow status and evidence govern merges; do not bypass checks.
 
-Prefer `spec/<id>-<slug>` for material specs. One material spec per PR unless tasks require otherwise.
-
-## Commits
-
-Focused English commits. No force-push or destructive history rewrite.
-
-## Pull requests
-
-Use `.github/PULL_REQUEST_TEMPLATE.md`. Merge only when required exact-head gates pass.
-
-## Dependencies
-
-Complete `docs/engineering/DEPENDENCY_ADMISSION_TEMPLATE.md` before admitting a load-bearing dependency.
-Follow `docs/planning/SOURCE_ACQUISITION_AND_COPY_PLAN.md` before donor code.
-
-## Verify (locked)
-
-Prefer Cargo `--locked` against the committed `Cargo.lock` (matches CI):
-
-```powershell
+```sh
 cargo fmt --all -- --check
 cargo clippy --workspace --all-targets --locked -- -D warnings
 cargo test --workspace --locked
+python3 scripts/check_public_repository_hygiene.py
 ```
 
-## Evidence
+The Tauri desktop has its own Cargo manifest; follow [desktop build instructions](../../apps/desktop-tauri/README.md) for frontend and native commands.
 
-Do not claim PASS without exact-head evidence under `evidence/`.
-Do not claim `RELEASE_READY` without a separate qualification package and closed external gates.
+## Public repository boundary
 
-## Anti-scope reminders
+Do not commit internal execution plans, founder scheduling, editor-specific agent playbooks, or strategy/roadmap working files. Keep public code, issue discussions, qualification evidence, user documentation and the minimum technical specs required for verification. The public repository policy check rejects internal plan paths.
 
-- Real PHI unauthorized
-- MESC mutation unauthorized
-- Product runtime egress DEFAULT_DENY until Spec 013
+Successful tests, unsigned preview installers or merged pull requests do not authorize clinical deployment or a product release.

@@ -32,7 +32,7 @@ Some platform dependencies differ: see [desktop setup](apps/desktop-tauri/README
 - Submit a pull request against `main`; required CI checks must pass. Maintainers may request changes, split large patches, or decline out-of-scope work.
 - Do not force-push over someone else's work or bypass the active `protect-main` ruleset.
 
-Contributions may be used and redistributed under the repository's Apache-2.0 terms unless explicitly agreed otherwise. **Only submit code or assets you own or are legally authorized to contribute.** External source, code, weights, licenses and model identities must retain proper attribution; see [source acquisition rules](docs/planning/SOURCE_ACQUISITION_AND_COPY_PLAN.md) and [dependency admission](docs/engineering/DEPENDENCY_ADMISSION_TEMPLATE.md). The project's Apache license does not automatically apply to all third-party assets.
+Contributions may be used and redistributed under the repository's Apache-2.0 terms unless explicitly agreed otherwise. **Only submit code or assets you own or are legally authorized to contribute.** External source, code, weights, licenses and model identities must retain proper attribution; see [source provenance records](third_party/provenance/) and [dependency admission](docs/engineering/DEPENDENCY_ADMISSION_TEMPLATE.md). The project's Apache license does not automatically apply to all third-party assets.
 
 ## Safety and technical boundaries
 
@@ -45,6 +45,6 @@ Contributions may be used and redistributed under the repository's Apache-2.0 te
 
 ## Where to help
 
-Documentation, test coverage, first-run setup, reproducible benchmarks, safe synthetic FHIR interoperability, local model admission, accessibility and transparent error reporting are all useful areas. To align implementation with ongoing work, consult [the build queue](docs/planning/BUILD_QUEUE.md) and [engineering guidelines](docs/engineering/CONTRIBUTING.md).
+Documentation, test coverage, first-run setup, reproducible benchmarks, safe synthetic FHIR interoperability, local model admission, accessibility and transparent error reporting are all useful areas. To align implementation with ongoing work, consult [open Issues](https://github.com/AbdulazizShehri/MedScale/issues) and [engineering guidelines](docs/engineering/CONTRIBUTING.md).
 
 We value respectful, specific feedback, including reports that show limitations or regressions rather than successes.

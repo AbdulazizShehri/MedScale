@@ -23,4 +23,4 @@ Maintainers will triage privately, seek a reproducible fix, run regression/secur
 - Prefer smallest-possible security patches; do not hide residual risk or invent clinical/regulatory certification.
 - Do not treat a passed CI run or unsigned installer as production release authorization.
 
-See [the external release and privacy gates](docs/planning/EXTERNAL_GATES.md) and [contribution policy](CONTRIBUTING.md).
+See [the external release and privacy gates](docs/qualification/EXTERNAL_GATES.md) and [contribution policy](CONTRIBUTING.md).

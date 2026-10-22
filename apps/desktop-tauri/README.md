@@ -64,7 +64,7 @@ CI builds **unsigned** engineering packages from the exact PR head (`specs/101-t
 | Windows | NSIS `MedScale_<version>_x64-setup.exe`, per-user install | The installer never downloads WebView2 (`webviewInstallMode=skip`). The **Microsoft Edge WebView2 Evergreen Runtime is a prerequisite**: it ships with Windows 11 and is serviced on supported Windows 10. Without it, MedScale fails to start rather than downloading anything. Unsigned, so Windows SmartScreen may warn on first run. |
 | macOS | `MedScale.app` and `MedScale_<version>_<arch>.dmg` | Unsigned and not notarized, so Gatekeeper blocks it by default. Opening the DMG shows the Apache-2.0 license as a click-through agreement (from `bundle.licenseFile`). |
 
-The desktop is built for Windows and macOS only. A Linux desktop is not built: every Tauri 2.12 Linux webview path needs GTK 3 / `glib` 0.18, which is affected by RUSTSEC-2024-0429 (gate `TAURI_LINUX_DESKTOP_GTK3` in `docs/planning/EXTERNAL_GATES.md`). The Linux CLI and Core stay supported.
+The desktop is built for Windows and macOS only. A Linux desktop is not built: every Tauri 2.12 Linux webview path needs GTK 3 / `glib` 0.18, which is affected by RUSTSEC-2024-0429 (gate `TAURI_LINUX_DESKTOP_GTK3` in `docs/qualification/EXTERNAL_GATES.md`). The Linux CLI and Core stay supported.
 
 Each package ships in a verified release set:
 - `package-manifest.json`, which binds the source and tree SHAs, both `Cargo.lock` files, `package-lock.json`, the toolchain, and the installer, SBOM and NOTICE digests;

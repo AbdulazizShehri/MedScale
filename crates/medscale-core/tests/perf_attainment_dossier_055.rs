@@ -31,7 +31,10 @@ fn dossier_and_binding_present_with_verdict() {
         root.join("specs/055-perf-attainment-dossier/spec.md")
             .is_file()
     );
-    assert!(root.join("docs/planning/SPEC_055_PROMOTION.md").is_file());
+    assert!(
+        root.join("docs/qualification/promotions/SPEC_055_PROMOTION.md")
+            .is_file()
+    );
     let dossier = read("evidence/055-perf-attainment/PERFORMANCE_DOSSIER.md");
     let binding = read("evidence/055-perf-attainment/BINDING.md");
     assert!(dossier.contains("PERFORMANCE_NON_ATTAINMENT"));

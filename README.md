@@ -14,7 +14,7 @@
 MedScale is an open-source Rust-based platform for exploring evidence-backed health information in local workspaces. The trusted Rust Core owns records, provenance, validation, policy decisions and audit trails. The desktop and CLI present that Core's results rather than becoming independent sources of authority.
 
 > [!IMPORTANT]
-> **Status: engineering preview, synthetic data only.** MedScale is not clinically validated and is not a certified medical device, authorized patient-data processor, or signed production release. This repository is open for development and review only. Do not enter real patient data, identifying health records, credentials, or confidential materials. No medical diagnosis or treatment decisions should rely on this software. See [current external gates](docs/planning/EXTERNAL_GATES.md).
+> **Status: engineering preview, synthetic data only.** MedScale is not clinically validated and is not a certified medical device, authorized patient-data processor, or signed production release. This repository is open for development and review only. Do not enter real patient data, identifying health records, credentials, or confidential materials. No medical diagnosis or treatment decisions should rely on this software. See [current external gates](docs/qualification/EXTERNAL_GATES.md).
 
 ## Why MedScale?
 
@@ -31,11 +31,11 @@ MedScale is an open-source Rust-based platform for exploring evidence-backed hea
 | --- | --- |
 | Core and CLI | Rust; tested in CI on Windows, macOS and Linux |
 | Desktop | Tauri 2 + React/TypeScript; unsigned engineering installers for Windows and macOS |
-| Linux desktop | Not shipped; see the [GTK security/dependency gate](docs/planning/EXTERNAL_GATES.md) |
+| Linux desktop | Not shipped; see the [GTK security/dependency gate](docs/qualification/EXTERNAL_GATES.md) |
 | Data | Synthetic fixtures only; real PHI **not authorized** |
 | Release | Source available; production/clinical deployment **not qualified** |
 
-See [the desktop guide](apps/desktop-tauri/README.md) and [external qualification gates](docs/planning/EXTERNAL_GATES.md). Historical engineering artifacts and comparison data are reproducible evidence, not marketing or clinical claims.
+See [the desktop guide](apps/desktop-tauri/README.md) and [external qualification gates](docs/qualification/EXTERNAL_GATES.md). Historical engineering artifacts and comparison data are reproducible evidence, not marketing or clinical claims.
 
 ## Get started
 
@@ -73,7 +73,7 @@ The older Slint desktop is preserved as an engineering reference, not the curren
 - [Community standards](CODE_OF_CONDUCT.md) · [Getting help](SUPPORT.md)
 - [Report a security vulnerability privately](SECURITY.md)
 
-If you are new, start with a documentation change or a small synthetic-fixture bug. Check existing Issues and the [live engineering queue](docs/planning/BUILD_QUEUE.md) before proposing larger changes. No real patient records, even in screenshots or debugging logs.
+If you are new, start with a documentation change or a small synthetic-fixture bug. Check [open Issues](https://github.com/AbdulazizShehri/MedScale/issues) before proposing larger changes. No real patient records, even in screenshots or debugging logs.
 
 ## Security, attribution and license
 
@@ -81,6 +81,6 @@ MedScale first-party code is licensed under the **[Apache License 2.0](LICENSE)*
 
 For vulnerabilities use [private security reporting](SECURITY.md), **not public Issues**. For ordinary questions use [Discussions](https://github.com/AbdulazizShehri/MedScale/discussions).
 
-## Working on MedScale (engineering and agents)
+## Maintainer and contributor guidance
 
-Maintainers and engineering agents: [`AGENTS.md`](AGENTS.md), [`CURSOR.md`](CURSOR.md), [engineering guide](docs/engineering/CONTRIBUTING.md) and [current project plan](docs/planning/START_HERE.md). These detailed execution records are preserved for continuity, but are not prerequisites for reading or joining the project.
+The [contribution guide](CONTRIBUTING.md), [engineering guide](docs/engineering/CONTRIBUTING.md), [public qualification evidence](docs/qualification/), and GitHub Issues provide the shared context needed to contribute. Internal execution plans and editor-specific agent instructions are not part of the public project API.
