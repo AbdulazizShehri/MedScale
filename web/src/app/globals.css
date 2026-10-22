@@ -383,8 +383,9 @@ a:hover > .arrow, button:hover > .arrow { transform: translateX(2px); }
 .feature-row { display: grid; grid-template-columns: minmax(0, 0.8fr) minmax(0, 1.2fr); gap: clamp(28px, 5vw, 64px); align-items: center; }
 .feature-row + .feature-row { margin-top: clamp(64px, 9vw, 120px); }
 .feature-row.flip > :first-child { order: 2; }
+.feature-row.flip { grid-template-columns: minmax(0, 1.2fr) minmax(0, 0.8fr); }
 .feature-copy { display: grid; gap: 16px; align-content: start; }
-@media (max-width: 960px) { .feature-row { grid-template-columns: 1fr; } .feature-row.flip > :first-child { order: 0; } }
+@media (max-width: 960px) { .feature-row, .feature-row.flip { grid-template-columns: 1fr; } .feature-row.flip > :first-child { order: 0; } }
 .notice { border: 1px solid rgba(251, 144, 90, 0.35); background: linear-gradient(180deg, rgba(251, 144, 90, 0.06), transparent); border-radius: var(--r-3); padding: 20px 22px; display: grid; gap: 8px; }
 .notice strong { color: var(--orange); font-size: 14px; font-weight: 560; }
 .notice p { margin: 0; color: var(--ink-2); font-size: 14px; line-height: 1.6; }

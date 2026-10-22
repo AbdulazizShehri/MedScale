@@ -37,8 +37,8 @@ export default function Models() {
         <div className="shell feature-row">
           <div className="feature-copy">
             <span className="eyebrow">Catalog</span>
-            <h2 className="h2" style={{ fontSize: "clamp(28px, 3.4vw, 40px)" }}><span className="mute">Browse before</span> you download anything.</h2>
-            <p className="body">The catalog in the desktop app lists models with their task, format, size and source identity. Search by name, family or language and filter by task, format and status. Browsing the catalog downloads nothing.</p>
+            <h2 className="h2" style={{ fontSize: "clamp(28px, 3.4vw, 40px)" }}><span className="mute">Browse first.</span> Admit only what you choose.</h2>
+            <p className="body">The catalog in the desktop app lists models with their task, format, size and source identity. Search by name, family or language and filter by task, format and status. Browsing downloads nothing; a model runs only after you admit a local pack folder for it.</p>
             <p className="body">External model registries are sources, not authority. MedScale records where an entry came from; it does not inherit trust from it.</p>
           </div>
           <Shot name="models" title="Models" />
