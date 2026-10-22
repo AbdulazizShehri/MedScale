@@ -1,7 +1,7 @@
 import { useMemo, useState, type FormEvent } from "react";
 import { useApp } from "../lib/app";
 import { useAction, type CmdError } from "../lib/ipc";
-import { Mark, Wordmark } from "../components/brand";
+import { Logo } from "../components/brand";
 import { Glyph } from "../components/ui";
 
 /** A height field rendered as dots. Decorative. */
@@ -46,10 +46,7 @@ export function Welcome({ onContinue }: { onContinue: () => void }) {
       <Topology />
       <div className="gate-fade" />
       <div style={{ position: "relative", height: "100%", minHeight: 600, display: "flex", flexDirection: "column", justifyContent: "space-between", padding: "56px 64px 48px", maxWidth: 640 }}>
-        <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
-          <Mark height={44} />
-          <Wordmark height={18} />
-        </div>
+        <Logo height={40} />
         <div className="stack" style={{ gap: 28 }}>
           <h1 style={{ margin: 0, fontSize: 60, lineHeight: "60px", fontWeight: 600, letterSpacing: "-0.04em" }}>Local Clinical<br />Intelligence</h1>
           <span className="brand-rule" aria-hidden="true" />
@@ -109,7 +106,7 @@ export function Access({ onBack }: { onBack: () => void }) {
       <div className="access">
         <section>
           <button type="button" onClick={onBack} style={{ display: "flex", alignItems: "center", gap: 12, width: "max-content" }} aria-label="Back to Welcome">
-            <Mark height={26} /><Wordmark height={12} />
+            <Logo height={26} />
           </button>
           <div style={{ flex: 1, display: "flex", alignItems: "center", padding: "32px 0" }}>
             {codes ? (
