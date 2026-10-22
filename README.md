@@ -14,7 +14,7 @@
 MedScale is an open-source Rust-based platform for exploring evidence-backed health information in local workspaces. The trusted Rust Core owns records, provenance, validation, policy decisions and audit trails. The desktop and CLI present that Core's results rather than becoming independent sources of authority.
 
 > [!IMPORTANT]
-> **Engineering preview — synthetic data only.** This repository is open for development and review, **not** a clinically validated product, certified medical device, authorized patient-data processor, or signed production release. Do not enter real patient data, identifying health records, credentials, or confidential materials. No medical diagnosis or treatment decisions should rely on this software. See [current external gates](docs/planning/EXTERNAL_GATES.md).
+> **Status: engineering preview, synthetic data only.** MedScale is not clinically validated and is not a certified medical device, authorized patient-data processor, or signed production release. This repository is open for development and review only. Do not enter real patient data, identifying health records, credentials, or confidential materials. No medical diagnosis or treatment decisions should rely on this software. See [current external gates](docs/planning/EXTERNAL_GATES.md).
 
 ## Why MedScale?
 
@@ -80,5 +80,7 @@ If you are new, start with a documentation change or a small synthetic-fixture b
 MedScale first-party code is licensed under the **[Apache License 2.0](LICENSE)**. This does **not** relicense bundled third-party code, model weights, data sets, fonts, or research records; their original provenance, licenses and notices remain authoritative. Consult [source provenance](third_party/provenance/) and the repository's supply-chain records before redistributing a bundled asset.
 
 For vulnerabilities use [private security reporting](SECURITY.md), **not public Issues**. For ordinary questions use [Discussions](https://github.com/AbdulazizShehri/MedScale/discussions).
+
+## Working on MedScale (engineering and agents)
 
 Maintainers and engineering agents: [`AGENTS.md`](AGENTS.md), [`CURSOR.md`](CURSOR.md), [engineering guide](docs/engineering/CONTRIBUTING.md) and [current project plan](docs/planning/START_HERE.md). These detailed execution records are preserved for continuity, but are not prerequisites for reading or joining the project.
