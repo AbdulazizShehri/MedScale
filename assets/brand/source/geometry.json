@@ -20,21 +20,14 @@
  },
  "wordmark_params": {
   "word": "MedScale",
-  "font": "assets/brand/fonts/InterVariable.ttf",
+  "font": "assets/brand/fonts/PlusJakartaSans-Variable.ttf",
   "instance": {
-   "opsz": 32,
-   "wght": 480
+   "wght": 590
   },
-  "tracking": -0.02,
+  "tracking": -0.018,
   "kern": {
-   "1": -0.008,
-   "4": -0.01
+   "3": -0.012
   },
-  "cut": [
-   "d",
-   "l"
-  ],
-  "cut_slope": 0.4542,
   "cap": 180
  },
  "symbol_bbox_reference_px": [
@@ -44,8 +37,14 @@
   883
  ],
  "wordmark_box": [
-  1031.77,
+  1105.37,
   185.8
  ],
- "wordmark_cap_top": 2.9
+ "wordmark_cap_top": 2.9,
+ "horizontal_lockup": {
+  "symbol_to_cap": 2.05,
+  "symbol_stroke": 1.5,
+  "gap_to_cap": 0.5,
+  "symbol_drop": 0.04
+ }
 }

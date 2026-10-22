@@ -134,7 +134,7 @@ components:
 
 ## Identity
 
-The locked mark is founder-approved Logo 12 (2026-10-19): three overlapping upright frames with rounded corners, drawn as one uniform white stroke, the front frame descending below a shared lower stroke, with the MedScale wordmark of the 2026-10-22 founder amendment (Inter Display outlines at weight 480, ascender tops cut at the frame slope). Only pure black #000000 or white #FFFFFF, white on black canonical. No gradient, blue, shadow, effect or healthcare/AI decoration. assets/brand/mark-black.svg is the master; every lockup, icon and the desktop `brand.tsx` reuse its path data. docs/brand/LOGO_SPEC.md defines construction, size, clear space and lockups. The Spec 095 paired mark is superseded and kept as history.
+The locked mark is founder-approved Logo 12 (2026-10-19): three overlapping upright frames with rounded corners, drawn as one uniform white stroke, the front frame descending below a shared lower stroke, with the founder-approved MedScale wordmark of 2026-10-22 (Plus Jakarta Sans outlines at weight 590; symbol 2.05× the cap height in the horizontal lockup). Only pure black #000000 or white #FFFFFF, white on black canonical. No gradient, blue, shadow, effect or healthcare/AI decoration. assets/brand/mark-black.svg is the master; every lockup, icon and the desktop `brand.tsx` reuse its path data. docs/brand/LOGO_SPEC.md defines construction, size, clear space and lockups. The Spec 095 paired mark is superseded and kept as history.
 
 MedScale is a **Clinical Intelligence OS**. **Evidence first. Action second.** is an operating principle, not a readiness claim. Typography and clear relationships carry the identity; the framed geometry belongs to the logo.
 

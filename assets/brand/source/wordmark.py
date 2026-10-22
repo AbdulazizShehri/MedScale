@@ -1,10 +1,9 @@
-"""MedScale wordmark (founder amendment 2026-10-22).
+"""MedScale wordmark (founder-approved 2026-10-22, direction A).
 
-The word is drawn from Inter Display outlines (the repository's admitted
-Inter Variable, opsz 32, weight 480), spaced by hand, then modified: the flat
-ascender tops of "d" and "l" are cut at the symbol's frame slope so the word
-rises to the right like the frames do. The result is filled vector artwork.
-No font file is embedded in or referenced by any brand asset.
+"MedScale" is drawn from Plus Jakarta Sans outlines (SIL OFL 1.1, instanced at
+weight 590), with the font's own pair kerning, tracking -0.018 em and a tighter
+"d"-"S" pair. The result is filled vector artwork: one path per letter. No font
+file is embedded in or referenced by any brand asset.
 """
 from pathlib import Path
 
@@ -15,18 +14,15 @@ from fontTools.pens.transformPen import TransformPen
 from fontTools.ttLib import TTFont
 from fontTools.varLib import instancer
 
-FONT = Path(__file__).resolve().parents[1] / "fonts" / "InterVariable.ttf"
+FONT = Path(__file__).resolve().parents[1] / "fonts" / "PlusJakartaSans-Variable.ttf"
 
 DEFAULT = {
     "word": "MedScale",
-    "font": "assets/brand/fonts/InterVariable.ttf",
-    "instance": {"opsz": 32, "wght": 480},
-    # Letter spacing in em; extra pair spacing (em) applied before the given letter index.
-    "tracking": -0.02,
-    "kern": {"1": -0.008, "4": -0.01},
-    # Ascender tops cut at the Logo 12 frame top slope (geometry.json "ts").
-    "cut": ["d", "l"],
-    "cut_slope": 0.4542,
+    "font": "assets/brand/fonts/PlusJakartaSans-Variable.ttf",
+    "instance": {"wght": 590},
+    # Letter spacing in em, plus extra pair spacing (em) applied before the given letter index.
+    "tracking": -0.018,
+    "kern": {"3": -0.012},
     # Output units: cap height (baseline to flat cap top) in reference px.
     "cap": 180,
 }
@@ -37,39 +33,52 @@ def _num(v):
     return "0" if s in ("-0", "") else s
 
 
-def _cut(rec, slope):
-    """Lower the left point of the flat ascender top so the edge rises to the right."""
-    pts = [(i, v[1][-1]) for i, v in enumerate(rec) if v[0] in ("moveTo", "lineTo")]
-    top = max(p[1] for _, p in pts)
-    tops = sorted([(i, p) for i, p in pts if abs(p[1] - top) < 0.5], key=lambda t: t[1][0])
-    assert len(tops) == 2, f"expected one flat ascender top, found {tops}"
-    (il, pl), (_, pr) = tops
-    rec = list(rec)
-    rec[il] = (rec[il][0], ((pl[0], top - slope * (pr[0] - pl[0])),))
-    return rec
+def _pair_kern(font, left, right):
+    """The font's GPOS pair adjustment (XAdvance) for two glyphs, in font units."""
+    if "GPOS" not in font:
+        return 0
+    for lookup in font["GPOS"].table.LookupList.Lookup:
+        for sub in lookup.SubTable:
+            if lookup.LookupType == 9:
+                sub = sub.ExtSubTable
+            if type(sub).__name__ != "PairPos":
+                continue
+            glyphs = sub.Coverage.glyphs
+            if left not in glyphs:
+                continue
+            if sub.Format == 1:
+                for pair in sub.PairSet[glyphs.index(left)].PairValueRecord:
+                    if pair.SecondGlyph == right and pair.Value1 is not None:
+                        return getattr(pair.Value1, "XAdvance", 0) or 0
+            else:
+                c1 = sub.ClassDef1.classDefs.get(left, 0)
+                c2 = sub.ClassDef2.classDefs.get(right, 0)
+                value = sub.Class1Record[c1].Class2Record[c2].Value1
+                if value is not None and getattr(value, "XAdvance", 0):
+                    return value.XAdvance
+    return 0
 
 
 def wordmark_paths(g=DEFAULT):
     """Return (paths, width, height, cap_top): one filled path per letter, normalized to (0, 0).
 
-    cap_top is the distance from the box top to the flat cap height (the round
-    overshoot of S sits above it).
+    cap_top is the distance from the box top to the flat cap height (round
+    overshoots sit above it).
     """
     font = instancer.instantiateVariableFont(TTFont(FONT), g["instance"])
     upm = font["head"].unitsPerEm
     cap_units = font["OS/2"].sCapHeight
     s = g["cap"] / cap_units
     cmap, glyphs = font.getBestCmap(), font.getGlyphSet()
+    names = [cmap[ord(ch)] for ch in g["word"]]
     letters, x = [], 0.0
-    for i, ch in enumerate(g["word"]):
+    for i, name in enumerate(names):
+        if i:
+            x += _pair_kern(font, names[i - 1], name)
         x += g["kern"].get(str(i), 0) * upm
-        name = cmap[ord(ch)]
         rec = RecordingPen()
         glyphs[name].draw(rec)
-        rec = rec.value
-        if ch in g["cut"]:
-            rec = _cut(rec, g["cut_slope"])
-        letters.append((x, rec))
+        letters.append((x, rec.value))
         x += glyphs[name].width + g["tracking"] * upm
     bounds = BoundsPen(glyphs)
     for x, rec in letters:

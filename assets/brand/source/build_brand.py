@@ -1,7 +1,7 @@
 """Generate the MedScale Logo 12 SVG masters from the fitted geometry.
 
 Symbol: three stroked, sheared rounded frames (symbol_fit.symbol_paths).
-Wordmark: filled outlines from wordmark.wordmark_paths (founder amendment 2026-10-22).
+Wordmark: filled outlines from wordmark.wordmark_paths (founder-approved 2026-10-22).
 Both are normalized so each artwork's own geometry starts at (0, 0); every
 asset places the same path data with a translate/scale transform, so the
 geometry is byte-identical across lockups, icons and inverses.
@@ -54,8 +54,8 @@ print("symbol", SW_, SH_, "wordmark", WW_, WH_)
 
 STATEMENT = (
     "MedScale identity. Symbol: Logo 12 three-frame mark, founder-approved 2026-10-19, first-party vector "
-    "reconstruction. Wordmark: founder amendment 2026-10-22, filled outlines drawn from Inter Display "
-    "(SIL OFL 1.1) with custom spacing and ascender cuts at the frame slope. No font file is embedded."
+    "reconstruction. Wordmark: founder-approved 2026-10-22, filled outlines drawn from Plus Jakarta Sans "
+    "(SIL OFL 1.1) with custom spacing. No font file is embedded."
 )
 
 
@@ -100,7 +100,7 @@ for c in FG:
 for c in FG:
     files[f"medscale-wordmark-{c}.svg"] = doc(
         WW_, WH_, f"MedScale wordmark - {c}",
-        "MedScale in filled letterforms with ascender tops cut at the symbol's frame slope.",
+        "MedScale in filled geometric letterforms with custom spacing.",
         wordmark_group(FG[c], 0, 0, 1))
 
 # Stacked (vertical) lockup: symbol centered above the wordmark. The gap keeps the Logo 12
@@ -115,16 +115,20 @@ for c in FG:
         "Primary vertical lockup: the symbol centered above the wordmark, matching the approved reference proportions.",
         body)
 
-# Horizontal lockup: symbol at 2.6x the cap height; the cap height is centered on the symbol.
-hs = 2.6 * CAP / SH_
+# Horizontal lockup (founder-approved 2026-10-22): symbol 2.05x the cap height with a 1.5x optical
+# stroke so the frames match the letter weight; gap 0.5x the cap height. The symbol is centered on
+# the cap height and nudged down 4% of its height, because the descender reads as weight below.
+H_RATIO, H_STROKE, H_GAP, H_DROP = 2.05, 1.5, 0.5, 0.04
+hs = H_RATIO * CAP / SH_
 hsw, hsh = SW_ * hs, SH_ * hs
-hgap = 0.45 * CAP
+hgap = H_GAP * CAP
 hw = hsw + hgap + WW_
+cap_y = (hsh - CAP) / 2 - H_DROP * hsh  # y of the cap top, symbol top at 0
 for c in FG:
-    body = symbol_group(FG[c], 0, 0, hs) + wordmark_group(FG[c], hsw + hgap, (hsh - CAP) / 2 - CAP_TOP, 1)
+    body = symbol_group(FG[c], 0, 0, hs, sw=round(SYM_SW * H_STROKE, 2)) + wordmark_group(FG[c], hsw + hgap, cap_y - CAP_TOP, 1)
     files[f"medscale-horizontal-{c}.svg"] = doc(
         hw, hsh, f"MedScale horizontal lockup - {c}",
-        "Horizontal lockup: the symbol left of the wordmark; the gap is 0.45 of the cap height.",
+        "Horizontal lockup: the symbol at 2.05 times the cap height, left of the wordmark, with a gap of half the cap height.",
         body)
 
 # Canonical presentations on their backgrounds (white-on-black is canonical).
@@ -175,13 +179,14 @@ for name, text in files.items():
     "symbol_params_reference_px": Q, "wordmark_params": DEFAULT,
     "symbol_bbox_reference_px": [int(sx0), int(sy0), int(sx1), int(sy1)],
     "wordmark_box": [WW_, WH_], "wordmark_cap_top": CAP_TOP,
+    "horizontal_lockup": {"symbol_to_cap": H_RATIO, "symbol_stroke": H_STROKE, "gap_to_cap": H_GAP, "symbol_drop": H_DROP},
 }, indent=1), encoding="utf-8")
 print("wrote", len(files), "files to", OUT)
 
 # Desktop brand component: the same normalized path data, drawn with currentColor.
 SMALL_SW = round(SYM_SW * 1.6, 1)  # UI marks below 48 px (no tile)
 tsx = f'''// MedScale identity: Logo 12 symbol (founder-approved 2026-10-19) and the
-// wordmark of the 2026-10-22 founder amendment. Generated from the brand
+// founder-approved wordmark of 2026-10-22. Generated from the brand
 // masters in assets/brand; the path data must stay identical to them
 // (crates/medscale-core/tests/brand_foundation_095.rs enforces this).
 // The wordmark is filled outline artwork; no font is loaded to draw it.
@@ -192,12 +197,12 @@ const SYMBOL_BOX = [{SW_}, {SH_}] as const;
 const WORDMARK_BOX = [{WW_}, {WH_}] as const;
 
 /** The three-frame symbol. Below 48 px it uses the small-size optical stroke. */
-export function Mark({{ height = 32, className, title }}: {{ height?: number; className?: string; title?: string }}) {{
+export function Mark({{ height = 32, className, title, weight }}: {{ height?: number; className?: string; title?: string; weight?: number }}) {{
   const [w, h] = SYMBOL_BOX;
   return (
     <svg height={{height}} width={{Math.round((height * w) / h)}} viewBox={{`0 0 ${{w}} ${{h}}`}} className={{className}}
       role={{title ? "img" : undefined}} aria-label={{title}} aria-hidden={{title ? undefined : true}}>
-      <g fill="none" stroke="currentColor" strokeWidth={{height < 48 ? {SMALL_SW} : {SYM_SW}}} strokeLinejoin="round" strokeLinecap="butt">
+      <g fill="none" stroke="currentColor" strokeWidth={{weight ? {SYM_SW} * weight : height < 48 ? {SMALL_SW} : {SYM_SW}}} strokeLinejoin="round" strokeLinecap="butt">
         {{FRAMES.map((d) => <path key={{d}} d={{d}} />)}}
       </g>
     </svg>
@@ -216,12 +221,13 @@ export function Wordmark({{ height = 16, className, title = "MedScale" }}: {{ he
   );
 }}
 
-/** Horizontal lockup: symbol beside the wordmark. */
+/** Horizontal lockup at a given symbol height, with the approved proportions. */
 export function Logo({{ height = 32, className }}: {{ height?: number; className?: string }}) {{
+  const cap = height / {H_RATIO};
   return (
-    <span className={{className}} style={{{{ display: "inline-flex", alignItems: "center", gap: Math.round(height * 0.3) }}}}>
-      <Mark height={{height}} />
-      <Wordmark height={{Math.round(height * 0.42)}} />
+    <span className={{className}} style={{{{ display: "inline-flex", alignItems: "flex-start", gap: cap * {H_GAP} }}}}>
+      <Mark height={{height}} weight={{{H_STROKE}}} />
+      <span style={{{{ marginTop: height * {(cap_y - CAP_TOP) / hsh:.4f} }}}}><Wordmark height={{cap * {WH_ / CAP:.4f}}} /></span>
     </span>
   );
 }}

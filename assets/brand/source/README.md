@@ -1,10 +1,10 @@
 # MedScale logo source
 
-Design tooling that regenerates the MedScale logo: the founder-approved Logo 12 symbol (2026-10-19) and the wordmark of the founder amendment (2026-10-22). It is not part of the product build.
+Design tooling that regenerates the MedScale logo: the founder-approved Logo 12 symbol (2026-10-19) and the founder-approved wordmark (2026-10-22). It is not part of the product build.
 
 - `symbol_fit.py` holds the symbol construction: three stroked frames, with B and C interlocked. It also renders and scores candidates against the reference (IoU).
 - `optimize.py` fits the parameters by coordinate descent.
-- `wordmark.py` draws `MedScale` from the admitted Inter Variable outlines (opsz 32, weight 480), applies the spacing and the frame-slope ascender cuts, and returns filled paths. See `third_party/provenance/medscale-wordmark-2026-10-22.md`.
+- `wordmark.py` draws `MedScale` from Plus Jakarta Sans outlines (weight 590) with the font's kerning and custom spacing, and returns filled paths. See `third_party/provenance/medscale-wordmark-2026-10-22.md`.
 - `build_brand.py` writes the SVG masters and `apps/desktop-tauri/src/components/brand.tsx` from `geometry.json`.
 - `export.py` and `raster.py` produce the PNG, ICO and ICNS exports through headless Microsoft Edge.
 

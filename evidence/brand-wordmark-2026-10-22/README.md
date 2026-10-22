@@ -1,19 +1,20 @@
-# Wordmark redesign evidence (founder amendment, 2026-10-22)
+# Wordmark redesign evidence (2026-10-22)
 
-These are rendered comparison sheets for the wordmark redesign. Each sheet shows every concept against the Logo 12 monoline wordmark it replaces, in six contexts:
+**Approved:** direction A, Plus Jakarta Sans 590, with the symbol at 2.05× the cap height. The founder chose it from the review sheets below. The record is `third_party/provenance/medscale-wordmark-2026-10-22.md`.
 
-- white on black
-- black on white
-- a website header at a 30 px symbol (desktop) and a 24 px symbol (mobile)
-- a desktop sidebar
-- README size (16 px symbol)
+## Founder review (approved design)
 
 | File | Shows |
 |---|---|
-| `round-1-weight-600.png` | Inter Display, Instrument Sans and Source Serif 4 at semibold. At this weight the wordmark overpowers the thin-stroke symbol. |
-| `round-2-weights-and-families.png` | Inter Display 460 and 520, Instrument Sans Medium, Source Serif 4 Regular. |
-| `round-3-frame-slope-cut.png` | Inter Display 480 with and without the frame-slope ascender cut, and Instrument Sans with the cut. |
-| `detail-ascender-cut.png` | The cut on "d" and "l" at display size. Top: Inter Display 480 (selected). Bottom: Instrument Sans. |
-| `final-lockups.png` | The regenerated masters: horizontal and vertical lockups, white on black and black on white. |
+| `review-1-family-screening.png` | Twelve OFL families set as "MedScale" at weights 500 and 620. |
+| `review-2-matrix-4x3.png` | Four directions × three symbol ratios (1.8×, 2.05×, 2.3× cap), at 26 px plus the real 12 px and 9 px caps. |
+| `review-3-contexts-A.png` … `-D.png` | Each direction at real displayed sizes, rendered at 2× device pixels: white on black, black on white, desktop and mobile navigation, the desktop sidebar, GitHub README light and dark. |
+| `final-lockups.png` | The regenerated horizontal and vertical masters. |
 
-The sheets were rendered in headless Microsoft Edge. Selection and rationale are in `third_party/provenance/medscale-wordmark-2026-10-22.md`.
+## First proposal (rejected by the founder)
+
+| File | Shows |
+|---|---|
+| `round-1-weight-600.png`, `round-2-weights-and-families.png`, `round-3-frame-slope-cut.png` | The first iteration: Inter Display 480 with ascender cuts and the symbol at 2.6×. The founder found the lettering and the symbol-to-word balance unacceptable. |
+
+All sheets were rendered in headless Microsoft Edge from the generated vector paths.

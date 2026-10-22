@@ -280,18 +280,35 @@ fn application_icons_center_the_symbol_with_clear_space() {
     let wordmark = read("third_party/provenance/medscale-wordmark-2026-10-22.md");
     for required in [
         "2026-10-22",
-        "InterVariable.ttf",
+        "PlusJakartaSans-Variable.ttf",
         "SIL Open Font License",
-        "0.4542",
+        "2.05",
     ] {
         assert!(
             wordmark.contains(required),
             "wordmark provenance: {required}"
         );
     }
-    // The ascender cut uses the symbol's own top slope.
+    // The source font and its license are pinned; the logo never embeds the font.
+    for (file, expected) in [
+        (
+            "PlusJakartaSans-Variable.ttf",
+            "89b3fb38aa0d275d7a731d0d817a4f1622b316b4d7fbdedcf02ee9099ff68bc8",
+        ),
+        (
+            "PlusJakartaSans-OFL.txt",
+            "995c7199cab65954f545996326755daee7b63cc6b42b06c13da1f9502ab08a99",
+        ),
+    ] {
+        let bytes = std::fs::read(repo_root().join("assets/brand/fonts").join(file))
+            .expect("wordmark source font bytes");
+        assert_eq!(DigestSha256::of(&bytes).to_hex(), expected, "{file}");
+        assert!(wordmark.contains(expected), "provenance pins {file}");
+    }
+    // Approved horizontal lockup proportions.
     let geometry = read("assets/brand/source/geometry.json");
-    assert!(geometry.contains("\"ts\": -0.4542") && geometry.contains("\"cut_slope\": 0.4542"));
+    assert!(geometry.contains("\"symbol_to_cap\": 2.05"));
+    assert!(geometry.contains("\"gap_to_cap\": 0.5"));
     let provenance = read("third_party/provenance/logo-12-approved-identity.md");
     assert!(provenance.contains("2026-10-19"));
     assert!(provenance.to_lowercase().contains("no font"));

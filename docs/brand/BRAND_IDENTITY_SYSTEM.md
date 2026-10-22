@@ -14,7 +14,7 @@ Three overlapping, upright frames: layered evidence and records that stay separa
   - Primary vertical lockup: `medscale-stacked-*`. It follows the approved reference, with the symbol centred above the wordmark.
   - Horizontal lockup: `medscale-horizontal-*`.
   - Standalone symbol: `mark-*`.
-- **Wordmark (founder amendment 2026-10-22):** exactly `MedScale`. Filled letterforms from Inter Display at weight 480, with hand spacing. The ascender tops of "d" and "l" are cut at the symbol's frame slope. No bold "Scale", no weight contrast, no tagline in the primary logo. The Logo 12 monoline wordmark is superseded.
+- **Wordmark (founder-approved 2026-10-22):** exactly `MedScale`. Filled geometric letterforms from Plus Jakarta Sans at weight 590, with custom spacing. In the horizontal lockup the symbol is 2.05× the cap height. No bold "Scale", no weight contrast, no tagline in the primary logo. The Logo 12 monoline wordmark is superseded.
 - No gradients, blue, shadows, glows, embossing, 3D, outlines-of-outlines or decorative effects. The logo uses only `#000000` and `#FFFFFF`. Product UI accents never recolour it.
 
 Construction, sizes and misuse rules: [LOGO_SPEC.md](LOGO_SPEC.md). Provenance and reconstruction method: [`third_party/provenance/logo-12-approved-identity.md`](../../third_party/provenance/logo-12-approved-identity.md).
@@ -31,7 +31,7 @@ Construction, sizes and misuse rules: [LOGO_SPEC.md](LOGO_SPEC.md). Provenance a
 
 ## Typography and UI
 
-Inter is the UI typeface and JetBrains Mono NL is used for exact data and metadata. Both fonts are admitted with recorded hashes in [`third_party/provenance/095-native-typography.md`](../../third_party/provenance/095-native-typography.md). The logo wordmark is outline artwork drawn from Inter Display and modified (see `LOGO_SPEC.md`). Surfaces render it from path data, never as live text. Other system rules are unchanged:
+Inter is the UI typeface and JetBrains Mono NL is used for exact data and metadata. Both fonts are admitted with recorded hashes in [`third_party/provenance/095-native-typography.md`](../../third_party/provenance/095-native-typography.md). The logo wordmark is outline artwork drawn from Plus Jakarta Sans (see `LOGO_SPEC.md`). Surfaces render it from path data, never as live text. Other system rules are unchanged:
 
 - four-pixel spacing base
 - thin borders
