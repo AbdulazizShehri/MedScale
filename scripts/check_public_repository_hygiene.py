@@ -40,6 +40,8 @@ def violations(paths: list[str]) -> list[str]:
             or p.startswith("docs/product/RELEASE_CANDIDATE_")
             or p.startswith("docs/brand/RENAME_INVENTORY_")
             or p.startswith("docs/brand/ACTIVE_OWNED_PATH_MIGRATION_")
+            or p.startswith("specs/007-openmed-capability-absorption-parity/")
+            or p.startswith("specs/071-openmed-evidence-center/")
             or (p.startswith("specs/") and name in BLOCKED_BASENAMES)
         )
         if forbidden:
