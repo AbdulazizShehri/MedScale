@@ -26,10 +26,10 @@ pub fn models_overview(host: tauri::State<'_, Host>) -> CmdResult<Value> {
         "model_runtime_boundary": vm.model_runtime_boundary,
         "model_source_summary": vm.model_source_summary,
         "model_inventory_summary": vm.model_inventory_summary,
-        "openmed_baseline": vm.openmed_baseline,
+        "reference_baseline": vm.reference_baseline,
         "competitive_summary": vm.competitive_summary,
         "models": vm.models.iter().map(|m| crate::obj!(m => scope, task, model, source, runtime, device, trust, benchmark, digest, state)).collect::<Vec<_>>(),
-        "evidence": vm.evidence.iter().map(|e| crate::obj!(e => capability, medscale, openmed, verdict, evidence, limitations)).collect::<Vec<_>>(),
+        "evidence": vm.evidence.iter().map(|e| crate::obj!(e => capability, medscale, reference, verdict, evidence, limitations)).collect::<Vec<_>>(),
     }))
 }
 

@@ -30,12 +30,14 @@ function productSurfaces(): Array<[string, string]> {
     ["README.md (product intro)", intro],
     ["apps/desktop-tauri/index.html", read("apps/desktop-tauri/index.html")],
     ["apps/desktop-tauri/src-tauri/tauri.conf.json", read("apps/desktop-tauri/src-tauri/tauri.conf.json")],
+    ["crates/medscale-desktop/ui/app.slint", read("crates/medscale-desktop/ui/app.slint")],
     ...ui,
   ];
 }
 
 const STALE: Array<[RegExp, string]> = [
   [/UI_VISUAL_SOURCE\s*=\s*v0/i, "stale v0 visual-source marker"],
+  [/\b(?:openmed|mesc|medorigin|everhealth)\b/i, "retired project name in MedScale product surface"],
   [/strategic donor|capability floor/i, "third-party-centred positioning"],
   [/\bTauri App\b|vite\.svg|Vite \+ React|create-vite/i, "generator boilerplate"],
   [/ScaleFold/i, "superseded identity (#125)"],

@@ -158,7 +158,7 @@ Current, reviewed, unknown, stale, conflicting, partial, denied, unavailable, un
 
 Controls retain Enter/Space, visible focus and exposed role/label/action. Targets are at least 36px normally and 32px compact. Default motion/elevation is zero; future transitions must explain state and respect reduced motion. Measure contrast from actual tokens; inspect actual native pixels. Record keyboard, assistive technology and WCAG claims separately. Compilation/source assertions do not qualify visuals.
 
-Rust Core retains all authority. PHI is unauthorized, egress defaults deny, MESC is separate, and release/privacy/multi-client readiness stays false. CLI machine contracts remain stable. References and figure styles do not create capabilities.
+Rust Core retains all authority. PHI is unauthorized, egress defaults deny, unrelated research projects are out of scope, and release/privacy/multi-client readiness stays false. CLI machine contracts remain stable. References and figure styles do not create capabilities.
 
 ## History
 

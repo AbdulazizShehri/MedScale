@@ -23,7 +23,7 @@ Read, in order, before doing any material work:
 7. `docs/planning/IMPLEMENTATION_DECISION_DEFAULTS.md`
 8. `docs/planning/SOURCE_ACQUISITION_AND_COPY_PLAN.md`
 9. `docs/planning/V0_UI_INTEGRATION_CONTRACT.md`
-10. relevant source/OSS/OpenMed matrices
+10. relevant MedScale engineering and source-validation matrices
 11. relevant current Spec Kit package or execution handoff
 
 Spec 001 is historical and closed. Use the live queue and read

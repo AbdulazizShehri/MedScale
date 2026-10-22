@@ -14,7 +14,7 @@ alwaysApply: true
 - FHIR R4 4.0.1 is interchange, not the canonical database. External validators provide evidence only.
 - One Rust authority path serves CLI/Desktop/mobile. UI/CLI/workers do not bypass it or open the canonical DB directly.
 - Workers receive no ambient canonical DB, master keys, unrestricted filesystem, network, secrets, or authority.
-- MESC is artifact-first and independent. Never mutate MESC from MedScale execution.
+- Unrelated research projects are independent. Never mutate other repositories from MedScale execution.
 - External action `UNKNOWN` is never blindly retried.
 - H0 is synthetic-only and LLM-free. Real PHI remains unauthorized until a later explicit external gate is closed.
 - Never weaken an invariant to make a dependency, donor, UI framework, model, or platform easier to integrate.

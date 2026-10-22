@@ -8,7 +8,7 @@
 //! MEDSCALE_HF_ONNX_FILE=model.onnx
 //! MEDSCALE_SAMPLE_TEXT="<synthetic sentence>"
 //! MEDSCALE_PLAN_CACHE=1 (optional: also qualify the tract plan cache, cold then warm)
-//! cargo test --release -p medscale-pack --test openmed_snapshot_external_103 -- --ignored --nocapture
+//! cargo test --release -p medscale-pack --test reference_snapshot_external_103 -- --ignored --nocapture
 
 use std::path::PathBuf;
 use std::time::Instant;

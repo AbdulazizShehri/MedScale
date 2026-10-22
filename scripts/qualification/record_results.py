@@ -22,7 +22,7 @@ import subprocess
 import sys
 
 RUNTIME_BY_TEST = {
-    "openmed_snapshot_external_103": "tract_onnx",
+    "reference_snapshot_external_103": "tract_onnx",
     "gliner_external_104": "candle_gliner",
 }
 

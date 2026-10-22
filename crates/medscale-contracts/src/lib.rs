@@ -12,6 +12,7 @@ pub mod documents;
 pub mod envelopes;
 pub mod evidence;
 pub mod extensions;
+pub mod external_artifact;
 pub mod federation;
 pub mod ffi_policy;
 pub mod fhir;
@@ -23,7 +24,10 @@ pub mod institutional;
 pub mod knowledge;
 pub mod legal;
 pub mod medagent;
-pub mod mesc;
+/// Legacy public import path for serialized external research artifact contracts.
+/// New code should import `external_artifact` directly.
+#[doc(hidden)]
+pub use external_artifact as mesc;
 pub mod mobile;
 pub mod model_catalog;
 pub mod model_fleet;

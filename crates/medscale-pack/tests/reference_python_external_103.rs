@@ -1,7 +1,7 @@
 //! Spec 103 head-to-head: scores spans that pinned OpenMed (PyPI
-//! `openmed==3.0.0`, `scripts/evaluation/openmed_predict.py`) predicted on a
+//! `openmed==3.0.0`, `scripts/evaluation/reference_predict.py`) predicted on a
 //! MedScale gold set, with the same scorer MedScale's own runs use. Ignored:
-//! it needs `MEDSCALE_OPENMED_PREDICTIONS` and `MEDSCALE_EVAL_SET` from the
+//! it needs `MEDSCALE_REFERENCE_PREDICTIONS` and `MEDSCALE_EVAL_SET` from the
 //! qualification workflow. Synthetic text; evaluation evidence only.
 
 use medscale_pack::entity_eval::{EvalSet, PredictedSpan, evaluate, latency_summary};
@@ -18,9 +18,9 @@ fn resolve(path: &str) -> std::path::PathBuf {
 }
 
 #[test]
-#[ignore = "needs MEDSCALE_OPENMED_PREDICTIONS and MEDSCALE_EVAL_SET"]
-fn openmed_python_predictions_score_on_gold_set() {
-    let predictions_path = std::env::var("MEDSCALE_OPENMED_PREDICTIONS").expect("predictions");
+#[ignore = "needs MEDSCALE_REFERENCE_PREDICTIONS and MEDSCALE_EVAL_SET"]
+fn reference_python_predictions_score_on_gold_set() {
+    let predictions_path = std::env::var("MEDSCALE_REFERENCE_PREDICTIONS").expect("predictions");
     let set_path = std::env::var("MEDSCALE_EVAL_SET").expect("gold set");
     let set = EvalSet::from_json(&std::fs::read(resolve(&set_path)).unwrap()).expect("gold set");
     let run: serde_json::Value =
@@ -52,7 +52,7 @@ fn openmed_python_predictions_score_on_gold_set() {
         "EVAL_METRICS {}",
         serde_json::json!({
             "repo": run["repo"], "revision": run["revision"],
-            "config": "openmed_python_default", "report": report,
+            "config": "reference_python_default", "report": report,
             "runtime": format!("openmed-python-{}", run["openmed_version"].as_str().unwrap_or("unknown")),
             "settings": run["settings"],
             "cold_start_ms": run["cold_start_ms"],

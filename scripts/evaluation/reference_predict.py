@@ -4,9 +4,9 @@ Head-to-head benchmark driver (Spec 103). It loads one locally downloaded
 model snapshot (the catalog-pinned revision MedScale also runs) with
 OpenMed's own `analyze_text` defaults, and writes the predicted spans plus
 same-runner timing for MedScale's scorer
-(`crates/medscale-pack/tests/openmed_python_external_103.rs`).
+(`crates/medscale-pack/tests/reference_python_external_103.rs`).
 
-Usage: openmed_predict.py GOLD_JSON MODEL_DIR REPO REVISION OUT_JSON
+Usage: reference_predict.py GOLD_JSON MODEL_DIR REPO REVISION OUT_JSON
 
 Synthetic gold text only. Evaluation evidence, not clinical validation.
 """
@@ -59,7 +59,7 @@ def main() -> int:
     }
     with open(out_path, "w", encoding="utf-8") as f:
         json.dump(out, f)
-    print(f"OPENMED_PREDICTIONS repo={repo} docs={len(predictions)} cold_start_ms={cold_ms:.0f}")
+    print(f"REFERENCE_PREDICTIONS repo={repo} docs={len(predictions)} cold_start_ms={cold_ms:.0f}")
     return 0
 
 

@@ -1,7 +1,7 @@
 //! Spec 012 MESC admit fail-closed while gate open.
 
 use medscale_contracts::envelopes::{AuthorityError, AuthorityRequest, Capability, RequestBody};
-use medscale_contracts::mesc::{MescArtifactAdmitRequest, MescArtifactDoctorStatus};
+use medscale_contracts::external_artifact::{MescArtifactAdmitRequest, MescArtifactDoctorStatus};
 use medscale_contracts::objects::{AuthorityScopeId, DigestSha256, OpaqueId, RealmId, VaultId};
 use medscale_core::{CoreFacade, build_doctor_report};
 

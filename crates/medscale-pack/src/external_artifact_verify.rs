@@ -7,50 +7,62 @@ use std::collections::HashSet;
 use std::fs;
 use std::path::Path;
 
-use medscale_contracts::mesc::{
-    MescAdmissionState, MescReleaseManifestV0, MescVerifyReason, MescVerifyReport,
+use medscale_contracts::external_artifact::{
+    ExternalArtifactAdmissionState, ExternalArtifactVerifyReason, ExternalArtifactVerifyReport,
+    ExternalReleaseManifestV0,
 };
 use medscale_contracts::objects::DigestSha256;
 use thiserror::Error;
 
 /// Verifier errors mapped to stable reason codes.
 #[derive(Debug, Error, PartialEq, Eq)]
-#[error("mesc verify rejected: {}", .0.reason.as_str())]
-pub struct MescVerifyError(MescVerifyReport);
+#[error("external artifact verification rejected: {}", .0.reason.as_str())]
+pub struct ExternalArtifactVerifyError(ExternalArtifactVerifyReport);
 
-impl MescVerifyError {
+impl ExternalArtifactVerifyError {
     #[must_use]
-    pub fn report(&self) -> &MescVerifyReport {
+    pub fn report(&self) -> &ExternalArtifactVerifyReport {
         &self.0
     }
 }
 
-fn reject(reason: MescVerifyReason, detail: impl Into<String>) -> MescVerifyError {
-    MescVerifyError(MescVerifyReport::rejected(reason, detail))
+fn reject(
+    reason: ExternalArtifactVerifyReason,
+    detail: impl Into<String>,
+) -> ExternalArtifactVerifyError {
+    ExternalArtifactVerifyError(ExternalArtifactVerifyReport::rejected(reason, detail))
 }
 
-fn parse_hex_digest(hex: &str) -> Result<DigestSha256, MescVerifyError> {
+fn parse_hex_digest(hex: &str) -> Result<DigestSha256, ExternalArtifactVerifyError> {
     let hex = hex.trim();
     if hex.len() != 64 || !hex.bytes().all(|b| b.is_ascii_hexdigit()) {
         return Err(reject(
-            MescVerifyReason::MalformedManifest,
+            ExternalArtifactVerifyReason::MalformedManifest,
             "digest must be 64 hex chars",
         ));
     }
     let mut bytes = [0_u8; 32];
     for (i, chunk) in hex.as_bytes().chunks(2).enumerate() {
-        let s = std::str::from_utf8(chunk)
-            .map_err(|_| reject(MescVerifyReason::MalformedManifest, "digest utf8"))?;
-        bytes[i] = u8::from_str_radix(s, 16)
-            .map_err(|_| reject(MescVerifyReason::MalformedManifest, "digest hex"))?;
+        let s = std::str::from_utf8(chunk).map_err(|_| {
+            reject(
+                ExternalArtifactVerifyReason::MalformedManifest,
+                "digest utf8",
+            )
+        })?;
+        bytes[i] = u8::from_str_radix(s, 16).map_err(|_| {
+            reject(
+                ExternalArtifactVerifyReason::MalformedManifest,
+                "digest hex",
+            )
+        })?;
     }
     Ok(DigestSha256::from_bytes(bytes))
 }
 
-fn require_nonempty(field: &str, value: &str) -> Result<(), MescVerifyError> {
+fn require_nonempty(field: &str, value: &str) -> Result<(), ExternalArtifactVerifyError> {
     if value.trim().is_empty() {
         return Err(reject(
-            MescVerifyReason::MissingField,
+            ExternalArtifactVerifyReason::MissingField,
             format!("missing or empty field: {field}"),
         ));
     }
@@ -60,36 +72,38 @@ fn require_nonempty(field: &str, value: &str) -> Result<(), MescVerifyError> {
 /// Verify a local directory containing `manifest.json` and referenced files.
 ///
 /// On success returns `Verified` with `product_admit_authorized=false`.
-pub fn verify_mesc_release_dir(release_dir: &Path) -> Result<MescVerifyReport, MescVerifyError> {
+pub fn verify_external_artifact_release_dir(
+    release_dir: &Path,
+) -> Result<ExternalArtifactVerifyReport, ExternalArtifactVerifyError> {
     let manifest_path = release_dir.join("manifest.json");
     if !manifest_path.is_file() {
         return Err(reject(
-            MescVerifyReason::MissingManifest,
+            ExternalArtifactVerifyReason::MissingManifest,
             "manifest.json not found",
         ));
     }
     let bytes = fs::read(&manifest_path).map_err(|e| {
         reject(
-            MescVerifyReason::MalformedManifest,
+            ExternalArtifactVerifyReason::MalformedManifest,
             format!("read manifest: {e}"),
         )
     })?;
-    let manifest: MescReleaseManifestV0 = serde_json::from_slice(&bytes).map_err(|e| {
+    let manifest: ExternalReleaseManifestV0 = serde_json::from_slice(&bytes).map_err(|e| {
         let msg = e.to_string();
         if msg.contains("unknown field") {
-            reject(MescVerifyReason::UnsupportedSchema, msg)
+            reject(ExternalArtifactVerifyReason::UnsupportedSchema, msg)
         } else {
-            reject(MescVerifyReason::MalformedManifest, msg)
+            reject(ExternalArtifactVerifyReason::MalformedManifest, msg)
         }
     })?;
 
-    if manifest.schema_version != MescReleaseManifestV0::SCHEMA_VERSION {
+    if manifest.schema_version != ExternalReleaseManifestV0::SCHEMA_VERSION {
         return Err(reject(
-            MescVerifyReason::UnsupportedSchema,
+            ExternalArtifactVerifyReason::UnsupportedSchema,
             format!(
                 "schema_version {} != {}",
                 manifest.schema_version,
-                MescReleaseManifestV0::SCHEMA_VERSION
+                ExternalReleaseManifestV0::SCHEMA_VERSION
             ),
         ));
     }
@@ -119,23 +133,27 @@ pub fn verify_mesc_release_dir(release_dir: &Path) -> Result<MescVerifyReport, M
 
     parse_hex_digest(&manifest.training_receipt_digest_hex).map_err(|_| {
         reject(
-            MescVerifyReason::MissingTrainingReceipt,
+            ExternalArtifactVerifyReason::MissingTrainingReceipt,
             "training_receipt_digest_hex invalid",
         )
     })?;
     parse_hex_digest(&manifest.evaluation_receipt_digest_hex).map_err(|_| {
         reject(
-            MescVerifyReason::MissingEvaluation,
+            ExternalArtifactVerifyReason::MissingEvaluation,
             "evaluation_receipt_digest_hex invalid",
         )
     })?;
-    let sbom_digest = parse_hex_digest(&manifest.sbom_digest_hex)
-        .map_err(|_| reject(MescVerifyReason::MissingSbom, "sbom_digest_hex invalid"))?;
+    let sbom_digest = parse_hex_digest(&manifest.sbom_digest_hex).map_err(|_| {
+        reject(
+            ExternalArtifactVerifyReason::MissingSbom,
+            "sbom_digest_hex invalid",
+        )
+    })?;
 
     let notice_path = release_dir.join(&manifest.rights_notice_path);
     if !notice_path.is_file() {
         return Err(reject(
-            MescVerifyReason::MissingRights,
+            ExternalArtifactVerifyReason::MissingRights,
             format!("rights notice missing: {}", manifest.rights_notice_path),
         ));
     }
@@ -143,21 +161,28 @@ pub fn verify_mesc_release_dir(release_dir: &Path) -> Result<MescVerifyReport, M
     let sbom_path = release_dir.join(&manifest.sbom_path);
     if !sbom_path.is_file() {
         return Err(reject(
-            MescVerifyReason::MissingSbom,
+            ExternalArtifactVerifyReason::MissingSbom,
             format!("sbom missing: {}", manifest.sbom_path),
         ));
     }
-    let sbom_bytes = fs::read(&sbom_path)
-        .map_err(|e| reject(MescVerifyReason::MissingSbom, format!("sbom read: {e}")))?;
+    let sbom_bytes = fs::read(&sbom_path).map_err(|e| {
+        reject(
+            ExternalArtifactVerifyReason::MissingSbom,
+            format!("sbom read: {e}"),
+        )
+    })?;
     if DigestSha256::of(&sbom_bytes) != sbom_digest {
         return Err(reject(
-            MescVerifyReason::DigestMismatch,
+            ExternalArtifactVerifyReason::DigestMismatch,
             "sbom digest mismatch",
         ));
     }
 
     if manifest.artifacts.is_empty() {
-        return Err(reject(MescVerifyReason::MissingField, "artifacts[] empty"));
+        return Err(reject(
+            ExternalArtifactVerifyReason::MissingField,
+            "artifacts[] empty",
+        ));
     }
 
     let mut seen = HashSet::new();
@@ -166,13 +191,13 @@ pub fn verify_mesc_release_dir(release_dir: &Path) -> Result<MescVerifyReport, M
         require_nonempty("artifacts[].path", &art.path)?;
         if !seen.insert(art.path.clone()) {
             return Err(reject(
-                MescVerifyReason::DuplicateArtifactPath,
+                ExternalArtifactVerifyReason::DuplicateArtifactPath,
                 format!("duplicate path: {}", art.path),
             ));
         }
         if art.path.contains("..") || Path::new(&art.path).is_absolute() {
             return Err(reject(
-                MescVerifyReason::MalformedManifest,
+                ExternalArtifactVerifyReason::MalformedManifest,
                 format!("artifact path must be relative without ..: {}", art.path),
             ));
         }
@@ -180,19 +205,19 @@ pub fn verify_mesc_release_dir(release_dir: &Path) -> Result<MescVerifyReport, M
         let file_path = release_dir.join(&art.path);
         if !file_path.is_file() {
             return Err(reject(
-                MescVerifyReason::MissingArtifactFile,
+                ExternalArtifactVerifyReason::MissingArtifactFile,
                 format!("missing file: {}", art.path),
             ));
         }
         let data = fs::read(&file_path).map_err(|e| {
             reject(
-                MescVerifyReason::MissingArtifactFile,
+                ExternalArtifactVerifyReason::MissingArtifactFile,
                 format!("read {}: {e}", art.path),
             )
         })?;
         if data.len() as u64 != art.byte_length {
             return Err(reject(
-                MescVerifyReason::SizeMismatch,
+                ExternalArtifactVerifyReason::SizeMismatch,
                 format!(
                     "{}: expected {} bytes, got {}",
                     art.path,
@@ -203,43 +228,47 @@ pub fn verify_mesc_release_dir(release_dir: &Path) -> Result<MescVerifyReport, M
         }
         if DigestSha256::of(&data) != expected {
             return Err(reject(
-                MescVerifyReason::DigestMismatch,
+                ExternalArtifactVerifyReason::DigestMismatch,
                 format!("{} digest mismatch", art.path),
             ));
         }
     }
 
-    let report = MescVerifyReport::verified_synthetic(
+    let report = ExternalArtifactVerifyReport::verified_synthetic(
         manifest.producer_id.clone(),
         manifest.release_id.clone(),
         manifest.epoch,
     );
-    debug_assert_eq!(report.state, MescAdmissionState::Verified);
+    debug_assert_eq!(report.state, ExternalArtifactAdmissionState::Verified);
     debug_assert!(!report.product_admit_authorized);
     Ok(report)
 }
 
 /// In-memory producer→epoch anti-rollback for synthetic verifies (Spec 036).
 #[derive(Debug, Default)]
-pub struct MescEpochStore {
+pub struct ExternalArtifactEpochStore {
     last: std::collections::HashMap<String, u64>,
 }
 
-impl MescEpochStore {
+impl ExternalArtifactEpochStore {
     #[must_use]
     pub fn new() -> Self {
         Self::default()
     }
 
     /// Record a verified epoch; reject lower or equal epochs for the same producer.
-    pub fn admit_epoch(&mut self, producer_id: &str, epoch: u64) -> Result<(), MescVerifyError> {
+    pub fn admit_epoch(
+        &mut self,
+        producer_id: &str,
+        epoch: u64,
+    ) -> Result<(), ExternalArtifactVerifyError> {
         match self.last.get(producer_id) {
             Some(&prev) if epoch < prev => Err(reject(
-                MescVerifyReason::AntiRollback,
+                ExternalArtifactVerifyReason::AntiRollback,
                 format!("epoch {epoch} < recorded {prev} for {producer_id}"),
             )),
             Some(&prev) if epoch == prev => Err(reject(
-                MescVerifyReason::ReplayRejected,
+                ExternalArtifactVerifyReason::ReplayRejected,
                 format!("exact epoch {epoch} already recorded for {producer_id}"),
             )),
             _ => {
@@ -315,10 +344,10 @@ mod tests {
         let dir = std::env::temp_dir().join(format!("mesc-036-good-{}", std::process::id()));
         let _ = fs::remove_dir_all(&dir);
         write_good_fixture(&dir);
-        let report = verify_mesc_release_dir(&dir).expect("verify");
-        assert_eq!(report.state, MescAdmissionState::Verified);
+        let report = verify_external_artifact_release_dir(&dir).expect("verify");
+        assert_eq!(report.state, ExternalArtifactAdmissionState::Verified);
         assert!(!report.product_admit_authorized);
-        assert_eq!(report.reason, MescVerifyReason::Ok);
+        assert_eq!(report.reason, ExternalArtifactVerifyReason::Ok);
         let _ = fs::remove_dir_all(&dir);
     }
 
@@ -332,22 +361,25 @@ mod tests {
             b"X".repeat(b"synthetic-model-bytes-v1".len()),
         )
         .unwrap();
-        let err = verify_mesc_release_dir(&dir).unwrap_err();
-        assert_eq!(err.report().reason, MescVerifyReason::DigestMismatch);
+        let err = verify_external_artifact_release_dir(&dir).unwrap_err();
+        assert_eq!(
+            err.report().reason,
+            ExternalArtifactVerifyReason::DigestMismatch
+        );
         let _ = fs::remove_dir_all(&dir);
     }
 
     #[test]
     fn anti_rollback_and_replay() {
-        let mut store = MescEpochStore::new();
+        let mut store = ExternalArtifactEpochStore::new();
         store.admit_epoch("p", 2).unwrap();
         assert_eq!(
             store.admit_epoch("p", 1).unwrap_err().report().reason,
-            MescVerifyReason::AntiRollback
+            ExternalArtifactVerifyReason::AntiRollback
         );
         assert_eq!(
             store.admit_epoch("p", 2).unwrap_err().report().reason,
-            MescVerifyReason::ReplayRejected
+            ExternalArtifactVerifyReason::ReplayRejected
         );
         store.admit_epoch("p", 3).unwrap();
     }

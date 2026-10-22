@@ -40,7 +40,7 @@ fn apply_product_intelligence(ui: &AppWindow, vm: &product_intelligence::Product
     ui.set_model_runtime_boundary(vm.model_runtime_boundary.clone().into());
     ui.set_model_source_summary(vm.model_source_summary.clone().into());
     ui.set_model_inventory_summary(vm.model_inventory_summary.clone().into());
-    ui.set_openmed_baseline(vm.openmed_baseline.clone().into());
+    ui.set_reference_baseline(vm.reference_baseline.clone().into());
     ui.set_competitive_summary(vm.competitive_summary.clone().into());
     ui.set_model_rows(ModelRc::new(VecModel::from_iter(vm.models.iter().map(
         |row| ModelStatusItem {
@@ -60,7 +60,7 @@ fn apply_product_intelligence(ui: &AppWindow, vm: &product_intelligence::Product
         |row| CompetitiveEvidenceItem {
             capability: row.capability.clone().into(),
             medscale: row.medscale.clone().into(),
-            openmed: row.openmed.clone().into(),
+            reference: row.reference.clone().into(),
             verdict: row.verdict.clone().into(),
             evidence: row.evidence.clone().into(),
             limitations: row.limitations.clone().into(),

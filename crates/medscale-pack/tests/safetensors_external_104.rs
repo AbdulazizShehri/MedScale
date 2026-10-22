@@ -4,7 +4,7 @@
 //! acquisition, see `.github/workflows/model-qualification.yml`).
 //!
 //! MEDSCALE_CATALOG_SNAPSHOT, MEDSCALE_CATALOG_COMMIT, MEDSCALE_HF_SNAPSHOT_DIR,
-//! MEDSCALE_SAMPLE_TEXT as for `openmed_snapshot_external_103`; the weight file
+//! MEDSCALE_SAMPLE_TEXT as for `reference_snapshot_external_103`; the weight file
 //! is `model.safetensors`.
 //! cargo test --release -p medscale-pack --test safetensors_external_104 -- --ignored --nocapture
 
