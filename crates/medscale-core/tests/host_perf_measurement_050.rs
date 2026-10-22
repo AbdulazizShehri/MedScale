@@ -38,5 +38,8 @@ fn host_perf_measurement_script_and_evidence_present() {
         root.join("evidence/050-host-perf-measurement/LIMITATIONS.md")
             .is_file()
     );
-    assert!(root.join("docs/planning/SPEC_050_PROMOTION.md").is_file());
+    assert!(
+        root.join("docs/qualification/promotions/SPEC_050_PROMOTION.md")
+            .is_file()
+    );
 }

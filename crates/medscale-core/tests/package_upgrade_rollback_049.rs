@@ -44,5 +44,8 @@ fn package_upgrade_rollback_scripts_and_evidence_present() {
         root.join("evidence/049-package-upgrade-rollback/LIMITATIONS.md")
             .is_file()
     );
-    assert!(root.join("docs/planning/SPEC_049_PROMOTION.md").is_file());
+    assert!(
+        root.join("docs/qualification/promotions/SPEC_049_PROMOTION.md")
+            .is_file()
+    );
 }

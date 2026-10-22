@@ -1,4 +1,4 @@
-﻿//! Spec 053 - doctor honesty for Linux seccomp composition.
+//! Spec 053 - doctor honesty for Linux seccomp composition.
 
 use medscale_core::{build_doctor_report, privacy_proof_artifact_present};
 use std::path::PathBuf;
@@ -36,5 +36,8 @@ fn evidence_and_promotion_present() {
         root.join("evidence/053-linux-seccomp-composition/LIMITATIONS.md")
             .is_file()
     );
-    assert!(root.join("docs/planning/SPEC_053_PROMOTION.md").is_file());
+    assert!(
+        root.join("docs/qualification/promotions/SPEC_053_PROMOTION.md")
+            .is_file()
+    );
 }

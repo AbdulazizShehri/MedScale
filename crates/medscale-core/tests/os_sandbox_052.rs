@@ -36,5 +36,8 @@ fn evidence_and_promotion_present() {
         root.join("evidence/052-linux-landlock-composition/LIMITATIONS.md")
             .is_file()
     );
-    assert!(root.join("docs/planning/SPEC_052_PROMOTION.md").is_file());
+    assert!(
+        root.join("docs/qualification/promotions/SPEC_052_PROMOTION.md")
+            .is_file()
+    );
 }

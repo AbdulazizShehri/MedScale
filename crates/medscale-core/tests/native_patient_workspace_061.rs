@@ -96,11 +96,12 @@ fn spec_061_keeps_mesc_and_release_claims_out_of_scope() {
     let spec =
         std::fs::read_to_string(root.join("specs/061-patient-workspace-longitudinal-ux/spec.md"))
             .expect("Spec 061");
-    let promotion = std::fs::read_to_string(root.join("docs/planning/SPEC_061_PROMOTION.md"))
-        .expect("Spec 061 promotion");
+    let promotion =
+        std::fs::read_to_string(root.join("docs/qualification/promotions/SPEC_061_PROMOTION.md"))
+            .expect("Spec 061 promotion");
 
     assert!(spec.contains("MESC"));
     assert!(spec.contains("release-readiness claims remain out of scope"));
-    assert!(promotion.contains("no real PHI, MESC work"));
-    assert!(promotion.contains("release-readiness claim"));
+    assert!(promotion.contains("not a medical, security, clinical or release certification"));
+    assert!(promotion.contains("Detailed operator decisions and plans are not published here"));
 }

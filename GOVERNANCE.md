@@ -10,7 +10,7 @@ MedScale is currently **maintainer-led, community-contributed**. The repository 
 
 Anyone can suggest changes, open evidence-backed Issues, join Discussions or submit Pull Requests. Significant changes should begin with an Issue or Discussion explaining the problem, design options, risks and compatibility effects. Maintainers should explain material accept/reject decisions and favor small, reversible, tested changes.
 
-Current authoritative engineering plans live in [the build queue](docs/planning/BUILD_QUEUE.md) and [project architecture documentation](docs/planning/START_HERE.md). They are maintained project records, **not a requirement to obtain personal founder approval for every external contribution**.
+Public proposals, engineering discussions and contribution priorities are maintained through [GitHub Issues](https://github.com/AbdulazizShehri/MedScale/issues) and [Discussions](https://github.com/AbdulazizShehri/MedScale/discussions). Private maintainer scheduling is not a prerequisite for community contributions.
 
 ## Contribution lifecycle
 

@@ -94,12 +94,14 @@ fn home_is_a_clinical_workspace_not_an_admin_dashboard() {
 
 #[test]
 fn spec_068_closure_remains_historical_after_spec_073_closure() {
-    let status =
-        std::fs::read_to_string(repo_root().join("docs/planning/PROJECT_COMPLETION_STATUS.md"))
-            .expect("completion status");
+    let status = std::fs::read_to_string(
+        repo_root().join("docs/qualification/PRODUCT_QUALIFICATION_STATUS.md"),
+    )
+    .expect("completion status");
     // A new program changes active status; it does not reopen historical closures.
-    let queue = std::fs::read_to_string(repo_root().join("docs/planning/BUILD_QUEUE.md"))
-        .expect("build queue");
+    let queue =
+        std::fs::read_to_string(repo_root().join("docs/qualification/HISTORICAL_CLOSURE_INDEX.md"))
+            .expect("build queue");
     for spec in ["068", "073"] {
         assert!(queue.lines().any(|line| {
             line.contains(&format!("| {spec} |")) && line.contains("CLOSED_CANONICAL")

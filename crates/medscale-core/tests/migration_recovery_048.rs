@@ -42,5 +42,8 @@ fn migration_recovery_evidence_present() {
         root.join("evidence/048-migration-recovery-release-bar/LIMITATIONS.md")
             .is_file()
     );
-    assert!(root.join("docs/planning/SPEC_048_PROMOTION.md").is_file());
+    assert!(
+        root.join("docs/qualification/promotions/SPEC_048_PROMOTION.md")
+            .is_file()
+    );
 }

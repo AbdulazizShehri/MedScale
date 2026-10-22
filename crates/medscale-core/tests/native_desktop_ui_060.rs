@@ -132,7 +132,8 @@ fn product_phase_keeps_mobile_after_desktop_cli_launch() {
     let product = std::fs::read_to_string(root.join("PRODUCT.md")).expect("product truth");
     let design = std::fs::read_to_string(root.join("DESIGN.md")).expect("design truth");
     let queue =
-        std::fs::read_to_string(root.join("docs/planning/BUILD_QUEUE.md")).expect("build queue");
+        std::fs::read_to_string(root.join("docs/qualification/HISTORICAL_CLOSURE_INDEX.md"))
+            .expect("build queue");
     let ci = std::fs::read_to_string(root.join(".github/workflows/ci.yml")).expect("CI workflow");
 
     assert!(product.contains("Desktop and CLI are the launch surfaces"));

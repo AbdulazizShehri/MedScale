@@ -154,3 +154,4 @@ jobs:
           test -f deny.toml
           test -f supply-chain/config.toml
           test -f supply-chain/audits.toml
+          python3 scripts/check_public_repository_hygiene.py

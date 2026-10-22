@@ -27,7 +27,6 @@ on:
       - specs/096-tauri-foundation/**
       - evidence/096-tauri-foundation/**
       - docs/engineering/admissions/096-tauri-presentation.md
-      - docs/planning/TAURI_DESKTOP_MIGRATION_DECISION_2026-09-30.md
 
 permissions:
   contents: read
