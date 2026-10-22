@@ -16,6 +16,7 @@ These claims describe the observed 2026-10-22 state, not permanent CI or securit
 ## Community-facing changes
 
 - Reorganized the root README around project purpose, verifiable preview status, onboarding, architecture, community participation, security and license.
+- Corrected **active** default GitHub paths in mobile FFI metadata, the qualification-results CLI and Cursor repository permission boundaries; this is a canonical ownership migration, not a rewrite of historical source provenance.
 - Added a root `CONTRIBUTING.md` accessible to external contributors, `CODE_OF_CONDUCT.md`, `SECURITY.md`, `SUPPORT.md` and maintainer-led `GOVERNANCE.md`.
 - Added issue forms for safe synthetic-data bug reporting, feature proposals and documentation improvements, plus a community-oriented PR template.
 - Preserved existing technical docs, contracts, tests, versioned specs, evaluation evidence, frozen research records, provenance, notices and third-party source.

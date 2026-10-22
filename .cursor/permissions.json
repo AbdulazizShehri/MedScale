@@ -46,7 +46,7 @@
       "Require approval for destructive deletion of source, planning, evidence, provenance, vault, fixture, or user-authored files; never recursively delete outside the MedScale workspace.",
       "Require approval for sudo, administrator elevation, system package removal, operating-system configuration changes, shell-profile changes, SSH configuration changes, or writes outside the MedScale workspace unless they are clearly read-only inspections.",
       "Require approval for accessing, printing, copying, uploading, or transmitting production credentials, private keys, authentication tokens, secrets, or real PHI.",
-      "Require approval for any mutation of TheHalfMoon/MESC or any repository other than TheHalfMoon/MedScale.",
+      "Require approval for any mutation of TheHalfMoon/MESC or any repository other than AbdulazizShehri/MedScale.",
       "Require approval for accepting external legal terms, gated model licenses, restricted terminology licenses, App Store agreements, or other human/legal attestations.",
       "Require approval for real production EHR, SMART, NPHIES, healthcare-network, or other external clinical actions; synthetic and local test fixtures remain allowed according to the owning spec.",
       "Require approval for commands that disable, bypass, weaken, or remove MedScale security, privacy, provenance, supply-chain, sandbox, or exact-head qualification gates.",

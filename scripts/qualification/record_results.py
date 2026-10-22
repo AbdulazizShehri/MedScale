@@ -10,7 +10,7 @@ run's commit, and prints:
 Only rows that actually ran are recorded; failures are listed with their
 first panic line and never become evidence.
 
-Usage: record_results.py RUN_ID [--repo TheHalfMoon/MedScale]
+Usage: record_results.py RUN_ID [--repo AbdulazizShehri/MedScale]
 """
 
 from __future__ import annotations
@@ -34,7 +34,7 @@ def gh(*args: str) -> str:
 def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("run")
-    parser.add_argument("--repo", default="TheHalfMoon/MedScale")
+    parser.add_argument("--repo", default="AbdulazizShehri/MedScale")
     args = parser.parse_args()
 
     run = json.loads(gh("run", "view", args.run, "--repo", args.repo, "--json", "jobs,headSha"))
