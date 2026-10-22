@@ -101,7 +101,7 @@ jobs:
         run: |
           set -o pipefail
           case "$ENTRY_TEST" in
-            openmed_snapshot_external_103|safetensors_external_104|gliner_external_104) ;;
+            reference_snapshot_external_103|safetensors_external_104|gliner_external_104) ;;
             *) echo "unknown batch test: $ENTRY_TEST" >&2; exit 1 ;;
           esac
           export MEDSCALE_HF_SNAPSHOT_DIR="$SNAPSHOT_DIR"
@@ -127,8 +127,8 @@ jobs:
           "$py" -m pip install --quiet --index-url https://download.pytorch.org/whl/cpu "torch>=2.13.0"
           "$py" -m pip install --quiet "openmed[hf]==3.0.0"
           "$py" -m pip freeze | grep -iE '^(openmed|torch|transformers|tokenizers)==' | tee -a qualification.log
-          "$py" scripts/evaluation/openmed_predict.py "$MEDSCALE_EVAL_SET" "$SNAPSHOT_DIR" "$REPO" "$revision" "$RUNNER_TEMP/openmed-predictions.json" | tee -a qualification.log
-          MEDSCALE_OPENMED_PREDICTIONS="$RUNNER_TEMP/openmed-predictions.json"             cargo test --release --locked -p medscale-pack --test openmed_python_external_103             -- --ignored --nocapture 2>&1 | tee -a qualification.log
+          "$py" scripts/evaluation/reference_predict.py "$MEDSCALE_EVAL_SET" "$SNAPSHOT_DIR" "$REPO" "$revision" "$RUNNER_TEMP/reference-predictions.json" | tee -a qualification.log
+          MEDSCALE_REFERENCE_PREDICTIONS="$RUNNER_TEMP/reference-predictions.json"             cargo test --release --locked -p medscale-pack --test reference_python_external_103             -- --ignored --nocapture 2>&1 | tee -a qualification.log
 
       # Optional reference check ("reference": "hf"): Hugging Face Transformers
       # runs the same snapshot and sample text, and its entities are compared

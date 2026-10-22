@@ -178,9 +178,9 @@ impl ProductIntelligenceVm {
         models.push(ModelStatusVm {
             scope: "QUALIFICATION REFERENCE".to_owned(),
             task: "NER runtime qualification".to_owned(),
-            model: "onnx-community/bert-base-NER-ONNX".to_owned(),
-            source: "Hugging Face · revision 9faa2f4a2d59…".to_owned(),
-            runtime: "tract-onnx 0.22.4 · portable CPU".to_owned(),
+            model: "NER qualification reference".to_owned(),
+            source: "Pinned model reference · revision 9faa2f4a2d59…".to_owned(),
+            runtime: "MedScale portable ONNX runtime · CPU".to_owned(),
             device: "Local CPU".to_owned(),
             trust: "Signed Pack provenance · external weights excluded from Git".to_owned(),
             benchmark: "Release baseline PASS · warm p95 596.100 ms · accelerated runtime pending"
@@ -220,7 +220,7 @@ impl ProductIntelligenceVm {
                 medscale: "Immutable source bytes + explicit transformation/loss chain".to_owned(),
                 openmed: "Pinned v2.2.0 documents provenance and signed audit/review evidence surfaces".to_owned(),
                 verdict: "STRUCTURAL ONLY".to_owned(),
-                evidence: "MedScale Specs 002/003 · OpenMed docs/feature-map.md @ 59d9cb0a · claim ledger: source-custody".to_owned(),
+                evidence: "MedScale Specs 002/003 · Pinned source docs/feature-map.md @ 59d9cb0a · claim ledger: source-custody".to_owned(),
                 limitations: "Different semantic targets; no matched BenchmarkManifest proves comparative superiority.".to_owned(),
             },
             CompetitiveEvidenceVm {
@@ -228,7 +228,7 @@ impl ProductIntelligenceVm {
                 medscale: "Explicit IdentityAssertion; no silent patient merge".to_owned(),
                 openmed: "Pinned baseline has provenance/clinical processing surfaces; identity authority is not a matched benchmark axis".to_owned(),
                 verdict: "STRUCTURAL ONLY".to_owned(),
-                evidence: "MedScale Specs 002/019 · OpenMed pinned feature map · claim ledger: identity".to_owned(),
+                evidence: "MedScale Specs 002/019 · Pinned source feature map · claim ledger: identity".to_owned(),
                 limitations: "Structural contract difference only; no parity or surpass claim.".to_owned(),
             },
             CompetitiveEvidenceVm {
@@ -236,7 +236,7 @@ impl ProductIntelligenceVm {
                 medscale: "Versioned assertions, absence/freshness/conflict without silent resolution".to_owned(),
                 openmed: "Pinned baseline documents timeline/provenance capabilities".to_owned(),
                 verdict: "STRUCTURAL ONLY".to_owned(),
-                evidence: "MedScale Specs 004/019 · OpenMed pinned feature map · claim ledger: longitudinal-truth-conflict".to_owned(),
+                evidence: "MedScale Specs 004/019 · Pinned source feature map · claim ledger: longitudinal-truth-conflict".to_owned(),
                 limitations: "No matched longitudinal benchmark; superiority is not claimed.".to_owned(),
             },
             CompetitiveEvidenceVm {
@@ -244,7 +244,7 @@ impl ProductIntelligenceVm {
                 medscale: "Durable intent + payload identity + UNKNOWN reconciliation; blind retry forbidden".to_owned(),
                 openmed: "Pinned baseline documents service, agent and operational surfaces".to_owned(),
                 verdict: "STRUCTURAL ONLY".to_owned(),
-                evidence: "MedScale Specs 014/034/063 · OpenMed pinned feature map · claim ledger: controlled-external-actions".to_owned(),
+                evidence: "MedScale Specs 014/034/063 · Pinned source feature map · claim ledger: controlled-external-actions".to_owned(),
                 limitations: "Authority semantics differ; no matched BenchmarkManifest proves an advantage.".to_owned(),
             },
             CompetitiveEvidenceVm {
@@ -252,7 +252,7 @@ impl ProductIntelligenceVm {
                 medscale: "Real portable ONNX execution is proven; clinical-domain quality comparison is not measured".to_owned(),
                 openmed: "Pinned v2.2.0 exposes clinical NER families and an evaluation harness".to_owned(),
                 verdict: "UNMEASURED".to_owned(),
-                evidence: "MedScale Spec 069 · OpenMed docs/feature-map.md + docs/eval-harness.md · claim ledger: clinical-ner".to_owned(),
+                evidence: "MedScale Spec 069 · Pinned source docs/feature-map.md + docs/eval-harness.md · claim ledger: clinical-ner".to_owned(),
                 limitations: "No same-model/same-corpus F1, precision, recall, latency and RSS BenchmarkManifest.".to_owned(),
             },
             CompetitiveEvidenceVm {
@@ -260,7 +260,7 @@ impl ProductIntelligenceVm {
                 medscale: "Runtime path exists; no production de-identification model or PHI benchmark is promoted".to_owned(),
                 openmed: "Pinned baseline documents multilingual PII, de-identification methods and validation/eval contracts".to_owned(),
                 verdict: "UNMEASURED".to_owned(),
-                evidence: "OpenMed docs/anonymization.md + docs/clinical-validation-protocol.md @ 59d9cb0a · claim ledger: pii-detection/de-identification".to_owned(),
+                evidence: "Pinned source docs/anonymization.md + docs/clinical-validation-protocol.md @ 59d9cb0a · claim ledger: pii-detection/de-identification".to_owned(),
                 limitations: "Feature presence is verified; matched recall/leakage/false-negative comparison is absent.".to_owned(),
             },
             CompetitiveEvidenceVm {
@@ -268,7 +268,7 @@ impl ProductIntelligenceVm {
                 medscale: "Signed provenance-first Pack lifecycle; raw catalogue cardinality is deliberately not a success metric".to_owned(),
                 openmed: "Pinned models.jsonl contains 2266 manifest rows and a manifest-backed registry".to_owned(),
                 verdict: "ANTI-METRIC".to_owned(),
-                evidence: "OpenMed docs/model-registry.md + models.jsonl @ 59d9cb0a · claim ledger: model-catalogue-breadth".to_owned(),
+                evidence: "Pinned source docs/model-registry.md + models.jsonl @ 59d9cb0a · claim ledger: model-catalogue-breadth".to_owned(),
                 limitations: "2266 is dated inventory context only; model count does not establish quality, trust or parity.".to_owned(),
             },
             CompetitiveEvidenceVm {
@@ -276,7 +276,7 @@ impl ProductIntelligenceVm {
                 medscale: "tract CPU baseline measured; no accelerated Apple Silicon runtime is admitted".to_owned(),
                 openmed: "Pinned v2.2.0 documents Python MLX and Swift MLX paths for supported model families".to_owned(),
                 verdict: "UNMEASURED".to_owned(),
-                evidence: "MedScale evidence/071/RUNTIME_COMPARISON.md · OpenMed docs/mlx-backend.md @ 59d9cb0a · claim ledger: apple-silicon-mlx".to_owned(),
+                evidence: "MedScale evidence/071/RUNTIME_COMPARISON.md · Pinned source docs/mlx-backend.md @ 59d9cb0a · claim ledger: apple-silicon-mlx".to_owned(),
                 limitations: "No same-model/same-corpus/same-hardware BenchmarkManifest; runtime winner is explicitly refused.".to_owned(),
             },
         ];
@@ -294,7 +294,7 @@ impl ProductIntelligenceVm {
                 format!("{admitted} Core-admitted Pack(s) in this Desktop session. Restart persistence is not claimed.")
             },
             openmed_baseline: format!(
-                "OpenMed v2.2.0 · commit {} · tree {}",
+                "Pinned reference · commit {} · tree {}",
                 OPENMED_BASELINE_COMMIT, OPENMED_BASELINE_TREE
             ),
             competitive_summary: if ledger.valid {
@@ -392,7 +392,7 @@ mod tests {
             }],
             rights_uri: "https://example.test/rights".to_owned(),
             sbom_ref: "sbom:test".to_owned(),
-            runtime_requirements: "tract-onnx 0.22.4 · portable CPU".to_owned(),
+            runtime_requirements: "MedScale portable ONNX runtime · CPU".to_owned(),
             benchmark_links: vec!["evidence://070/runtime".to_owned()],
             promotion_state: state,
             trust_root_id: "synthetic-pack-trust-v1".to_owned(),

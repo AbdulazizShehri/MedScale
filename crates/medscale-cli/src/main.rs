@@ -409,7 +409,11 @@ enum PacksCmd {
         /// Exact 40-hex commit the snapshot was taken from.
         #[arg(long)]
         commit: String,
-        #[arg(long, default_value = "maziyarpanahi/openmed")]
+        #[arg(
+            long,
+            default_value = "maziyarpanahi/openmed",
+            hide_default_value = true
+        )]
         repository: String,
         #[arg(long)]
         text: Option<String>,
@@ -448,7 +452,11 @@ enum PacksCmd {
         snapshot: PathBuf,
         #[arg(long)]
         commit: String,
-        #[arg(long, default_value = "maziyarpanahi/openmed")]
+        #[arg(
+            long,
+            default_value = "maziyarpanahi/openmed",
+            hide_default_value = true
+        )]
         repository: String,
         #[arg(long)]
         repo_id: String,
@@ -464,7 +472,11 @@ enum PacksCmd {
         snapshot: PathBuf,
         #[arg(long)]
         commit: String,
-        #[arg(long, default_value = "maziyarpanahi/openmed")]
+        #[arg(
+            long,
+            default_value = "maziyarpanahi/openmed",
+            hide_default_value = true
+        )]
         repository: String,
         /// Directory with metadata.json, config.json, tokenizer.json and the ONNX file.
         #[arg(long)]
@@ -486,7 +498,11 @@ enum PacksCmd {
         snapshot: PathBuf,
         #[arg(long)]
         commit: String,
-        #[arg(long, default_value = "maziyarpanahi/openmed")]
+        #[arg(
+            long,
+            default_value = "maziyarpanahi/openmed",
+            hide_default_value = true
+        )]
         repository: String,
         /// Actual model repository ID, in the format provider/model.
         #[arg(long)]

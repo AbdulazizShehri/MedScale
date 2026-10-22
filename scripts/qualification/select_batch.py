@@ -71,7 +71,7 @@ def choose(row: dict, kind: str, sizes: dict[str, int]):
             # single-file Pack artifact (batch 01: Arabic BigMed-Large-560M).
             external = any(f.startswith(name) and f != name for f in sizes)
             if not external and 0 < sizes.get(name, 0) <= BOUND:
-                return name, "openmed_snapshot_external_103", "tract_onnx"
+                return name, "reference_snapshot_external_103", "tract_onnx"
         return None
     if kind == "expected_runnable_zero_shot":
         if 0 < sizes.get("weights.safetensors", 0) <= BOUND:

@@ -32,3 +32,19 @@ The canonical source types are now `ExternalArtifact*` (and `ExternalReleaseMani
 This change renames only **MedScale-owned** module/test paths. Names identifying another real project, the pinned `openmed` PyPI import, actual Hugging Face repository IDs, scientific comparator labels and recorded historical evidence continue to name what those inputs really are. That does not make them MedScale's first-party brand. Third-party legal notices and provenance records remain intact.
 
 Do not remove `specs/`, `evidence/`, pinned external URLs, historical source receipts or third-party license texts to achieve a superficial zero-match audit. They are separate from the MedScale-owned names in active code.
+
+
+## Product-visible and first-party qualification naming follow-on
+
+The subsequent scoped pass also moved first-party model-evaluation entry points to neutral MedScale-owned paths:
+
+- `scripts/evaluation/reference_predict.py` for the pinned external reference runner.
+- `crates/medscale-pack/tests/reference_python_external_103.rs` and `reference_snapshot_external_103.rs`.
+- Corresponding workflow, batch-selector, evidence-command and environment-variable names now refer to a `reference` rather than branding MedScale's own commands after the comparator.
+- Human-readable CLI catalog help hides the source repository's implicit default; internal model acquisition continues to use the real pinned source identifier.
+- The legacy Slint comparison card now uses `reference` bindings and anonymous pinned-baseline labels. The modern Tauri product UI continues to use the MedScale catalog presentation.
+- Qualification-model display labels are generic while their real identity, revision and source integrity remain recorded in machine-readable evidence.
+
+The model reference script still imports the actual installed benchmark dependency. Legal notices, historical artifacts, source catalog JSONL and pinned repository IDs are **not changed** by these UI/owned-name edits. Replacing those dependencies requires working admitted MedScale-owned mirrors or native implementations, followed by full tests and provenance preservation.
+
+Local verification: `cargo test -p medscale-pack --test reference_python_external_103 --test reference_snapshot_external_103 --locked --no-run` PASS; model CLI `packs catalog --help` visible-label scan PASS; `cargo check -p medscale-desktop --locked` PASS on macOS; workflow YAML parses; Rust formatting and Python syntax PASS. Remote CI remains the merge gate.
