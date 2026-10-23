@@ -41,7 +41,11 @@ export function DownloadCards() {
       .then((data: unknown) => {
         if (active && Array.isArray(data)) {
           const discovered = selectUnsignedPreview(data as UnsignedPreviewRelease[]);
-          if (discovered) setPreview(discovered);
+          if (discovered) setPreview({
+            tag: discovered.tag,
+            windows: discovered.windows ?? VERIFIED_BETA_PREVIEW.windows,
+            macos: discovered.macos ?? VERIFIED_BETA_PREVIEW.macos,
+          });
         }
       })
       .catch(() => { /* Keep the explicitly verified Beta fallback when API lookup fails. */ });
