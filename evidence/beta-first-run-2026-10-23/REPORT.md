@@ -25,3 +25,9 @@ Date: 2026-10-23. Protected main base: `c7513ea2bf7b38d89f4104025036ca181dc927eb
 - No Stable/v1.0, code signing, notarization, release publication or clinical readiness in this change.
 - Do not claim the current public installer contains this new first-run UI. A future tagged Beta must be built and verified independently.
 - Native user-interaction, OS protection dialogs, network privacy, screen reader and physical keyboard qualification remain external follow-up gates; **no real PHI** is authorized.
+
+## Exact-head CI follow-up
+
+- Head `ac7c09a` was green for `tauri dependency policy` after the Tokio fix, Tauri previews on macOS/Windows, Rust macOS/Ubuntu, cargo-deny, supply-chain, new first-run Edge smoke and Windows performance.
+- `desktop-e2e` failed because `scripts/e2e/desktop-journey.mjs` searched for the old button text `Open synthetic workspace` in both the initial and restarted app. The desktop rendered its new expected primary action `Try MedScale with sample data`; this is a test locator regression, not a native launch failure.
+- Updated both actual WebDriver selectors to the new primary CTA; kept the complete real-binary journey, restart and all assertions unchanged. Requalify using the new exact PR head; do not bypass or mark E2E passed without CI evidence.
