@@ -45,7 +45,13 @@ for (const f of files) {
   check(!/<script[^>]+src="https?:/i.test(html), `${rel}: loads a remote script`);
   check(![...html.matchAll(/<link[^>]+>/gi)].some(([tag]) => /rel="(stylesheet|preload|modulepreload|preconnect)"/i.test(tag) && /href="https?:/i.test(tag)), `${rel}: loads a remote stylesheet or preload`);
   check(!/fonts\.googleapis|fonts\.gstatic/i.test(html), `${rel}: uses a remote font service`);
-  check(!/href="https?:\/\/[^"]+\.(exe|msi|dmg|pkg|appimage|deb|rpm)"/i.test(html), `${rel}: links an installer`);
+  // Explicitly published, pinned synthetic-only Beta assets are allowed here.
+  // The qualified signed-release gate above remains empty; reject all other installer URLs.
+  const betaPrefix = "https://github.com/AbdulazizShehri/MedScale/releases/download/engineering-preview-19d419dd7b15/";
+  const allowedBetaInstallers = new Set([betaPrefix + "MedScale-engineering-preview-windows-x64.exe", betaPrefix + "MedScale-engineering-preview-macos.dmg"]);
+  for (const [, installer] of html.matchAll(/href="([^"]+\.(?:exe|msi|dmg|pkg|appimage|deb|rpm))"/gi)) {
+    check(allowedBetaInstallers.has(installer), `${rel}: unapproved installer link ${installer}`);
+  }
   for (const [, href] of html.matchAll(/(?:href|src)="([^"]+)"/g)) {
     if (/^(https?:|mailto:|#|data:)/.test(href)) {
       if (/^https?:/.test(href)) check(/^https:\/\/(github\.com\/AbdulazizShehri\/MedScale|abdulazizshehri\.github\.io\/MedScale|medscale\.si)/.test(href), `${rel}: unexpected external link ${href}`);

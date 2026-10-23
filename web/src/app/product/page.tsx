@@ -2,9 +2,10 @@ import Link from "next/link";
 import type { Metadata } from "next";
 import { ArrowRight, ArrowUpRight } from "@/components/Icons";
 import { Shot } from "@/components/Shot";
+import { FeatureAtlas, DESKTOP_FEATURE_COUNT } from "@/components/FeatureAtlas";
 import { docs, pageMeta, type ShotKey } from "@/lib/site";
 
-export const metadata: Metadata = pageMeta("/product/", "Product", "Records, insights, models, agents and governance in one source-aware desktop workspace with a shared Rust Core.");
+export const metadata: Metadata = pageMeta("/product/", "All MedScale features", "Explore MedScale Beta desktop features: patients, documents, insights, research, local models, agents, workflows, collaboration and governance.");
 
 const rows: { eyebrow: string; title: string; mute: string; body: string; shot: ShotKey; label: string; points: string[] }[] = [
   { eyebrow: "Records", mute: "Health information", title: "with a history.", body: "Open a synthetic subject and see coverage, documents and review state together. The list tells you what each record supports before you open it.", shot: "patients", label: "Patients", points: ["Longitudinal subjects with coverage per fact", "Documents and FHIR R4 fixtures with their origin", "Review states written out in words"] },
@@ -39,8 +40,17 @@ export default function Product() {
           ))}
         </div>
       </section>
+      <section className="page-section" id="all-features">
+        <div className="shell">
+          <div className="section-head split">
+            <div><span className="eyebrow">Feature directory</span><h2 className="h2">All {DESKTOP_FEATURE_COUNT} desktop areas.</h2></div>
+            <p className="body">Explore the complete Beta workspace: records, research, models, agents, operations and governance. Synthetic scenarios only.</p>
+          </div>
+          <FeatureAtlas />
+        </div>
+      </section>
       <section className="page-section">
-        <div className="shell" style={{ display: "grid", gap: 20, maxWidth: 820 }}>
+        <div className="shell" style={{ display: "grid", gap: 20, maxWidth: 700 }}>
           <span className="eyebrow">Also in the workspace</span>
           <p className="body" style={{ fontSize: 17 }}>Projects, data snapshots and analytics queries, a governed browser, collaboration rooms, synthetic audio import, the model fleet and FHIR exports are each covered by the desktop end-to-end journeys that run on the release binary. Workflows, tasks, messages and privacy settings are there too.</p>
           <div className="notice"><strong>Engineering preview</strong><p>Synthetic data only. MedScale is not clinically validated, is not a medical device and must not be used for patient care. See the <a className="text-link" style={{ fontSize: 14 }} href={docs.qualification}>external gates</a>.</p></div>

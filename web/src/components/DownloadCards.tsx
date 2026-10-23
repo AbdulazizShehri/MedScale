@@ -1,6 +1,6 @@
 "use client";
 import { useEffect, useState } from "react";
-import { detectPlatform, platformStatus, selectUnsignedPreview, type Platform, type UnsignedPreview, type UnsignedPreviewRelease } from "@/lib/release";
+import { detectPlatform, platformStatus, selectUnsignedPreview, VERIFIED_BETA_PREVIEW, type Platform, type UnsignedPreview, type UnsignedPreviewRelease } from "@/lib/release";
 import { docs } from "@/lib/site";
 import { ArrowUpRight, PlatformIcon, type PlatformName } from "./Icons";
 
@@ -28,7 +28,7 @@ function useVisitorPlatform(): Platform {
  */
 export function DownloadCards() {
   const visitor = useVisitorPlatform();
-  const [preview, setPreview] = useState<UnsignedPreview>();
+  const [preview, setPreview] = useState<UnsignedPreview>(VERIFIED_BETA_PREVIEW);
   useEffect(() => {
     let active = true;
     fetch("https://api.github.com/repos/AbdulazizShehri/MedScale/releases?per_page=10", {
@@ -39,9 +39,16 @@ export function DownloadCards() {
         return r.json();
       })
       .then((data: unknown) => {
-        if (active && Array.isArray(data)) setPreview(selectUnsignedPreview(data as UnsignedPreviewRelease[]));
+        if (active && Array.isArray(data)) {
+          const discovered = selectUnsignedPreview(data as UnsignedPreviewRelease[]);
+          if (discovered) setPreview({
+            tag: discovered.tag,
+            windows: discovered.windows ?? VERIFIED_BETA_PREVIEW.windows,
+            macos: discovered.macos ?? VERIFIED_BETA_PREVIEW.macos,
+          });
+        }
       })
-      .catch(() => { /* No preview is safer than a stale or unverified installer link. */ });
+      .catch(() => { /* Keep the explicitly verified Beta fallback when API lookup fails. */ });
     return () => { active = false; };
   }, []);
   return (

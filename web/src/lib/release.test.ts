@@ -2,12 +2,21 @@
 // Cases follow TheHalfMoon/CommunityFinance-CoFi tests/site-release-selector.test.cjs, plus MedScale's gate.
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { assetArch, detectPlatform, formatSize, pickInstaller, platformLabel, releaseQualified, scoreAsset, selectUnsignedPreview, type ReleaseAsset } from "./release.ts";
+import { assetArch, detectPlatform, formatSize, pickInstaller, platformLabel, releaseQualified, scoreAsset, selectUnsignedPreview, VERIFIED_BETA_PREVIEW, type ReleaseAsset } from "./release.ts";
 
 const a = (name: string): ReleaseAsset => ({ name, browser_download_url: `https://example.test/${name}`, size: 50 * 1024 * 1024 });
 
 test("no release is qualified for public download", () => {
   assert.equal(releaseQualified, false);
+});
+
+test("pinned Beta installer fallback keeps verified platform-specific download links", () => {
+  assert.equal(VERIFIED_BETA_PREVIEW.tag, "engineering-preview-19d419dd7b15");
+  assert.equal(VERIFIED_BETA_PREVIEW.windows?.size, 13872773);
+  assert.equal(VERIFIED_BETA_PREVIEW.macos?.size, 20827457);
+  assert.equal(VERIFIED_BETA_PREVIEW.windows?.browser_download_url, "https://github.com/AbdulazizShehri/MedScale/releases/download/engineering-preview-19d419dd7b15/MedScale-engineering-preview-windows-x64.exe");
+  assert.equal(VERIFIED_BETA_PREVIEW.macos?.browser_download_url, "https://github.com/AbdulazizShehri/MedScale/releases/download/engineering-preview-19d419dd7b15/MedScale-engineering-preview-macos.dmg");
+  assert.equal(releaseQualified, false, "unsigned fallback must never qualify a production release");
 });
 
 test("platform detection", () => {

@@ -7,7 +7,7 @@ export function Footer() {
       <div className="shell">
         <div className="footer-grid">
           <div className="footer-brand">
-            <Link href="/" aria-label="MedScale home"><img src={asset("/brand/medscale-horizontal-white.svg")} alt="" width={95} height={24} /></Link>
+            <Link href="/" className="brand-link footer-brand-link" aria-label="MedScale home"><img className="brand-mark" src={asset("/brand/mark-white.svg")} alt="" width={23} height={32} /><img className="brand-wordmark" src={asset("/brand/medscale-wordmark-white.svg")} alt="" width={101} height={17} /></Link>
             <p>An open-source, local-first workspace for health records, evidence and AI models.</p>
             <p>Engineering preview. Synthetic data only. Not for clinical use.</p>
           </div>
