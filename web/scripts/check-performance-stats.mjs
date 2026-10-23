@@ -25,8 +25,9 @@ assert.equal(timeline.methodology.timed_runs, 30);
 assert.equal(timeline.methodology.synthetic_only, true);
 assert.equal(timeline.budgets_claimed_met, false);
 const timelineSlice = stat.slice(stat.indexOf("timeline64:"));
-assert.ok(timelineSlice.includes("p95Ms: " + String(timeline.results_ms.timeline_projection.p95)),
-  "Advertised timeline speed must match evidence");
+const advertisedTimeline = timelineSlice.match(/p95Ms:\\s*([0-9.]+)/);
+assert.ok(advertisedTimeline && Math.abs(Number(advertisedTimeline[1]) - timeline.results_ms.timeline_projection.p95) < 0.001,
+  "Advertised timeline speed must match evidence to the published precision");
 assert.ok(timelineSlice.includes("syntheticEvents: 64"), "Timeline scale mismatch");
 assert.match(csv, /20,000 deterministic rows/, "20K synthetic row fixture is absent");
 expectNumber("syntheticRows", 20000);
