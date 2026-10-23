@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { fetchInstallerDownloads, type InstallerDownloadStats } from "@/lib/download-stats";
 
-/** Download events reported by GitHub, not completed installations. */
+/** Display the real public beta download count with concise marketing copy. */
 export function DownloadCount({ placement = "hero" }: { placement?: "hero" | "page" }) {
   const [stats, setStats] = useState<InstallerDownloadStats | null>(null);
   useEffect(() => {
@@ -19,17 +19,17 @@ export function DownloadCount({ placement = "hero" }: { placement?: "hero" | "pa
   }, []);
 
   return (
-    <div className="download-count" data-placement={placement} aria-label="MedScale installer download statistics">
+    <div className="download-count" data-placement={placement} aria-label="MedScale Beta download count">
       <span className="download-count-value" aria-live="polite" aria-atomic="true">
         {stats ? stats.total.toLocaleString("en-US") : "—"}
       </span>
       <div className="download-count-copy">
-        <strong>Installer downloads to date</strong>
+        <strong>MedScale Beta downloads</strong>
         <span>{stats
           ? `${stats.windows.toLocaleString("en-US")} Windows · ${stats.macos.toLocaleString("en-US")} macOS`
           : "Live statistics temporarily unavailable"}</span>
         <a href="https://github.com/AbdulazizShehri/MedScale/releases">
-          From GitHub Releases · downloads, not verified installations
+          View GitHub Releases ↗
         </a>
       </div>
     </div>
