@@ -7,8 +7,8 @@ import { docs, pageMeta } from "@/lib/site";
 export const metadata: Metadata = pageMeta("/download/", "Download", "MedScale desktop for Windows and macOS and the CLI for Windows, macOS and Linux. Current release status and build-from-source steps.");
 
 const status = [
-  ["Windows x64", "Desktop app + CLI", "Build from source", "CI builds an unsigned per-user NSIS installer to test packaging. It is not signed and is not published."],
-  ["macOS (Apple silicon)", "Desktop app + CLI", "Build from source", "CI builds an ad-hoc signed DMG to test packaging. It is not notarized and is not published."],
+  ["Windows x64", "Desktop app + CLI", "Build from source", "An unsigned Windows installer is built and tested in CI. A separately labelled synthetic-only preview may be available below if explicitly published."],
+  ["macOS (Apple silicon)", "Desktop app + CLI", "Build from source", "An unsigned or ad-hoc signed macOS DMG is tested in CI. A separately labelled synthetic-only preview may be available below if explicitly published."],
   ["Linux x86_64", "CLI", "CLI from source", "The Rust Core and CLI are tested on Ubuntu. A Linux desktop app is deferred."],
 ];
 
@@ -17,8 +17,8 @@ export default function Download() {
     <main id="main">
       <section className="shell page-hero">
         <span className="eyebrow">Download</span>
-        <h1 className="display" style={{ fontSize: "clamp(40px, 6vw, 72px)" }}>Get MedScale.<br /><span className="mute">Start from the source.</span></h1>
-        <p className="lede">There is no signed public installer yet. When a release is signed and qualified, this page will offer the right installer for your platform. Until then, every option here is real and links to working instructions.</p>
+        <h1 className="display" style={{ fontSize: "clamp(40px, 6vw, 72px)" }}>Get MedScale.<br /><span className="mute">Try the desktop.</span></h1>
+        <p className="lede">There is no signed public installer yet. If a verified unsigned engineering preview has been expressly published, you can download it below for synthetic-only evaluation, without an app-store or developer account. Otherwise, build from source. Unqualified preview builds may trigger operating-system security warnings.</p>
       </section>
       <section className="page-section" aria-labelledby="platforms-title">
         <div className="shell">

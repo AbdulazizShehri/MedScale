@@ -1,6 +1,6 @@
 "use client";
 import { useEffect, useState } from "react";
-import { detectPlatform, platformStatus, type Platform } from "@/lib/release";
+import { detectPlatform, platformStatus, selectUnsignedPreview, type Platform, type UnsignedPreview, type UnsignedPreviewRelease } from "@/lib/release";
 import { docs } from "@/lib/site";
 import { ArrowUpRight, PlatformIcon, type PlatformName } from "./Icons";
 
@@ -22,17 +22,34 @@ function useVisitorPlatform(): Platform {
 }
 
 /**
- * Platform cards. No release is qualified (src/lib/release.ts), so every card links to build
- * instructions. Linking an installer requires wiring pickInstaller here in the same reviewed
- * change that adds a tag to QUALIFIED_RELEASE_TAGS.
+ * Official signed releases remain closed. Optional, explicitly unsigned
+ * engineering previews are discovered only from this repo's GitHub pre-releases.
+ * They are labelled synthetic-only and never imply medical/production approval.
  */
 export function DownloadCards() {
   const visitor = useVisitorPlatform();
+  const [preview, setPreview] = useState<UnsignedPreview>();
+  useEffect(() => {
+    let active = true;
+    fetch("https://api.github.com/repos/AbdulazizShehri/MedScale/releases?per_page=10", {
+      headers: { Accept: "application/vnd.github+json" },
+    })
+      .then((r) => {
+        if (!r.ok) throw new Error("release lookup failed");
+        return r.json();
+      })
+      .then((data: unknown) => {
+        if (active && Array.isArray(data)) setPreview(selectUnsignedPreview(data as UnsignedPreviewRelease[]));
+      })
+      .catch(() => { /* No preview is safer than a stale or unverified installer link. */ });
+    return () => { active = false; };
+  }, []);
   return (
     <div className="platforms">
       {order.map((key) => {
         const s = platformStatus[key];
         const current = visitor === key;
+        const unsigned = key === "windows" ? preview?.windows : key === "macos" ? preview?.macos : undefined;
         return (
           <article key={key} className="platform" data-current={current}>
             <div className="platform-top">
@@ -43,7 +60,15 @@ export function DownloadCards() {
             <div className="platform-sub">{s.surface} · {s.arch}</div>
             <span className="platform-state">{s.state}</span>
             <p className="platform-note">{s.note}</p>
-            <a className={"btn " + (current ? "btn-primary" : "btn-secondary")} href={guide[key].href}>{guide[key].label} <ArrowUpRight /></a>
+            {unsigned && (
+              <>
+                <p className="platform-note"><strong>Unsigned test preview — synthetic data only.</strong> Not validated for patient records or clinical use. Windows SmartScreen or macOS Gatekeeper may block first launch. Verify the release checksum before running.</p>
+                <a className={"btn " + (current ? "btn-primary" : "btn-secondary")} href={unsigned.browser_download_url} rel="noopener noreferrer">
+                  Download unsigned test preview <ArrowUpRight />
+                </a>
+              </>
+            )}
+            <a className={"btn " + (unsigned ? "btn-secondary" : current ? "btn-primary" : "btn-secondary")} href={guide[key].href}>{guide[key].label} <ArrowUpRight /></a>
           </article>
         );
       })}
