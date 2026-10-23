@@ -233,7 +233,7 @@ async function journey(name, fn) {
 try {
   await launch();
   await journey("launch-and-open-synthetic-workspace", async () => {
-    await click(`//button[${text("Open synthetic workspace")}]`, 60000);
+    await click(`//button[${text("Try MedScale with sample data")}]`, 60000);
     await find(`//button[contains(@class,'nav') and ${text("Patients")}]`, 60000);
   });
   await journey("patients", async () => {
@@ -335,7 +335,7 @@ try {
   // Relaunch the binary: the vault must bring the run back.
   await launch();
   await journey("restart-persistence", async () => {
-    await click(`//button[${text("Open synthetic workspace")}]`, 60000);
+    await click(`//button[${text("Try MedScale with sample data")}]`, 60000);
     await nav("MedAgent");
     await see("summarize the bound sources", 60000);
     await see("completed");
