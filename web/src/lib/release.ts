@@ -3,8 +3,8 @@
 // Adapted from TheHalfMoon/CommunityFinance-CoFi site/app.js
 // (commit 6f8d620d90d6b799110d2987b9a10e4e66133a43): asset scoring per platform,
 // architecture detection, and refusing to guess between architecture-specific
-// installers. MedScale adds a qualification gate: nothing is fetched or linked
-// unless a release is explicitly recorded as qualified below.
+// installers. MedScale distinguishes qualified signed production releases from the
+// separately identified, unsigned synthetic-only Beta installer channel.
 
 export type Platform = "windows" | "macos" | "linux" | "unknown";
 export type Arch = "x64" | "arm64" | "x86" | "generic";
@@ -30,6 +30,16 @@ export interface UnsignedPreviewRelease {
   assets: UnsignedPreviewAsset[];
 }
 export type UnsignedPreview = { tag: string; windows?: UnsignedPreviewAsset; macos?: UnsignedPreviewAsset };
+/** Last directly verified, immutable-tag Beta release. This is a safe fallback
+ * when browser-side GitHub API requests are rate-limited or inaccessible.
+ * Update only after independently verifying published EXE and DMG assets.
+ * This does not qualify the unsigned installers for clinical use. */
+export const VERIFIED_BETA_PREVIEW: UnsignedPreview = {
+  tag: "engineering-preview-19d419dd7b15",
+  windows: { name: "MedScale-engineering-preview-windows-x64.exe", size: 13872773, browser_download_url: "https://github.com/AbdulazizShehri/MedScale/releases/download/engineering-preview-19d419dd7b15/MedScale-engineering-preview-windows-x64.exe" },
+  macos: { name: "MedScale-engineering-preview-macos.dmg", size: 20827457, browser_download_url: "https://github.com/AbdulazizShehri/MedScale/releases/download/engineering-preview-19d419dd7b15/MedScale-engineering-preview-macos.dmg" },
+};
+
 
 export function selectUnsignedPreview(releases: readonly UnsignedPreviewRelease[]): UnsignedPreview | undefined {
   for (const release of releases) {
@@ -114,7 +124,7 @@ export function platformLabel(platform: Platform): string {
 
 /** Today's truthful status for each platform, independent of any release fetch. */
 export const platformStatus = {
-  windows: { surface: "Desktop app + CLI", arch: "x64", state: "Build from source", note: "An unsigned engineering-preview installer is built by CI for testing. No signed public installer yet." },
-  macos: { surface: "Desktop app + CLI", arch: "Apple silicon", state: "Build from source", note: "The engineering-preview app is ad-hoc signed and not notarized. No public installer yet." },
+  windows: { surface: "Desktop app + CLI", arch: "x64", state: "Unsigned Beta", note: "Direct EXE download for synthetic-only evaluation. Not a signed or production-qualified release." },
+  macos: { surface: "Desktop app + CLI", arch: "Apple silicon", state: "Unsigned Beta", note: "Direct DMG download for synthetic-only evaluation. Ad-hoc signed; not notarized or production-qualified." },
   linux: { surface: "CLI", arch: "x86_64", state: "CLI from source", note: "The Rust Core and CLI are tested on Linux. A Linux desktop app is not available yet." },
 } as const;

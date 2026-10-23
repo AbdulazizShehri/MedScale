@@ -8,8 +8,8 @@ import { docs, pageMeta } from "@/lib/site";
 export const metadata: Metadata = pageMeta("/download/", "Download Beta", "MedScale desktop for Windows and macOS and the CLI for Windows, macOS and Linux. Current release status and build-from-source steps.");
 
 const status = [
-  ["Windows x64", "Desktop app + CLI", "Unsigned Beta / build from source", "An unsigned Windows installer is built and tested in CI. A separately labelled synthetic-only preview may be available below if explicitly published."],
-  ["macOS (Apple silicon)", "Desktop app + CLI", "Unsigned Beta / build from source", "An unsigned or ad-hoc signed macOS DMG is tested in CI. A separately labelled synthetic-only preview may be available below if explicitly published."],
+  ["Windows x64", "Desktop app + CLI", "Unsigned Beta / build from source", "A verified unsigned Beta EXE is available above for synthetic-only testing; signing remains an external gate."],
+  ["macOS (Apple silicon)", "Desktop app + CLI", "Unsigned Beta / build from source", "A verified ad-hoc signed Beta DMG is available above for synthetic-only testing; notarization remains an external gate."],
   ["Linux x86_64", "CLI", "CLI from source", "The Rust Core and CLI are tested on Ubuntu. A Linux desktop app is deferred."],
 ];
 

@@ -9,7 +9,7 @@ import { asset } from "@/lib/site";
 // Sans (the wordmark family) for headlines, JetBrains Mono NL for data.
 const inter = localFont({ src: "../fonts/InterVariable-latin.woff2", variable: "--font-inter", weight: "100 900", display: "swap" });
 const display = localFont({ src: "../fonts/PlusJakartaSans-latin.woff2", variable: "--font-pjs", weight: "200 800", display: "swap" });
-const mono = localFont({ src: "../fonts/JetBrainsMonoNL-latin.woff2", variable: "--font-jbm", weight: "400", display: "swap", preload: false });
+const mono = localFont({ src: "../fonts/JetBrainsMonoNL-latin.woff2", variable: "--font-jbm", weight: "400", display: "optional", preload: true });
 
 const site = process.env.NEXT_PUBLIC_SITE_URL || "https://abdulazizshehri.github.io/MedScale";
 const title = "MedScale — Your health AI. One open workspace.";
