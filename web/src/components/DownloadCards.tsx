@@ -62,9 +62,9 @@ export function DownloadCards() {
             <p className="platform-note">{s.note}</p>
             {unsigned && (
               <>
-                <p className="platform-note"><strong>Unsigned test preview — synthetic data only.</strong> Not validated for patient records or clinical use. Windows SmartScreen or macOS Gatekeeper may block first launch. Verify the release checksum before running.</p>
+                <p className="platform-note"><strong>MedScale Beta — unsigned · synthetic data only.</strong> Still in active development; not validated for patient records or clinical use. Windows SmartScreen or macOS Gatekeeper may block first launch. Verify the release checksum before running.</p>
                 <a className={"btn " + (current ? "btn-primary" : "btn-secondary")} href={unsigned.browser_download_url} rel="noopener noreferrer">
-                  Download unsigned test preview <ArrowUpRight />
+                  Download MedScale Beta <ArrowUpRight />
                 </a>
               </>
             )}

@@ -4,11 +4,11 @@ import { ArrowUpRight } from "@/components/Icons";
 import { Quickstart } from "@/components/Quickstart";
 import { docs, pageMeta } from "@/lib/site";
 
-export const metadata: Metadata = pageMeta("/download/", "Download", "MedScale desktop for Windows and macOS and the CLI for Windows, macOS and Linux. Current release status and build-from-source steps.");
+export const metadata: Metadata = pageMeta("/download/", "Download Beta", "MedScale desktop for Windows and macOS and the CLI for Windows, macOS and Linux. Current release status and build-from-source steps.");
 
 const status = [
-  ["Windows x64", "Desktop app + CLI", "Build from source", "An unsigned Windows installer is built and tested in CI. A separately labelled synthetic-only preview may be available below if explicitly published."],
-  ["macOS (Apple silicon)", "Desktop app + CLI", "Build from source", "An unsigned or ad-hoc signed macOS DMG is tested in CI. A separately labelled synthetic-only preview may be available below if explicitly published."],
+  ["Windows x64", "Desktop app + CLI", "Unsigned Beta / build from source", "An unsigned Windows installer is built and tested in CI. A separately labelled synthetic-only preview may be available below if explicitly published."],
+  ["macOS (Apple silicon)", "Desktop app + CLI", "Unsigned Beta / build from source", "An unsigned or ad-hoc signed macOS DMG is tested in CI. A separately labelled synthetic-only preview may be available below if explicitly published."],
   ["Linux x86_64", "CLI", "CLI from source", "The Rust Core and CLI are tested on Ubuntu. A Linux desktop app is deferred."],
 ];
 
@@ -16,9 +16,9 @@ export default function Download() {
   return (
     <main id="main">
       <section className="shell page-hero">
-        <span className="eyebrow">Download</span>
-        <h1 className="display" style={{ fontSize: "clamp(40px, 6vw, 72px)" }}>Get MedScale.<br /><span className="mute">Try the desktop.</span></h1>
-        <p className="lede">There is no signed public installer yet. If a verified unsigned engineering preview has been expressly published, you can download it below for synthetic-only evaluation, without an app-store or developer account. Otherwise, build from source. Unqualified preview builds may trigger operating-system security warnings.</p>
+        <span className="eyebrow">MedScale Beta · Active development</span>
+        <h1 className="display" style={{ fontSize: "clamp(40px, 6vw, 72px)" }}>Get MedScale Beta.<br /><span className="mute">Try the desktop.</span></h1>
+        <p className="lede">MedScale is in active beta development. There is no signed public installer yet. A verified, unsigned Beta build is available below for synthetic-only evaluation without an app-store or developer account. It is not a qualified production or medical release, and operating-system security warnings may appear.</p>
       </section>
       <section className="page-section" aria-labelledby="platforms-title">
         <div className="shell">
@@ -46,7 +46,7 @@ export default function Download() {
               <tbody>{status.map((r) => <tr key={r[0]}>{r.map((c, i) => <td key={i}>{c}</td>)}</tr>)}</tbody>
             </table>
           </div>
-          <div className="notice"><strong>Not a production release</strong><p>Engineering builds are for testing the release process. Production signing, notarization, clinical validation and permission to use real patient data are external gates that have not been met. <a className="text-link" style={{ fontSize: 14 }} href={docs.qualification}>Read the external gates</a> · <a className="text-link" style={{ fontSize: 14 }} href={docs.releases}>GitHub Releases</a></p></div>
+          <div className="notice"><strong>Beta — Not a production release</strong><p>Engineering builds are for testing the release process. Production signing, notarization, clinical validation and permission to use real patient data are external gates that have not been met. <a className="text-link" style={{ fontSize: 14 }} href={docs.qualification}>Read the external gates</a> · <a className="text-link" style={{ fontSize: 14 }} href={docs.releases}>GitHub Releases</a></p></div>
         </div>
       </section>
     </main>
