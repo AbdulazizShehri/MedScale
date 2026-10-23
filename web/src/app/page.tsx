@@ -7,11 +7,12 @@ import { ModelCatalogScale } from "@/components/ModelCatalogScale";
 import { EvidenceExample } from "@/components/EvidenceExample";
 import { ArrowRight, ArrowUpRight, Check, GitHub, Monitor, Plus, Terminal } from "@/components/Icons";
 import { ProductTour } from "@/components/ProductTour";
+import { FeatureAtlas, DESKTOP_FEATURE_COUNT } from "@/components/FeatureAtlas";
 import { Quickstart } from "@/components/Quickstart";
 import { Shot } from "@/components/Shot";
 import { asset, docs, github, pageMeta } from "@/lib/site";
 
-const homeMeta = pageMeta("/", "Your health AI. One open workspace.", "Open-source, local-first workspace for health records, evidence and AI models. Beta software in active development; synthetic-only evaluation.");
+const homeMeta = pageMeta("/", "Your health AI. One open workspace.", "Download MedScale Beta: an open-source desktop workspace for synthetic health records, evidence, research, local AI models, agents and governed workflows.");
 const homeTitle = "MedScale — Your health AI. One open workspace.";
 export const metadata: Metadata = { ...homeMeta, title: { absolute: homeTitle }, openGraph: { ...homeMeta.openGraph, title: homeTitle }, twitter: { ...homeMeta.twitter, title: homeTitle } };
 
@@ -39,10 +40,10 @@ export default function Home() {
           <div className="hero-copy">
             <a className="status-pill" href={docs.qualification}><b>Beta</b><span>In active development · synthetic data only</span><ArrowRight size={14} /></a>
             <h1 id="hero-title" className="display">Your health AI.<br /><span className="mute">One open workspace.</span></h1>
-            <p className="lede">MedScale brings records, evidence and local AI models into one source-aware desktop workspace. Open source, local-first, and built so a person stays in charge of every decision.</p>
+            <p className="lede">Explore records, evidence, research, local AI models and agent workflows in one open-source desktop app. See where answers come from, keep control of every action, and try MedScale Beta on your computer.</p>
             <div className="actions">
               <Link className="btn btn-primary" href="/download/">Get MedScale <ArrowRight /></Link>
-              <a className="btn btn-secondary" href={github}><GitHub size={16} /> View on GitHub</a>
+              <Link className="btn btn-secondary" href="/product/#all-features">Explore all features <ArrowRight size={15} /></Link>
             </div>
             <ModelCatalogScale />
             <div className="hero-meta">
@@ -73,6 +74,27 @@ export default function Home() {
             <p className="body">Every area runs on the same Rust Core, so the patient you open, the evidence you check and the model you run all follow the same rules for privacy, provenance and authority.</p>
           </div>
           <ProductTour />
+        </div>
+      </section>
+
+      <section className="section" id="features" aria-labelledby="features-title">
+        <div className="shell">
+          <div className="section-head split">
+            <div style={{ display: "grid", gap: 20 }}>
+              <span className="eyebrow">Explore the complete workspace</span>
+              <h2 id="features-title" className="h2"><span className="mute">More than a model browser.</span> Everything in one workspace.</h2>
+            </div>
+            <div style={{ display: "grid", gap: 18, justifyItems: "start" }}>
+              <p className="body">Discover {DESKTOP_FEATURE_COUNT} desktop areas across records, research, AI, operations and governance. Every area is part of the current synthetic-only Beta interface — not a promise of clinical readiness.</p>
+              <Link href="/product/#all-features" className="text-link">See the complete feature guide <ArrowRight size={14} /></Link>
+            </div>
+          </div>
+          <FeatureAtlas compact />
+          <div className="marketing-audiences" aria-label="Ways to explore MedScale Beta">
+            <div><strong>For researchers</strong><p>Explore synthetic records, inspect citations and organize research projects.</p></div>
+            <div><strong>For developers</strong><p>Build on the open Rust Core, desktop and CLI, and contribute through inspectable source and tests.</p></div>
+            <div><strong>For Beta testers</strong><p>Download the unsigned desktop preview, explore local models and help shape the next release.</p></div>
+          </div>
         </div>
       </section>
 

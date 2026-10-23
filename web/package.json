@@ -6,7 +6,7 @@
     "dev": "next dev",
     "build": "next build && node scripts/flatten-segments.mjs",
     "start": "next start",
-    "check": "node scripts/check.mjs && node scripts/check-catalog-stats.mjs && node scripts/check-performance-stats.mjs",
+    "check": "node scripts/check.mjs && node scripts/check-catalog-stats.mjs && node scripts/check-performance-stats.mjs && node scripts/check-marketing-feature-coverage.mjs",
     "test": "node --test --experimental-strip-types src/lib/release.test.ts src/lib/download-stats.test.ts"
   },
   "dependencies": {

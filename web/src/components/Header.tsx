@@ -36,7 +36,8 @@ export function Header() {
     <header className="site-header" data-scrolled={scrolled || open}>
       <div className="shell header-inner">
         <Link href="/" className="brand-link" aria-label="MedScale home">
-          <img src={asset("/brand/medscale-horizontal-white.svg")} alt="" width={103} height={26} fetchPriority="high" />
+          <img className="brand-mark" src={asset("/brand/mark-white.svg")} alt="" width={23} height={32} fetchPriority="high" />
+          <img className="brand-wordmark" src={asset("/brand/medscale-wordmark-white.svg")} alt="" width={101} height={17} fetchPriority="high" />
         </Link>
         <nav className="main-nav" aria-label="Main">
           {nav.map((item) => <Link key={item.href} href={item.href} aria-current={current(item.href)}>{item.label}</Link>)}
