@@ -124,7 +124,7 @@ jobs:
               -x "tauri-release/$kind/installer/*")
           done
           (cd publish && sha256sum *.exe *.dmg *.zip > SHA256SUMS)
-          printf '%s\n'             'MedScale engineering preview — SYNTHETIC DATA ONLY.'             'UNSIGNED Windows installer; macOS DMG is NOT notarized.'             'NOT qualified for clinical work, real patient data, or production deployments.'             'Windows SmartScreen or Smart App Control may warn or block the installer.'             'macOS Gatekeeper may block it; never disable system security globally.'             'Verify SHA256SUMS and review the exact source SHA on GitHub.'             "Source SHA: $GITHUB_SHA"             > publish/PREVIEW-README.txt
+          printf '%s\n'             'MedScale Beta — active development; SYNTHETIC DATA ONLY.'             'UNSIGNED Windows installer; macOS DMG is NOT notarized.'             'NOT qualified for clinical work, real patient data, or production deployments.'             'Windows SmartScreen or Smart App Control may warn or block the installer.'             'macOS Gatekeeper may block it; never disable system security globally.'             'Verify SHA256SUMS and review the exact source SHA on GitHub.'             "Source SHA: $GITHUB_SHA"             > publish/PREVIEW-README.txt
       - name: Publish an explicitly non-production pre-release
         env:
           GH_TOKEN: ${{ github.token }}
@@ -135,7 +135,7 @@ jobs:
           gh release create "$tag" publish/* \
             --repo "$GITHUB_REPOSITORY" \
             --target "$GITHUB_SHA" \
-            --title "MedScale unsigned synthetic-only engineering preview (${GITHUB_SHA:0:12})" \
+            --title "MedScale Beta (unsigned synthetic-only engineering build) (${GITHUB_SHA:0:12})" \
             --prerelease --latest=false \
             --notes-file publish/PREVIEW-README.txt
           gh release view "$tag" -R "$GITHUB_REPOSITORY" --json url,isPrerelease --jq '{url:.url,prerelease:.isPrerelease}'

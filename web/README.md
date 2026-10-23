@@ -1,6 +1,6 @@
 # MedScale website
 
-The public product and open-source website. It is a Next.js App Router site with TypeScript and a static export, so it needs no backend and no paid hosting. The website is separate from the MedScale desktop app and never connects to it or to any clinical system.
+The public website for MedScale Beta, an open-source product in active development. It is a Next.js App Router site with TypeScript and a static export, so it needs no backend and no paid hosting. The website is separate from the MedScale desktop app and never connects to it or to any clinical system.
 
 The design system is in [`docs/brand/WEBSITE_SYSTEM.md`](../docs/brand/WEBSITE_SYSTEM.md) and the copy rules are in [`docs/brand/MARKETING_COPY.md`](../docs/brand/MARKETING_COPY.md).
 
@@ -60,7 +60,7 @@ The desktop CI already builds and probes Windows NSIS `.exe` and macOS `.dmg` in
 3. The workflow independently checks that both sets came from the exact same main commit, verifies manifests and SHA256 digests, requires Windows/macOS installer install/launch/uninstall PASS receipts, and refuses tampered/missing artifacts or duplicate tags.
 4. Only after those checks, GitHub hosts a **pre-release** containing the unsigned Windows EXE, unnotarized macOS DMG, and checksum file. Visitors can download it without signing in to GitHub. The website dynamically discovers only those exact GitHub pre-release assets, and shows no preview button until one actually exists.
 
-**This is not the signed/public-production release channel.** `QUALIFIED_RELEASE_TAGS` stays empty, `RELEASE_READY=false`, and real PHI is forbidden. Do not distribute preview binaries for clinical decisions or real patient data.
+**MedScale Beta is under active development. This is not the signed/public-production release channel.** `QUALIFIED_RELEASE_TAGS` stays empty, `RELEASE_READY=false`, and real PHI is forbidden. Do not distribute preview binaries for clinical decisions or real patient data.
 
 **Windows:** Download the EXE directly; Windows Defender SmartScreen and Smart App Control may warn or block unsigned software. Do not suppress system policies programmatically. Require checksum verification and a trusted official download URL.
 
