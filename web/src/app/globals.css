@@ -270,10 +270,12 @@ a:hover > .arrow, button:hover > .arrow { transform: translateX(2px); }
 .state-tag[data-state="conflict"] { color: var(--orange); }
 .state-tag[data-state="missing"] { color: var(--orange); }
 .state-tag[data-state="missing"]::before { background: transparent; box-shadow: inset 0 0 0 1.5px currentColor; }
-.source-card { border: 1px solid var(--line); border-radius: var(--r-3); background: var(--bg-1); padding: 16px; display: grid; gap: 8px; }
+.source-card { border: 0; border-left: 2px solid var(--line-3); border-radius: 0; background: transparent; padding: 5px 0 5px 17px; display: grid; gap: 8px; }
 .source-card small { color: var(--ink-3); font-family: var(--font-mono); font-size: 12px; word-break: break-word; }
-.source-card q { color: var(--ink); quotes: "“" "”"; font-size: 15px; line-height: 1.55; }
+.source-card q { color: var(--ink); quotes: "“" "”"; font-size: 15px; line-height: 1.55; text-wrap: pretty; }
 .source-card mark { background: var(--blue-soft); color: var(--ink); border-radius: 3px; padding: 0 2px; }
+.source-card[data-state="conflict"] { border-left-color: var(--orange); }
+.source-card[data-state="supported"] { border-left-color: var(--blue); }
 .source-card[data-state="conflict"] mark { background: var(--orange-soft); }
 .evidence-foot { grid-column: 1 / -1; display: flex; justify-content: space-between; gap: 12px; flex-wrap: wrap; padding: 14px clamp(24px, 3.5vw, 40px); border-top: 1px solid var(--line); color: var(--ink-3); font-size: 12px; font-family: var(--font-mono); }
 @media (max-width: 860px) {
@@ -284,7 +286,7 @@ a:hover > .arrow, button:hover > .arrow { transform: translateX(2px); }
 /* ---------- Pillars ---------- */
 .pillars { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; }
 .pillar { border: 1px solid var(--line); border-radius: var(--r-4); background: linear-gradient(180deg, var(--bg-2), var(--bg-1)); padding: 28px; display: grid; gap: 14px; align-content: start; min-height: 300px; }
-.pillar-art { height: 112px; border-radius: var(--r-3); border: 1px solid var(--line); background: var(--bg); display: grid; place-items: center; overflow: hidden; color: var(--ink-3); }
+.pillar-art { height: 112px; border: 0; border-bottom: 1px solid var(--line); border-radius: 0; background: transparent; display: grid; place-items: center; overflow: hidden; color: var(--ink-3); }
 .pillar .body { font-size: 15px; }
 @media (max-width: 960px) { .pillars { grid-template-columns: 1fr; } .pillar { min-height: 0; } }
 
@@ -292,11 +294,12 @@ a:hover > .arrow, button:hover > .arrow { transform: translateX(2px); }
 .arch { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: clamp(32px, 6vw, 80px); align-items: center; }
 .arch-diagram { border: 1px solid var(--line); border-radius: var(--r-4); padding: clamp(20px, 3vw, 32px); background: radial-gradient(80% 60% at 50% 100%, rgba(112, 184, 199, 0.08), transparent 70%), var(--bg-1); display: grid; gap: 14px; }
 .arch-row { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
-.arch-node { border: 1px solid var(--line-2); border-radius: var(--r-3); padding: 16px; background: var(--bg-2); display: grid; gap: 2px; }
+.arch-node { border: 0; border-left: 2px solid var(--line-3); border-radius: 0; padding: 12px 16px; background: transparent; display: grid; gap: 2px; }
 .arch-node small { color: var(--ink-3); font-family: var(--font-mono); font-size: 11px; letter-spacing: 0.04em; text-transform: uppercase; }
 .arch-node strong { font-size: 17px; font-weight: 560; letter-spacing: -0.01em; }
 .arch-node span { color: var(--ink-3); font-size: 13px; }
-.arch-core { border-color: rgba(112, 184, 199, 0.45); background: linear-gradient(180deg, rgba(112, 184, 199, 0.08), var(--bg-2)); }
+.arch-core { border-left-color: var(--blue); background: transparent; }
+.arch-core strong { color: var(--blue); }
 .arch-links { display: flex; justify-content: space-around; color: var(--ink-3); height: 22px; }
 .arch-links i { width: 1px; background: linear-gradient(var(--line-3), var(--blue)); }
 .crate-list { display: flex; flex-wrap: wrap; gap: 6px; }
@@ -440,3 +443,6 @@ tr:last-child td { border-bottom: 0; }
 }
 @keyframes rise { from { opacity: 0; transform: translateY(14px); } to { opacity: 1; transform: none; } }
 @keyframes fade { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
+
+/* Impeccable readability pass: avoid lonely final words on small viewports. */
+.platform-note, .card p, .tour-tab span, .performance-number p, .performance-intro, .performance-context, .state p { text-wrap: pretty; }
