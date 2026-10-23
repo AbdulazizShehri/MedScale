@@ -45,25 +45,26 @@ export function Welcome({ onContinue }: { onContinue: () => void }) {
     <main className="gate">
       <Topology />
       <div className="gate-fade" />
-      <div style={{ position: "relative", height: "100%", minHeight: 600, display: "flex", flexDirection: "column", justifyContent: "space-between", padding: "56px 64px 48px", maxWidth: 640 }}>
+      <div className="gate-welcome-layout">
         <Logo height={40} />
         <div className="stack" style={{ gap: 28 }}>
-          <h1 style={{ margin: 0, fontSize: 60, lineHeight: "60px", fontWeight: 600, letterSpacing: "-0.04em" }}>Local Clinical<br />Intelligence</h1>
+          <h1 className="gate-welcome-title">Your local AI<br />workspace</h1>
           <span className="brand-rule" aria-hidden="true" />
           <div style={{ display: "flex", flexDirection: "column", gap: 2, fontSize: 22, lineHeight: "30px", fontWeight: 500, letterSpacing: "-0.015em", color: "var(--ink-2)" }}>
             <span>Evidence.</span><span>Privacy.</span><span>Scale.</span>
           </div>
-          <div className="row-gap" style={{ gap: 10, marginTop: 12 }}>
-            <button type="button" className="btn btn-p lg" onClick={onContinue} autoFocus>Open workspace</button>
-            <button type="button" className="btn btn-s lg" onClick={openSynthetic} disabled={!!pending}>
-              {pending ? <Glyph kind="running" /> : <span className="g g-synthetic" />}{pending ? "Opening synthetic workspace…" : "Open synthetic workspace"}
+          <p className="gate-welcome-hint">Start with two fictional subjects. No sign-in, payment, or patient data needed.</p>
+          <div className="gate-welcome-actions">
+            <button type="button" className="btn btn-p lg" onClick={openSynthetic} disabled={!!pending} autoFocus>
+              {pending ? <Glyph kind="running" /> : <span className="g g-synthetic" />}{pending ? "Opening sample workspace…" : "Try MedScale with sample data"}
             </button>
+            <button type="button" className="btn btn-s lg" onClick={onContinue} disabled={!!pending}>Set up or unlock encrypted vault</button>
           </div>
           {pending && <p className="t-sm i3">First open ingests the synthetic FHIR fixtures through Core. This takes a few seconds once.</p>}
           {error && <p className="st" role="alert"><Glyph kind="failed" />{error.message}</p>}
         </div>
         <div className="row-gap" style={{ gap: 20, fontSize: 12, color: "var(--ink-3)" }}>
-          <span className="st weak"><Glyph kind="available" />Runs on this device</span>
+          <span className="st weak"><Glyph kind="available" />Beta · synthetic data only · runs on this device</span>
           <span>{ws?.network_default_deny ? "Network egress off by default" : "Network posture unknown"}</span>
           <span className="mono" style={{ fontSize: 11 }}>v{ws?.version}</span>
         </div>
