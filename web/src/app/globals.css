@@ -555,3 +555,46 @@ tr:last-child td { border-bottom: 0; }
 @media (max-width: 700px) {
   .marketing-audiences { grid-template-columns: 1fr; }
 }
+
+/* Free, local-first and privacy proof: plain editorial layout, not another card stack. */
+.hero-trustline, .product-trustline, .download-trustline {
+  display: flex; flex-wrap: wrap; align-items: center; column-gap: 15px; row-gap: 8px;
+  margin: -4px 0 0; color: var(--ink-2); font-size: 13px; line-height: 1.55;
+}
+.hero-trustline span { display: inline-flex; align-items: center; gap: 9px; }
+.hero-trustline span::before {
+  content: ""; width: 6px; height: 6px; border-radius: 50%;
+  background: var(--orange); flex: none;
+}
+.product-trustline, .download-trustline { color: var(--ink-2); font-size: 14px; }
+.privacy-story { padding-top: clamp(65px, 8vw, 105px); scroll-margin-top: 92px; }
+.privacy-benefits {
+  display: grid; grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: clamp(22px, 4vw, 60px);
+  border-top: 1px solid var(--line-2);
+  border-bottom: 1px solid var(--line-2);
+}
+.privacy-benefits > div {
+  display: grid; align-content: start; gap: 12px;
+  padding: clamp(25px, 4vw, 43px) 0;
+}
+.privacy-benefits small {
+  color: var(--orange); font: 500 12px/1.4 var(--font-mono);
+  letter-spacing: .05em;
+}
+.privacy-benefits strong {
+  color: var(--ink); font: 600 clamp(19px, 2.2vw, 27px)/1.2 var(--font-display);
+  letter-spacing: -.025em;
+}
+.privacy-benefits p { color: var(--ink-2); font-size: 15px; line-height: 1.7; margin: 0; text-wrap: pretty; }
+.privacy-fineprint {
+  max-width: 580px; margin: 20px 0 0;
+  color: var(--ink-2); font-size: 13px; line-height: 1.75;
+}
+.privacy-fineprint a { color: var(--ink); display: inline-flex; align-items: center; gap: 5px; text-decoration: underline; text-underline-offset: 4px; }
+.privacy-fineprint a:hover { color: var(--orange); }
+@media (max-width: 760px) {
+  .privacy-benefits { grid-template-columns: 1fr; gap: 0; }
+  .privacy-benefits > div { padding: 24px 0; }
+  .privacy-benefits > div + div { border-top: 1px solid var(--line); }
+}

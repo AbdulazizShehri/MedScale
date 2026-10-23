@@ -12,21 +12,23 @@ import { Quickstart } from "@/components/Quickstart";
 import { Shot } from "@/components/Shot";
 import { asset, docs, github, pageMeta } from "@/lib/site";
 
-const homeMeta = pageMeta("/", "Your health AI. One open workspace.", "Download MedScale Beta: an open-source desktop workspace for synthetic health records, evidence, research, local AI models, agents and governed workflows.");
+const homeMeta = pageMeta("/", "Your health AI. One open workspace.", "Free-to-use MedScale Beta runs locally on Windows and macOS. Explore evidence, research and AI in a desktop workspace with no automatic data upload. Synthetic data only.");
 const homeTitle = "MedScale — Your health AI. One open workspace.";
 export const metadata: Metadata = { ...homeMeta, title: { absolute: homeTitle }, openGraph: { ...homeMeta.openGraph, title: homeTitle }, twitter: { ...homeMeta.twitter, title: homeTitle } };
 
 const strip = [
-  ["Open source", "Apache-2.0 code, built in public."],
-  ["Local first", "The Core runs on your machine."],
-  ["Source-aware", "Every insight keeps its evidence."],
-  ["People decide", "AI proposes. You approve."],
+  ["Free to use", "No subscription or cloud account for the local Beta."],
+  ["Runs on your computer", "The Rust Core and admitted AI packs work locally."],
+  ["Private by default", "No automatic workspace upload or product telemetry."],
+  ["Open source", "Apache-2.0 first-party code you can inspect."],
 ];
 
 const faq = [
   ["Can I use MedScale with real patient records?", "No. MedScale Beta is still under active development. It is authorized for synthetic data only, is not clinically validated and is not a medical device. Real patient data, clinical decisions and production deployments are out of scope until the external gates are met."],
   ["Is there an installer I can download?", "Yes. Download the unsigned MedScale Beta engineering build for Windows or macOS from the Download page. It is for synthetic-only testing, not clinical use; operating systems may warn or block unsigned software. The Core and CLI can also be built from source."],
-  ["Does MedScale need the cloud or an account?", "No. The Rust Core runs locally and network access is denied by default; browsing and egress are explicit, governed actions. Local workspace access is not organizational sign-in, and a full privacy qualification is still an open gate."],
+  ["Is MedScale free to use?", "Yes. The MedScale application and its first-party Apache-2.0 source code are free to use. The local Beta needs no subscription, account or cloud API key. Optional third-party models, services or downloads may have separate terms or costs."],
+  ["Does my workspace data leave my computer?", "Not automatically. The Rust Core and locally admitted models process on your machine; MedScale defaults to denying outbound network requests, and it does not automatically upload your workspace, telemetry or crash reports. Explicit browsing, exports and approved external connections can transmit data when you choose them. The Beta is synthetic-only and is not qualified for real patient records."],
+  ["Can I use MedScale without the cloud?", "Yes. The Core and local workflows do not require a MedScale cloud account. Some explicitly requested activities, such as external browsing, remote integrations or obtaining model files, require an internet connection. The desktop Beta is unsigned and still under active development."],
   ["Which AI models does it run?", "Models run locally through MedScale's own runtime, from admitted model packs. The desktop app includes a browsable catalog of models with their source, task, format and size. A model being listed in the catalog does not mean it is qualified for any clinical task."],
   ["What does 'all your health AI in one place' mean today?", "One workspace for records, evidence, local models and agents, sharing one Core. It is the direction of the project, not a claim that every model or workflow is supported. The product page lists what exists now."],
   ["How can I contribute?", "Read the contributing guide, pick an issue or start a discussion. Every report, example and test must use synthetic data. Never include patient information or confidential material."],
@@ -40,7 +42,8 @@ export default function Home() {
           <div className="hero-copy">
             <a className="status-pill" href={docs.qualification}><b>Beta</b><span>In active development · synthetic data only</span><ArrowRight size={14} /></a>
             <h1 id="hero-title" className="display">Your health AI.<br /><span className="mute">One open workspace.</span></h1>
-            <p className="lede">Explore records, evidence, research, local AI models and agent workflows in one open-source desktop app. See where answers come from, keep control of every action, and try MedScale Beta on your computer.</p>
+            <p className="lede">Free to use. Built to run on your computer. Explore records, cited evidence, local AI models and agent workflows in one open-source desktop app—with no automatic workspace upload.</p>
+            <p className="hero-trustline" aria-label="MedScale essentials"><span>Free to use</span><span>Local AI</span><span>No cloud account</span></p>
             <div className="actions">
               <Link className="btn btn-primary" href="/download/">Get MedScale <ArrowRight /></Link>
               <Link className="btn btn-secondary" href="/product/#all-features">Explore all features <ArrowRight size={15} /></Link>
@@ -59,6 +62,24 @@ export default function Home() {
           <div className="shell strip-grid">
             {strip.map(([t, d]) => <div className="strip-item" key={t}><strong>{t}</strong><span>{d}</span></div>)}
           </div>
+        </div>
+      </section>
+
+      <section className="section privacy-story" id="privacy" aria-labelledby="privacy-title">
+        <div className="shell">
+          <div className="section-head split">
+            <div style={{ display: "grid", gap: 20 }}>
+              <span className="eyebrow">Free · Local · In your control</span>
+              <h2 id="privacy-title" className="h2"><span className="mute">Your workspace. Your computer.</span> No automatic cloud handoff.</h2>
+            </div>
+            <p className="body">MedScale puts the Core and admitted AI models on your hardware. No monthly software fee, cloud account, or automatic transfer of your workspace is required for local Beta use.</p>
+          </div>
+          <div className="privacy-benefits">
+            <div><small>01 / FREE</small><strong>Free to use</strong><p>Open-source first-party software under Apache-2.0. Download and explore the local Beta without a MedScale subscription.</p></div>
+            <div><small>02 / LOCAL</small><strong>Runs on your desktop</strong><p>Your Rust Core, synthetic workspace, and locally admitted model packs run on the computer you control.</p></div>
+            <div><small>03 / PRIVATE</small><strong>No automatic upload</strong><p>Network requests are denied by default. MedScale does not automatically send workspace data, product telemetry, or crash reports to a server.</p></div>
+          </div>
+          <p className="privacy-fineprint">You choose when to use an online feature: approved browsing, exports, and external integrations can transmit data. Third-party model terms may vary. MedScale Beta is for synthetic data only, not real patient records. <a href={docs.trustPrivacy}>Read the privacy model <ArrowUpRight size={13} /></a></p>
         </div>
       </section>
 
@@ -122,8 +143,8 @@ export default function Home() {
               <div className="pillar-art" aria-hidden="true">
                 <svg width="220" height="80" viewBox="0 0 220 80" fill="none" stroke="currentColor" strokeWidth="1.4"><rect x="20" y="14" width="96" height="52" rx="10" /><text x="68" y="45" fill="var(--ink-2)" stroke="none" fontSize="12" textAnchor="middle" fontFamily="var(--font-mono)">Core</text><path d="M120 40h52" strokeDasharray="4 5" /><path d="M176 30l14 20M190 30l-14 20" stroke="var(--orange)" strokeWidth="1.8" /></svg>
               </div>
-              <h3 className="h3">Local by default</h3>
-              <p className="body">The Core and your workspace stay on your machine. There is no default network egress, and browsing is denied until you allow it.</p>
+              <h3 className="h3">Local by default. Private by choice.</h3>
+              <p className="body">Your Core and local workspace run on your machine, without automatic data uploads. Outbound browsing and other network actions need explicit permission.</p>
             </article>
             <article className="pillar">
               <div className="pillar-art" aria-hidden="true">
@@ -198,7 +219,7 @@ export default function Home() {
           <div className="download-hero">
             <span className="eyebrow">Download</span>
             <h2 id="download-title" className="h2">Get MedScale.</h2>
-            <p className="lede">Download MedScale Beta for Windows or macOS, or explore the open-source Core and CLI. Desktop builds are unsigned and intended for synthetic-only evaluation.</p>
+            <p className="lede">Free to use. No cloud account needed. Download MedScale Beta for Windows or macOS and explore the local-first Core and CLI with synthetic data.</p>
           </div>
           <DownloadCards />
           <DownloadCount placement="page" />

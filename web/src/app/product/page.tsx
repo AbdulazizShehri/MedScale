@@ -5,7 +5,7 @@ import { Shot } from "@/components/Shot";
 import { FeatureAtlas, DESKTOP_FEATURE_COUNT } from "@/components/FeatureAtlas";
 import { docs, pageMeta, type ShotKey } from "@/lib/site";
 
-export const metadata: Metadata = pageMeta("/product/", "All MedScale features", "Explore MedScale Beta desktop features: patients, documents, insights, research, local models, agents, workflows, collaboration and governance.");
+export const metadata: Metadata = pageMeta("/product/", "All MedScale features", "MedScale Beta is free to use and runs locally. Explore its source-aware desktop features, local AI models, agents, research and governance with no automatic upload.");
 
 const rows: { eyebrow: string; title: string; mute: string; body: string; shot: ShotKey; label: string; points: string[] }[] = [
   { eyebrow: "Records", mute: "Health information", title: "with a history.", body: "Open a synthetic subject and see coverage, documents and review state together. The list tells you what each record supports before you open it.", shot: "patients", label: "Patients", points: ["Longitudinal subjects with coverage per fact", "Documents and FHIR R4 fixtures with their origin", "Review states written out in words"] },
@@ -22,7 +22,8 @@ export default function Product() {
       <section className="shell page-hero">
         <span className="eyebrow">Product</span>
         <h1 className="display" style={{ fontSize: "clamp(40px, 6vw, 72px)" }}>One workspace.<br /><span className="mute">Every area in context.</span></h1>
-        <p className="lede">MedScale is a desktop app and a CLI over one Rust Core. These are real screenshots of the desktop app with the synthetic workspace that ships with the project.</p>
+        <p className="lede">Free to use and built to run on your computer, MedScale brings records, evidence and AI models into one desktop app and CLI over a shared Rust Core. These screenshots use the synthetic Beta workspace.</p>
+        <p className="product-trustline">Local processing · No cloud account · No automatic data upload</p>
         <div className="actions"><Link className="btn btn-primary" href="/download/">Get MedScale <ArrowRight /></Link><a className="btn btn-secondary" href={docs.desktopSource}>Desktop source <ArrowUpRight /></a></div>
       </section>
       <section className="page-section">
