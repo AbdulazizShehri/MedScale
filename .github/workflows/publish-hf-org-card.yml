@@ -1,0 +1,26 @@
+name: Publish MedScaleAI Hugging Face organization card
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: medscale-hf-org-card
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    if: github.repository == 'AbdulazizShehri/MedScale' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout source
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # pinned
+      - name: Install HF Hub client
+        run: python3 -m pip install 'huggingface_hub==1.2.3'
+      - name: Publish only the public MedScaleAI card
+        env:
+          MEDSCALE_HF_WRITE_TOKEN: ${{ secrets.MEDSCALE_HF_WRITE_TOKEN }}
+        run: python3 scripts/publish_hf_org_card.py
