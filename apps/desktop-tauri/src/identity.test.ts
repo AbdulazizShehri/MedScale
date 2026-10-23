@@ -54,6 +54,12 @@ test("product-facing surfaces carry no stale or third-party-centred identity", (
   assert.deepEqual(hits, []);
 });
 
+test("desktop identifies itself as a beta without claiming a qualified release", () => {
+  assert.match(read("apps/desktop-tauri/src/components/shell.tsx"), /Beta software under active development/);
+  assert.match(read("apps/desktop-tauri/src/pages/Governance.tsx"), /Beta · not release-qualified/);
+  assert.match(read("README.md"), /MedScale Beta \(active development; synthetic data only\)/);
+});
+
 test("product name and window title are MedScale", () => {
   const conf = JSON.parse(read("apps/desktop-tauri/src-tauri/tauri.conf.json"));
   assert.equal(conf.productName, "MedScale");

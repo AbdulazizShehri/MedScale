@@ -14,7 +14,7 @@
 MedScale is an open-source Rust-based platform for exploring evidence-backed health information in local workspaces. The trusted Rust Core owns records, provenance, validation, policy decisions and audit trails. The desktop and CLI present that Core's results rather than becoming independent sources of authority.
 
 > [!IMPORTANT]
-> **Status: engineering preview, synthetic data only.** MedScale is not clinically validated and is not a certified medical device, authorized patient-data processor, or signed production release. This repository is open for development and review only. Do not enter real patient data, identifying health records, credentials, or confidential materials. No medical diagnosis or treatment decisions should rely on this software. See [current external gates](docs/qualification/EXTERNAL_GATES.md).
+> **Status: MedScale Beta (active development; synthetic data only).** MedScale is not clinically validated and is not a certified medical device, authorized patient-data processor, or signed production release. This repository is open for development and review only. Do not enter real patient data, identifying health records, credentials, or confidential materials. No medical diagnosis or treatment decisions should rely on this software. See [current external gates](docs/qualification/EXTERNAL_GATES.md).
 
 ## Why MedScale?
 
@@ -30,10 +30,10 @@ MedScale is an open-source Rust-based platform for exploring evidence-backed hea
 | Area | Current scope |
 | --- | --- |
 | Core and CLI | Rust; tested in CI on Windows, macOS and Linux |
-| Desktop | Tauri 2 + React/TypeScript; unsigned engineering installers for Windows and macOS |
+| Desktop | Tauri 2 + React/TypeScript; unsigned beta engineering installers for Windows and macOS |
 | Linux desktop | Not shipped; see the [GTK security/dependency gate](docs/qualification/EXTERNAL_GATES.md) |
 | Data | Synthetic fixtures only; real PHI **not authorized** |
-| Release | Source available; production/clinical deployment **not qualified** |
+| Release | **Beta** available for synthetic-only evaluation; production/clinical deployment **not qualified** |
 
 See [the desktop guide](apps/desktop-tauri/README.md) and [external qualification gates](docs/qualification/EXTERNAL_GATES.md). Historical engineering artifacts and comparison data are reproducible evidence, not marketing or clinical claims.
 
