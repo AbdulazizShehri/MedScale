@@ -7,8 +7,8 @@ import { docs, pageMeta } from "@/lib/site";
 export const metadata: Metadata = pageMeta("/download/", "Download Beta", "MedScale desktop for Windows and macOS and the CLI for Windows, macOS and Linux. Current release status and build-from-source steps.");
 
 const status = [
-  ["Windows x64", "Desktop app + CLI", "Build from source", "An unsigned Windows installer is built and tested in CI. A separately labelled synthetic-only preview may be available below if explicitly published."],
-  ["macOS (Apple silicon)", "Desktop app + CLI", "Build from source", "An unsigned or ad-hoc signed macOS DMG is tested in CI. A separately labelled synthetic-only preview may be available below if explicitly published."],
+  ["Windows x64", "Desktop app + CLI", "Unsigned Beta / build from source", "An unsigned Windows installer is built and tested in CI. A separately labelled synthetic-only preview may be available below if explicitly published."],
+  ["macOS (Apple silicon)", "Desktop app + CLI", "Unsigned Beta / build from source", "An unsigned or ad-hoc signed macOS DMG is tested in CI. A separately labelled synthetic-only preview may be available below if explicitly published."],
   ["Linux x86_64", "CLI", "CLI from source", "The Rust Core and CLI are tested on Ubuntu. A Linux desktop app is deferred."],
 ];
 
@@ -18,7 +18,7 @@ export default function Download() {
       <section className="shell page-hero">
         <span className="eyebrow">MedScale Beta · Active development</span>
         <h1 className="display" style={{ fontSize: "clamp(40px, 6vw, 72px)" }}>Get MedScale Beta.<br /><span className="mute">Try the desktop.</span></h1>
-        <p className="lede">MedScale is in active beta development. A verified, unsigned Beta build is available below for synthetic-only evaluation without an app-store or developer account. It is not a qualified production or medical release, and operating-system security warnings may appear.</p>
+        <p className="lede">MedScale is in active beta development. There is no signed public installer yet. A verified, unsigned Beta build is available below for synthetic-only evaluation without an app-store or developer account. It is not a qualified production or medical release, and operating-system security warnings may appear.</p>
       </section>
       <section className="page-section" aria-labelledby="platforms-title">
         <div className="shell">
