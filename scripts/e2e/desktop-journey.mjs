@@ -189,6 +189,39 @@ async function nav(label) {
 async function pageText() {
   return wd("POST", `/session/${sid}/execute/sync`, { script: "return document.body.innerText;", args: [] });
 }
+
+/**
+ * Synthetic-only WebView DOM storage canary. This is a narrow regression
+ * assertion: it does not qualify WebView2 caches, crash dumps, logs, IndexedDB,
+ * OS snapshots or real patient data. Never print stored keys or values.
+ */
+async function auditClientStorage(label) {
+  const audit = await wd("POST", `/session/${sid}/execute/sync`, {
+    script: `
+      const riskyKey = /passphrase|password|credential|api[_-]?key|bearer|patient|subject|clinical|secret/i;
+      const syntheticMarker = /synthetic-subject-|patient-golden\\.json|e2e synthetic interchange/i;
+      function inspect(store) {
+        let offending = 0;
+        for (let i = 0; i < store.length; i++) {
+          const k = store.key(i) ?? '';
+          const v = store.getItem(k) ?? '';
+          if (riskyKey.test(k) || syntheticMarker.test(v)) offending++;
+        }
+        return { entries: store.length, risky_entries: offending };
+      }
+      const local = inspect(window.localStorage);
+      const session = inspect(window.sessionStorage);
+      const cookies = document.cookie || '';
+      return { local, session, cookie_risky: riskyKey.test(cookies) || syntheticMarker.test(cookies) };
+    `,
+    args: [],
+  });
+  // Deliberately persist only aggregate counts and booleans, never key/value data.
+  fs.writeFileSync(path.join(shots, `storage-audit-${label}.json`), JSON.stringify({ scope: "DOM storage only; synthetic fixtures", ...audit }, null, 2));
+  if (audit.local.risky_entries || audit.session.risky_entries || audit.cookie_risky) {
+    throw new Error(`WebView client-storage canary detected a sensitive key or synthetic patient marker (${label})`);
+  }
+}
 async function waitForText(pattern, timeout = 60000) {
   const end = Date.now() + timeout;
   while (Date.now() < end) {
@@ -331,6 +364,9 @@ try {
     await nav("Audit Trail");
     await see("e2e synthetic interchange");
   });
+  await journey("webview-storage-canary", async () => {
+    await auditClientStorage("after-synthetic-journeys");
+  });
   await quit();
   // Relaunch the binary: the vault must bring the run back.
   await launch();
@@ -339,6 +375,9 @@ try {
     await nav("MedAgent");
     await see("summarize the bound sources", 60000);
     await see("completed");
+  });
+  await journey("webview-storage-canary-after-restart", async () => {
+    await auditClientStorage("after-restart");
   });
   // Switch to the dark theme through the command palette, as a user would,
   // then capture the main product areas in it.
