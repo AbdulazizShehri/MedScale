@@ -2,6 +2,7 @@ import Link from "next/link";
 import type { Metadata } from "next";
 import { DownloadCards } from "@/components/DownloadCards";
 import { DownloadCount } from "@/components/DownloadCount";
+import { ModelCatalogScale } from "@/components/ModelCatalogScale";
 import { EvidenceExample } from "@/components/EvidenceExample";
 import { ArrowRight, ArrowUpRight, Check, GitHub, Monitor, Plus, Terminal } from "@/components/Icons";
 import { ProductTour } from "@/components/ProductTour";
@@ -42,7 +43,7 @@ export default function Home() {
               <Link className="btn btn-primary" href="/download/">Get MedScale <ArrowRight /></Link>
               <a className="btn btn-secondary" href={github}><GitHub size={16} /> View on GitHub</a>
             </div>
-            <DownloadCount />
+            <ModelCatalogScale />
             <div className="hero-meta">
               <span><Monitor /> Desktop for Windows and macOS</span>
               <span><Terminal /> CLI for Windows, macOS and Linux</span>
@@ -172,10 +173,11 @@ export default function Home() {
           <div className="download-hero">
             <span className="eyebrow">Download</span>
             <h2 id="download-title" className="h2">Get MedScale.</h2>
-            <p className="lede">The source is open today. A signed public installer is not released yet, so each platform shows exactly what you can run now.</p>
+            <p className="lede">Download MedScale Beta for Windows or macOS, or explore the open-source Core and CLI. Desktop builds are unsigned and intended for synthetic-only evaluation.</p>
           </div>
           <DownloadCards />
-          <div className="download-foot"><span>Engineering preview · synthetic data only · not for clinical use</span><Link className="text-link" href="/download/" style={{ fontSize: 13 }}>Full release status</Link></div>
+          <DownloadCount placement="page" />
+          <div className="download-foot"><span>MedScale Beta · synthetic data only</span><Link className="text-link" href="/download/" style={{ fontSize: 13 }}>Full release status</Link></div>
         </div>
       </section>
 
