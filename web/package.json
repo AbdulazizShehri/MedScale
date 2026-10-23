@@ -7,7 +7,7 @@
     "build": "next build && node scripts/flatten-segments.mjs",
     "start": "next start",
     "check": "node scripts/check.mjs",
-    "test": "node --test --experimental-strip-types src/lib/release.test.ts"
+    "test": "node --test --experimental-strip-types src/lib/release.test.ts src/lib/download-stats.test.ts"
   },
   "dependencies": {
     "next": "16.4.2",
