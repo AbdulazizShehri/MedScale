@@ -14,6 +14,7 @@ export const docs = {
   qualification: blob("docs/qualification/EXTERNAL_GATES.md"),
   contributing: blob("CONTRIBUTING.md"),
   security: blob("SECURITY.md"),
+  trustPrivacy: blob("docs/security/TRUST_AND_PRIVACY_MODEL.md"),
   governance: blob("GOVERNANCE.md"),
   conduct: blob("CODE_OF_CONDUCT.md"),
   brand: tree("docs/brand"),

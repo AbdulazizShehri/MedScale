@@ -5,7 +5,7 @@ import { ArrowUpRight } from "@/components/Icons";
 import { Quickstart } from "@/components/Quickstart";
 import { docs, pageMeta } from "@/lib/site";
 
-export const metadata: Metadata = pageMeta("/download/", "Download Beta", "MedScale desktop for Windows and macOS and the CLI for Windows, macOS and Linux. Current release status and build-from-source steps.");
+export const metadata: Metadata = pageMeta("/download/", "Download MedScale Beta for free", "Free-to-use, locally run MedScale Beta for Windows and macOS. No cloud account, no subscription or automatic workspace upload. Synthetic data only.");
 
 const status = [
   ["Windows x64", "Desktop app + CLI", "Unsigned Beta / build from source", "A verified unsigned Beta EXE is available above for synthetic-only testing; signing remains an external gate."],
@@ -19,7 +19,8 @@ export default function Download() {
       <section className="shell page-hero">
         <span className="eyebrow">MedScale Beta · Active development</span>
         <h1 className="display" style={{ fontSize: "clamp(40px, 6vw, 72px)" }}>Get MedScale Beta.<br /><span className="mute">Try the desktop.</span></h1>
-        <p className="lede">MedScale is in active beta development. There is no signed public installer yet. A verified, unsigned Beta build is available below for synthetic-only evaluation without an app-store or developer account. It is not a qualified production or medical release, and operating-system security warnings may appear.</p>
+        <p className="lede">Free to use. Runs locally on your computer. No MedScale subscription or cloud account required. There is no signed public installer yet. Download the verified, unsigned Beta for synthetic-only evaluation; operating-system security warnings may appear. This is not a qualified production or medical release.</p>
+        <p className="download-trustline">No automatic workspace upload · Network access denied by default · Optional online actions are explicit</p>
       </section>
       <section className="page-section" aria-labelledby="platforms-title">
         <div className="shell">
