@@ -114,7 +114,16 @@ jobs:
           [[ ${#win[@]} -eq 1 && ${#mac[@]} -eq 1 ]] || { echo "::error::Expected one EXE and one DMG"; exit 1; }
           cp -- "${win[0]}" "publish/MedScale-engineering-preview-windows-x64.exe"
           cp -- "${mac[0]}" "publish/MedScale-engineering-preview-macos.dmg"
-          (cd publish && sha256sum *.exe *.dmg > SHA256SUMS)
+          # Include each platform's source notices, license, SBOM, manifest,
+          # provenance and installer lifecycle receipts, excluding duplicate installers.
+          for platform in win mac; do
+            case "$platform" in win) kind=windows ;; mac) kind=macos ;; esac
+            root="$RUNNER_TEMP/installer-$platform"
+            (cd "$root" && zip -qr "$GITHUB_WORKSPACE/publish/MedScale-engineering-preview-$kind-provenance.zip" \
+              tauri-release tauri-release-qualification \
+              -x "tauri-release/$kind/installer/*")
+          done
+          (cd publish && sha256sum *.exe *.dmg *.zip > SHA256SUMS)
           printf '%s\n'             'MedScale engineering preview — SYNTHETIC DATA ONLY.'             'UNSIGNED Windows installer; macOS DMG is NOT notarized.'             'NOT qualified for clinical work, real patient data, or production deployments.'             'Windows SmartScreen or Smart App Control may warn or block the installer.'             'macOS Gatekeeper may block it; never disable system security globally.'             'Verify SHA256SUMS and review the exact source SHA on GitHub.'             "Source SHA: $GITHUB_SHA"             > publish/PREVIEW-README.txt
       - name: Publish an explicitly non-production pre-release
         env:
