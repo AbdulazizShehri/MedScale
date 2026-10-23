@@ -465,3 +465,19 @@ tr:last-child td { border-bottom: 0; }
 
 .download-count[data-placement="page"] { max-width: 450px; margin: 26px auto 0; justify-content: center; }
 .download-count[data-placement="page"] .download-count-value { font-size: 32px; }
+
+/* Traceable synthetic engineering performance — descriptive, not release SLA. */
+.performance-highlights { border-top: 1px solid var(--line); padding: clamp(56px, 8vw, 100px) 0; }
+.performance-topline { display: grid; grid-template-columns: 1fr minmax(0, 1fr); align-items: end; gap: 24px; margin-bottom: 28px; }
+.performance-topline .h2 { font-size: clamp(29px, 4.5vw, 52px); }
+.performance-intro { color: var(--ink-2); max-width: 480px; line-height: 1.55; margin: 0 0 4px; }
+.performance-numbers { display: grid; grid-template-columns: repeat(3, minmax(0,1fr)); border: 1px solid var(--line-2); border-radius: var(--r-3); overflow: hidden; }
+.performance-number { padding: clamp(22px,3vw,40px); display: grid; gap: 12px; border-left: 1px solid var(--line-2); background: var(--bg-1); align-content: start; }
+.performance-number:first-child { border-left: 0; }
+.performance-number strong { color: var(--orange); font-family: var(--font-display); font-size: clamp(41px, 5vw, 72px); font-weight: 670; line-height: 1; letter-spacing: -.06em; font-variant-numeric: tabular-nums; }
+.performance-number strong span { color: var(--ink); font-size: .44em; letter-spacing: -.02em; }
+.performance-number h3 { font-size: 16px; letter-spacing: -.02em; font-weight: 600; margin: 0; }
+.performance-number p { color: var(--ink-3); font-size: 12px; line-height: 1.55; margin: 0; }
+.performance-context { font-size: 12px; line-height: 1.6; color: var(--ink-3); margin-top: 16px; max-width: 840px; }
+.performance-context a { color: var(--ink-2); text-decoration: underline; text-underline-offset: 3px; }
+@media (max-width: 760px) { .performance-topline { grid-template-columns: 1fr; } .performance-numbers { grid-template-columns: 1fr; } .performance-number { border-left: 0; border-top: 1px solid var(--line-2); } .performance-number:first-child { border-top: 0; } }
