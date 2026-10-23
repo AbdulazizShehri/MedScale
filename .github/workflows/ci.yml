@@ -20,6 +20,8 @@ jobs:
   rust:
     name: rust (${{ matrix.os }})
     runs-on: ${{ matrix.os }}
+    # Bound a cold-cache or deadlocked job; do not leave required checks pending for hours.
+    timeout-minutes: 140
     strategy:
       fail-fast: false
       matrix:
@@ -71,6 +73,8 @@ jobs:
 
       - name: Test
         run: cargo test --workspace --locked
+        # A stuck unit test must fail visibly rather than silently block protected main.
+        timeout-minutes: 75
 
       - name: Qualify portable release package
         shell: pwsh
