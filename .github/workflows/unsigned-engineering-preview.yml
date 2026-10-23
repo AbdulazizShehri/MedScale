@@ -48,6 +48,19 @@ jobs:
             .status == "completed" and
             .conclusion == "success"
           ' >/dev/null || { echo "::error::Source run must be a successful push-to-main Tauri preview at this exact SHA"; exit 1; }
+          # Confirm exact-SHA push-to-main CI and desktop E2E also succeeded.
+          completed=$(gh api "repos/$GITHUB_REPOSITORY/actions/runs?head_sha=$GITHUB_SHA&per_page=100")
+          for required in ci desktop-e2e; do
+            echo "$completed" | jq -e --arg sha "$GITHUB_SHA" --arg required "$required" '
+              any(.workflow_runs[]?;
+                .name == $required and
+                .event == "push" and
+                .head_branch == "main" and
+                .head_sha == $sha and
+                .status == "completed" and
+                .conclusion == "success")
+            ' >/dev/null || { echo "::error::Missing exact-SHA success for $required"; exit 1; }
+          done
           tag="engineering-preview-${GITHUB_SHA:0:12}"
           if gh release view "$tag" >/dev/null 2>&1; then
             echo "::error::Refusing to replace an existing preview release: $tag"
