@@ -66,15 +66,15 @@ jobs:
         shell: pwsh
         run: |
           $ErrorActionPreference = 'Stop'
-          $win = Join-Path $env:RUNNER_TEMP 'installer-win/target/tauri-release/windows'
-          $mac = Join-Path $env:RUNNER_TEMP 'installer-mac/target/tauri-release/macos'
+          $win = Join-Path $env:RUNNER_TEMP 'installer-win/tauri-release/windows'
+          $mac = Join-Path $env:RUNNER_TEMP 'installer-mac/tauri-release/macos'
           foreach ($dir in @($win, $mac)) {
             if (-not (Test-Path -LiteralPath $dir)) { throw "Missing exact-run release set: $dir" }
             & ./scripts/verify-tauri-release.ps1 -Root $dir -ExpectedSourceSha $env:GITHUB_SHA
             if ($LASTEXITCODE -ne 0) { throw "Release set verification failed: $dir" }
           }
-          $winReport = Join-Path $env:RUNNER_TEMP 'installer-win/target/tauri-release-qualification/windows.json'
-          $macReport = Join-Path $env:RUNNER_TEMP 'installer-mac/target/tauri-release-qualification/macos.json'
+          $winReport = Join-Path $env:RUNNER_TEMP 'installer-win/tauri-release-qualification/windows.json'
+          $macReport = Join-Path $env:RUNNER_TEMP 'installer-mac/tauri-release-qualification/macos.json'
           if (-not (Test-Path -LiteralPath $winReport) -or -not (Test-Path -LiteralPath $macReport)) {
             throw 'Missing Windows/macOS installer lifecycle receipts'
           }
@@ -94,8 +94,8 @@ jobs:
         run: |
           set -euo pipefail
           mkdir -p publish
-          win_root="$RUNNER_TEMP/installer-win/target/tauri-release/windows/installer"
-          mac_root="$RUNNER_TEMP/installer-mac/target/tauri-release/macos/installer"
+          win_root="$RUNNER_TEMP/installer-win/tauri-release/windows/installer"
+          mac_root="$RUNNER_TEMP/installer-mac/tauri-release/macos/installer"
           mapfile -t win < <(find "$win_root" -maxdepth 1 -type f -name '*.exe')
           mapfile -t mac < <(find "$mac_root" -maxdepth 1 -type f -name '*.dmg')
           [[ ${#win[@]} -eq 1 && ${#mac[@]} -eq 1 ]] || { echo "::error::Expected one EXE and one DMG"; exit 1; }
