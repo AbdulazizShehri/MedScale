@@ -32,7 +32,7 @@ export function countInstallerDownloads(releases: unknown): InstallerDownloadSta
       if (!platform) continue;
       const expected = `https://github.com/AbdulazizShehri/MedScale/releases/download/${release.tag_name}/${installers[platform]}`;
       const downloads = asset.download_count;
-      if (asset.browser_download_url !== expected || !Number.isSafeInteger(downloads) || typeof downloads !== "number" || downloads < 0) return null;
+      if (asset.browser_download_url !== expected || typeof downloads !== "number" || !Number.isSafeInteger(downloads) || downloads < 0) return null;
       if (platform === "windows") windows += downloads;
       else macos += downloads;
     }
