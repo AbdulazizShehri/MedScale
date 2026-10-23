@@ -85,7 +85,7 @@ MedScale Beta provides desktop routes and Core-backed engineering workflows acro
 
 ### A single trusted authority path
 
-\`\`\`text
+```text
 Windows / macOS Desktop       Scriptable CLI
            │                       │
            └──────────┬────────────┘
@@ -98,7 +98,7 @@ Windows / macOS Desktop       Scriptable CLI
        └──────────────────────────────┘
                       │
              Governed, local actions
-\`\`\`
+```
 
 The interface displays Core results instead of becoming a separate source of authority. A model listing is not a recommendation, a generated statement is not automatically verified, and an unknown outcome is not permission to repeat an action.
 
@@ -142,23 +142,23 @@ Experimental or synthetic benchmarks must not be represented as demonstrated med
 
 MedScale's public reference implementation is on GitHub.
 
-\`\`\`bash
+```bash
 git clone https://github.com/AbdulazizShehri/MedScale.git
 cd MedScale
 cargo fmt --all -- --check
 cargo run -p medscale-cli --locked -- --version
 cargo run -p medscale-cli --locked -- doctor
-\`\`\`
+```
 
 The desktop also requires Node.js and the platform-specific Tauri build prerequisites. For desktop development:
 
-\`\`\`bash
+```bash
 cd apps/desktop-tauri
 npm ci --ignore-scripts
 npm test
 npm run build
 npm run tauri -- dev
-\`\`\`
+```
 
 Follow the [desktop build guide](https://github.com/AbdulazizShehri/MedScale/blob/main/apps/desktop-tauri/README.md) for the Rust toolchain, native dependencies and Windows-specific Strawberry Perl / SQLCipher requirements.
 
