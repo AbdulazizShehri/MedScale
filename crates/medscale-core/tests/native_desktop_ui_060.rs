@@ -86,7 +86,7 @@ fn native_desktop_shell_is_pinned_non_webview_and_branded() {
     assert!(!mark.contains("<rect"));
     let deny = std::fs::read_to_string(root.join("deny.toml")).expect("deny config");
     assert!(deny.contains("LicenseRef-Slint-Royalty-free-2.0"));
-    assert!(deny.contains("clipboard-win@5.4.1"));
+    assert!(deny.contains("clipboard-win@5.4.3"));
     assert!(deny.contains("error-code@3.4.0"));
     assert!(deny.contains("libfuzzer-sys@0.4.13"));
     assert!(!deny.contains("dwrote@0.11.5"));
