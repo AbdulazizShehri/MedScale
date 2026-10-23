@@ -19,6 +19,7 @@ Date: 2026-10-23. Protected main base: `c7513ea2bf7b38d89f4104025036ca181dc927eb
 - Headless Edge browser `npm run test:first-run`: **4/4 PASS** at 375/768/1280 widths plus vault opt-in. Tests verify one synthetic command, no vault creation, no external browser requests and no unhandled errors.
 - **Important distinction:** that browser suite SIMULATES Tauri IPC and is not native installer qualification. Existing Rust `every_surface_runs_against_real_core` separately verifies offline synthetic ingest and two subjects on real Core.
 - New GitHub Actions workflow reruns the lightweight first-run suite on hosted Windows, recording report artifacts without additional paid services.
+- The first CI run identified new RustSec unsoundness advisory `RUSTSEC-2026-0386` in nested Tauri `tokio 1.53.1`. Fixed the single affected lock entry to `tokio 1.53.3`, with its registry checksum updated. Locally verified `cargo metadata --locked` and `cargo tree --locked` resolve `tokio v1.53.3`. The complete scoped `cargo-deny` job must still pass on the updated PR head.
 
 ## Release and privacy gates
 - No Stable/v1.0, code signing, notarization, release publication or clinical readiness in this change.
