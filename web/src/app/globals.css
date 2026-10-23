@@ -168,15 +168,15 @@ a:hover > .arrow, button:hover > .arrow { transform: translateX(2px); }
 
 
 /* GitHub-only installer download metric. Never implies completed installs. */
-.download-count { display: flex; align-items: center; gap: 18px; max-width: 640px; padding: 4px 0; }
-.download-count-value { font-family: var(--font-display); font-variant-numeric: tabular-nums; font-size: clamp(32px, 4vw, 44px); font-weight: 600; line-height: 1; letter-spacing: -0.045em; color: var(--ink); }
+.download-count { display: flex; align-items: center; gap: 18px; max-width: 640px; padding: 8px 0; }
+.download-count-value { font-family: var(--font-display); font-variant-numeric: tabular-nums; font-size: clamp(42px, 5vw, 60px); font-weight: 700; line-height: 1; letter-spacing: -0.055em; color: var(--orange); }
 .download-count-copy { display: grid; gap: 3px; text-align: left; }
-.download-count-copy strong { color: var(--ink); font-size: 13px; font-weight: 560; }
+.download-count-copy strong { color: var(--ink); font-size: 15px; font-weight: 650; letter-spacing: -0.015em; }
 .download-count-copy span, .download-count-copy a { color: var(--ink-3); font-size: 11px; line-height: 1.35; }
 .download-count-copy a { text-decoration: underline; text-underline-offset: 3px; }
 .download-count-copy a:hover { color: var(--ink-2); }
 .download-count[data-placement="page"] { margin-bottom: 0; }
-@media (max-width: 480px) { .download-count { gap: 13px; } .download-count-value { font-size: 32px; } }
+@media (max-width: 480px) { .download-count { gap: 13px; } .download-count-value { font-size: 42px; } }
 
 /* Product frame around real screenshots */
 .frame {
