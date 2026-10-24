@@ -23,9 +23,15 @@ jobs:
       MEDSCALE_ASR_EXPECTED_CASES: "100"
     steps:
       - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v4
-      - uses: dtolnay/rust-toolchain@d1031067263f94b142dd6c0ce24c5eb9d02d52a0
-        with:
-          toolchain: "1.97.1"
+      - name: Install isolated Rust toolchain on this temporary runner
+        run: |
+          set -euo pipefail
+          export RUSTUP_HOME="$RUNNER_TEMP/medscale-rustup-real-en"
+          mkdir -p "$RUSTUP_HOME"
+          echo "RUSTUP_HOME=$RUSTUP_HOME" >> "$GITHUB_ENV"
+          rustup toolchain install 1.97.1 --profile default
+          rustup default 1.97.1
+          cargo --version
       - name: Install minimal audio conversion and build dependencies
         run: |
           sudo apt-get update
