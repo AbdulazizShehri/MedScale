@@ -3,11 +3,11 @@
 //! Never claims `PRIVATE_DATA_READY` or measured swap/hibernate/snapshot **protection**.
 
 use std::io::ErrorKind;
+#[cfg(windows)]
+use std::os::windows::process::CommandExt;
 use std::path::Path;
 #[cfg(any(windows, target_os = "macos"))]
 use std::process::Command;
-#[cfg(windows)]
-use std::os::windows::process::CommandExt;
 
 use crate::encrypted_vault::EncryptedVault;
 
