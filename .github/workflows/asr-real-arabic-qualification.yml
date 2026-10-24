@@ -16,9 +16,6 @@ jobs:
     timeout-minutes: 90
     env:
       CARGO_TERM_COLOR: always
-      # The hosted image's pre-existing clippy toolchain can conflict with rustup.
-      # Keep the Rust toolchain isolated inside the ephemeral runner.
-      RUSTUP_HOME: ${{ runner.temp }}/medscale-rustup-ar
       REPO: openai/whisper-tiny
       REVISION: 169d4a4341b33bc18d8881c4b69c2e104e1cc0af
       FLEURS_REVISION: 1712be137a62f4b1a69ce0c4820c0975bc7b6067
@@ -28,6 +25,10 @@ jobs:
       - name: Install isolated pinned Rust with Clippy and rustfmt
         run: |
           set -euo pipefail
+          # Runner context cannot be referenced from a job-wide env expression.
+          export RUSTUP_HOME="$RUNNER_TEMP/medscale-rustup-ar"
+          mkdir -p "$RUSTUP_HOME"
+          echo "RUSTUP_HOME=$RUSTUP_HOME" >> "$GITHUB_ENV"
           rustup toolchain install 1.97.1 --profile default
           rustup default 1.97.1
           rustc --version
