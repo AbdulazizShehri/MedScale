@@ -13,7 +13,7 @@ const mono = localFont({ src: "../fonts/JetBrainsMonoNL-latin.woff2", variable: 
 
 const site = process.env.NEXT_PUBLIC_SITE_URL || "https://abdulazizshehri.github.io/MedScale";
 const title = "MedScale — Your health AI. One open workspace.";
-const description = "Open-source, local-first workspace for health records, evidence and AI models. Engineering preview for synthetic data.";
+const description = "Open-source, local-first workspace for health records, evidence and AI models. Beta software in active development for synthetic-only evaluation.";
 
 export const metadata: Metadata = {
   metadataBase: new URL(site.endsWith("/") ? site : site + "/"),

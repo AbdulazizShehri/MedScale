@@ -18,6 +18,7 @@ export function Sidebar() {
     <aside className="sb" aria-label="Primary navigation">
       <div className="sb-brand">
         <Logo height={26} className="sb-word" />
+        <span aria-label="Beta software under active development" style={{ fontSize: 9, letterSpacing: "0.07em", fontWeight: 700, padding: "4px 6px", border: "1px solid var(--line)", borderRadius: 5, color: "var(--ink-2)" }}>BETA</span>
       </div>
 
       <button type="button" className="sb-ws" style={{ width: "calc(100% - 16px)", textAlign: "left" }} onClick={() => navigate("Settings")} title="Workspace settings">
