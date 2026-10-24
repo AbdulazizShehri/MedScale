@@ -2,6 +2,11 @@ name: Publish MedScaleAI Hugging Face organization card
 
 on:
   workflow_dispatch:
+    inputs:
+      publication_authorization:
+        description: "To publish publicly, type AUTHORIZE_PUBLIC_MEDSCALE_HF_CARD after separate founder approval"
+        required: true
+        type: string
 
 permissions:
   contents: read
@@ -12,7 +17,7 @@ concurrency:
 
 jobs:
   publish:
-    if: github.repository == 'AbdulazizShehri/MedScale' && github.ref == 'refs/heads/main'
+    if: github.repository == 'AbdulazizShehri/MedScale' && github.ref == 'refs/heads/main' && inputs.publication_authorization == 'AUTHORIZE_PUBLIC_MEDSCALE_HF_CARD'
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
@@ -23,4 +28,5 @@ jobs:
       - name: Publish only the public MedScaleAI card
         env:
           MEDSCALE_HF_WRITE_TOKEN: ${{ secrets.MEDSCALE_HF_WRITE_TOKEN }}
+          MEDSCALE_HF_PUBLICATION_APPROVED: ${{ inputs.publication_authorization }}
         run: python3 scripts/publish_hf_org_card.py

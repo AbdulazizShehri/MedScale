@@ -17,7 +17,7 @@ pinned: false
   <p>
     <a href="https://medscale.si"><strong>Website</strong></a>
     &nbsp;·&nbsp;
-    <a href="https://medscale.si/download/"><strong>Download Beta</strong></a>
+    <a href="https://medscale.si/download/"><strong>Beta release status</strong></a>
     &nbsp;·&nbsp;
     <a href="https://github.com/AbdulazizShehri/MedScale"><strong>Source code</strong></a>
     &nbsp;·&nbsp;
@@ -25,7 +25,7 @@ pinned: false
   </p>
 </div>
 
-> **MedScale Beta · Active development · Synthetic data only.** Current desktop downloads are unsigned engineering builds, not clinically validated releases. **Never enter real patient records, personal health information, sensitive credentials or confidential materials.** Do not use MedScale for diagnosis, treatment decisions or production clinical care. [Current qualification boundaries](https://github.com/AbdulazizShehri/MedScale/blob/main/docs/qualification/EXTERNAL_GATES.md).
+> **MedScale Beta · Active development · Synthetic data only.** No public desktop installer has been authorized for distribution. Current engineering installers are unsigned/unnotarized private Beta test artifacts, not clinically validated releases. **Never enter real patient records, personal health information, sensitive credentials or confidential materials.** Do not use MedScale for diagnosis, treatment decisions or production clinical care. [Current qualification boundaries](https://github.com/AbdulazizShehri/MedScale/blob/main/docs/qualification/EXTERNAL_GATES.md).
 
 ---
 
@@ -50,17 +50,17 @@ The goal is not to let AI silently make medical decisions. It is to make clinica
 
 ## Try MedScale Beta
 
-The desktop app is downloadable without a Microsoft Store account, Mac App Store account or paid developer subscription. The installers are **unsigned/unnotarized**, so operating-system security controls may warn or block them.
+MedScale desktop installers have been built and tested for Windows x64 and macOS Apple Silicon, but **public installer distribution is not yet authorized**. Existing unsigned/unnotarized engineering artifacts are reserved for private synthetic-only qualification. The planned direct-download approach does not require an app-store account or a paid developer subscription, but this is not a public download announcement.
 
 | Platform | Availability | Get started |
 | :--- | :--- | :--- |
-| **Windows x64** | Unsigned NSIS desktop installer | [Download MedScale Beta](https://medscale.si/download/) |
-| **macOS Apple Silicon** | Unnotarized DMG desktop package | [Download MedScale Beta](https://medscale.si/download/) |
+| **Windows x64** | Private unsigned NSIS engineering artifact; public release not yet authorized | [Check release status](https://medscale.si/download/) |
+| **macOS Apple Silicon** | Private unsigned/unnotarized DMG engineering artifact; public release not yet authorized | [Check release status](https://medscale.si/download/) |
 | **Linux** | Rust Core and CLI; desktop not released | [CLI documentation](https://github.com/AbdulazizShehri/MedScale/blob/main/docs/product/CLI_PRODUCT_GUIDE.md) |
 
-**Release resources:** [GitHub pre-releases](https://github.com/AbdulazizShehri/MedScale/releases) · [SHA-256 checksums](https://github.com/AbdulazizShehri/MedScale/releases) · [Desktop installation and prerequisites](https://github.com/AbdulazizShehri/MedScale/blob/main/apps/desktop-tauri/README.md).
+**Release resources:** [Engineering qualification status](https://github.com/AbdulazizShehri/MedScale/issues/297) · [Desktop installation and prerequisites](https://github.com/AbdulazizShehri/MedScale/blob/main/docs/BETA_FIRST_RUN.md). A public GitHub Beta Release, public release checksums and general download links will be announced **only after explicit authorization**.
 
-A successful download is **not** proof of a completed installation. Windows may show SmartScreen or Smart App Control warnings; macOS may block unnotarized software through Gatekeeper. Do not globally disable operating-system security to run beta software.
+Authorized private testers must verify source-bound SHA-256 checksums before using a provided engineering installer. A download is **not** proof of a completed installation. Windows may show SmartScreen or Smart App Control warnings; macOS may block unnotarized software through Gatekeeper. Never globally disable operating-system security to run Beta software.
 
 <div align="center">
   <a href="https://medscale.si">
@@ -177,7 +177,7 @@ Follow the [desktop build guide](https://github.com/AbdulazizShehri/MedScale/blo
 | Topic | Present status |
 | :--- | :--- |
 | Project phase | **Beta — active development** |
-| End-user desktop | Windows and macOS unsigned / unnotarized test builds |
+| End-user desktop | Windows x64 and macOS Apple Silicon private unsigned/unnotarized engineering builds; no public distribution authorized |
 | Rust Core and CLI | Open-source and exercised through CI |
 | Real patient data | **Not authorized** |
 | Clinical decision-making | **Not validated / not authorized** |
@@ -216,5 +216,5 @@ This is **research and engineering beta software**, not a certified medical devi
   &nbsp;·&nbsp;
   <a href="https://github.com/AbdulazizShehri/MedScale">GitHub</a>
   &nbsp;·&nbsp;
-  <a href="https://medscale.si/download/">Beta downloads</a>
+  <a href="https://medscale.si/download/">Beta release status</a>
 </div>

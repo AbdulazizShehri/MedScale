@@ -10,6 +10,8 @@ CARD = ROOT / "huggingface" / "organization" / "README.md"
 HOME = ROOT / "huggingface" / "organization" / "index.html"
 
 def main() -> None:
+    if os.environ.get("MEDSCALE_HF_PUBLICATION_APPROVED") != "AUTHORIZE_PUBLIC_MEDSCALE_HF_CARD":
+        raise SystemExit("Public HF publication requires explicit founder authorization; refusing to write.")
     token = os.environ.get("MEDSCALE_HF_WRITE_TOKEN")
     if not token:
         raise SystemExit("Missing MEDSCALE_HF_WRITE_TOKEN; set a write-scoped Actions secret, never commit it.")

@@ -20,9 +20,9 @@ local-first AI, healthcare AI, clinical informatics, evidence-grounded AI, biome
 
 **Model, dataset and Space tabs:** only publish actual, permissioned files with individually reviewed licenses, provenance, data cards, evaluation evidence and appropriate safety disclosures. Do not create placeholder model repositories or false metrics.
 
-## Publication checklist
+## Future-publication checklist (explicit founder authorization required)
 
-1. Sign in as an authorized `MedScaleAI` organization administrator.
+1. First obtain explicit founder authorization to publish the public organization card; qualification, merging a PR, or supplying a write token alone is not authorization. Then sign in as an authorized `MedScaleAI` organization administrator.
 2. On https://huggingface.co/MedScaleAI select **Create/Edit organization card**. The official feature creates or edits a *public* static Space called `MedScaleAI/README`.
 3. Place the full contents of this directory's `README.md` into that Space's `README.md`. Keep the public visibility setting.
 4. Fill the organization profile fields from the values above and upload the approved MedScale avatar.
