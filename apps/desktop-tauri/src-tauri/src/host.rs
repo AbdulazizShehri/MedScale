@@ -554,10 +554,18 @@ pub fn create_encrypted(state: &mut State, passphrase: &str) -> CmdResult<Vec<St
 pub fn unlock_encrypted(state: &mut State, passphrase: &str) -> CmdResult<()> {
     validate_passphrase(passphrase)?;
     let vault_root = encrypted_root(state)?;
-    if !manifest_path(&vault_root).exists() {
+    // The sibling .desktop-seed.json is a UI roster, not encrypted Core
+    // material. Stale files must never trigger an attempted vault unlock.
+    if !vault_root.join("vault_header.json").is_file() {
         return Err(CmdError::new(
             "missing",
             "Missing: no encrypted vault at the default location",
+        ));
+    }
+    if !vault_root.join("meta.sealed").is_file() {
+        return Err(CmdError::new(
+            "corrupt",
+            "Corrupt: encrypted vault metadata is missing; original files were not changed",
         ));
     }
     let mut session = CliSession::connect("desktop-encrypted")?;
