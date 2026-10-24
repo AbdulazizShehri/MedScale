@@ -179,7 +179,8 @@ fn pinned_whisper_transcribes_synthetic_speech() {
                     let mut cur = vec![i + 1; hc.len() + 1];
                     for (j, hch) in hc.iter().enumerate() {
                         cur[j + 1] = (prev[j] + usize::from(rch != hch))
-                            .min(prev[j + 1] + 1).min(cur[j] + 1);
+                            .min(prev[j + 1] + 1)
+                            .min(cur[j] + 1);
                     }
                     prev = cur;
                 }
@@ -220,7 +221,10 @@ fn pinned_whisper_transcribes_synthetic_speech() {
         })
     );
     if let Some(source) = &real_data {
-        assert!(ref_chars > 0 && total_audio_samples > 0, "nonzero real reference/audio");
+        assert!(
+            ref_chars > 0 && total_audio_samples > 0,
+            "nonzero real reference/audio"
+        );
         let audio_secs = total_audio_samples as f64 / 16_000.0;
         println!(
             "ASR_REAL_METRICS {}",
