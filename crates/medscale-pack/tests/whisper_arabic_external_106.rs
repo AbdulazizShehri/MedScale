@@ -1,10 +1,10 @@
 //! Public Arabic real-audio benchmark using pinned FLEURS ar_eg (CC BY 4.0).
 //! Strictly a real-world language capability measure, not patient-data training.
 //! Nothing about human voices, utterances, speaker IDs or audio is logged.
-use std::path::Path;
 use medscale_pack::{
     HfRepoMetadata, admit_pack_dir, build_asr_pack, pcm16_to_mono_f32, prepare_whisper_asr,
 };
+use std::path::Path;
 fn required(name: &str) -> String {
     std::env::var(name).unwrap_or_else(|_| panic!("{name} must be set"))
 }
@@ -67,8 +67,12 @@ fn actual_arabic_fleurs_transcription() {
     let root = std::path::PathBuf::from(required("MEDSCALE_ASR_SNAPSHOT_DIR"));
     let metadata: HfRepoMetadata = serde_json::from_slice(
         &std::fs::read(root.join("metadata.json")).expect("pinned Hugging Face metadata"),
-    ).expect("valid metadata");
-    assert_eq!(metadata.id, "openai/whisper-tiny", "multilingual model only");
+    )
+    .expect("valid metadata");
+    assert_eq!(
+        metadata.id, "openai/whisper-tiny",
+        "multilingual model only"
+    );
     let dir = std::env::temp_dir().join(format!("medscale-real-ar-{}", std::process::id()));
     assert!(!dir.exists(), "temporary pack path must not already exist");
     let id = build_asr_pack(&metadata, &root, &dir).expect("create governed Audio Pack");
@@ -79,7 +83,8 @@ fn actual_arabic_fleurs_transcription() {
     let prepare_ms = started.elapsed().as_millis();
     let cases: Vec<serde_json::Value> = serde_json::from_slice(
         &std::fs::read(required("MEDSCALE_ASR_CASES")).expect("true FLEURS recordings"),
-    ).expect("valid evaluation manifest");
+    )
+    .expect("valid evaluation manifest");
     assert_eq!(cases.len(), 24, "bounded real Arabic pilot");
     let (mut total_werr, mut total_wr, mut total_cerr, mut total_cr) = (0, 0, 0, 0);
     let (mut audio_samples, mut transcribe_ms) = (0usize, 0u128);
