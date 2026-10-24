@@ -445,6 +445,48 @@ fn every_surface_runs_against_real_core() {
 }
 
 #[test]
+fn orphaned_encrypted_seed_marker_is_not_a_vault() {
+    let h = Harness::new("orphan-encrypted-seed");
+    let root = std::env::temp_dir().join(format!(
+        "medscale-tauri-feature-orphan-encrypted-seed-{}",
+        std::process::id()
+    ));
+    let marker = root.join("encrypted-workspace.desktop-seed.json");
+    let original = b"{\"subjects\":[],\"sources\":[]}";
+    std::fs::write(&marker, original).unwrap();
+
+    let status = h.ok("workspace_status", json!({}));
+    assert_eq!(status["encrypted_vault_exists"], false);
+    assert_eq!(status["open"], false);
+
+    let missing = h.call(
+        "workspace_unlock",
+        json!({ "passphrase": "fictional test only" }),
+    ).unwrap_err();
+    assert_eq!(missing["kind"], "missing", "{missing}");
+    assert_eq!(std::fs::read(&marker).unwrap(), original);
+    assert!(!root.join("encrypted-workspace").exists());
+
+    // A partially written vault header without sealed Core metadata is
+    // not an unlockable vault either; do not open, delete, or rewrite it.
+    let vault_root = root.join("encrypted-workspace");
+    std::fs::create_dir_all(&vault_root).unwrap();
+    let header = vault_root.join("vault_header.json");
+    std::fs::write(&header, b"{}").unwrap();
+    assert_eq!(
+        h.ok("workspace_status", json!({}))["encrypted_vault_exists"],
+        false
+    );
+    let incomplete = h.call(
+        "workspace_unlock",
+        json!({ "passphrase": "fictional test only" }),
+    ).unwrap_err();
+    assert_eq!(incomplete["kind"], "corrupt", "{incomplete}");
+    assert_eq!(std::fs::read(&header).unwrap(), b"{}");
+    assert_eq!(std::fs::read(&marker).unwrap(), original);
+}
+
+#[test]
 fn encrypted_vault_create_lock_unlock_and_wrong_passphrase() {
     let h = Harness::new("enc");
     assert_eq!(
