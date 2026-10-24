@@ -16,15 +16,22 @@ jobs:
     timeout-minutes: 90
     env:
       CARGO_TERM_COLOR: always
+      # The hosted image's pre-existing clippy toolchain can conflict with rustup.
+      # Keep the Rust toolchain isolated inside the ephemeral runner.
+      RUSTUP_HOME: ${{ runner.temp }}/medscale-rustup-ar
       REPO: openai/whisper-tiny
       REVISION: 169d4a4341b33bc18d8881c4b69c2e104e1cc0af
       FLEURS_REVISION: 1712be137a62f4b1a69ce0c4820c0975bc7b6067
       WHISPER_ASSETS_COMMIT: c5d42560760a05584c1c79546a098287e5a771eb
     steps:
       - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v4
-      - uses: dtolnay/rust-toolchain@d1031067263f94b142dd6c0ce24c5eb9d02d52a0
-        with:
-          toolchain: "1.97.1"
+      - name: Install isolated pinned Rust with Clippy and rustfmt
+        run: |
+          set -euo pipefail
+          rustup toolchain install 1.97.1 --profile default
+          rustup default 1.97.1
+          rustc --version
+          cargo --version
       - name: Install bounded real speech conversion and build tools
         run: |
           sudo apt-get update
