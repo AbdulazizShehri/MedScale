@@ -7,7 +7,7 @@ on:
 permissions:
   contents: read
 concurrency:
-  group: medscale-arabic-real-public
+  group: medscale-arabic-real-public-${{ github.ref }}
   cancel-in-progress: true
 jobs:
   arabic-human-speech:
