@@ -78,7 +78,9 @@ jobs:
           set -euo pipefail
           cargo test --release --locked -p medscale-pack --test whisper_arabic_external_106 \
             actual_arabic_fleurs_transcription -- --ignored --nocapture --test-threads 1 2>&1 | tee qualification.log
-          grep '^ARABIC_ASR_REAL_METRICS ' qualification.log | tail -1 >> "$GITHUB_STEP_SUMMARY"
+          # Rust test harness prefixes the metric line with "test <name> ...".
+          # Extract only the aggregate JSON marker; fail if no actual metric exists.
+          grep -o 'ARABIC_ASR_REAL_METRICS {.*}' qualification.log | tail -1 >> "$GITHUB_STEP_SUMMARY"
       - name: Delete datasets and model weights on runner
         if: always()
         run: |
