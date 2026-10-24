@@ -285,14 +285,14 @@ impl ProductIntelligenceVm {
         let admitted = packs.len();
         Self {
             model_runtime_summary: format!(
-                "Model Fabric · real portable ONNX runtime · {admitted} Pack(s) admitted this session"
+                "Model Fabric · real portable ONNX runtime · {admitted} Pack(s) admitted in Model Center operator session"
             ),
-            model_runtime_boundary: "Core owns Pack admission, promotion and execution; real portable ONNX runtime admitted for synthetic/evidence-only evaluation. Model Center is an operator projection: session-local admitted inventory is read through Core; a qualification reference is not an installed model. Real PHI and accelerated-runtime promotion remain denied.".to_owned(),
+            model_runtime_boundary: "Core owns Pack admission, promotion and execution; the portable ONNX runtime permits synthetic/evidence-only evaluation. Model Center shows its least-privilege operator session; Try a model evaluates Packs in a separate workspace session. Admission in one session does not imply admission in the other. Qualification references are not installed models. Real PHI and accelerated-runtime promotion remain denied.".to_owned(),
             model_source_summary: "External model registries are artifact sources, never authority planes. Session inventory shows Core-admitted manifest state. Pack v0 signing binds identity/version/epoch, content digest, rights URI and SBOM reference; runtime requirements, benchmark links and promotion state are declarations/Core state, not signature authority. Exact external source revision appears only for the pinned qualification reference where repository evidence proves it.".to_owned(),
             model_inventory_summary: if packs.is_empty() {
-                "No Pack is admitted in this Desktop session. Pack registry state is currently session-local, not restart-persistent.".to_owned()
+                "No Packs admitted in the Model Center operator session. Try a model uses a separate workspace session, where the bundled synthetic fixture can be admitted independently. Both registries are session-local.".to_owned()
             } else {
-                format!("{admitted} Core-admitted Pack(s) in this Desktop session. Restart persistence is not claimed.")
+                format!("{admitted} Core-admitted Pack(s) in the Model Center operator session. Try a model uses separate workspace admission; neither registry is restart-persistent.")
             },
             reference_baseline: format!(
                 "Pinned reference · commit {} · tree {}",
@@ -407,6 +407,10 @@ mod tests {
         assert_eq!(vm.models[0].scope, "SESSION INVENTORY");
         assert_eq!(vm.models[0].state, "EMPTY");
         assert!(vm.model_inventory_summary.contains("session-local"));
+        assert!(vm.model_inventory_summary.contains("Model Center operator session"));
+        assert!(vm.model_inventory_summary.contains("separate workspace session"));
+        assert!(vm.model_runtime_summary.contains("0 Pack(s) admitted in Model Center"));
+        assert!(vm.model_runtime_boundary.contains("Admission in one session does not imply admission in the other"));
         assert!(vm.models.iter().any(|row| {
             row.scope == "QUALIFICATION REFERENCE" && row.state == "QUALIFIED BASELINE"
         }));
