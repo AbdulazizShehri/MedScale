@@ -610,7 +610,7 @@ impl AsrEngine for PackAsrEngine {
         format: PcmFormat,
         pcm: &[u8],
         segments: &[(u64, u64)],
-        _language: Option<&str>,
+        language: Option<&str>,
     ) -> Result<Vec<Option<String>>, String> {
         if format.sample_rate != 16_000 || format.bits_per_sample != 16 {
             return Err("local ASR needs 16 kHz 16-bit PCM".to_owned());
@@ -631,7 +631,7 @@ impl AsrEngine for PackAsrEngine {
                 }
                 let text = self
                     .asr
-                    .transcribe(&samples[a..b])
+                    .transcribe_with_language(&samples[a..b], language.unwrap_or("en"))
                     .map_err(|e| e.to_string())?;
                 let text = text.trim().to_owned();
                 Ok(if text.is_empty() { None } else { Some(text) })
