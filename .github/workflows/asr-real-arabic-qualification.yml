@@ -11,13 +11,13 @@ concurrency:
   cancel-in-progress: true
 jobs:
   arabic-human-speech:
-    name: MedScale Whisper-base / FLEURS ar_eg
+    name: MedScale Whisper-small / FLEURS ar_eg
     runs-on: ubuntu-latest
     timeout-minutes: 90
     env:
       CARGO_TERM_COLOR: always
-      REPO: openai/whisper-base
-      REVISION: e37978b90ca9030d5170a5c07aadb050351a65bb
+      REPO: openai/whisper-small
+      REVISION: 973afd24965f72e36ca33b3055d56a652f456b4d
       FLEURS_REVISION: 1712be137a62f4b1a69ce0c4820c0975bc7b6067
       WHISPER_ASSETS_COMMIT: c5d42560760a05584c1c79546a098287e5a771eb
     steps:
@@ -60,7 +60,7 @@ jobs:
             curl -sfL -A medscale-qualification --retry 3 \
               "https://huggingface.co/$REPO/resolve/$REVISION/$f" -o "$dir/$f"
           done
-          echo "07cadb9f25677c8d50df603e66a98fbd842cce45047139baeb16e6219a1e807b  $dir/model.safetensors" | sha256sum --check --status
+          echo "1d7734884874f1a1513ed9aa760a4f8e97aaa02fd6d93a3a85d27b2ae9ca596b  $dir/model.safetensors" | sha256sum --check --status
           curl -sfL --retry 3 \
             "https://raw.githubusercontent.com/openai/whisper/$WHISPER_ASSETS_COMMIT/whisper/assets/mel_filters.npz" \
             -o "$RUNNER_TEMP/mel_filters.npz"

@@ -43,6 +43,10 @@ pub const ASR_SOURCES: &[(&str, &str)] = &[
         "openai/whisper-base",
         "e37978b90ca9030d5170a5c07aadb050351a65bb",
     ),
+    (
+        "openai/whisper-small",
+        "973afd24965f72e36ca33b3055d56a652f456b4d",
+    ),
 ];
 /// Longest audio one call transcribes (10 minutes at 16 kHz).
 pub const MAX_ASR_SAMPLES: usize = 10 * 60 * whisper::SAMPLE_RATE;
