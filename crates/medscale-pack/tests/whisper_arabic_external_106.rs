@@ -70,8 +70,8 @@ fn actual_arabic_fleurs_transcription() {
     )
     .expect("valid metadata");
     assert_eq!(
-        metadata.id, "openai/whisper-tiny",
-        "multilingual model only"
+        metadata.id, "openai/whisper-base",
+        "multilingual comparison model only"
     );
     let dir = std::env::temp_dir().join(format!("medscale-real-ar-{}", std::process::id()));
     assert!(!dir.exists(), "temporary pack path must not already exist");
