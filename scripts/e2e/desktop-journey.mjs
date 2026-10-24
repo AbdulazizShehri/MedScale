@@ -317,6 +317,37 @@ try {
     await click(`//button[@role='tab' and ${text("Catalog")}]`);
     await see("of 2266", 60000);
   });
+  // Catalog inventory is metadata, not downloaded or executable models.
+  // Exercise the actual IPC pagination, not just the tab's initial shell.
+  await journey("models-catalog-pagination", async () => {
+    await see("A listing is not a download");
+    await click(`//button[normalize-space(.)='Next']`);
+    await waitForText(/rows 51[–-]100/, 60000);
+    await click(`//button[normalize-space(.)='Previous']`);
+    await waitForText(/rows 1[–-]50/, 60000);
+  });
+  // The Rust Core already tests real synthetic ONNX evaluation, but a user
+  // must also be able to select the fixture and run it via packaged WebView2.
+  // medagent_models exposes only admitted runnable Packs; no network fetch.
+  await journey("models-evaluate-synthetic-onnx", async () => {
+    await click(`//button[@role='tab' and ${text("Try a model")}]`);
+    await find(`//select[@id='ep']/option`, 60000);
+    const packId = await wd("POST", `/session/${sid}/execute/sync`, {
+      script: "return document.querySelector('#ep')?.value || '';",
+      args: [],
+    });
+    if (!packId) throw new Error("no admitted runnable synthetic model Pack selected");
+    await click(`//button[@type='submit' and normalize-space(.)='Evaluate']`);
+    await see("Full proposal payload", 60000);
+    await see("prepared cache");
+    const evidence = await wd("POST", `/session/${sid}/execute/sync`, {
+      script: "const t = document.body.innerText; return { localRuntime: t.includes('runtime') && t.includes('audit'), authority: t.includes('Evaluation evidence, not a record.') };",
+      args: [],
+    });
+    if (!evidence.localRuntime || !evidence.authority) {
+      throw new Error("synthetic model evaluation omitted runtime/audit or no-promotion boundary");
+    }
+  });
   await journey("documents", async () => {
     await nav("Documents");
     await see("patient-golden.json");
