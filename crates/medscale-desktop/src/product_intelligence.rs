@@ -407,10 +407,22 @@ mod tests {
         assert_eq!(vm.models[0].scope, "SESSION INVENTORY");
         assert_eq!(vm.models[0].state, "EMPTY");
         assert!(vm.model_inventory_summary.contains("session-local"));
-        assert!(vm.model_inventory_summary.contains("Model Center operator session"));
-        assert!(vm.model_inventory_summary.contains("separate workspace session"));
-        assert!(vm.model_runtime_summary.contains("0 Pack(s) admitted in Model Center"));
-        assert!(vm.model_runtime_boundary.contains("Admission in one session does not imply admission in the other"));
+        assert!(
+            vm.model_inventory_summary
+                .contains("Model Center operator session")
+        );
+        assert!(
+            vm.model_inventory_summary
+                .contains("separate workspace session")
+        );
+        assert!(
+            vm.model_runtime_summary
+                .contains("0 Pack(s) admitted in Model Center")
+        );
+        assert!(
+            vm.model_runtime_boundary
+                .contains("Admission in one session does not imply admission in the other")
+        );
         assert!(vm.models.iter().any(|row| {
             row.scope == "QUALIFICATION REFERENCE" && row.state == "QUALIFIED BASELINE"
         }));
