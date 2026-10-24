@@ -331,6 +331,23 @@ try {
     await nav("Audit Trail");
     await see("e2e synthetic interchange");
   });
+  // These routes refresh Core Doctor on Windows. They previously launched
+  // vssadmin with a visible short-lived console child; keep the real IPC
+  // navigation paths covered in native E2E alongside the silent-probe fix.
+  await journey("settings-doctor", async () => {
+    await nav("Settings");
+    await see("Appearance");
+    await see("Privacy & network", 60000);
+    const handles = await wd("GET", `/session/${sid}/window/handles`);
+    if (handles.length !== 1) throw new Error(`Settings unexpectedly opened ${handles.length} WebView windows`);
+  });
+  await journey("about-doctor", async () => {
+    await nav("About");
+    await see("Tauri 2", 60000);
+    await see("Apache-2.0");
+    const handles = await wd("GET", `/session/${sid}/window/handles`);
+    if (handles.length !== 1) throw new Error(`About unexpectedly opened ${handles.length} WebView windows`);
+  });
   await quit();
   // Relaunch the binary: the vault must bring the run back.
   await launch();
