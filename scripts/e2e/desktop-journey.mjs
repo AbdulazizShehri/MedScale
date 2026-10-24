@@ -202,15 +202,15 @@ async function shot(name) {
   const png = await wd("GET", `/session/${sid}/screenshot`);
   fs.writeFileSync(path.join(shots, `${String(++step).padStart(2, "0")}-${name}.png`), Buffer.from(png, "base64"));
 }
-async function journey(name, fn) {
+async function journey(name, fn, { screenshot = true } = {}) {
   const started = Date.now();
   try {
     await fn();
-    await shot(name);
+    if (screenshot) await shot(name);
     results.push({ journey: name, ok: true, ms: Date.now() - started });
     console.log(`E2E PASS ${name}`);
   } catch (err) {
-    await shot(`${name}-FAILED`).catch(() => {});
+    if (screenshot) await shot(`${name}-FAILED`).catch(() => {});
     try {
       const handles = await wd("GET", `/session/${sid}/window/handles`);
       const title = await wd("GET", `/session/${sid}/title`);
@@ -304,6 +304,42 @@ try {
     // also become visible in the active project after overview reload.
     await find("//section[.//span[contains(@class,'sec-t') and normalize-space(.)='Sources']]//span[contains(@class,'sec-c') and number(normalize-space(.)) > 0]", 30000);
   });
+  // The real audio journey runs ONLY on an isolated CI host with opt-in inputs.
+  // Never screenshot or print genuine voice text, paths, speakers or models.
+  if (process.env.MEDSCALE_E2E_REAL_WAV_PATH || process.env.MEDSCALE_E2E_REAL_ASR_PACK_PATH) {
+    if (!process.env.MEDSCALE_E2E_REAL_WAV_PATH || !process.env.MEDSCALE_E2E_REAL_ASR_PACK_PATH) {
+      throw new Error("real audio CI requires both the licensed WAV and admitted Pack");
+    }
+    await journey("real-human-speech-local-whisper-ui", async () => {
+      await nav("Audio");
+      await type("//input[@id='ap1']", process.env.MEDSCALE_E2E_REAL_ASR_PACK_PATH);
+      await click("//form[.//input[@id='ap1']]//button[@type='submit']");
+      await see("Audio Pack admitted", 180000);
+      await see("Local Whisper engine installed", 180000);
+      await type("//input[@id='wp1']", process.env.MEDSCALE_E2E_REAL_WAV_PATH);
+      await click("//form[.//input[@id='wp1']]//button[@type='submit']");
+      await see("Recording imported", 60000);
+      const quotedFile = JSON.stringify(path.basename(process.env.MEDSCALE_E2E_REAL_WAV_PATH));
+      const realSource = "//section[.//span[contains(@class,'sec-t') and normalize-space(.)='Sources']]" +
+        "//div[contains(@class,'lr') and .//span[contains(normalize-space(.), " + quotedFile + ")]]";
+      await find(realSource, 60000);
+      await click(realSource + "//button[normalize-space(.)='Transcribe']", 60000);
+      await see("Transcription recorded", 240000);
+      await find(
+        "//section[.//span[contains(@class,'sec-t') and normalize-space(.)='Transcript']]" +
+          "//div[contains(@class,'lr')]/span[3]" +
+          "[string-length(normalize-space(.)) > 8]" +
+          "[not(contains(., '(untranscribed)'))]" +
+          "[not(contains(., '[fixture'))]",
+        90000,
+      );
+      const nonFixtureWhisper = await wd("POST", `/session/${sid}/execute/sync`, {
+        script: "const s=[...document.querySelectorAll('section')].find(s => /Transcript/.test(s.innerText) && /engine/.test(s.innerText)); return !!s && /whisper/i.test(s.innerText) && !/\\(fixture\\)/i.test(s.innerText);",
+        args: [],
+      });
+      if (!nonFixtureWhisper) throw new Error("verified nonfixture local Whisper receipt not visible");
+    }, { screenshot: false });
+  }
   await journey("medagent-agent-run-evidence", async () => {
     await nav("MedAgent");
     await click(`//button[${text("New agent")}]`);
