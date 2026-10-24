@@ -901,10 +901,22 @@ fn medagent_workbench_agent_context_evidence_and_resume() {
     );
     let transcribed = h.ok(
         "audio_transcribe",
-        json!({ "projectId": pid, "sourceId": imported["source_id"], "route": "local_asr_pack" }),
+        json!({ "projectId": pid, "sourceId": imported["source_id"], "route": "local_asr_pack", "language": "en" }),
     );
     assert_eq!(transcribed["decision"]["outcome"], "allow", "{transcribed}");
     assert_eq!(transcribed["engine"]["is_fixture"], false, "{transcribed}");
+    // The locally installed English-only Audio Pack must refuse Arabic.
+    // This ensures language is forwarded all the way through Core's engine
+    // instead of silently falling back to English.
+    assert!(
+        h.call(
+            "audio_transcribe",
+            json!({ "projectId": pid, "sourceId": imported["source_id"],
+                     "route": "local_asr_pack", "language": "ar" })
+        )
+        .is_err(),
+        "English-only Whisper Audio Pack must reject unsupported Arabic"
+    );
     let revision = transcribed["transcript"]["revision_id"].clone();
     let corrected = h.ok(
         "audio_correct",
@@ -945,6 +957,19 @@ fn medagent_workbench_agent_context_evidence_and_resume() {
         .unwrap_err()["kind"],
         "invalid"
     );
+    // Reject arbitrary or malformed UI language values before model execution.
+    for invalid_language in ["en-US", "AR", "<|ar|>", ""] {
+        assert_eq!(
+            h.call(
+                "audio_transcribe",
+                json!({ "projectId": pid, "sourceId": imported["source_id"],
+                         "route": "local_asr_pack", "language": invalid_language })
+            )
+            .unwrap_err()["kind"],
+            "invalid",
+            "malformed language {invalid_language:?} must be refused"
+        );
+    }
     // Restart again: the remembered Audio Pack engine is reinstalled on open.
     h.ok("workspace_lock", json!({}));
     {
