@@ -256,6 +256,9 @@ try {
     await type(`//input[@aria-label='Bindings']`, `t=${snap}`);
     await click(`//button[normalize-space(.)='Run']`);
     await see("4 rows", 60000);
+    // The success toast/result can precede the asynchronous receipt reload.
+    // Require the visible Core-backed receipt count after the UI settles.
+    await find("//section[.//span[contains(@class,'sec-t') and normalize-space(.)='Receipts']]//span[contains(@class,'sec-c') and number(normalize-space(.)) > 0]", 30000);
   });
   await journey("analytics-explains-invalid-bindings", async () => {
     await type(`//input[@aria-label='Bindings']`, "not-a-binding");
@@ -297,6 +300,9 @@ try {
     await nav("Audio");
     await click(`//button[${text("Import synthetic tone sample")}]`);
     await see("Synthetic tone imported", 60000);
+    // An action toast alone is insufficient; imported synthetic lineage must
+    // also become visible in the active project after overview reload.
+    await find("//section[.//span[contains(@class,'sec-t') and normalize-space(.)='Sources']]//span[contains(@class,'sec-c') and number(normalize-space(.)) > 0]", 30000);
   });
   await journey("medagent-agent-run-evidence", async () => {
     await nav("MedAgent");
