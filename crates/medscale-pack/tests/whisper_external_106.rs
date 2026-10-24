@@ -141,9 +141,13 @@ fn pinned_whisper_transcribes_synthetic_speech() {
 
     let cases: Vec<serde_json::Value> =
         serde_json::from_slice(&std::fs::read(env("MEDSCALE_ASR_CASES")).unwrap()).unwrap();
+    let real_data = std::env::var("MEDSCALE_ASR_REAL_DATASET").ok();
+    if real_data.is_some() {
+        assert_eq!(cases.len(), 12, "bounded real test cases");
+    }
     let mut total_ref_words = 0usize;
     let mut total_errors = 0f64;
-    for case in &cases {
+    for (case_no, case) in cases.iter().enumerate() {
         let wav = Path::new(case["wav"].as_str().unwrap());
         let reference = case["text"].as_str().unwrap();
         let samples = wav_samples(&std::fs::read(wav).unwrap());
@@ -154,14 +158,26 @@ fn pinned_whisper_transcribes_synthetic_speech() {
         let n = words(reference).len();
         total_ref_words += n;
         total_errors += rate * n as f64;
-        println!(
-            "ASR_CASE {}",
-            serde_json::json!({
-                "repo": meta.id, "revision": meta.sha, "reference": reference,
-                "hypothesis": hypothesis, "wer": rate,
-                "audio_seconds": samples.len() as f64 / 16_000.0, "transcribe_ms": ms,
-            })
-        );
+        if real_data.is_some() {
+            // Public evaluation logs MUST NOT contain human voice transcripts.
+            println!(
+                "ASR_REAL_CASE {}",
+                serde_json::json!({
+                    "index": case_no, "wer": rate,
+                    "audio_seconds": samples.len() as f64 / 16_000.0,
+                    "transcribe_ms": ms,
+                })
+            );
+        } else {
+            println!(
+                "ASR_CASE {}",
+                serde_json::json!({
+                    "repo": meta.id, "revision": meta.sha, "reference": reference,
+                    "hypothesis": hypothesis, "wer": rate,
+                    "audio_seconds": samples.len() as f64 / 16_000.0, "transcribe_ms": ms,
+                })
+            );
+        }
     }
     let corpus_wer = total_errors / total_ref_words.max(1) as f64;
     println!(
@@ -169,11 +185,16 @@ fn pinned_whisper_transcribes_synthetic_speech() {
         serde_json::json!({
             "repo": meta.id, "revision": meta.sha, "pack_id": pack_id,
             "cases": cases.len(), "corpus_wer": corpus_wer, "prepare_ms": prepare_ms,
-            "speech": "espeak-ng synthetic", "claim": "evaluation evidence only",
+            "speech": real_data.as_deref().unwrap_or("espeak-ng synthetic"),
+            "claim": "evaluation evidence only; public read speech is not clinical accuracy",
         })
     );
     // A working recognizer gets most synthetic words right; a broken front
     // end or decoder does not.
-    assert!(corpus_wer < 0.5, "corpus WER {corpus_wer}");
+    if real_data.is_none() {
+        // Preserve the original synthetic regression threshold exactly.
+        assert!(corpus_wer < 0.5, "corpus WER {corpus_wer}");
+    }
+    // Real human speech is measured, not tuned to an invented pass threshold.
     let _ = std::fs::remove_dir_all(&out);
 }
