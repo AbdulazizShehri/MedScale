@@ -24,12 +24,12 @@ export function Models() {
   return (
     <>
       <div className="pane">
-        <PageHead title="Models" sub="Admitted model packs, the local runtime that executes them, and how far each is trusted.">
+        <PageHead title="Models" sub="Operator-session Pack status, separate workspace evaluation, and model qualification references.">
           <button type="button" className="btn btn-s" onClick={admit} disabled={!!pending}>{pending ? <Glyph kind="running" /> : null}Admit synthetic fixture pack</button>
         </PageHead>
         <Ledger items={[{ k: "runtime", v: v.model_runtime_summary }, { k: "source", v: v.model_source_summary }, { k: "inventory", v: v.model_inventory_summary }]} />
         <div className="tabs" role="tablist" style={{ marginBottom: 14 }}>
-          <button type="button" role="tab" aria-selected={tab === "packs"} className={`tab ${tab === "packs" ? "on" : ""}`} onClick={() => setTab("packs")}>Packs <span className="mono">{v.models.length}</span></button>
+          <button type="button" role="tab" aria-selected={tab === "packs"} className={`tab ${tab === "packs" ? "on" : ""}`} onClick={() => setTab("packs")}>Pack status</button>
           <button type="button" role="tab" aria-selected={tab === "catalog"} className={`tab ${tab === "catalog" ? "on" : ""}`} onClick={() => setTab("catalog")}>MedScale Catalog</button>
           <button type="button" role="tab" aria-selected={tab === "evaluate"} className={`tab ${tab === "evaluate" ? "on" : ""}`} onClick={() => setTab("evaluate")}>Try a model</button>
         </div>
