@@ -459,10 +459,12 @@ fn orphaned_encrypted_seed_marker_is_not_a_vault() {
     assert_eq!(status["encrypted_vault_exists"], false);
     assert_eq!(status["open"], false);
 
-    let missing = h.call(
-        "workspace_unlock",
-        json!({ "passphrase": "fictional test only" }),
-    ).unwrap_err();
+    let missing = h
+        .call(
+            "workspace_unlock",
+            json!({ "passphrase": "fictional test only" }),
+        )
+        .unwrap_err();
     assert_eq!(missing["kind"], "missing", "{missing}");
     assert_eq!(std::fs::read(&marker).unwrap(), original);
     assert!(!root.join("encrypted-workspace").exists());
@@ -477,10 +479,12 @@ fn orphaned_encrypted_seed_marker_is_not_a_vault() {
         h.ok("workspace_status", json!({}))["encrypted_vault_exists"],
         false
     );
-    let incomplete = h.call(
-        "workspace_unlock",
-        json!({ "passphrase": "fictional test only" }),
-    ).unwrap_err();
+    let incomplete = h
+        .call(
+            "workspace_unlock",
+            json!({ "passphrase": "fictional test only" }),
+        )
+        .unwrap_err();
     assert_eq!(incomplete["kind"], "corrupt", "{incomplete}");
     assert_eq!(std::fs::read(&header).unwrap(), b"{}");
     assert_eq!(std::fs::read(&marker).unwrap(), original);
