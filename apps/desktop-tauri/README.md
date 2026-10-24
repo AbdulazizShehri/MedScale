@@ -1,5 +1,7 @@
 # MedScale desktop (Tauri)
 
+**New to Beta 0.1.0?** Read the [safe first-run and synthetic Product QA guide](../../docs/BETA_FIRST_RUN.md) before opening an unsigned installer, changing an existing vault, or testing any patient-facing screen. The engineering installers below are not authorization to publish or use real patient data.
+
 The Tauri 2 desktop shell over the real MedScale Core. Rust owns the Core session (`CliSession`, in-process `CoreFacade`), the same way the Slint desktop does. The React/TypeScript frontend only renders projections and sends bounded requests. No vault key, passphrase or Core handle crosses into the WebView after a command returns.
 
 Feature surfaces reuse the Slint desktop view models through `crates/medscale-desktop-vm`, so both desktops present the same Core truth:
