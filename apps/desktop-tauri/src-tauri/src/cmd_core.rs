@@ -79,8 +79,10 @@ pub fn workspace_status(host: tauri::State<'_, Host>) -> CmdResult<Value> {
     Ok(json!({
         "open": state.workspace.is_some(),
         "workspace": vault_label(&state),
+        // A seed list is not a vault. A legacy orphaned .desktop-seed.json can
+        // outlive the encrypted Core files, especially across reinstallations.
         "encrypted_vault_exists": host::encrypted_root(&state)
-            .map(|root| root.with_file_name("encrypted-workspace.desktop-seed.json").exists())
+            .map(|root| root.join("vault_header.json").is_file() && root.join("meta.sealed").is_file())
             .unwrap_or(false),
         "version": medscale_contracts::MEDSCALE_VERSION,
         "local_only": report.local_only,
