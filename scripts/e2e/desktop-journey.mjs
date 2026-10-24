@@ -331,11 +331,16 @@ try {
   // medagent_models exposes only admitted runnable Packs; no network fetch.
   await journey("models-evaluate-synthetic-onnx", async () => {
     await click(`//button[@role='tab' and ${text("Try a model")}]`);
-    await find(`//select[@id='ep']/option`, 60000);
-    const packId = await wd("POST", `/session/${sid}/execute/sync`, {
-      script: "return document.querySelector('#ep')?.value || '';",
-      args: [],
-    });
+    await find(`//select[@id='ep']`, 60000);
+    const until = Date.now() + 60000;
+    let packId = "";
+    while (!packId && Date.now() < until) {
+      packId = await wd("POST", `/session/${sid}/execute/sync`, {
+        script: "return document.querySelector('#ep')?.value || '';",
+        args: [],
+      });
+      if (!packId) await sleep(250);
+    }
     if (!packId) throw new Error("no admitted runnable synthetic model Pack selected");
     await click(`//button[@type='submit' and normalize-space(.)='Evaluate']`);
     await see("Full proposal payload", 60000);
