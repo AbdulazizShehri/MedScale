@@ -143,10 +143,19 @@ fn pinned_whisper_transcribes_synthetic_speech() {
         serde_json::from_slice(&std::fs::read(env("MEDSCALE_ASR_CASES")).unwrap()).unwrap();
     let real_data = std::env::var("MEDSCALE_ASR_REAL_DATASET").ok();
     if real_data.is_some() {
-        assert_eq!(cases.len(), 12, "bounded real test cases");
+        let expected: usize = std::env::var("MEDSCALE_ASR_EXPECTED_CASES")
+            .unwrap_or_else(|_| "12".into())
+            .parse()
+            .expect("expected positive sample count");
+        assert!((12..=100).contains(&expected), "bounded real corpus count");
+        assert_eq!(cases.len(), expected, "bounded real test cases");
     }
     let mut total_ref_words = 0usize;
     let mut total_errors = 0f64;
+    let mut char_edits = 0usize;
+    let mut ref_chars = 0usize;
+    let mut total_audio_samples = 0usize;
+    let mut total_transcribe_ms = 0u128;
     for (case_no, case) in cases.iter().enumerate() {
         let wav = Path::new(case["wav"].as_str().unwrap());
         let reference = case["text"].as_str().unwrap();
@@ -158,6 +167,28 @@ fn pinned_whisper_transcribes_synthetic_speech() {
         let n = words(reference).len();
         total_ref_words += n;
         total_errors += rate * n as f64;
+        if real_data.is_some() {
+            // Character error rate on lowercased alphanumeric content, without
+            // spaces. No transcript or hypothesis text leaves the CI runner.
+            let rc: Vec<char> = words(reference).join("").chars().collect();
+            let hc: Vec<char> = words(&hypothesis).join("").chars().collect();
+            ref_chars += rc.len();
+            char_edits += {
+                let mut prev: Vec<usize> = (0..=hc.len()).collect();
+                for (i, rch) in rc.iter().enumerate() {
+                    let mut cur = vec![i + 1; hc.len() + 1];
+                    for (j, hch) in hc.iter().enumerate() {
+                        cur[j + 1] = (prev[j] + usize::from(rch != hch))
+                            .min(prev[j + 1] + 1)
+                            .min(cur[j] + 1);
+                    }
+                    prev = cur;
+                }
+                prev[hc.len()]
+            };
+            total_audio_samples += samples.len();
+            total_transcribe_ms += ms;
+        }
         if real_data.is_some() {
             // Public evaluation logs MUST NOT contain human voice transcripts.
             println!(
@@ -189,6 +220,34 @@ fn pinned_whisper_transcribes_synthetic_speech() {
             "claim": "evaluation evidence only; public read speech is not clinical accuracy",
         })
     );
+    if let Some(source) = &real_data {
+        assert!(
+            ref_chars > 0 && total_audio_samples > 0,
+            "nonzero real reference/audio"
+        );
+        let audio_secs = total_audio_samples as f64 / 16_000.0;
+        println!(
+            "ASR_REAL_METRICS {}",
+            serde_json::json!({
+                "source": source,
+                "repo": meta.id,
+                "model_revision": meta.sha,
+                "cases": cases.len(),
+                "ref_words": total_ref_words,
+                "word_errors": total_errors.round() as usize,
+                "corpus_wer": corpus_wer,
+                "ref_chars_no_spaces": ref_chars,
+                "char_errors": char_edits,
+                "cer_no_spaces": char_edits as f64 / ref_chars as f64,
+                "audio_seconds": audio_secs,
+                "transcribe_ms": total_transcribe_ms,
+                "realtime_factor": (total_transcribe_ms as f64 / 1000.0) / audio_secs,
+                "prepare_ms": prepare_ms,
+                "normalization": "lowercase; punctuation removed; number zero-twenty mapped to digits; CER strips spaces",
+                "scope": "English read speech on a standard GitHub CPU runner",
+            })
+        );
+    }
     // A working recognizer gets most synthetic words right; a broken front
     // end or decoder does not.
     if real_data.is_none() {

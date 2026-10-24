@@ -11,7 +11,7 @@ concurrency:
   cancel-in-progress: true
 jobs:
   human-speech:
-    name: MedScale Whisper / LibriSpeech real test-clean
+    name: MedScale Whisper / 100 real LibriSpeech test-clean clips
     runs-on: ubuntu-latest
     timeout-minutes: 90
     env:
@@ -20,11 +20,18 @@ jobs:
       WHISPER_ASSETS_COMMIT: c5d42560760a05584c1c79546a098287e5a771eb
       CARGO_TERM_COLOR: always
       MEDSCALE_ASR_REAL_DATASET: openslr/librispeech/test-clean
+      MEDSCALE_ASR_EXPECTED_CASES: "100"
     steps:
       - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v4
-      - uses: dtolnay/rust-toolchain@d1031067263f94b142dd6c0ce24c5eb9d02d52a0
-        with:
-          toolchain: "1.97.1"
+      - name: Install isolated Rust toolchain on this temporary runner
+        run: |
+          set -euo pipefail
+          export RUSTUP_HOME="$RUNNER_TEMP/medscale-rustup-real-en"
+          mkdir -p "$RUSTUP_HOME"
+          echo "RUSTUP_HOME=$RUSTUP_HOME" >> "$GITHUB_ENV"
+          rustup toolchain install 1.97.1 --profile default
+          rustup default 1.97.1
+          cargo --version
       - name: Install minimal audio conversion and build dependencies
         run: |
           sudo apt-get update
@@ -64,12 +71,13 @@ jobs:
           PY
           echo "MEDSCALE_ASR_SNAPSHOT_DIR=$dir" >> "$GITHUB_ENV"
           echo "MEDSCALE_MEL_FILTERS_DIR=$RUNNER_TEMP/mel" >> "$GITHUB_ENV"
-      - name: Run actual MedScale Audio Pack on 12 human recordings
+      - name: Run actual MedScale Audio Pack on 100 real human recordings
         run: |
           set -euo pipefail
           cargo test --release --locked -p medscale-pack --test whisper_external_106 \
             pinned_whisper_transcribes_synthetic_speech -- --ignored --nocapture --test-threads 1 2>&1 | tee qualification.log
           grep '^ASR_METRICS ' qualification.log | tail -1 >> "$GITHUB_STEP_SUMMARY"
+          grep '^ASR_REAL_METRICS ' qualification.log | tail -1 >> "$GITHUB_STEP_SUMMARY"
           echo "These are REAL licensed, nonclinical audiobook recordings; not PHI and not medical accuracy." >> "$GITHUB_STEP_SUMMARY"
       - name: Delete audio, weights and scratch materials
         if: always()
