@@ -328,16 +328,32 @@ try {
   });
   // The real audio journey runs ONLY on an isolated CI host with opt-in inputs.
   // Never screenshot or print genuine voice text, paths, speakers or models.
-  if (process.env.MEDSCALE_E2E_REAL_WAV_PATH || process.env.MEDSCALE_E2E_REAL_ASR_PACK_PATH) {
-    if (!process.env.MEDSCALE_E2E_REAL_WAV_PATH || !process.env.MEDSCALE_E2E_REAL_ASR_PACK_PATH) {
-      throw new Error("real audio CI requires both the licensed WAV and admitted Pack");
+  const guiModelInstall = process.env.MEDSCALE_E2E_MODEL_GUI_DOWNLOAD === "1";
+  if (process.env.MEDSCALE_E2E_REAL_WAV_PATH || process.env.MEDSCALE_E2E_REAL_ASR_PACK_PATH || guiModelInstall) {
+    if (!process.env.MEDSCALE_E2E_REAL_WAV_PATH ||
+        (!guiModelInstall && !process.env.MEDSCALE_E2E_REAL_ASR_PACK_PATH)) {
+      throw new Error("real audio CI needs a licensed WAV and either pinned UI acquisition or an already verified Pack");
     }
     await journey("real-human-speech-local-whisper-ui", async () => {
       await nav("Audio");
-      await type("//input[@id='ap1']", process.env.MEDSCALE_E2E_REAL_ASR_PACK_PATH);
-      await click("//form[.//input[@id='ap1']]//button[@type='submit']");
-      await see("Audio Pack admitted", 180000);
-      await see("Local Whisper engine installed", 180000);
+      if (guiModelInstall) {
+        // Opt-in only for the dedicated licensed-real-voice CI workflow. All
+        // ordinary E2E remains strictly offline and never approves a download.
+        await click("//button[normalize-space(.)='Check disk budget']");
+        await see("Storage checked", 30000);
+        await see("Enough local storage", 30000);
+        await click("//input[@aria-label='Approve Whisper model download']");
+        await click("//button[normalize-space(.)='Download, verify and install']");
+        // Exercise the production HTTP download and Pack signature checks,
+        // not preassembled weights or an injected test engine.
+        await waitForText(/Model download: ready\./, 420000);
+        await see("Local Whisper engine installed", 180000);
+      } else {
+        await type("//input[@id='ap1']", process.env.MEDSCALE_E2E_REAL_ASR_PACK_PATH);
+        await click("//form[.//input[@id='ap1']]//button[@type='submit']");
+        await see("Audio Pack admitted", 180000);
+        await see("Local Whisper engine installed", 180000);
+      }
       await type("//input[@id='wp1']", process.env.MEDSCALE_E2E_REAL_WAV_PATH);
       await click("//form[.//input[@id='wp1']]//button[@type='submit']");
       await see("Recording imported", 60000);
@@ -457,6 +473,17 @@ try {
     await see("summarize the bound sources", 60000);
     await see("completed");
   });
+  if (process.env.MEDSCALE_E2E_MODEL_GUI_DOWNLOAD === "1") {
+    await journey("whisper-still-active-after-restart", async () => {
+      await nav("Audio");
+      await see("Local Whisper engine installed", 180000);
+      const saved = await wd("POST", `/session/${sid}/execute/sync`, {
+        script: "const e=[...document.querySelectorAll('button')].find(b=>b.textContent.trim()==='Activate saved model'); return !!e && e.disabled===false;",
+        args: [],
+      });
+      if (!saved) throw new Error("verified downloaded model is not recoverable after restart");
+    }, { screenshot: false });
+  }
   // Switch to the dark theme through the command palette, as a user would,
   // then capture the main product areas in it.
   await journey("dark-theme-via-command-palette", async () => {
