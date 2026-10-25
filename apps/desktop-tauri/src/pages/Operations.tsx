@@ -175,7 +175,7 @@ export function Audio() {
 }
 
 type AsrStatus = { routes: Array<{ route: string; available: boolean; reason: string | null }>; asr_pack_dir: string | null };
-type AudioModel = { id: string; name: string; repository: string; revision: string; languages: string; download_budget_bytes: number; required_space_bytes: number; installed: boolean; pack_files_present: boolean };
+type AudioModel = { id: string; name: string; repository: string; revision: string; languages: string; download_budget_bytes: number; required_space_bytes: number; installed: boolean; pack_files_present: boolean; cache_entry_exists: boolean };
 type AudioModelPreflight = { model: AudioModel; free_bytes: number; required_space_bytes: number; enough_space: boolean; download_started: false; download_requires_explicit_consent: true };
 type ModelDownloadStatus = { state: string; model_id: string | null; bytes_downloaded: number; bytes_total: number; pack_dir: string | null; message: string | null };
 type Segment = { seq: number; start_ms: number; end_ms: number; status: string; text: string | null; speaker?: { kind: string; index?: number } };
@@ -244,7 +244,7 @@ function AudioBody({ projectId }: { projectId: string }) {
   async function startModelDownload() {
     if (!mayStartModelDownload(downloadApproved, chosenModel, storageCheck?.model.id ?? null,
         storageCheck?.enough_space === true, !!pending || downloadStatus?.state === "downloading" ||
-        downloadStatus?.state === "verifying")) return;
+        downloadStatus?.state === "verifying", selectedModel?.cache_entry_exists === true)) return;
     const r = await run("download-model", "audio_model_download_start", { modelId: chosenModel, consent: true });
     if (outcome(r, "Download started · pinned Whisper source")) {
       setDownloadApproved(false);
@@ -337,6 +337,12 @@ function AudioBody({ projectId }: { projectId: string }) {
               {" "}Free: {formatStorage(storageCheck.free_bytes)}; required: {formatStorage(storageCheck.required_space_bytes)}.
               {" "}No download has started.
             </div>}
+            {selectedModel?.cache_entry_exists &&
+              <p className="t-sm i2" role="status">
+                {selectedModel.pack_files_present
+                  ? "A saved model Pack is already on this device. Choose Activate saved model to verify it and enable local recognition without downloading again."
+                  : "An incomplete local model directory already exists. MedScale will not overwrite it. Inspect the app-owned audio-models folder before attempting another download."}
+              </p>}
             <label className="row-gap t-sm" style={{ gap: 8 }}>
               <input type="checkbox" aria-label="Approve Whisper model download"
                 checked={downloadApproved} onChange={(e) => setDownloadApproved(e.target.checked)} />
@@ -346,7 +352,7 @@ function AudioBody({ projectId }: { projectId: string }) {
               <button type="button" className="btn btn-s" onClick={startModelDownload}
                 disabled={!mayStartModelDownload(downloadApproved, chosenModel, storageCheck?.model.id ?? null,
                   storageCheck?.enough_space === true, !!pending || downloadStatus?.state === "downloading" ||
-                  downloadStatus?.state === "verifying")}>Download, verify and install</button>
+                  downloadStatus?.state === "verifying", selectedModel?.cache_entry_exists === true)}>Download, verify and install</button>
               <button type="button" className="btn btn-g" onClick={activateExistingModel}
                 disabled={!selectedModel?.pack_files_present || !!pending}>Activate saved model</button>
               <button type="button" className="btn btn-g" onClick={cancelModelDownload}
