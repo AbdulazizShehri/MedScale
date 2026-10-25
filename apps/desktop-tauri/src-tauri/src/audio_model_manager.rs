@@ -79,6 +79,21 @@ impl Model {
     }
 }
 
+/// Return only the app-owned, allowlisted Pack location. The caller MUST
+/// invoke Core Pack admission before using it (a manifest is not proof of
+/// validity or a runnable installed model).
+pub fn existing_pack_path(id: &str, data_dir: &Path) -> CmdResult<String> {
+    let entry = model(id)?;
+    let path = entry.directory(data_dir);
+    if !path.join("pack.manifest.json").is_file() {
+        return Err(CmdError::new(
+            "missing",
+            "Missing: no downloaded Audio Pack for this model",
+        ));
+    }
+    Ok(path.to_string_lossy().into_owned())
+}
+
 pub fn catalog(data_dir: &Path) -> Vec<Value> {
     MODELS.iter().map(|m| m.describe(data_dir)).collect()
 }
@@ -117,6 +132,26 @@ mod tests {
         assert!(model("../whisper").is_err());
         assert!(model("whisper-tiny-en/../fake").is_err());
         assert!(model("https://example.com/model").is_err());
+    }
+
+    #[test]
+    fn saved_model_path_is_allowlisted_and_never_requires_new_download() {
+        let root =
+            std::env::temp_dir().join(format!("medscale-recover-pack-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&root);
+        assert!(existing_pack_path("whisper-tiny-en", &root).is_err());
+        assert!(existing_pack_path("../../secret", &root).is_err());
+        let folder = root.join("audio-models").join("whisper-tiny-en");
+        std::fs::create_dir_all(&folder).unwrap();
+        std::fs::write(folder.join("pack.manifest.json"), b"{}").unwrap();
+        assert_eq!(
+            existing_pack_path("whisper-tiny-en", &root).unwrap(),
+            folder.to_string_lossy()
+        );
+        // This helper only identifies the candidate; Core still verifies the
+        // manifest and signed artifact digests during admission.
+        assert!(!root.join("audio-models").join("whisper-base-en").exists());
+        std::fs::remove_dir_all(&root).unwrap();
     }
 
     #[test]

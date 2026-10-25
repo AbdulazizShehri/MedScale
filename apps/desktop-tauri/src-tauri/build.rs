@@ -88,6 +88,7 @@ fn main() {
             "audio_model_download_start",
             "audio_model_download_status",
             "audio_model_download_cancel",
+            "audio_model_activate_existing",
             "audio_admit_asr_pack",
             "audio_import_wav",
             "audio_transcribe",

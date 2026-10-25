@@ -975,6 +975,20 @@ pub fn audio_model_download_cancel(host: tauri::State<'_, Host>) -> CmdResult<Va
     crate::audio_model_manager::cancel(&host)
 }
 
+/// Re-admit a previously downloaded, app-owned Pack without downloading any
+/// weights again. Core verifies the signature and all artifact digests.
+#[tauri::command(async)]
+pub fn audio_model_activate_existing(
+    host: tauri::State<'_, Host>,
+    model_id: String,
+) -> CmdResult<Value> {
+    let path = {
+        let state = lock(&host)?;
+        crate::audio_model_manager::existing_pack_path(&model_id, state.data_dir()?)?
+    };
+    audio_admit_asr_pack(host, path)
+}
+
 /// Admits an Audio Pack folder (Spec 106) and installs its Whisper engine
 /// behind the local ASR route. Core verifies the Pack; nothing is downloaded.
 #[tauri::command(async)]

@@ -234,7 +234,10 @@ function AudioBody({ projectId }: { projectId: string }) {
     const dir = downloadStatus.pack_dir;
     activatedPack.current = dir;
     void run("activate-model", "audio_admit_asr_pack", { path: dir }).then(async (r) => {
-      if (outcome(r, "Verified Whisper model activated")) await asr.reload();
+      if (outcome(r, "Verified Whisper model activated")) {
+        await asr.reload();
+        await availableModels.reload();
+      }
     });
   }, [downloadStatus?.state, downloadStatus?.pack_dir, run, outcome, asr.reload]);
   async function startModelDownload() {
@@ -246,6 +249,13 @@ function AudioBody({ projectId }: { projectId: string }) {
       setDownloadApproved(false);
       setDownloadStatus({ state: "downloading", model_id: chosenModel, bytes_downloaded: 0,
         bytes_total: storageCheck?.model.download_budget_bytes ?? 0, pack_dir: null, message: null });
+    }
+  }
+  async function activateExistingModel() {
+    const r = await run("activate-saved-model", "audio_model_activate_existing", { modelId: chosenModel });
+    if (outcome(r, "Saved Whisper model verified and activated")) {
+      await asr.reload();
+      await availableModels.reload();
     }
   }
   async function cancelModelDownload() {
@@ -278,6 +288,8 @@ function AudioBody({ projectId }: { projectId: string }) {
     } finally { setChoosing(null); }
   }
   const local = asr.state.status === "ready" ? asr.state.data.routes.find((r) => r.route === "local_asr_pack") : undefined;
+  const selectedModel = availableModels.state.status === "ready"
+    ? availableModels.state.data.find((m) => m.id === chosenModel) : undefined;
   async function importSynthetic() { const r = await run("import", "audio_import_synthetic", { projectId }); if (outcome(r, "Synthetic tone imported")) await o.reload(); }
   async function segment(id: string) { const r = await run<{ summary: string; lines: string[] }>(id, "audio_segment", { projectId, sourceId: id }); if (outcome(r, "Segmentation recorded")) setSeg(r.data); }
   async function admitPack(e: FormEvent) { e.preventDefault(); const r = await run("pack", "audio_admit_asr_pack", { path: packPath }); if (outcome(r, "Audio Pack admitted · local recognition on")) { setPackPath(""); await asr.reload(); } }
@@ -300,7 +312,7 @@ function AudioBody({ projectId }: { projectId: string }) {
       <div className="row-gap" style={{ gap: 8, marginBottom: 14 }}><button type="button" className="btn btn-s" onClick={importSynthetic} disabled={!!pending}>{pending === "import" ? <Glyph kind="running" /> : null}Import synthetic tone sample</button><span className="t-sm i3">Generated tone and silence; no microphone, no person.</span></div>
       <Ledger items={[{ k: "routes", v: v.routes }, { k: "native capture", v: v.native_capture }]} />
       <Section title="Audio Model Manager" count={availableModels.state.status === "ready" ? availableModels.state.data.length : "…"}>
-        <p className="t-sm i2" style={{ marginBottom: 10 }}>Choose a pinned Whisper model. MedScale checks available disk space before any future download; it does not transfer data or install a model during this check.</p>
+        <p className="t-sm i2" style={{ marginBottom: 10 }}>Choose a pinned Whisper model. Check local disk space, approve the exact source, then download, verify and activate it. Previously downloaded Packs can be reactivated without downloading again.</p>
         {availableModels.state.status === "error" ? <ErrorState error={availableModels.state.error} onRetry={availableModels.reload} /> : (
           <div className="stack" style={{ gap: 8 }}>
             <label className="lbl" htmlFor="asr-model-choice">Available speech models</label>
@@ -334,6 +346,8 @@ function AudioBody({ projectId }: { projectId: string }) {
                 disabled={!mayStartModelDownload(downloadApproved, chosenModel, storageCheck?.model.id ?? null,
                   storageCheck?.enough_space === true, !!pending || downloadStatus?.state === "downloading" ||
                   downloadStatus?.state === "verifying")}>Download, verify and install</button>
+              <button type="button" className="btn btn-g" onClick={activateExistingModel}
+                disabled={!selectedModel?.pack_files_present || !!pending}>Activate saved model</button>
               <button type="button" className="btn btn-g" onClick={cancelModelDownload}
                 disabled={!!pending || !["downloading", "verifying"].includes(downloadStatus?.state ?? "")}>Cancel download</button>
             </div>

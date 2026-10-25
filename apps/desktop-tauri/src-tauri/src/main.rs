@@ -117,6 +117,7 @@ fn presentation_builder<R: tauri::Runtime>(builder: tauri::Builder<R>) -> tauri:
             cmd_ops::audio_model_download_start,
             cmd_ops::audio_model_download_status,
             cmd_ops::audio_model_download_cancel,
+            cmd_ops::audio_model_activate_existing,
             cmd_ops::audio_admit_asr_pack,
             cmd_ops::audio_import_wav,
             cmd_ops::audio_transcribe,

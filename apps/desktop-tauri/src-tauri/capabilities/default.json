@@ -90,6 +90,7 @@
     "allow-audio-model-download-start",
     "allow-audio-model-download-status",
     "allow-audio-model-download-cancel",
+    "allow-audio-model-activate-existing",
     "allow-audio-admit-asr-pack",
     "allow-audio-import-wav",
     "allow-audio-transcribe",

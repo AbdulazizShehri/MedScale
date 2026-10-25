@@ -306,6 +306,7 @@ try {
     // Headless E2E must never approve or start network/model downloads.
     await find("//input[@aria-label='Approve Whisper model download' and not(@checked)]");
     await find("//button[normalize-space(.)='Download, verify and install' and @disabled]");
+    await find("//button[normalize-space(.)='Activate saved model' and @disabled]");
     // Assert production's native chooser buttons are visible; do not open an
     // OS modal in unattended E2E. Real WAV/Pack inputs still use explicit paths.
     await find("//form[.//input[@id='ap1']]//button[@type='button' and contains(normalize-space(.),'Browse folder')]");
