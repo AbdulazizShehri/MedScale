@@ -234,11 +234,11 @@ function AudioBody({ projectId }: { projectId: string }) {
           </form>
           <form onSubmit={importWav} className="stack" style={{ gap: 6 }}>
             <label className="lbl" htmlFor="wp1">Import a WAV recording</label>
-            <input id="wp1" value={wavPath} maxLength={1024} placeholder="Absolute .wav path (16 kHz, 16-bit)" onChange={(e) => setWavPath(e.target.value)} />
+            <input id="wp1" value={wavPath} maxLength={1024} placeholder="Absolute .wav path (16 kHz, 16-bit PCM, up to 32 MiB)" onChange={(e) => setWavPath(e.target.value)} />
             <div><button type="submit" className="btn btn-s" disabled={!wavPath.trim() || !!pending}>Import</button></div>
           </form>
         </div>
-        <p className="t-sm i3" style={{ marginTop: 6 }}>Core verifies the Audio Pack and transcribes imported WAV recordings on this device. Choose the language before transcription.</p>
+        <p className="t-sm i3" style={{ marginTop: 6 }}>Import PCM WAV (16 kHz, 16-bit, up to 32 MiB / 30 minutes). Core verifies the Audio Pack and transcribes on this device. Choose the language before transcription.</p>
       </Section>
       <Section title="Sources" count={v.sources.length} actions={
         <select aria-label="Transcription route" value={route} onChange={(e) => setRoute(e.target.value)} style={{ height: 26 }}>
