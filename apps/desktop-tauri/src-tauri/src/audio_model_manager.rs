@@ -733,7 +733,11 @@ mod real_hub_qualification {
             }
         }
         let _cleanup = RemoveOnDrop(root.clone());
-        let entry = model("whisper-tiny-en").unwrap();
+        // CI may select only an allowlisted pinned model; by default keep
+        // the existing English qualification workflow unchanged.
+        let selected = std::env::var("MEDSCALE_QUAL_MODEL_ID")
+            .unwrap_or_else(|_| "whisper-tiny-en".to_owned());
+        let entry = model(&selected).expect("CI model ID must be an approved immutable Whisper pin");
         let coordinator = Arc::new(Mutex::new(DownloadCoordinator::default()));
         let cancel = AtomicBool::new(false);
         let pack_dir = acquire(entry, &root, &cancel, &coordinator)
@@ -743,7 +747,22 @@ mod real_hub_qualification {
                 .expect("signed manifest was atomically installed");
         let decoded: serde_json::Value =
             serde_json::from_str(&manifest).expect("Pack manifest JSON");
-        assert_eq!(decoded["pack_id"], "hf-whisper-tiny.en-asr");
+        let expected_pack_id = format!(
+            "hf-{}-asr",
+            entry.repository.rsplit('/').next().unwrap_or_default()
+        );
+        assert_eq!(decoded["pack_id"], expected_pack_id);
+        let saved_meta: Value = serde_json::from_slice(
+            &std::fs::read(std::path::Path::new(&pack_dir).join("model.meta.json"))
+                .expect("verified model provenance was installed"),
+        )
+        .expect("provenance JSON");
+        assert_eq!(saved_meta["repository"], entry.repository);
+        assert_eq!(saved_meta["revision"], entry.revision);
+        assert_eq!(
+            saved_meta["runtime_family"],
+            medscale_pack::CANDLE_WHISPER_ASR_RUNTIME_ID
+        );
         assert!(
             decoded["trust_root_id"]
                 .as_str()
