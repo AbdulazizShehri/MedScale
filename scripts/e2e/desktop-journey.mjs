@@ -135,6 +135,15 @@ async function find(xpath, timeout = 30000) {
   throw new Error(`not found within ${timeout} ms: ${xpath}${last ? ` (${last.message})` : ""}`);
 }
 const text = (t) => `contains(normalize-space(.), ${JSON.stringify(t)})`;
+// Unlike find(), disabledGuard deliberately accepts a disabled DOM element.
+// WebDriver must not click a model-download control during synthetic E2E.
+async function assertDisabled(xpath) {
+  const disabled = await wd("POST", `/session/${sid}/execute/sync`, {
+    script: "const e=document.evaluate(arguments[0],document,null,XPathResult.FIRST_ORDERED_NODE_TYPE,null).singleNodeValue; const r=e?.getBoundingClientRect(); return !!e && e.disabled === true && r.width > 0 && r.height > 0;",
+    args: [xpath],
+  });
+  if (!disabled) throw new Error(`missing or enabled model-download control: ${xpath}`);
+}
 // Native WebDriver input first; if WebView2 reports the element as not
 // interactable on the CI desktop, fall back to DOM events on the same element.
 async function click(xpath, timeout) {
@@ -305,7 +314,7 @@ try {
     await find("//*[@data-testid='audio-model-preflight' and contains(normalize-space(.),'No download has started')]");
     // Headless E2E must never approve or start network/model downloads.
     await find("//input[@aria-label='Approve Whisper model download' and not(@checked)]");
-    await find("//button[normalize-space(.)='Download, verify and install' and @disabled]");
+    await assertDisabled("//button[normalize-space(.)='Download, verify and install']");
     // Assert production's native chooser buttons are visible; do not open an
     // OS modal in unattended E2E. Real WAV/Pack inputs still use explicit paths.
     await find("//form[.//input[@id='ap1']]//button[@type='button' and contains(normalize-space(.),'Browse folder')]");
