@@ -233,11 +233,12 @@ function AudioBody({ projectId }: { projectId: string }) {
         activatedPack.current === downloadStatus.pack_dir) return;
     const dir = downloadStatus.pack_dir;
     activatedPack.current = dir;
+    // The signed Pack is already on disk. Surface "Activate saved model"
+    // even when Core activation fails, so the user can retry after reopening
+    // the vault without downloading the same checkpoint a second time.
+    void availableModels.reload();
     void run("activate-model", "audio_admit_asr_pack", { path: dir }).then(async (r) => {
-      if (outcome(r, "Verified Whisper model activated")) {
-        await asr.reload();
-        await availableModels.reload();
-      }
+      if (outcome(r, "Verified Whisper model activated")) await asr.reload();
     });
   }, [downloadStatus?.state, downloadStatus?.pack_dir, run, outcome, asr.reload]);
   async function startModelDownload() {
