@@ -5,6 +5,8 @@ export function mayStartModelDownload(
   checkedId: string | null,
   enoughSpace: boolean,
   busy: boolean,
+  cacheEntryExists: boolean,
 ): boolean {
-  return approved && !!selectedId && checkedId === selectedId && enoughSpace && !busy;
+  return approved && !!selectedId && checkedId === selectedId && enoughSpace &&
+    !busy && !cacheEntryExists;
 }
