@@ -5,7 +5,7 @@
 //! location and the subject context, and returns typed DTOs or a typed error.
 
 use std::path::{Path, PathBuf};
-use std::sync::Mutex;
+use std::sync::{Arc, Mutex};
 
 use medscale_contracts::envelopes::AuthorityError;
 use medscale_core::CliSession;
@@ -142,6 +142,7 @@ pub struct State {
 #[derive(Default)]
 pub struct Host {
     pub state: Mutex<State>,
+    pub model_download: Arc<Mutex<crate::audio_model_manager::DownloadCoordinator>>,
 }
 
 /// Synthetic FHIR fixtures shipped inside the binary (no repository needed at

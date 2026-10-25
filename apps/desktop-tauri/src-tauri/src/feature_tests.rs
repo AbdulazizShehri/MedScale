@@ -895,6 +895,29 @@ fn medagent_workbench_agent_context_evidence_and_resume() {
         ),
     )
     .unwrap();
+    // Desktop and Core share the same 32 MiB WAV limit. Reject one byte
+    // beyond the contract before attempting to parse or persist a source.
+    let oversized_wav = dir.join("oversized-recording.wav");
+    std::fs::File::create(&oversized_wav)
+        .unwrap()
+        .set_len(medscale_contracts::audio::MAX_AUDIO_BYTES as u64 + 1)
+        .unwrap();
+    let err = h
+        .call(
+            "audio_import_wav",
+            json!({ "projectId": pid, "path": oversized_wav.display().to_string() }),
+        )
+        .unwrap_err();
+    assert_eq!(err["kind"], "invalid", "{err}");
+    assert!(
+        err["message"]
+            .as_str()
+            .unwrap_or_default()
+            .contains("33554432"),
+        "oversized recording must be refused at Core's exact bound: {err}"
+    );
+    std::fs::remove_file(&oversized_wav).unwrap();
+
     let imported = h.ok(
         "audio_import_wav",
         json!({ "projectId": pid, "path": wav_path.display().to_string() }),
@@ -970,7 +993,90 @@ fn medagent_workbench_agent_context_evidence_and_resume() {
             "malformed language {invalid_language:?} must be refused"
         );
     }
-    // Restart again: the remembered Audio Pack engine is reinstalled on open.
+    // Recovery path: previously downloaded app-owned model Packs are
+    // re-admitted via the SAME signed Core boundary, not merely trusted
+    // because an app-data directory happens to contain a manifest.
+    let stored = h
+        ._app
+        .state::<crate::host::Host>()
+        .state
+        .lock()
+        .unwrap()
+        .data_dir()
+        .unwrap()
+        .join("audio-models")
+        .join("whisper-tiny-en");
+    std::fs::create_dir_all(&stored).unwrap();
+    // The native command must refuse any existing app-owned cache before
+    // spawning an HTTP worker, even if a user approves a second download.
+    // This checks the actual named IPC handler; no network is ever opened.
+    assert_eq!(
+        h.call(
+            "audio_model_download_start",
+            json!({ "modelId": "whisper-tiny-en", "consent": true })
+        )
+        .unwrap_err()["kind"],
+        "conflict",
+        "a partial cached model cannot be silently overwritten"
+    );
+    std::fs::write(stored.join("pack.manifest.json"), b"{}").unwrap();
+    let rejected = h.call(
+        "audio_model_activate_existing",
+        json!({ "modelId": "whisper-tiny-en" }),
+    );
+    assert!(
+        rejected.is_err(),
+        "Core must reject an unsigned saved model"
+    );
+    assert_eq!(
+        h.call(
+            "audio_model_activate_existing",
+            json!({ "modelId": "../../arbitrary" })
+        )
+        .unwrap_err()["kind"],
+        "invalid",
+        "model IDs may never become arbitrary filesystem paths"
+    );
+    std::fs::remove_dir_all(&stored).unwrap();
+    medscale_pack::asr_fixtures::synthetic_audio_pack(&stored);
+    let catalog = h.ok("audio_model_catalog", json!({}));
+    assert!(
+        catalog
+            .as_array()
+            .unwrap()
+            .iter()
+            .any(|m| m["id"] == "whisper-tiny-en" && m["pack_files_present"] == true),
+        "downloaded Pack must remain discoverable after relaunch: {catalog}"
+    );
+    // The signed synthetic Audio Pack correctly identifies the pinned
+    // Whisper tiny.en provenance; change only an app-owned test copy of
+    // model.meta.json to simulate a mislabeled local model. This must fail
+    // before reaching Core; then restore exact original bytes for admission.
+    let provenance_path = stored.join("model.meta.json");
+    let original_provenance = std::fs::read(&provenance_path).unwrap();
+    let mut altered: Value = serde_json::from_slice(&original_provenance).unwrap();
+    altered["repository"] = json!("openai/whisper-tiny");
+    std::fs::write(&provenance_path, serde_json::to_vec(&altered).unwrap()).unwrap();
+    let wrong_source = h.call(
+        "audio_model_activate_existing",
+        json!({ "modelId": "whisper-tiny-en" }),
+    );
+    assert_eq!(
+        wrong_source.unwrap_err()["kind"],
+        "denied",
+        "even an otherwise signed Pack cannot masquerade as another pinned model"
+    );
+    std::fs::write(&provenance_path, original_provenance).unwrap();
+    // A genuine signed Pack with matching provenance now passes both the
+    // allowlist preflight and Core's independent signature/digest admission.
+    let recovered = h.ok(
+        "audio_model_activate_existing",
+        json!({ "modelId": "whisper-tiny-en" }),
+    );
+    assert_eq!(recovered["installed"], true, "{recovered}");
+
+    // Restart again: Core re-verifies and restores the remembered Audio
+    // Pack without any network request.
     h.ok("workspace_lock", json!({}));
     {
         let again = Harness::restart("medagent");

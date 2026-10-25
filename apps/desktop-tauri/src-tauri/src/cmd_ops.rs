@@ -1,7 +1,7 @@
 //! Intelligence and operations commands: models, MedAgent, model fleet,
 //! collaboration, workflows and audio.
 
-use medscale_contracts::audio::PcmFormat;
+use medscale_contracts::audio::{MAX_AUDIO_BYTES, PcmFormat};
 use medscale_contracts::medagent::ToolKind;
 use medscale_contracts::objects::OpaqueId;
 use medscale_contracts::project_graph::{ArtifactDescriptor, ArtifactKind, ArtifactVersionBinding};
@@ -915,6 +915,22 @@ pub fn workflow_overview(host: tauri::State<'_, Host>) -> CmdResult<Value> {
 
 // ───────────────────────────── audio ─────────────────────────────
 
+/// Pinned, supported Whisper options. No download or installation side effect.
+#[tauri::command(async)]
+pub fn audio_model_catalog(host: tauri::State<'_, Host>) -> CmdResult<Value> {
+    let state = lock(&host)?;
+    Ok(json!(crate::audio_model_manager::catalog(
+        state.data_dir()?
+    )))
+}
+
+/// Checks the selected pinned model's conservative staging + Pack disk budget.
+#[tauri::command(async)]
+pub fn audio_model_preflight(host: tauri::State<'_, Host>, model_id: String) -> CmdResult<Value> {
+    let state = lock(&host)?;
+    crate::audio_model_manager::preflight(&model_id, state.data_dir()?)
+}
+
 #[tauri::command(async)]
 pub fn audio_overview(host: tauri::State<'_, Host>, project_id: String) -> CmdResult<Value> {
     let mut state = lock(&host)?;
@@ -937,6 +953,40 @@ pub fn audio_asr_status(host: tauri::State<'_, Host>) -> CmdResult<Value> {
         "routes": routes,
         "asr_pack_dir": host::load_asr_pack(&root),
     }))
+}
+
+/// Starts a user-consented acquisition of a pinned Whisper Audio Pack.
+#[tauri::command(async)]
+pub fn audio_model_download_start(
+    host: tauri::State<'_, Host>,
+    model_id: String,
+    consent: bool,
+) -> CmdResult<Value> {
+    crate::audio_model_manager::start(&host, model_id, consent)
+}
+
+#[tauri::command(async)]
+pub fn audio_model_download_status(host: tauri::State<'_, Host>) -> CmdResult<Value> {
+    crate::audio_model_manager::status(&host)
+}
+
+#[tauri::command(async)]
+pub fn audio_model_download_cancel(host: tauri::State<'_, Host>) -> CmdResult<Value> {
+    crate::audio_model_manager::cancel(&host)
+}
+
+/// Re-admit a previously downloaded, app-owned Pack without downloading any
+/// weights again. Core verifies the signature and all artifact digests.
+#[tauri::command(async)]
+pub fn audio_model_activate_existing(
+    host: tauri::State<'_, Host>,
+    model_id: String,
+) -> CmdResult<Value> {
+    let path = {
+        let state = lock(&host)?;
+        crate::audio_model_manager::existing_pack_path(&model_id, state.data_dir()?)?
+    };
+    audio_admit_asr_pack(host, path)
 }
 
 /// Admits an Audio Pack folder (Spec 106) and installs its Whisper engine
@@ -965,8 +1015,8 @@ pub fn audio_admit_asr_pack(host: tauri::State<'_, Host>, path: String) -> CmdRe
     Ok(json!({ "id": pack_id.as_str(), "installed": true }))
 }
 
-/// Largest WAV file the desktop imports (64 MiB).
-const WAV_IMPORT_MAX_BYTES: u64 = 64 << 20;
+// Keep desktop import bound identical to the Core audio contract.
+const WAV_IMPORT_MAX_BYTES: u64 = MAX_AUDIO_BYTES as u64;
 
 /// Imports a user-selected bounded PCM WAV recording (absolute path) into a project.
 #[tauri::command(async)]
@@ -980,7 +1030,7 @@ pub fn audio_import_wav(
     let file = std::path::Path::new(&path);
     if !file.is_absolute() || !path.to_ascii_lowercase().ends_with(".wav") {
         return Err(CmdError::invalid(
-            "Invalid: choose an absolute .wav file of at most 64 MiB",
+            "Invalid: choose an absolute .wav file of at most 32 MiB",
         ));
     }
     let wav = host::read_bounded(file, WAV_IMPORT_MAX_BYTES)?;

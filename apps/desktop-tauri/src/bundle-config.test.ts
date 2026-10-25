@@ -25,10 +25,21 @@ test("product name changes do not move app data: identifier is unchanged", () =>
   assert.equal(conf.identifier, "org.medscale.desktop.preview");
 });
 
-test("packaging adds no updater, plugin or capability", () => {
+test("packaging keeps updater and config-managed plugins absent", () => {
   assert.equal(conf.plugins, undefined);
   assert.equal(conf.bundle.createUpdaterArtifacts, undefined);
   assert.deepEqual(conf.app.security.capabilities, ["default"]);
+});
+
+test("native Audio picker grants OS open only, never broad file access", () => {
+  const capability = JSON.parse(readFileSync(new URL("../src-tauri/capabilities/default.json", import.meta.url), "utf8"));
+  assert.ok(capability.permissions.includes("dialog:allow-open"));
+  assert.deepEqual(capability.permissions.filter((name: string) => name.startsWith("dialog:")), ["dialog:allow-open"]);
+  assert.ok(!capability.permissions.some((name: string) => /^(?:fs|shell|http):/.test(name)));
+  const cargo = readFileSync(new URL("../src-tauri/Cargo.toml", import.meta.url), "utf8");
+  const native = readFileSync(new URL("../src-tauri/src/main.rs", import.meta.url), "utf8");
+  assert.match(cargo, /tauri-plugin-dialog = "=2\.6\.0"/);
+  assert.match(native, /\.plugin\(tauri_plugin_dialog::init\(\)\)/);
 });
 
 test("production CSP still allows no remote origin", () => {

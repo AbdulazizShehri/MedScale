@@ -11,6 +11,7 @@ macro_rules! obj {
     };
 }
 
+mod audio_model_manager;
 mod cmd_core;
 mod cmd_ops;
 mod cmd_research;
@@ -111,6 +112,12 @@ fn presentation_builder<R: tauri::Runtime>(builder: tauri::Builder<R>) -> tauri:
             cmd_ops::audio_import_synthetic,
             cmd_ops::audio_segment,
             cmd_ops::audio_asr_status,
+            cmd_ops::audio_model_catalog,
+            cmd_ops::audio_model_preflight,
+            cmd_ops::audio_model_download_start,
+            cmd_ops::audio_model_download_status,
+            cmd_ops::audio_model_download_cancel,
+            cmd_ops::audio_model_activate_existing,
             cmd_ops::audio_admit_asr_pack,
             cmd_ops::audio_import_wav,
             cmd_ops::audio_transcribe,
@@ -121,7 +128,7 @@ fn presentation_builder<R: tauri::Runtime>(builder: tauri::Builder<R>) -> tauri:
 
 fn main() {
     startup_failure::install_panic_hook();
-    presentation_builder(tauri::Builder::default())
+    presentation_builder(tauri::Builder::default().plugin(tauri_plugin_dialog::init()))
         .setup(|app| {
             let data_dir = app.path().app_local_data_dir()?;
             std::fs::create_dir_all(&data_dir)?;

@@ -16,6 +16,9 @@ jobs:
     timeout-minutes: 130
     env:
       CARGO_BUILD_JOBS: "2"
+      # Dedicated opt-in real-data journey: the user-facing button performs
+      # the actual bounded Hub download and Core signed-Pack installation.
+      MEDSCALE_E2E_MODEL_GUI_DOWNLOAD: "1"
     steps:
       - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v4
       - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
@@ -55,6 +58,9 @@ jobs:
           if ($LASTEXITCODE -ne 0) { throw 'No genuine public speech example' }
           "MEDSCALE_E2E_REAL_WAV_PATH=$wav" | Out-File -Append -FilePath $env:GITHUB_ENV -Encoding utf8
       - name: Build signed, source-bound real Whisper Audio Pack
+        # The new full UI route downloads/verifies/installs from MedScale itself.
+        # Preserve this old route for a non-GUI qualification when opted in.
+        if: env.MEDSCALE_E2E_MODEL_GUI_DOWNLOAD != '1'
         shell: pwsh
         run: |
           $ErrorActionPreference = 'Stop'
@@ -88,7 +94,9 @@ jobs:
         run: |
           New-Item -Path 'HKLM:\SOFTWARE\Policies\Microsoft\Edge' -Force | Out-Null
           Set-ItemProperty -Path 'HKLM:\SOFTWARE\Policies\Microsoft\Edge' -Name RemoteDebuggingAllowed -Value 1 -Type DWord
-      - name: Execute actual user clicks and require nonfixture local transcript
+      - name: Execute opt-in GUI acquisition, actual user transcription and restart
+        # Real licensed audio and model stay only on this temporary runner.
+        # No screenshot of human recordings or transcripts is retained.
         shell: pwsh
         run: |
           $driver = Join-Path $env:EDGEWEBDRIVER 'msedgedriver.exe'

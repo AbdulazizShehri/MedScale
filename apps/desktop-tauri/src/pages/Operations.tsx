@@ -1,7 +1,11 @@
-import { useEffect, useState, type FormEvent } from "react";
-import { useAction, useCommand } from "../lib/ipc";
+import { useEffect, useRef, useState, type FormEvent } from "react";
+import { open } from "@tauri-apps/plugin-dialog";
+import { selectedPathOrPrevious } from "../audio-picker";
+import { formatStorage } from "../model-storage";
+import { mayStartModelDownload } from "../model-consent";
+import { call, useAction, useCommand } from "../lib/ipc";
 import { ProjectScope } from "../components/project";
-import { Authority, Empty, ErrorState, Glyph, KV, Ledger, Notice, PageHead, Section, Skeleton, Stamp, Status, glyphFor, useOutcome, type GlyphKind } from "../components/ui";
+import { Authority, Empty, ErrorState, Glyph, KV, Ledger, Notice, PageHead, Section, Skeleton, Stamp, Status, glyphFor, useOutcome, useToast, type GlyphKind } from "../components/ui";
 
 type WorkflowVm = {
   synthetic_only: boolean; workflow_name: string; workflow_state: string; outbox_summary: string;
@@ -171,6 +175,9 @@ export function Audio() {
 }
 
 type AsrStatus = { routes: Array<{ route: string; available: boolean; reason: string | null }>; asr_pack_dir: string | null };
+type AudioModel = { id: string; name: string; repository: string; revision: string; languages: string; download_budget_bytes: number; required_space_bytes: number; installed: boolean; pack_files_present: boolean; cache_entry_exists: boolean };
+type AudioModelPreflight = { model: AudioModel; free_bytes: number; required_space_bytes: number; enough_space: boolean; download_started: false; download_requires_explicit_consent: true };
+type ModelDownloadStatus = { state: string; model_id: string | null; bytes_downloaded: number; bytes_total: number; pack_dir: string | null; message: string | null };
 type Segment = { seq: number; start_ms: number; end_ms: number; status: string; text: string | null; speaker?: { kind: string; index?: number } };
 const speakerLabel = (s: Segment["speaker"]) => (s?.kind === "anonymous" && s.index !== undefined ? `speaker ${s.index}` : null);
 type Transcript = { revision_id: string; revision_no: number; state: string; segments: Segment[] };
@@ -179,9 +186,16 @@ type TranscribeResult = { decision: { outcome: string; reason?: string | null };
 function AudioBody({ projectId }: { projectId: string }) {
   const o = useCommand<AudioVm>("audio_overview", { projectId });
   const asr = useCommand<AsrStatus>("audio_asr_status");
+  const availableModels = useCommand<AudioModel[]>("audio_model_catalog");
+  const [chosenModel, setChosenModel] = useState("whisper-tiny-en");
+  const [storageCheck, setStorageCheck] = useState<AudioModelPreflight | null>(null);
+  const [downloadApproved, setDownloadApproved] = useState(false);
+  const [downloadStatus, setDownloadStatus] = useState<ModelDownloadStatus | null>(null);
+  const activatedPack = useRef<string | null>(null);
   const [seg, setSeg] = useState<{ summary: string; lines: string[] } | null>(null);
   const [packPath, setPackPath] = useState("");
   const [wavPath, setWavPath] = useState("");
+  const [choosing, setChoosing] = useState<"pack" | "wav" | null>(null);
   const [route, setRoute] = useState("local_asr_pack");
   const [language, setLanguage] = useState<"en" | "ar">("en");
   const [diarize, setDiarize] = useState(false);
@@ -199,7 +213,84 @@ function AudioBody({ projectId }: { projectId: string }) {
   }
   const { pending, run } = useAction();
   const outcome = useOutcome();
+  const toast = useToast();
+  useEffect(() => {
+    let mounted = true;
+    async function refresh() {
+      try {
+        const status = await call<ModelDownloadStatus>("audio_model_download_status");
+        if (mounted) setDownloadStatus(status);
+      } catch {
+        // The named Core command is unavailable on older native builds.
+      }
+    }
+    void refresh();
+    const timer = window.setInterval(() => { void refresh(); }, 1500);
+    return () => { mounted = false; window.clearInterval(timer); };
+  }, []);
+  useEffect(() => {
+    if (downloadStatus?.state !== "ready" || !downloadStatus.pack_dir ||
+        activatedPack.current === downloadStatus.pack_dir) return;
+    const dir = downloadStatus.pack_dir;
+    activatedPack.current = dir;
+    // The signed Pack is already on disk. Surface "Activate saved model"
+    // even when Core activation fails, so the user can retry after reopening
+    // the vault without downloading the same checkpoint a second time.
+    void availableModels.reload();
+    void run("activate-model", "audio_admit_asr_pack", { path: dir }).then(async (r) => {
+      if (outcome(r, "Verified Whisper model activated")) await asr.reload();
+    });
+  }, [downloadStatus?.state, downloadStatus?.pack_dir, run, outcome, asr.reload]);
+  async function startModelDownload() {
+    if (!mayStartModelDownload(downloadApproved, chosenModel, storageCheck?.model.id ?? null,
+        storageCheck?.enough_space === true, !!pending || downloadStatus?.state === "downloading" ||
+        downloadStatus?.state === "verifying", selectedModel?.cache_entry_exists === true)) return;
+    const r = await run("download-model", "audio_model_download_start", { modelId: chosenModel, consent: true });
+    if (outcome(r, "Download started · pinned Whisper source")) {
+      setDownloadApproved(false);
+      setDownloadStatus({ state: "downloading", model_id: chosenModel, bytes_downloaded: 0,
+        bytes_total: storageCheck?.model.download_budget_bytes ?? 0, pack_dir: null, message: null });
+    }
+  }
+  async function activateExistingModel() {
+    const r = await run("activate-saved-model", "audio_model_activate_existing", { modelId: chosenModel });
+    if (outcome(r, "Saved Whisper model verified and activated")) {
+      await asr.reload();
+      await availableModels.reload();
+    }
+  }
+  async function cancelModelDownload() {
+    const r = await run("cancel-model", "audio_model_download_cancel");
+    if (outcome(r, "Cancellation requested · cleaning temporary files")) {
+      setDownloadApproved(false);
+    }
+  }
+  async function checkModelStorage() {
+    const r = await run<AudioModelPreflight>("storage", "audio_model_preflight", { modelId: chosenModel });
+    if (outcome(r, "Storage checked · no download started")) setStorageCheck(r.data);
+  }
+  async function browseWav() {
+    setChoosing("wav");
+    try {
+      const selected = await open({ multiple: false, directory: false, title: "Choose a WAV recording", filters: [{ name: "PCM WAV", extensions: ["wav"] }] });
+      // Cancel is not an error and never overwrites a previously entered path.
+      setWavPath((previous) => selectedPathOrPrevious(previous, selected));
+    } catch {
+      toast({ kind: "blocked", title: "Cannot open file chooser", detail: "You can still enter an absolute WAV path." });
+    } finally { setChoosing(null); }
+  }
+  async function browsePack() {
+    setChoosing("pack");
+    try {
+      const selected = await open({ multiple: false, directory: true, title: "Choose a verified MedScale Audio Pack folder" });
+      setPackPath((previous) => selectedPathOrPrevious(previous, selected));
+    } catch {
+      toast({ kind: "blocked", title: "Cannot open folder chooser", detail: "You can still enter an absolute Audio Pack path." });
+    } finally { setChoosing(null); }
+  }
   const local = asr.state.status === "ready" ? asr.state.data.routes.find((r) => r.route === "local_asr_pack") : undefined;
+  const selectedModel = availableModels.state.status === "ready"
+    ? availableModels.state.data.find((m) => m.id === chosenModel) : undefined;
   async function importSynthetic() { const r = await run("import", "audio_import_synthetic", { projectId }); if (outcome(r, "Synthetic tone imported")) await o.reload(); }
   async function segment(id: string) { const r = await run<{ summary: string; lines: string[] }>(id, "audio_segment", { projectId, sourceId: id }); if (outcome(r, "Segmentation recorded")) setSeg(r.data); }
   async function admitPack(e: FormEvent) { e.preventDefault(); const r = await run("pack", "audio_admit_asr_pack", { path: packPath }); if (outcome(r, "Audio Pack admitted · local recognition on")) { setPackPath(""); await asr.reload(); } }
@@ -221,6 +312,63 @@ function AudioBody({ projectId }: { projectId: string }) {
     <>
       <div className="row-gap" style={{ gap: 8, marginBottom: 14 }}><button type="button" className="btn btn-s" onClick={importSynthetic} disabled={!!pending}>{pending === "import" ? <Glyph kind="running" /> : null}Import synthetic tone sample</button><span className="t-sm i3">Generated tone and silence; no microphone, no person.</span></div>
       <Ledger items={[{ k: "routes", v: v.routes }, { k: "native capture", v: v.native_capture }]} />
+      <Section title="Audio Model Manager" count={availableModels.state.status === "ready" ? availableModels.state.data.length : "…"}>
+        <p className="t-sm i2" style={{ marginBottom: 10 }}>Choose a pinned Whisper model. Check local disk space, approve the exact source, then download, verify and activate it. Previously downloaded Packs can be reactivated without downloading again.</p>
+        {availableModels.state.status === "error" ? <ErrorState error={availableModels.state.error} onRetry={availableModels.reload} /> : (
+          <div className="stack" style={{ gap: 8 }}>
+            <label className="lbl" htmlFor="asr-model-choice">Available speech models</label>
+            <select id="asr-model-choice" aria-label="Available speech models" value={chosenModel}
+              onChange={(e) => { setChosenModel(e.target.value); setStorageCheck(null); setDownloadApproved(false); }}
+              disabled={availableModels.state.status !== "ready" || !!pending}>
+              {(availableModels.state.status === "ready" ? availableModels.state.data : []).map((m) => (
+                <option key={m.id} value={m.id}>{m.name} · {m.languages}</option>
+              ))}
+            </select>
+            {availableModels.state.status === "ready" && (() => {
+              const selected = availableModels.state.data.find((m) => m.id === chosenModel);
+              return selected ? <p className="t-sm i3">Download budget: {formatStorage(selected.download_budget_bytes)}; temporary snapshot, signed Pack and free-space reserve: {formatStorage(selected.required_space_bytes)}. Source: {selected.repository} at pinned revision {selected.revision.slice(0, 8)}.</p> : null;
+            })()}
+            <div><button type="button" className="btn btn-s" onClick={checkModelStorage}
+              disabled={availableModels.state.status !== "ready" || !!pending}>
+              Check disk budget
+            </button></div>
+            {storageCheck && <div data-testid="audio-model-preflight" className="t-sm i2">
+              {storageCheck.enough_space ? "Enough local storage for the planned download and Pack staging." : "Insufficient free storage; no download should start."}
+              {" "}Free: {formatStorage(storageCheck.free_bytes)}; required: {formatStorage(storageCheck.required_space_bytes)}.
+              {" "}No download has started.
+            </div>}
+            {selectedModel?.cache_entry_exists &&
+              <p className="t-sm i2" role="status">
+                {selectedModel.pack_files_present
+                  ? "A saved model Pack is already on this device. Choose Activate saved model to verify it and enable local recognition without downloading again."
+                  : "An incomplete local model directory already exists. MedScale will not overwrite it. Inspect the app-owned audio-models folder before attempting another download."}
+              </p>}
+            <label className="row-gap t-sm" style={{ gap: 8 }}>
+              <input type="checkbox" aria-label="Approve Whisper model download"
+                checked={downloadApproved} onChange={(e) => setDownloadApproved(e.target.checked)} />
+              I approve downloading the selected Apache-2.0 Whisper model from the displayed pinned Hugging Face source to this device, using the stated disk budget.
+            </label>
+            <div className="row-gap" style={{ gap: 8 }}>
+              <button type="button" className="btn btn-s" onClick={startModelDownload}
+                disabled={!mayStartModelDownload(downloadApproved, chosenModel, storageCheck?.model.id ?? null,
+                  storageCheck?.enough_space === true, !!pending || downloadStatus?.state === "downloading" ||
+                  downloadStatus?.state === "verifying", selectedModel?.cache_entry_exists === true)}>Download, verify and install</button>
+              <button type="button" className="btn btn-g" onClick={activateExistingModel}
+                disabled={!selectedModel?.pack_files_present || !!pending}>Activate saved model</button>
+              <button type="button" className="btn btn-g" onClick={cancelModelDownload}
+                disabled={!!pending || !["downloading", "verifying"].includes(downloadStatus?.state ?? "")}>Cancel download</button>
+            </div>
+            {downloadStatus?.state && downloadStatus.state !== "idle" && <div className="t-sm i2" role="status" aria-live="polite">
+              Model download: {downloadStatus.state}.
+              {" "}{formatStorage(downloadStatus.bytes_downloaded)} received
+              {downloadStatus.bytes_total > 0 ? ` of approximately ${formatStorage(downloadStatus.bytes_total)}` : ""}.
+              {downloadStatus.message ? ` ${downloadStatus.message}` : ""}
+              {downloadStatus.state === "ready" ? " Verified Pack is ready for Core activation." : ""}
+            </div>}
+            <p className="t-sm i3">Already have a verified Audio Pack? Select its folder below to admit it offline. Downloads remain local, and only the dedicated in-progress cache is deleted on cancellation.</p>
+          </div>
+        )}
+      </Section>
       <Section title="Local speech recognition" count={local?.available ? "on" : "off"}>
         <div className="row-gap" style={{ gap: 10, marginBottom: 8 }}>
           <Status kind={local?.available ? "available" : "unavailable"} weight="strong">{local?.available ? "Local Whisper engine installed" : (local?.reason ?? "Not installed")}</Status>
@@ -230,15 +378,21 @@ function AudioBody({ projectId }: { projectId: string }) {
           <form onSubmit={admitPack} className="stack" style={{ gap: 6 }}>
             <label className="lbl" htmlFor="ap1">Admit an Audio Pack folder</label>
             <input id="ap1" value={packPath} maxLength={1024} placeholder="Absolute folder path" onChange={(e) => setPackPath(e.target.value)} />
-            <div><button type="submit" className="btn btn-s" disabled={!packPath.trim() || !!pending}>Admit and install</button></div>
+            <div className="row-gap" style={{ gap: 8 }}>
+              <button type="button" className="btn btn-g" onClick={browsePack} disabled={!!pending || !!choosing}>Browse folder…</button>
+              <button type="submit" className="btn btn-s" disabled={!packPath.trim() || !!pending || !!choosing}>Admit and install</button>
+            </div>
           </form>
           <form onSubmit={importWav} className="stack" style={{ gap: 6 }}>
             <label className="lbl" htmlFor="wp1">Import a WAV recording</label>
-            <input id="wp1" value={wavPath} maxLength={1024} placeholder="Absolute .wav path (16 kHz, 16-bit)" onChange={(e) => setWavPath(e.target.value)} />
-            <div><button type="submit" className="btn btn-s" disabled={!wavPath.trim() || !!pending}>Import</button></div>
+            <input id="wp1" value={wavPath} maxLength={1024} placeholder="Absolute .wav path (16 kHz, 16-bit PCM, up to 32 MiB)" onChange={(e) => setWavPath(e.target.value)} />
+            <div className="row-gap" style={{ gap: 8 }}>
+              <button type="button" className="btn btn-g" onClick={browseWav} disabled={!!pending || !!choosing}>Browse WAV…</button>
+              <button type="submit" className="btn btn-s" disabled={!wavPath.trim() || !!pending || !!choosing}>Import</button>
+            </div>
           </form>
         </div>
-        <p className="t-sm i3" style={{ marginTop: 6 }}>Core verifies the Audio Pack and transcribes imported WAV recordings on this device. Choose the language before transcription.</p>
+        <p className="t-sm i3" style={{ marginTop: 6 }}>Import PCM WAV (16 kHz, 16-bit, up to 32 MiB / 30 minutes). Core verifies the Audio Pack and transcribes on this device. Choose the language before transcription.</p>
       </Section>
       <Section title="Sources" count={v.sources.length} actions={
         <select aria-label="Transcription route" value={route} onChange={(e) => setRoute(e.target.value)} style={{ height: 26 }}>
