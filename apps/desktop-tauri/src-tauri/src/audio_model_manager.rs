@@ -737,7 +737,8 @@ mod real_hub_qualification {
         // the existing English qualification workflow unchanged.
         let selected = std::env::var("MEDSCALE_QUAL_MODEL_ID")
             .unwrap_or_else(|_| "whisper-tiny-en".to_owned());
-        let entry = model(&selected).expect("CI model ID must be an approved immutable Whisper pin");
+        let entry =
+            model(&selected).expect("CI model ID must be an approved immutable Whisper pin");
         let coordinator = Arc::new(Mutex::new(DownloadCoordinator::default()));
         let cancel = AtomicBool::new(false);
         let pack_dir = acquire(entry, &root, &cancel, &coordinator)
