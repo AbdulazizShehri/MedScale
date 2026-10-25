@@ -968,7 +968,7 @@ pub fn audio_admit_asr_pack(host: tauri::State<'_, Host>, path: String) -> CmdRe
 /// Largest WAV file the desktop imports (64 MiB).
 const WAV_IMPORT_MAX_BYTES: u64 = 64 << 20;
 
-/// Imports a synthetic WAV recording (absolute path) into a project.
+/// Imports a user-selected bounded PCM WAV recording (absolute path) into a project.
 #[tauri::command(async)]
 pub fn audio_import_wav(
     host: tauri::State<'_, Host>,
@@ -1017,8 +1017,15 @@ pub fn audio_transcribe(
     source_id: String,
     route: String,
     diarize: Option<bool>,
+    language: Option<String>,
 ) -> CmdResult<Value> {
     use medscale_contracts::audio::{AudioRoute, AudioRouteRequest, VoiceInputMode};
+    let language = language.unwrap_or_else(|| "en".to_owned());
+    if language.len() != 2 || !language.bytes().all(|b| b.is_ascii_lowercase()) {
+        return Err(CmdError::invalid(
+            "Invalid: language must be two lowercase ASCII letters",
+        ));
+    }
     let route = match route.as_str() {
         "local_asr_pack" => AudioRoute::LocalAsrPack,
         "fixture_asr" => AudioRoute::FixtureAsr,
@@ -1031,7 +1038,7 @@ pub fn audio_transcribe(
         source_id: OpaqueId::new(host::bounded_id(&source_id)?),
         route,
         mode: VoiceInputMode::Dictation,
-        language: Some("en".to_owned()),
+        language: Some(language),
         // Optional speaker grouping: unvalidated acoustic clustering (Spec 106).
         diarization_required: diarize.unwrap_or(false),
     })?;
