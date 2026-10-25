@@ -623,8 +623,13 @@ mod acquisition_tests {
         std::fs::write(&other, b"must survive").unwrap();
         let coordinator = Arc::new(Mutex::new(DownloadCoordinator::default()));
         let flag = AtomicBool::new(true);
-        let error = acquire(model("whisper-tiny-en").unwrap(), &root, &flag, &coordinator)
-            .unwrap_err();
+        let error = acquire(
+            model("whisper-tiny-en").unwrap(),
+            &root,
+            &flag,
+            &coordinator,
+        )
+        .unwrap_err();
         assert_eq!(error, "Download cancelled");
         let stage = root
             .join("audio-models")
