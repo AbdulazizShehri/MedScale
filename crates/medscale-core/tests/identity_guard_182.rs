@@ -53,8 +53,14 @@ fn product_facing_surfaces_present_medscale_first() {
     assert!(intro.starts_with("# MedScale"));
     // The Beta's useful real-data audio path must not be described as
     // synthetic-only. Keep explicit release and patient-data limitations.
-    assert!(intro.contains("Beta 0.1.0"), "README must identify its Beta stage");
-    assert!(intro.contains("Whisper"), "README must mention qualified local ASR");
+    assert!(
+        intro.contains("Beta 0.1.0"),
+        "README must identify its Beta stage"
+    );
+    assert!(
+        intro.contains("Whisper"),
+        "README must mention qualified local ASR"
+    );
     assert!(
         intro.contains("not newly published"),
         "README must not imply that the new installer was released"
