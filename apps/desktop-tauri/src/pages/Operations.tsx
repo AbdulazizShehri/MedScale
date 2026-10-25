@@ -181,6 +181,7 @@ type ModelDownloadStatus = { state: string; model_id: string | null; bytes_downl
 type Segment = { seq: number; start_ms: number; end_ms: number; status: string; text: string | null; speaker?: { kind: string; index?: number } };
 const speakerLabel = (s: Segment["speaker"]) => (s?.kind === "anonymous" && s.index !== undefined ? `speaker ${s.index}` : null);
 type Transcript = { revision_id: string; revision_no: number; state: string; segments: Segment[] };
+type AudioRetentionPreview = { project_id: string; source_id: string; source_kind: string; recording_bytes: number; revision_count: number; receipt_count: number; delete_available: false; message: string };
 type TranscribeResult = { decision: { outcome: string; reason?: string | null }; engine: { engine_id: string; is_fixture: boolean } | null; limitations: string[]; transcript: Transcript | null };
 
 function AudioBody({ projectId }: { projectId: string }) {
@@ -201,6 +202,7 @@ function AudioBody({ projectId }: { projectId: string }) {
   const [diarize, setDiarize] = useState(false);
   const [result, setResult] = useState<TranscribeResult | null>(null);
   const [edit, setEdit] = useState<{ seq: number; text: string; reason: string } | null>(null);
+  const [retentionPreview, setRetentionPreview] = useState<AudioRetentionPreview | null>(null);
   const models = useCommand<Array<{ id: string; runnable: boolean; fixture: boolean }>>("medagent_models");
   const [notePack, setNotePack] = useState("");
   const [draft, setDraft] = useState<{ sections: Record<string, Array<{ text: string; segment_seq: number; start_ms: number; end_ms: number }>>; segments_evaluated: number; note: string } | null>(null);
@@ -295,6 +297,10 @@ function AudioBody({ projectId }: { projectId: string }) {
   async function segment(id: string) { const r = await run<{ summary: string; lines: string[] }>(id, "audio_segment", { projectId, sourceId: id }); if (outcome(r, "Segmentation recorded")) setSeg(r.data); }
   async function admitPack(e: FormEvent) { e.preventDefault(); const r = await run("pack", "audio_admit_asr_pack", { path: packPath }); if (outcome(r, "Audio Pack admitted · local recognition on")) { setPackPath(""); await asr.reload(); } }
   async function importWav(e: FormEvent) { e.preventDefault(); const r = await run("wav", "audio_import_wav", { projectId, path: wavPath }); if (outcome(r, "Recording imported")) { setWavPath(""); await o.reload(); } }
+  async function inspectStoredData(id: string) {
+    const r = await run<AudioRetentionPreview>("stored-" + id, "audio_source_retention_preview", { projectId, sourceId: id });
+    if (outcome(r, "Stored recording inspected; no data changed")) setRetentionPreview(r.data);
+  }
   async function transcribe(id: string) {
     const r = await run<TranscribeResult>(`t-${id}`, "audio_transcribe", { projectId, sourceId: id, route, language, diarize });
     if (outcome(r, "Transcription recorded · draft")) { setResult(r.data); setEdit(null); }
@@ -411,7 +417,13 @@ function AudioBody({ projectId }: { projectId: string }) {
           <input type="checkbox" checked={diarize} onChange={(e) => setDiarize(e.target.checked)} />
           Group speakers (acoustic clustering, unvalidated; labels are never identity)
         </label>
-        {v.sources.length ? v.sources.map((s) => <div key={s.id} className="lr" style={{ gridTemplateColumns: "minmax(0,1fr) minmax(0,1.4fr) 120px auto auto" }}><span style={{ display: "flex", flexDirection: "column", minWidth: 0 }}><span className="trunc" style={{ fontWeight: 600 }}>{s.label}</span><span className="mono t-mono-sm i3 trunc">{s.id}</span></span><span className="t-sm i3 trunc">{s.kind} · {s.detail}</span><Status kind={glyphFor(s.health)} weight="weak">{s.health}</Status><button type="button" className="btn btn-g" disabled={!!pending} onClick={() => segment(s.id)}>Segment</button><button type="button" className="btn btn-s" disabled={!!pending} onClick={() => transcribe(s.id)}>{pending === `t-${s.id}` ? <Glyph kind="running" /> : null}Transcribe</button></div>) : <p className="t-sm i3">No audio sources in this project.</p>}
+        {v.sources.length ? v.sources.map((s) => <div key={s.id} className="lr" style={{ gridTemplateColumns: "minmax(0,1fr) minmax(0,1.4fr) 120px auto auto auto" }}><span style={{ display: "flex", flexDirection: "column", minWidth: 0 }}><span className="trunc" style={{ fontWeight: 600 }}>{s.label}</span><span className="mono t-mono-sm i3 trunc">{s.id}</span></span><span className="t-sm i3 trunc">{s.kind} · {s.detail}</span><Status kind={glyphFor(s.health)} weight="weak">{s.health}</Status><button type="button" className="btn btn-g" disabled={!!pending} onClick={() => segment(s.id)}>Segment</button><button type="button" className="btn btn-g" disabled={!!pending} onClick={() => inspectStoredData(s.id)}>Stored data</button><button type="button" className="btn btn-s" disabled={!!pending} onClick={() => transcribe(s.id)}>{pending === `t-${s.id}` ? <Glyph kind="running" /> : null}Transcribe</button></div>) : <p className="t-sm i3">No audio sources in this project.</p>}
+        {retentionPreview?.project_id === projectId && v.sources.some((s) => s.id === retentionPreview.source_id) && (
+          <p className="t-sm i2" role="status" aria-live="polite">
+            Stored audio: {formatStorage(retentionPreview.recording_bytes)} · transcript revisions: {retentionPreview.revision_count} · audit receipts: {retentionPreview.receipt_count}.
+            {" "}Read-only inspection; no deletion is available and no data was changed.
+          </p>
+        )}
       </Section>
       {seg && <Section title="Segmentation" count="draft"><p className="t-sm" style={{ marginBottom: 8 }}>{seg.summary}</p><pre className="pre">{seg.lines.join("\n") || "No segments."}</pre></Section>}
       {result && <Section title="Transcript" count={result.transcript ? `revision ${result.transcript.revision_no} · ${result.transcript.state}` : result.decision.outcome}>
