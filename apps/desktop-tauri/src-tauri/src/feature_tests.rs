@@ -993,7 +993,57 @@ fn medagent_workbench_agent_context_evidence_and_resume() {
             "malformed language {invalid_language:?} must be refused"
         );
     }
-    // Restart again: the remembered Audio Pack engine is reinstalled on open.
+    // Recovery path: previously downloaded app-owned model Packs are
+    // re-admitted via the SAME signed Core boundary, not merely trusted
+    // because an app-data directory happens to contain a manifest.
+    let stored = h
+        ._app
+        .state::<crate::host::Host>()
+        .state
+        .lock()
+        .unwrap()
+        .data_dir()
+        .unwrap()
+        .join("audio-models")
+        .join("whisper-tiny-en");
+    std::fs::create_dir_all(&stored).unwrap();
+    std::fs::write(stored.join("pack.manifest.json"), b"{}").unwrap();
+    let rejected = h.call(
+        "audio_model_activate_existing",
+        json!({ "modelId": "whisper-tiny-en" }),
+    );
+    assert!(
+        rejected.is_err(),
+        "Core must reject an unsigned saved model"
+    );
+    assert_eq!(
+        h.call(
+            "audio_model_activate_existing",
+            json!({ "modelId": "../../arbitrary" })
+        )
+        .unwrap_err()["kind"],
+        "invalid",
+        "model IDs may never become arbitrary filesystem paths"
+    );
+    std::fs::remove_dir_all(&stored).unwrap();
+    medscale_pack::asr_fixtures::synthetic_audio_pack(&stored);
+    let catalog = h.ok("audio_model_catalog", json!({}));
+    assert!(
+        catalog
+            .as_array()
+            .unwrap()
+            .iter()
+            .any(|m| m["id"] == "whisper-tiny-en" && m["pack_files_present"] == true),
+        "downloaded Pack must remain discoverable after relaunch: {catalog}"
+    );
+    let recovered = h.ok(
+        "audio_model_activate_existing",
+        json!({ "modelId": "whisper-tiny-en" }),
+    );
+    assert_eq!(recovered["installed"], true, "{recovered}");
+
+    // Restart again: the remembered app-owned Audio Pack is verified and
+    // reinstalled on open, without another network request.
     h.ok("workspace_lock", json!({}));
     {
         let again = Harness::restart("medagent");
