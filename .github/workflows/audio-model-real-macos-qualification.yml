@@ -16,10 +16,19 @@ concurrency:
 
 jobs:
   verify-real-whisper-macos:
-    name: verified English Whisper download and signed Pack (macOS)
+    name: pinned Whisper ${{ matrix.language }} source verification (macOS)
     runs-on: macos-latest
     timeout-minutes: 90
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - model_id: whisper-tiny-en
+            language: English
+          - model_id: whisper-tiny-multilingual
+            language: multilingual-en-ar
     env:
+      MEDSCALE_QUAL_MODEL_ID: ${{ matrix.model_id }}
       CARGO_BUILD_JOBS: "2"
       RUSTFLAGS: "-Dwarnings"
       MEDSCALE_QUAL_REAL_MODEL: "1"
@@ -37,7 +46,7 @@ jobs:
       - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2
         with:
           workspaces: apps/desktop-tauri/src-tauri -> target
-          key: real-whisper-macos-qualification
+          key: real-whisper-macos-${{ matrix.model_id }}-qualification
       - name: Build desktop frontend without lifecycle scripts
         working-directory: apps/desktop-tauri
         run: |
@@ -53,4 +62,4 @@ jobs:
       - name: Summarize evidence without publishing weights
         if: success()
         run: |
-          echo "QUALIFIED: macOS pinned public Whisper Tiny English HTTPS download, immutable source metadata, byte bounds, digest verification and signed Pack creation." >> "$GITHUB_STEP_SUMMARY"
+          echo "QUALIFIED: macOS public pinned Whisper ${{ matrix.model_id }} HTTPS download, immutable revision, model provenance, byte bounds, digest verification and signed Audio Pack creation. Speech recognition quality and human voice transcription are NOT qualified by this test." >> "$GITHUB_STEP_SUMMARY"
