@@ -38,8 +38,8 @@ test("native Audio picker grants OS open only, never broad file access", () => {
   assert.ok(!capability.permissions.some((name: string) => /^(?:fs|shell|http):/.test(name)));
   const cargo = readFileSync(new URL("../src-tauri/Cargo.toml", import.meta.url), "utf8");
   const native = readFileSync(new URL("../src-tauri/src/main.rs", import.meta.url), "utf8");
-  assert.match(cargo, /tauri-plugin-dialog = "=2\\.6\\.0"/);
-  assert.match(native, /\\.plugin\\(tauri_plugin_dialog::init\\(\\)\\)/);
+  assert.match(cargo, /tauri-plugin-dialog = "=2\.6\.0"/);
+  assert.match(native, /\.plugin\(tauri_plugin_dialog::init\(\)\)/);
 });
 
 test("production CSP still allows no remote origin", () => {
