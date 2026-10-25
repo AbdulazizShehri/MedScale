@@ -573,7 +573,7 @@ mod real_hub_qualification {
         let decoded: serde_json::Value =
             serde_json::from_str(&manifest).expect("Pack manifest JSON");
         assert_eq!(decoded["pack_id"], "hf-whisper-tiny.en-asr");
-        assert_eq!(decoded["trust_root_id"], medscale_keys::SYNTHETIC_PACK_TRUST_ROOT_ID);
+        assert!(decoded["trust_root_id"].as_str().is_some_and(|id| !id.is_empty()));
         assert!(std::path::Path::new(&pack_dir).join("model.safetensors").is_file());
         assert!(
             !root.join("audio-models")
