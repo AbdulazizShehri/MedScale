@@ -1,7 +1,7 @@
 //! Intelligence and operations commands: models, MedAgent, model fleet,
 //! collaboration, workflows and audio.
 
-use medscale_contracts::audio::{PcmFormat, MAX_AUDIO_BYTES};
+use medscale_contracts::audio::{MAX_AUDIO_BYTES, PcmFormat};
 use medscale_contracts::medagent::ToolKind;
 use medscale_contracts::objects::OpaqueId;
 use medscale_contracts::project_graph::{ArtifactDescriptor, ArtifactKind, ArtifactVersionBinding};
