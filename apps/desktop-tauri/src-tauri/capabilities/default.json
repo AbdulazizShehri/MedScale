@@ -85,6 +85,8 @@
     "allow-audio-import-synthetic",
     "allow-audio-segment",
     "allow-audio-asr-status",
+    "allow-audio-model-catalog",
+    "allow-audio-model-preflight",
     "allow-audio-admit-asr-pack",
     "allow-audio-import-wav",
     "allow-audio-transcribe",

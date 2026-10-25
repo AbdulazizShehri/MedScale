@@ -1,6 +1,7 @@
 import { useEffect, useState, type FormEvent } from "react";
 import { open } from "@tauri-apps/plugin-dialog";
 import { selectedPathOrPrevious } from "../audio-picker";
+import { formatStorage } from "../model-storage";
 import { useAction, useCommand } from "../lib/ipc";
 import { ProjectScope } from "../components/project";
 import { Authority, Empty, ErrorState, Glyph, KV, Ledger, Notice, PageHead, Section, Skeleton, Stamp, Status, glyphFor, useOutcome, useToast, type GlyphKind } from "../components/ui";
@@ -173,6 +174,8 @@ export function Audio() {
 }
 
 type AsrStatus = { routes: Array<{ route: string; available: boolean; reason: string | null }>; asr_pack_dir: string | null };
+type AudioModel = { id: string; name: string; repository: string; revision: string; languages: string; download_budget_bytes: number; required_space_bytes: number; installed: boolean; pack_files_present: boolean };
+type AudioModelPreflight = { model: AudioModel; free_bytes: number; required_space_bytes: number; enough_space: boolean; download_started: false; download_requires_explicit_consent: true };
 type Segment = { seq: number; start_ms: number; end_ms: number; status: string; text: string | null; speaker?: { kind: string; index?: number } };
 const speakerLabel = (s: Segment["speaker"]) => (s?.kind === "anonymous" && s.index !== undefined ? `speaker ${s.index}` : null);
 type Transcript = { revision_id: string; revision_no: number; state: string; segments: Segment[] };
@@ -181,6 +184,9 @@ type TranscribeResult = { decision: { outcome: string; reason?: string | null };
 function AudioBody({ projectId }: { projectId: string }) {
   const o = useCommand<AudioVm>("audio_overview", { projectId });
   const asr = useCommand<AsrStatus>("audio_asr_status");
+  const availableModels = useCommand<AudioModel[]>("audio_model_catalog");
+  const [chosenModel, setChosenModel] = useState("whisper-tiny-en");
+  const [storageCheck, setStorageCheck] = useState<AudioModelPreflight | null>(null);
   const [seg, setSeg] = useState<{ summary: string; lines: string[] } | null>(null);
   const [packPath, setPackPath] = useState("");
   const [wavPath, setWavPath] = useState("");
@@ -203,6 +209,10 @@ function AudioBody({ projectId }: { projectId: string }) {
   const { pending, run } = useAction();
   const outcome = useOutcome();
   const toast = useToast();
+  async function checkModelStorage() {
+    const r = await run<AudioModelPreflight>("storage", "audio_model_preflight", { modelId: chosenModel });
+    if (outcome(r, "Storage checked · no download started")) setStorageCheck(r.data);
+  }
   async function browseWav() {
     setChoosing("wav");
     try {
@@ -244,6 +254,35 @@ function AudioBody({ projectId }: { projectId: string }) {
     <>
       <div className="row-gap" style={{ gap: 8, marginBottom: 14 }}><button type="button" className="btn btn-s" onClick={importSynthetic} disabled={!!pending}>{pending === "import" ? <Glyph kind="running" /> : null}Import synthetic tone sample</button><span className="t-sm i3">Generated tone and silence; no microphone, no person.</span></div>
       <Ledger items={[{ k: "routes", v: v.routes }, { k: "native capture", v: v.native_capture }]} />
+      <Section title="Audio Model Manager" count={availableModels.state.status === "ready" ? availableModels.state.data.length : "…"}>
+        <p className="t-sm i2" style={{ marginBottom: 10 }}>Choose a pinned Whisper model. MedScale checks available disk space before any future download; it does not transfer data or install a model during this check.</p>
+        {availableModels.state.status === "error" ? <ErrorState error={availableModels.state.error} onRetry={availableModels.reload} /> : (
+          <div className="stack" style={{ gap: 8 }}>
+            <label className="lbl" htmlFor="asr-model-choice">Available speech models</label>
+            <select id="asr-model-choice" aria-label="Available speech models" value={chosenModel}
+              onChange={(e) => { setChosenModel(e.target.value); setStorageCheck(null); }}
+              disabled={availableModels.state.status !== "ready" || !!pending}>
+              {(availableModels.state.status === "ready" ? availableModels.state.data : []).map((m) => (
+                <option key={m.id} value={m.id}>{m.name} · {m.languages}</option>
+              ))}
+            </select>
+            {availableModels.state.status === "ready" && (() => {
+              const selected = availableModels.state.data.find((m) => m.id === chosenModel);
+              return selected ? <p className="t-sm i3">Download budget: {formatStorage(selected.download_budget_bytes)}; temporary snapshot, signed Pack and free-space reserve: {formatStorage(selected.required_space_bytes)}. Source: {selected.repository} at pinned revision {selected.revision.slice(0, 8)}.</p> : null;
+            })()}
+            <div><button type="button" className="btn btn-s" onClick={checkModelStorage}
+              disabled={availableModels.state.status !== "ready" || !!pending}>
+              Check disk budget
+            </button></div>
+            {storageCheck && <div data-testid="audio-model-preflight" className="t-sm i2">
+              {storageCheck.enough_space ? "Enough local storage for the planned download and Pack staging." : "Insufficient free storage; no download should start."}
+              {" "}Free: {formatStorage(storageCheck.free_bytes)}; required: {formatStorage(storageCheck.required_space_bytes)}.
+              {" "}No download has started.
+            </div>}
+            <p className="t-sm i3">Already have a verified Audio Pack? Select its folder below to admit it offline. One-click download and cancellation will follow in the acquisition milestone.</p>
+          </div>
+        )}
+      </Section>
       <Section title="Local speech recognition" count={local?.available ? "on" : "off"}>
         <div className="row-gap" style={{ gap: 10, marginBottom: 8 }}>
           <Status kind={local?.available ? "available" : "unavailable"} weight="strong">{local?.available ? "Local Whisper engine installed" : (local?.reason ?? "Not installed")}</Status>

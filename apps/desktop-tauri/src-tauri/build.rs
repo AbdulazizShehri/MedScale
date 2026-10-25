@@ -83,6 +83,8 @@ fn main() {
             "audio_import_synthetic",
             "audio_segment",
             "audio_asr_status",
+            "audio_model_catalog",
+            "audio_model_preflight",
             "audio_admit_asr_pack",
             "audio_import_wav",
             "audio_transcribe",

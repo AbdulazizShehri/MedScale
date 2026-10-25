@@ -915,6 +915,22 @@ pub fn workflow_overview(host: tauri::State<'_, Host>) -> CmdResult<Value> {
 
 // ───────────────────────────── audio ─────────────────────────────
 
+/// Pinned, supported Whisper options. No download or installation side effect.
+#[tauri::command(async)]
+pub fn audio_model_catalog(host: tauri::State<'_, Host>) -> CmdResult<Value> {
+    let state = lock(&host)?;
+    Ok(json!(crate::audio_model_manager::catalog(
+        state.data_dir()?
+    )))
+}
+
+/// Checks the selected pinned model's conservative staging + Pack disk budget.
+#[tauri::command(async)]
+pub fn audio_model_preflight(host: tauri::State<'_, Host>, model_id: String) -> CmdResult<Value> {
+    let state = lock(&host)?;
+    crate::audio_model_manager::preflight(&model_id, state.data_dir()?)
+}
+
 #[tauri::command(async)]
 pub fn audio_overview(host: tauri::State<'_, Host>, project_id: String) -> CmdResult<Value> {
     let mut state = lock(&host)?;

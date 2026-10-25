@@ -11,6 +11,7 @@ macro_rules! obj {
     };
 }
 
+mod audio_model_manager;
 mod cmd_core;
 mod cmd_ops;
 mod cmd_research;
@@ -111,6 +112,8 @@ fn presentation_builder<R: tauri::Runtime>(builder: tauri::Builder<R>) -> tauri:
             cmd_ops::audio_import_synthetic,
             cmd_ops::audio_segment,
             cmd_ops::audio_asr_status,
+            cmd_ops::audio_model_catalog,
+            cmd_ops::audio_model_preflight,
             cmd_ops::audio_admit_asr_pack,
             cmd_ops::audio_import_wav,
             cmd_ops::audio_transcribe,

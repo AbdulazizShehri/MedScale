@@ -298,6 +298,11 @@ try {
   });
   await journey("audio-synthetic-tone-import", async () => {
     await nav("Audio");
+    // Desktop Core preflight checks actual available disk space without downloading.
+    await find("//select[@aria-label='Available speech models']");
+    await click("//button[normalize-space(.)='Check disk budget']");
+    await see("Storage checked", 30000);
+    await find("//*[@data-testid='audio-model-preflight' and contains(normalize-space(.),'No download has started')]");
     // Assert production's native chooser buttons are visible; do not open an
     // OS modal in unattended E2E. Real WAV/Pack inputs still use explicit paths.
     await find("//form[.//input[@id='ap1']]//button[@type='button' and contains(normalize-space(.),'Browse folder')]");
