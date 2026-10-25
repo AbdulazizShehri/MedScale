@@ -895,6 +895,24 @@ fn medagent_workbench_agent_context_evidence_and_resume() {
         ),
     )
     .unwrap();
+    // Desktop and Core share the same 32 MiB WAV limit. Reject one byte
+    // beyond the contract before attempting to parse or persist a source.
+    let oversized_wav = dir.join("oversized-recording.wav");
+    std::fs::File::create(&oversized_wav)
+        .unwrap()
+        .set_len(medscale_contracts::audio::MAX_AUDIO_BYTES as u64 + 1)
+        .unwrap();
+    let err = h.call(
+        "audio_import_wav",
+        json!({ "projectId": pid, "path": oversized_wav.display().to_string() }),
+    ).unwrap_err();
+    assert_eq!(err["kind"], "invalid", "{err}");
+    assert!(
+        err["message"].as_str().unwrap_or_default().contains("33554432"),
+        "oversized recording must be refused at Core's exact bound: {err}"
+    );
+    std::fs::remove_file(&oversized_wav).unwrap();
+
     let imported = h.ok(
         "audio_import_wav",
         json!({ "projectId": pid, "path": wav_path.display().to_string() }),
