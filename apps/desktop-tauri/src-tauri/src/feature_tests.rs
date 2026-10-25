@@ -1036,14 +1036,25 @@ fn medagent_workbench_agent_context_evidence_and_resume() {
             .any(|m| m["id"] == "whisper-tiny-en" && m["pack_files_present"] == true),
         "downloaded Pack must remain discoverable after relaunch: {catalog}"
     );
-    let recovered = h.ok(
+    let wrong_source = h.call(
         "audio_model_activate_existing",
         json!({ "modelId": "whisper-tiny-en" }),
     );
+    assert_eq!(
+        wrong_source.unwrap_err()["kind"],
+        "denied",
+        "even a valid signed Pack cannot masquerade as another pinned model"
+    );
+    // A manually chosen, valid synthetic fixture Pack remains supported
+    // through its normal, user-selected admission route.
+    let recovered = h.ok(
+        "audio_admit_asr_pack",
+        json!({ "path": stored.display().to_string() }),
+    );
     assert_eq!(recovered["installed"], true, "{recovered}");
 
-    // Restart again: the remembered app-owned Audio Pack is verified and
-    // reinstalled on open, without another network request.
+    // Restart again: Core re-verifies and restores the remembered Audio
+    // Pack without any network request.
     h.ok("workspace_lock", json!({}));
     {
         let again = Harness::restart("medagent");
