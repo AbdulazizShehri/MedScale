@@ -298,6 +298,10 @@ try {
   });
   await journey("audio-synthetic-tone-import", async () => {
     await nav("Audio");
+    // Assert production's native chooser buttons are visible; do not open an
+    // OS modal in unattended E2E. Real WAV/Pack inputs still use explicit paths.
+    await find("//form[.//input[@id='ap1']]//button[@type='button' and contains(normalize-space(.),'Browse folder')]");
+    await find("//form[.//input[@id='wp1']]//button[@type='button' and contains(normalize-space(.),'Browse WAV')]");
     await click(`//button[${text("Import synthetic tone sample")}]`);
     await see("Synthetic tone imported", 60000);
     // An action toast alone is insufficient; imported synthetic lineage must
