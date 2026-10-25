@@ -74,6 +74,9 @@ impl Model {
             "download_budget_bytes": self.max_snapshot_bytes,
             "required_space_bytes": self.required_bytes(),
             "pack_files_present": self.directory(data_dir).join("pack.manifest.json").is_file(),
+            // Never overwrite a pre-existing app-owned model directory, even
+            // when its manifest is incomplete after a crash or disk failure.
+            "cache_entry_exists": self.directory(data_dir).exists(),
             "installed": false,
         })
     }
@@ -136,6 +139,7 @@ pub fn preflight(id: &str, data_dir: &Path) -> CmdResult<Value> {
         "enough_space": free_bytes >= entry.required_bytes(),
         "download_started": false,
         "download_requires_explicit_consent": true,
+        "cache_entry_exists": entry.directory(data_dir).exists(),
     }))
 }
 
@@ -204,6 +208,31 @@ mod tests {
     }
 
     #[test]
+    fn preflight_reports_existing_complete_and_incomplete_cache_without_writing() {
+        let root = std::env::temp_dir()
+            .join(format!("medscale-existing-model-guard-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&root);
+        std::fs::create_dir_all(&root).unwrap();
+        let target = root.join("audio-models").join("whisper-tiny-en");
+        std::fs::create_dir_all(&target).unwrap();
+        let entries = catalog(&root);
+        let english = entries.iter().find(|v| v["id"] == "whisper-tiny-en").unwrap();
+        assert_eq!(english["cache_entry_exists"], true);
+        assert_eq!(english["pack_files_present"], false);
+        let check = preflight("whisper-tiny-en", &root).unwrap();
+        assert_eq!(check["cache_entry_exists"], true);
+        // A partial cache must not be misrepresented as a verified Pack.
+        std::fs::write(target.join("pack.manifest.json"), b"{}").unwrap();
+        let cached = catalog(&root);
+        let english = cached.iter().find(|v| v["id"] == "whisper-tiny-en").unwrap();
+        assert_eq!(english["cache_entry_exists"], true);
+        assert_eq!(english["pack_files_present"], true);
+        let other = cached.iter().find(|v| v["id"] == "whisper-base-en").unwrap();
+        assert_eq!(other["cache_entry_exists"], false);
+        std::fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
     fn catalog_is_read_only_and_does_not_create_model_folders() {
         let path = std::env::temp_dir()
             .join(format!("medscale-model-preflight-{}", std::process::id()))
@@ -211,6 +240,7 @@ mod tests {
         let entries = catalog(&path);
         assert_eq!(entries.len(), 3);
         assert!(entries.iter().all(|entry| entry["installed"] == false));
+        assert!(entries.iter().all(|entry| entry["cache_entry_exists"] == false));
         assert!(!path.exists());
     }
 }
@@ -514,6 +544,15 @@ pub fn start(host: &Host, model_id: String, consent: bool) -> CmdResult<Value> {
         .map_err(|_| CmdError::unavailable("Unavailable: desktop state"))?
         .data_dir()?
         .to_path_buf();
+    // An existing (even incomplete) model cache must be examined or
+    // activated, not overwritten by a second download. Check this before
+    // disk budget so existing cached models work with little free space.
+    if entry.directory(&data_dir).exists() {
+        return Err(CmdError::new(
+            "conflict",
+            "Conflict: saved model directory exists; activate the saved Pack or inspect the cache",
+        ));
+    }
     let status = preflight(&model_id, &data_dir)?;
     if status["enough_space"] != true {
         return Err(CmdError::invalid(
