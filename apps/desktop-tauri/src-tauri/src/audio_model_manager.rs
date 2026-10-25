@@ -91,6 +91,32 @@ pub fn existing_pack_path(id: &str, data_dir: &Path) -> CmdResult<String> {
             "Missing: no downloaded Audio Pack for this model",
         ));
     }
+    // The app-managed folder's name alone cannot identify a model. Before
+    // forwarding it to Core for cryptographic signature/digest admission,
+    // require that its on-disk provenance matches the exact pinned UI choice.
+    // Each metadata read is independently bounded, never arbitrary files.
+    let manifest = crate::host::read_bounded(&path.join("pack.manifest.json"), MIB)?;
+    let meta = crate::host::read_bounded(&path.join("model.meta.json"), MIB)?;
+    let manifest: Value = serde_json::from_slice(&manifest)
+        .map_err(|_| CmdError::invalid("Invalid: malformed saved Audio Pack manifest"))?;
+    let meta: Value = serde_json::from_slice(&meta)
+        .map_err(|_| CmdError::invalid("Invalid: malformed saved model provenance"))?;
+    let expected_pack_id = format!(
+        "hf-{}-asr",
+        entry.repository.rsplit('/').next().unwrap_or_default()
+    );
+    if manifest["pack_id"] != expected_pack_id
+        || meta["repository"] != entry.repository
+        || meta["revision"] != entry.revision
+        || meta["runtime_family"] != medscale_pack::CANDLE_WHISPER_ASR_RUNTIME_ID
+    {
+        return Err(CmdError::new(
+            "denied",
+            "Denied: saved Pack identity does not match the selected pinned Whisper model",
+        ));
+    }
+    // These JSON claims are untrusted hints ONLY. The caller must still
+    // re-admit the entire Pack through Core's signed manifest + digest checks.
     Ok(path.to_string_lossy().into_owned())
 }
 
@@ -144,12 +170,33 @@ mod tests {
         let folder = root.join("audio-models").join("whisper-tiny-en");
         std::fs::create_dir_all(&folder).unwrap();
         std::fs::write(folder.join("pack.manifest.json"), b"{}").unwrap();
+        assert!(existing_pack_path("whisper-tiny-en", &root).is_err());
+        std::fs::write(
+            folder.join("pack.manifest.json"),
+            br#"{"pack_id":"hf-whisper-tiny.en-asr"}"#,
+        )
+        .unwrap();
+        std::fs::write(
+            folder.join("model.meta.json"),
+            br#"{"repository":"openai/whisper-tiny","revision":"169d4a4341b33bc18d8881c4b69c2e104e1cc0af","runtime_family":"candle_whisper_asr_v1"}"#,
+        )
+        .unwrap();
+        assert_eq!(
+            existing_pack_path("whisper-tiny-en", &root).unwrap_err().kind,
+            "denied",
+            "a different signed model source cannot masquerade as Whisper Tiny English"
+        );
+        std::fs::write(
+            folder.join("model.meta.json"),
+            br#"{"repository":"openai/whisper-tiny.en","revision":"87c7102498dcde7456f24cfd30239ca606ed9063","runtime_family":"candle_whisper_asr_v1"}"#,
+        )
+        .unwrap();
         assert_eq!(
             existing_pack_path("whisper-tiny-en", &root).unwrap(),
             folder.to_string_lossy()
         );
-        // This helper only identifies the candidate; Core still verifies the
-        // manifest and signed artifact digests during admission.
+        // These hints only identify the candidate. Core still verifies
+        // manifest signatures and artifact digests during admission.
         assert!(!root.join("audio-models").join("whisper-base-en").exists());
         std::fs::remove_dir_all(&root).unwrap();
     }
