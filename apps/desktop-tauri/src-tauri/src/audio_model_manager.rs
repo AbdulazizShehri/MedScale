@@ -227,6 +227,40 @@ fn http_agent() -> ureq::Agent {
         .new_agent()
 }
 
+/// Apply the same byte bound and cancellation contract to HTTP streams and
+/// pure, deterministic in-memory tests. Never trust the Content-Length header.
+fn copy_bounded(
+    reader: &mut impl Read,
+    limit: u64,
+    cancel: &AtomicBool,
+    mut on_bytes: impl FnMut(&[u8]) -> Result<(), String>,
+) -> Result<u64, String> {
+    let mut buf = [0u8; 64 * 1024];
+    let mut received = 0u64;
+    loop {
+        if cancel.load(Ordering::Relaxed) {
+            return Err("Download cancelled".into());
+        }
+        let n = reader
+            .read(&mut buf)
+            .map_err(|_| "Download stream interrupted".to_owned())?;
+        if n == 0 {
+            break;
+        }
+        received = received
+            .checked_add(n as u64)
+            .ok_or("Download exceeded the selected model's byte limit")?;
+        if received > limit {
+            return Err("Download exceeded the selected model's byte limit".into());
+        }
+        on_bytes(&buf[..n])?;
+    }
+    if received == 0 {
+        return Err("Download returned an empty file".into());
+    }
+    Ok(received)
+}
+
 /// Every byte is checked against a hard limit, regardless of Content-Length.
 /// Redirect targets are constrained by the Hub's published HTTPS domains.
 /// Accepts only caller-supplied, pinned paths; never an arbitrary UI URL.
@@ -263,28 +297,7 @@ fn fetch_bounded(
             return Err(format!("Download HTTP status {code}"));
         }
         let mut reader = response.body_mut().as_reader();
-        let mut buf = [0u8; 64 * 1024];
-        let mut received = 0u64;
-        loop {
-            if cancel.load(Ordering::Relaxed) {
-                return Err("Download cancelled".into());
-            }
-            let n = reader
-                .read(&mut buf)
-                .map_err(|_| "Download stream interrupted".to_owned())?;
-            if n == 0 {
-                break;
-            }
-            received += n as u64;
-            if received > limit {
-                return Err("Download exceeded the selected model's byte limit".into());
-            }
-            on_bytes(&buf[..n])?;
-        }
-        if received == 0 {
-            return Err("Download returned an empty file".into());
-        }
-        return Ok(received);
+        return copy_bounded(&mut reader, limit, cancel, &mut on_bytes);
     }
     Err("Too many download redirects".into())
 }
@@ -552,6 +565,74 @@ mod acquisition_tests {
         ] {
             assert!(safe_url(&Url::parse(raw).unwrap()).is_ok(), "{raw}");
         }
+    }
+
+    #[test]
+    fn bounded_stream_enforces_exact_limits_without_network() {
+        let data = vec![7u8; 128 * 1024];
+        let cancel = AtomicBool::new(false);
+        let mut received = Vec::new();
+        let mut cursor = std::io::Cursor::new(&data);
+        let bytes = copy_bounded(&mut cursor, data.len() as u64, &cancel, |chunk| {
+            received.extend_from_slice(chunk);
+            Ok(())
+        })
+        .unwrap();
+        assert_eq!(bytes, data.len() as u64);
+        assert_eq!(received, data);
+
+        let mut cursor = std::io::Cursor::new(&data);
+        let oversized = copy_bounded(&mut cursor, 64 * 1024 - 1, &cancel, |_| {
+            panic!("oversized chunk must not be written")
+        });
+        assert_eq!(
+            oversized.unwrap_err(),
+            "Download exceeded the selected model's byte limit"
+        );
+
+        let mut cursor = std::io::Cursor::new(Vec::<u8>::new());
+        assert_eq!(
+            copy_bounded(&mut cursor, 100, &cancel, |_| Ok(())).unwrap_err(),
+            "Download returned an empty file"
+        );
+    }
+
+    #[test]
+    fn cancellation_during_stream_stops_before_second_chunk() {
+        let flag = AtomicBool::new(false);
+        let mut input = std::io::Cursor::new(vec![3u8; 3 * 64 * 1024]);
+        let mut chunks = 0;
+        let result = copy_bounded(&mut input, 512 * 1024, &flag, |_| {
+            chunks += 1;
+            flag.store(true, Ordering::Relaxed);
+            Ok(())
+        });
+        assert_eq!(result.unwrap_err(), "Download cancelled");
+        assert_eq!(chunks, 1);
+    }
+
+    #[test]
+    fn cancelled_acquisition_cleans_only_its_own_temp_folder() {
+        let root = std::env::temp_dir().join(format!(
+            "medscale-aborted-download-cleanup-{}",
+            std::process::id()
+        ));
+        let _ = std::fs::remove_dir_all(&root);
+        std::fs::create_dir(&root).unwrap();
+        let other = root.join("unrelated-user-file.txt");
+        std::fs::write(&other, b"must survive").unwrap();
+        let coordinator = Arc::new(Mutex::new(DownloadCoordinator::default()));
+        let flag = AtomicBool::new(true);
+        let error = acquire(model("whisper-tiny-en").unwrap(), &root, &flag, &coordinator)
+            .unwrap_err();
+        assert_eq!(error, "Download cancelled");
+        let stage = root
+            .join("audio-models")
+            .join(format!(".download-whisper-tiny-en-{}", std::process::id()));
+        assert!(!stage.exists(), "cancelled stage must be cleaned");
+        assert!(!root.join("audio-models").join("whisper-tiny-en").exists());
+        assert_eq!(std::fs::read(&other).unwrap(), b"must survive");
+        std::fs::remove_dir_all(root).unwrap();
     }
 
     #[test]
