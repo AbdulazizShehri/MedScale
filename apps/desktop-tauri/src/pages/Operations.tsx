@@ -183,6 +183,7 @@ function AudioBody({ projectId }: { projectId: string }) {
   const [packPath, setPackPath] = useState("");
   const [wavPath, setWavPath] = useState("");
   const [route, setRoute] = useState("local_asr_pack");
+  const [language, setLanguage] = useState<"en" | "ar">("en");
   const [diarize, setDiarize] = useState(false);
   const [result, setResult] = useState<TranscribeResult | null>(null);
   const [edit, setEdit] = useState<{ seq: number; text: string; reason: string } | null>(null);
@@ -204,7 +205,7 @@ function AudioBody({ projectId }: { projectId: string }) {
   async function admitPack(e: FormEvent) { e.preventDefault(); const r = await run("pack", "audio_admit_asr_pack", { path: packPath }); if (outcome(r, "Audio Pack admitted · local recognition on")) { setPackPath(""); await asr.reload(); } }
   async function importWav(e: FormEvent) { e.preventDefault(); const r = await run("wav", "audio_import_wav", { projectId, path: wavPath }); if (outcome(r, "Recording imported")) { setWavPath(""); await o.reload(); } }
   async function transcribe(id: string) {
-    const r = await run<TranscribeResult>(`t-${id}`, "audio_transcribe", { projectId, sourceId: id, route, diarize });
+    const r = await run<TranscribeResult>(`t-${id}`, "audio_transcribe", { projectId, sourceId: id, route, language, diarize });
     if (outcome(r, "Transcription recorded · draft")) { setResult(r.data); setEdit(null); }
   }
   async function correct(e: FormEvent) {
@@ -232,12 +233,12 @@ function AudioBody({ projectId }: { projectId: string }) {
             <div><button type="submit" className="btn btn-s" disabled={!packPath.trim() || !!pending}>Admit and install</button></div>
           </form>
           <form onSubmit={importWav} className="stack" style={{ gap: 6 }}>
-            <label className="lbl" htmlFor="wp1">Import a synthetic WAV recording</label>
+            <label className="lbl" htmlFor="wp1">Import a WAV recording</label>
             <input id="wp1" value={wavPath} maxLength={1024} placeholder="Absolute .wav path (16 kHz, 16-bit)" onChange={(e) => setWavPath(e.target.value)} />
             <div><button type="submit" className="btn btn-s" disabled={!wavPath.trim() || !!pending}>Import</button></div>
           </form>
         </div>
-        <p className="t-sm i3" style={{ marginTop: 6 }}>Core verifies the Pack and runs recognition on this device; audio never leaves it. Synthetic recordings only.</p>
+        <p className="t-sm i3" style={{ marginTop: 6 }}>Core verifies the Audio Pack and transcribes imported WAV recordings on this device. Choose the language before transcription.</p>
       </Section>
       <Section title="Sources" count={v.sources.length} actions={
         <select aria-label="Transcription route" value={route} onChange={(e) => setRoute(e.target.value)} style={{ height: 26 }}>
@@ -245,6 +246,13 @@ function AudioBody({ projectId }: { projectId: string }) {
           <option value="fixture_asr">Fixture engine (not recognition)</option>
           <option value="segmentation_only">Segmentation only</option>
         </select>}>
+        <label className="row-gap t-sm" style={{ gap: 8, marginBottom: 8 }}>
+          Transcription language
+          <select aria-label="Transcription language" value={language} onChange={(e) => setLanguage(e.target.value as "en" | "ar")}>
+            <option value="en">English</option>
+            <option value="ar">Arabic (requires multilingual Audio Pack)</option>
+          </select>
+        </label>
         <label className="row-gap t-sm" style={{ gap: 6, marginBottom: 8 }}>
           <input type="checkbox" checked={diarize} onChange={(e) => setDiarize(e.target.checked)} />
           Group speakers (acoustic clustering, unvalidated; labels are never identity)
