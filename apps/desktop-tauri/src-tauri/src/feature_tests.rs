@@ -902,13 +902,18 @@ fn medagent_workbench_agent_context_evidence_and_resume() {
         .unwrap()
         .set_len(medscale_contracts::audio::MAX_AUDIO_BYTES as u64 + 1)
         .unwrap();
-    let err = h.call(
-        "audio_import_wav",
-        json!({ "projectId": pid, "path": oversized_wav.display().to_string() }),
-    ).unwrap_err();
+    let err = h
+        .call(
+            "audio_import_wav",
+            json!({ "projectId": pid, "path": oversized_wav.display().to_string() }),
+        )
+        .unwrap_err();
     assert_eq!(err["kind"], "invalid", "{err}");
     assert!(
-        err["message"].as_str().unwrap_or_default().contains("33554432"),
+        err["message"]
+            .as_str()
+            .unwrap_or_default()
+            .contains("33554432"),
         "oversized recording must be refused at Core's exact bound: {err}"
     );
     std::fs::remove_file(&oversized_wav).unwrap();
