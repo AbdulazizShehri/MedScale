@@ -27,6 +27,10 @@ jobs:
             language: English
           - model_id: whisper-tiny-multilingual
             language: multilingual-en-ar
+          - model_id: whisper-base-multilingual
+            language: multilingual-base-en-ar
+          - model_id: whisper-small-multilingual
+            language: multilingual-small-en-ar
     env:
       MEDSCALE_QUAL_MODEL_ID: ${{ matrix.model_id }}
       CARGO_BUILD_JOBS: "2"
