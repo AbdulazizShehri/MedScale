@@ -20,7 +20,7 @@ struct Model {
     max_snapshot_bytes: u64,
 }
 
-const MODELS: [Model; 3] = [
+const MODELS: [Model; 5] = [
     Model {
         id: "whisper-tiny-en",
         name: "Whisper Tiny · English",
@@ -44,6 +44,22 @@ const MODELS: [Model; 3] = [
         revision: "911407f4214e0e1d82085af863093ec0b66f9cd6",
         languages: "English",
         max_snapshot_bytes: 384 * MIB,
+    },
+    Model {
+        id: "whisper-base-multilingual",
+        name: "Whisper Base · Multilingual",
+        repository: "openai/whisper-base",
+        revision: "e37978b90ca9030d5170a5c07aadb050351a65bb",
+        languages: "Multilingual · English and Arabic",
+        max_snapshot_bytes: 384 * MIB,
+    },
+    Model {
+        id: "whisper-small-multilingual",
+        name: "Whisper Small · Multilingual",
+        repository: "openai/whisper-small",
+        revision: "973afd24965f72e36ca33b3055d56a652f456b4d",
+        languages: "Multilingual · English and Arabic · higher storage",
+        max_snapshot_bytes: 1200 * MIB,
     },
 ];
 
@@ -249,7 +265,7 @@ mod tests {
             .join(format!("medscale-model-preflight-{}", std::process::id()))
             .join("unused");
         let entries = catalog(&path);
-        assert_eq!(entries.len(), 3);
+        assert_eq!(entries.len(), 5);
         assert!(entries.iter().all(|entry| entry["installed"] == false));
         assert!(
             entries
