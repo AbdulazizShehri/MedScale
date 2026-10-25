@@ -1036,6 +1036,15 @@ fn medagent_workbench_agent_context_evidence_and_resume() {
             .any(|m| m["id"] == "whisper-tiny-en" && m["pack_files_present"] == true),
         "downloaded Pack must remain discoverable after relaunch: {catalog}"
     );
+    // The signed synthetic Audio Pack correctly identifies the pinned
+    // Whisper tiny.en provenance; change only an app-owned test copy of
+    // model.meta.json to simulate a mislabeled local model. This must fail
+    // before reaching Core; then restore exact original bytes for admission.
+    let provenance_path = stored.join("model.meta.json");
+    let original_provenance = std::fs::read(&provenance_path).unwrap();
+    let mut altered: Value = serde_json::from_slice(&original_provenance).unwrap();
+    altered["repository"] = json!("openai/whisper-tiny");
+    std::fs::write(&provenance_path, serde_json::to_vec(&altered).unwrap()).unwrap();
     let wrong_source = h.call(
         "audio_model_activate_existing",
         json!({ "modelId": "whisper-tiny-en" }),
@@ -1043,13 +1052,14 @@ fn medagent_workbench_agent_context_evidence_and_resume() {
     assert_eq!(
         wrong_source.unwrap_err()["kind"],
         "denied",
-        "even a valid signed Pack cannot masquerade as another pinned model"
+        "even an otherwise signed Pack cannot masquerade as another pinned model"
     );
-    // A manually chosen, valid synthetic fixture Pack remains supported
-    // through its normal, user-selected admission route.
+    std::fs::write(&provenance_path, original_provenance).unwrap();
+    // A genuine signed Pack with matching provenance now passes both the
+    // allowlist preflight and Core's independent signature/digest admission.
     let recovered = h.ok(
-        "audio_admit_asr_pack",
-        json!({ "path": stored.display().to_string() }),
+        "audio_model_activate_existing",
+        json!({ "modelId": "whisper-tiny-en" }),
     );
     assert_eq!(recovered["installed"], true, "{recovered}");
 
