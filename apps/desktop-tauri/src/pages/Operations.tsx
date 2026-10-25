@@ -1,7 +1,9 @@
 import { useEffect, useState, type FormEvent } from "react";
+import { open } from "@tauri-apps/plugin-dialog";
+import { selectedPathOrPrevious } from "../audio-picker";
 import { useAction, useCommand } from "../lib/ipc";
 import { ProjectScope } from "../components/project";
-import { Authority, Empty, ErrorState, Glyph, KV, Ledger, Notice, PageHead, Section, Skeleton, Stamp, Status, glyphFor, useOutcome, type GlyphKind } from "../components/ui";
+import { Authority, Empty, ErrorState, Glyph, KV, Ledger, Notice, PageHead, Section, Skeleton, Stamp, Status, glyphFor, useOutcome, useToast, type GlyphKind } from "../components/ui";
 
 type WorkflowVm = {
   synthetic_only: boolean; workflow_name: string; workflow_state: string; outbox_summary: string;
@@ -182,6 +184,7 @@ function AudioBody({ projectId }: { projectId: string }) {
   const [seg, setSeg] = useState<{ summary: string; lines: string[] } | null>(null);
   const [packPath, setPackPath] = useState("");
   const [wavPath, setWavPath] = useState("");
+  const [choosing, setChoosing] = useState<"pack" | "wav" | null>(null);
   const [route, setRoute] = useState("local_asr_pack");
   const [language, setLanguage] = useState<"en" | "ar">("en");
   const [diarize, setDiarize] = useState(false);
@@ -199,6 +202,26 @@ function AudioBody({ projectId }: { projectId: string }) {
   }
   const { pending, run } = useAction();
   const outcome = useOutcome();
+  const toast = useToast();
+  async function browseWav() {
+    setChoosing("wav");
+    try {
+      const selected = await open({ multiple: false, directory: false, title: "Choose a WAV recording", filters: [{ name: "PCM WAV", extensions: ["wav"] }] });
+      // Cancel is not an error and never overwrites a previously entered path.
+      setWavPath((previous) => selectedPathOrPrevious(previous, selected));
+    } catch {
+      toast({ kind: "blocked", title: "Cannot open file chooser", detail: "You can still enter an absolute WAV path." });
+    } finally { setChoosing(null); }
+  }
+  async function browsePack() {
+    setChoosing("pack");
+    try {
+      const selected = await open({ multiple: false, directory: true, title: "Choose a verified MedScale Audio Pack folder" });
+      setPackPath((previous) => selectedPathOrPrevious(previous, selected));
+    } catch {
+      toast({ kind: "blocked", title: "Cannot open folder chooser", detail: "You can still enter an absolute Audio Pack path." });
+    } finally { setChoosing(null); }
+  }
   const local = asr.state.status === "ready" ? asr.state.data.routes.find((r) => r.route === "local_asr_pack") : undefined;
   async function importSynthetic() { const r = await run("import", "audio_import_synthetic", { projectId }); if (outcome(r, "Synthetic tone imported")) await o.reload(); }
   async function segment(id: string) { const r = await run<{ summary: string; lines: string[] }>(id, "audio_segment", { projectId, sourceId: id }); if (outcome(r, "Segmentation recorded")) setSeg(r.data); }
@@ -230,12 +253,18 @@ function AudioBody({ projectId }: { projectId: string }) {
           <form onSubmit={admitPack} className="stack" style={{ gap: 6 }}>
             <label className="lbl" htmlFor="ap1">Admit an Audio Pack folder</label>
             <input id="ap1" value={packPath} maxLength={1024} placeholder="Absolute folder path" onChange={(e) => setPackPath(e.target.value)} />
-            <div><button type="submit" className="btn btn-s" disabled={!packPath.trim() || !!pending}>Admit and install</button></div>
+            <div className="row-gap" style={{ gap: 8 }}>
+              <button type="button" className="btn btn-g" onClick={browsePack} disabled={!!pending || !!choosing}>Browse folder…</button>
+              <button type="submit" className="btn btn-s" disabled={!packPath.trim() || !!pending || !!choosing}>Admit and install</button>
+            </div>
           </form>
           <form onSubmit={importWav} className="stack" style={{ gap: 6 }}>
             <label className="lbl" htmlFor="wp1">Import a WAV recording</label>
             <input id="wp1" value={wavPath} maxLength={1024} placeholder="Absolute .wav path (16 kHz, 16-bit PCM, up to 32 MiB)" onChange={(e) => setWavPath(e.target.value)} />
-            <div><button type="submit" className="btn btn-s" disabled={!wavPath.trim() || !!pending}>Import</button></div>
+            <div className="row-gap" style={{ gap: 8 }}>
+              <button type="button" className="btn btn-g" onClick={browseWav} disabled={!!pending || !!choosing}>Browse WAV…</button>
+              <button type="submit" className="btn btn-s" disabled={!wavPath.trim() || !!pending || !!choosing}>Import</button>
+            </div>
           </form>
         </div>
         <p className="t-sm i3" style={{ marginTop: 6 }}>Import PCM WAV (16 kHz, 16-bit, up to 32 MiB / 30 minutes). Core verifies the Audio Pack and transcribes on this device. Choose the language before transcription.</p>

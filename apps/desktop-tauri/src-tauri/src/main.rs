@@ -121,7 +121,7 @@ fn presentation_builder<R: tauri::Runtime>(builder: tauri::Builder<R>) -> tauri:
 
 fn main() {
     startup_failure::install_panic_hook();
-    presentation_builder(tauri::Builder::default())
+    presentation_builder(tauri::Builder::default().plugin(tauri_plugin_dialog::init()))
         .setup(|app| {
             let data_dir = app.path().app_local_data_dir()?;
             std::fs::create_dir_all(&data_dir)?;
