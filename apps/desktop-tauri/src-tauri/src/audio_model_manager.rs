@@ -182,7 +182,9 @@ mod tests {
         )
         .unwrap();
         assert_eq!(
-            existing_pack_path("whisper-tiny-en", &root).unwrap_err().kind,
+            existing_pack_path("whisper-tiny-en", &root)
+                .unwrap_err()
+                .kind,
             "denied",
             "a different signed model source cannot masquerade as Whisper Tiny English"
         );
