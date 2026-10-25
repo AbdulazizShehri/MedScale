@@ -209,14 +209,19 @@ mod tests {
 
     #[test]
     fn preflight_reports_existing_complete_and_incomplete_cache_without_writing() {
-        let root = std::env::temp_dir()
-            .join(format!("medscale-existing-model-guard-{}", std::process::id()));
+        let root = std::env::temp_dir().join(format!(
+            "medscale-existing-model-guard-{}",
+            std::process::id()
+        ));
         let _ = std::fs::remove_dir_all(&root);
         std::fs::create_dir_all(&root).unwrap();
         let target = root.join("audio-models").join("whisper-tiny-en");
         std::fs::create_dir_all(&target).unwrap();
         let entries = catalog(&root);
-        let english = entries.iter().find(|v| v["id"] == "whisper-tiny-en").unwrap();
+        let english = entries
+            .iter()
+            .find(|v| v["id"] == "whisper-tiny-en")
+            .unwrap();
         assert_eq!(english["cache_entry_exists"], true);
         assert_eq!(english["pack_files_present"], false);
         let check = preflight("whisper-tiny-en", &root).unwrap();
@@ -224,10 +229,16 @@ mod tests {
         // A partial cache must not be misrepresented as a verified Pack.
         std::fs::write(target.join("pack.manifest.json"), b"{}").unwrap();
         let cached = catalog(&root);
-        let english = cached.iter().find(|v| v["id"] == "whisper-tiny-en").unwrap();
+        let english = cached
+            .iter()
+            .find(|v| v["id"] == "whisper-tiny-en")
+            .unwrap();
         assert_eq!(english["cache_entry_exists"], true);
         assert_eq!(english["pack_files_present"], true);
-        let other = cached.iter().find(|v| v["id"] == "whisper-base-en").unwrap();
+        let other = cached
+            .iter()
+            .find(|v| v["id"] == "whisper-base-en")
+            .unwrap();
         assert_eq!(other["cache_entry_exists"], false);
         std::fs::remove_dir_all(root).unwrap();
     }
@@ -240,7 +251,11 @@ mod tests {
         let entries = catalog(&path);
         assert_eq!(entries.len(), 3);
         assert!(entries.iter().all(|entry| entry["installed"] == false));
-        assert!(entries.iter().all(|entry| entry["cache_entry_exists"] == false));
+        assert!(
+            entries
+                .iter()
+                .all(|entry| entry["cache_entry_exists"] == false)
+        );
         assert!(!path.exists());
     }
 }
