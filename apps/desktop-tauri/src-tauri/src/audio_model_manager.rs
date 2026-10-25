@@ -534,7 +534,6 @@ mod acquisition_tests {
     }
 }
 
-
 // Explicitly ignored real-network qualification. Only a disposable hosted CI
 // runner may set MEDSCALE_QUAL_REAL_MODEL=1; regular tests make no network call.
 // Files are public Apache-2.0 model weights, never user recordings.
@@ -552,7 +551,10 @@ mod real_hub_qualification {
             "medscale-real-whisper-model-ci-{}",
             std::process::id()
         ));
-        assert!(!root.exists(), "test must not overwrite a pre-existing directory");
+        assert!(
+            !root.exists(),
+            "test must not overwrite a pre-existing directory"
+        );
         std::fs::create_dir(&root).expect("isolated model staging directory");
         struct RemoveOnDrop(std::path::PathBuf);
         impl Drop for RemoveOnDrop {
@@ -566,17 +568,25 @@ mod real_hub_qualification {
         let cancel = AtomicBool::new(false);
         let pack_dir = acquire(entry, &root, &cancel, &coordinator)
             .expect("pinned Hub download, complete digest verification and Pack signing");
-        let manifest = std::fs::read_to_string(
-            std::path::Path::new(&pack_dir).join("pack.manifest.json"),
-        )
-        .expect("signed manifest was atomically installed");
+        let manifest =
+            std::fs::read_to_string(std::path::Path::new(&pack_dir).join("pack.manifest.json"))
+                .expect("signed manifest was atomically installed");
         let decoded: serde_json::Value =
             serde_json::from_str(&manifest).expect("Pack manifest JSON");
         assert_eq!(decoded["pack_id"], "hf-whisper-tiny.en-asr");
-        assert!(decoded["trust_root_id"].as_str().is_some_and(|id| !id.is_empty()));
-        assert!(std::path::Path::new(&pack_dir).join("model.safetensors").is_file());
         assert!(
-            !root.join("audio-models")
+            decoded["trust_root_id"]
+                .as_str()
+                .is_some_and(|id| !id.is_empty())
+        );
+        assert!(
+            std::path::Path::new(&pack_dir)
+                .join("model.safetensors")
+                .is_file()
+        );
+        assert!(
+            !root
+                .join("audio-models")
                 .join(format!(".download-{}-{}", entry.id, std::process::id()))
                 .exists(),
             "temporary unverified weights must be removed"
