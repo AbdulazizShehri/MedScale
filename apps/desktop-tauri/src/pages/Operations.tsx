@@ -1,8 +1,9 @@
-import { useEffect, useState, type FormEvent } from "react";
+import { useEffect, useRef, useState, type FormEvent } from "react";
 import { open } from "@tauri-apps/plugin-dialog";
 import { selectedPathOrPrevious } from "../audio-picker";
 import { formatStorage } from "../model-storage";
-import { useAction, useCommand } from "../lib/ipc";
+import { mayStartModelDownload } from "../model-consent";
+import { call, useAction, useCommand } from "../lib/ipc";
 import { ProjectScope } from "../components/project";
 import { Authority, Empty, ErrorState, Glyph, KV, Ledger, Notice, PageHead, Section, Skeleton, Stamp, Status, glyphFor, useOutcome, useToast, type GlyphKind } from "../components/ui";
 
@@ -176,6 +177,7 @@ export function Audio() {
 type AsrStatus = { routes: Array<{ route: string; available: boolean; reason: string | null }>; asr_pack_dir: string | null };
 type AudioModel = { id: string; name: string; repository: string; revision: string; languages: string; download_budget_bytes: number; required_space_bytes: number; installed: boolean; pack_files_present: boolean };
 type AudioModelPreflight = { model: AudioModel; free_bytes: number; required_space_bytes: number; enough_space: boolean; download_started: false; download_requires_explicit_consent: true };
+type ModelDownloadStatus = { state: string; model_id: string | null; bytes_downloaded: number; bytes_total: number; pack_dir: string | null; message: string | null };
 type Segment = { seq: number; start_ms: number; end_ms: number; status: string; text: string | null; speaker?: { kind: string; index?: number } };
 const speakerLabel = (s: Segment["speaker"]) => (s?.kind === "anonymous" && s.index !== undefined ? `speaker ${s.index}` : null);
 type Transcript = { revision_id: string; revision_no: number; state: string; segments: Segment[] };
@@ -187,6 +189,9 @@ function AudioBody({ projectId }: { projectId: string }) {
   const availableModels = useCommand<AudioModel[]>("audio_model_catalog");
   const [chosenModel, setChosenModel] = useState("whisper-tiny-en");
   const [storageCheck, setStorageCheck] = useState<AudioModelPreflight | null>(null);
+  const [downloadApproved, setDownloadApproved] = useState(false);
+  const [downloadStatus, setDownloadStatus] = useState<ModelDownloadStatus | null>(null);
+  const activatedPack = useRef<string | null>(null);
   const [seg, setSeg] = useState<{ summary: string; lines: string[] } | null>(null);
   const [packPath, setPackPath] = useState("");
   const [wavPath, setWavPath] = useState("");
@@ -209,6 +214,46 @@ function AudioBody({ projectId }: { projectId: string }) {
   const { pending, run } = useAction();
   const outcome = useOutcome();
   const toast = useToast();
+  useEffect(() => {
+    let mounted = true;
+    async function refresh() {
+      try {
+        const status = await call<ModelDownloadStatus>("audio_model_download_status");
+        if (mounted) setDownloadStatus(status);
+      } catch {
+        // The named Core command is unavailable on older native builds.
+      }
+    }
+    void refresh();
+    const timer = window.setInterval(() => { void refresh(); }, 1500);
+    return () => { mounted = false; window.clearInterval(timer); };
+  }, []);
+  useEffect(() => {
+    if (downloadStatus?.state !== "ready" || !downloadStatus.pack_dir ||
+        activatedPack.current === downloadStatus.pack_dir) return;
+    const dir = downloadStatus.pack_dir;
+    activatedPack.current = dir;
+    void run("activate-model", "audio_admit_asr_pack", { path: dir }).then(async (r) => {
+      if (outcome(r, "Verified Whisper model activated")) await asr.reload();
+    });
+  }, [downloadStatus?.state, downloadStatus?.pack_dir, run, outcome, asr.reload]);
+  async function startModelDownload() {
+    if (!mayStartModelDownload(downloadApproved, chosenModel, storageCheck?.model.id ?? null,
+        storageCheck?.enough_space === true, !!pending || downloadStatus?.state === "downloading" ||
+        downloadStatus?.state === "verifying")) return;
+    const r = await run("download-model", "audio_model_download_start", { modelId: chosenModel, consent: true });
+    if (outcome(r, "Download started · pinned Whisper source")) {
+      setDownloadApproved(false);
+      setDownloadStatus({ state: "downloading", model_id: chosenModel, bytes_downloaded: 0,
+        bytes_total: storageCheck?.model.download_budget_bytes ?? 0, pack_dir: null, message: null });
+    }
+  }
+  async function cancelModelDownload() {
+    const r = await run("cancel-model", "audio_model_download_cancel");
+    if (outcome(r, "Cancellation requested · cleaning temporary files")) {
+      setDownloadApproved(false);
+    }
+  }
   async function checkModelStorage() {
     const r = await run<AudioModelPreflight>("storage", "audio_model_preflight", { modelId: chosenModel });
     if (outcome(r, "Storage checked · no download started")) setStorageCheck(r.data);
@@ -260,7 +305,7 @@ function AudioBody({ projectId }: { projectId: string }) {
           <div className="stack" style={{ gap: 8 }}>
             <label className="lbl" htmlFor="asr-model-choice">Available speech models</label>
             <select id="asr-model-choice" aria-label="Available speech models" value={chosenModel}
-              onChange={(e) => { setChosenModel(e.target.value); setStorageCheck(null); }}
+              onChange={(e) => { setChosenModel(e.target.value); setStorageCheck(null); setDownloadApproved(false); }}
               disabled={availableModels.state.status !== "ready" || !!pending}>
               {(availableModels.state.status === "ready" ? availableModels.state.data : []).map((m) => (
                 <option key={m.id} value={m.id}>{m.name} · {m.languages}</option>
@@ -279,7 +324,27 @@ function AudioBody({ projectId }: { projectId: string }) {
               {" "}Free: {formatStorage(storageCheck.free_bytes)}; required: {formatStorage(storageCheck.required_space_bytes)}.
               {" "}No download has started.
             </div>}
-            <p className="t-sm i3">Already have a verified Audio Pack? Select its folder below to admit it offline. One-click download and cancellation will follow in the acquisition milestone.</p>
+            <label className="row-gap t-sm" style={{ gap: 8 }}>
+              <input type="checkbox" aria-label="Approve Whisper model download"
+                checked={downloadApproved} onChange={(e) => setDownloadApproved(e.target.checked)} />
+              I approve downloading the selected Apache-2.0 Whisper model from the displayed pinned Hugging Face source to this device, using the stated disk budget.
+            </label>
+            <div className="row-gap" style={{ gap: 8 }}>
+              <button type="button" className="btn btn-s" onClick={startModelDownload}
+                disabled={!mayStartModelDownload(downloadApproved, chosenModel, storageCheck?.model.id ?? null,
+                  storageCheck?.enough_space === true, !!pending || downloadStatus?.state === "downloading" ||
+                  downloadStatus?.state === "verifying")}>Download, verify and install</button>
+              <button type="button" className="btn btn-g" onClick={cancelModelDownload}
+                disabled={!!pending || !["downloading", "verifying"].includes(downloadStatus?.state ?? "")}>Cancel download</button>
+            </div>
+            {downloadStatus?.state && downloadStatus.state !== "idle" && <div className="t-sm i2" role="status" aria-live="polite">
+              Model download: {downloadStatus.state}.
+              {" "}{formatStorage(downloadStatus.bytes_downloaded)} received
+              {downloadStatus.bytes_total > 0 ? ` of approximately ${formatStorage(downloadStatus.bytes_total)}` : ""}.
+              {downloadStatus.message ? ` ${downloadStatus.message}` : ""}
+              {downloadStatus.state === "ready" ? " Verified Pack is ready for Core activation." : ""}
+            </div>}
+            <p className="t-sm i3">Already have a verified Audio Pack? Select its folder below to admit it offline. Downloads remain local, and only the dedicated in-progress cache is deleted on cancellation.</p>
           </div>
         )}
       </Section>

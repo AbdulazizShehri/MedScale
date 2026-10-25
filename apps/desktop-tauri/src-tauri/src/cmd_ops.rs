@@ -955,6 +955,26 @@ pub fn audio_asr_status(host: tauri::State<'_, Host>) -> CmdResult<Value> {
     }))
 }
 
+/// Starts a user-consented acquisition of a pinned Whisper Audio Pack.
+#[tauri::command(async)]
+pub fn audio_model_download_start(
+    host: tauri::State<'_, Host>,
+    model_id: String,
+    consent: bool,
+) -> CmdResult<Value> {
+    crate::audio_model_manager::start(&host, model_id, consent)
+}
+
+#[tauri::command(async)]
+pub fn audio_model_download_status(host: tauri::State<'_, Host>) -> CmdResult<Value> {
+    crate::audio_model_manager::status(&host)
+}
+
+#[tauri::command(async)]
+pub fn audio_model_download_cancel(host: tauri::State<'_, Host>) -> CmdResult<Value> {
+    crate::audio_model_manager::cancel(&host)
+}
+
 /// Admits an Audio Pack folder (Spec 106) and installs its Whisper engine
 /// behind the local ASR route. Core verifies the Pack; nothing is downloaded.
 #[tauri::command(async)]
