@@ -1007,6 +1007,18 @@ fn medagent_workbench_agent_context_evidence_and_resume() {
         .join("audio-models")
         .join("whisper-tiny-en");
     std::fs::create_dir_all(&stored).unwrap();
+    // The native command must refuse any existing app-owned cache before
+    // spawning an HTTP worker, even if a user approves a second download.
+    // This checks the actual named IPC handler; no network is ever opened.
+    assert_eq!(
+        h.call(
+            "audio_model_download_start",
+            json!({ "modelId": "whisper-tiny-en", "consent": true })
+        )
+        .unwrap_err()["kind"],
+        "conflict",
+        "a partial cached model cannot be silently overwritten"
+    );
     std::fs::write(stored.join("pack.manifest.json"), b"{}").unwrap();
     let rejected = h.call(
         "audio_model_activate_existing",
