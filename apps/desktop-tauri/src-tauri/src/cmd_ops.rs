@@ -1,7 +1,7 @@
 //! Intelligence and operations commands: models, MedAgent, model fleet,
 //! collaboration, workflows and audio.
 
-use medscale_contracts::audio::PcmFormat;
+use medscale_contracts::audio::{PcmFormat, MAX_AUDIO_BYTES};
 use medscale_contracts::medagent::ToolKind;
 use medscale_contracts::objects::OpaqueId;
 use medscale_contracts::project_graph::{ArtifactDescriptor, ArtifactKind, ArtifactVersionBinding};
@@ -965,8 +965,8 @@ pub fn audio_admit_asr_pack(host: tauri::State<'_, Host>, path: String) -> CmdRe
     Ok(json!({ "id": pack_id.as_str(), "installed": true }))
 }
 
-/// Largest WAV file the desktop imports (64 MiB).
-const WAV_IMPORT_MAX_BYTES: u64 = 64 << 20;
+// Keep desktop import bound identical to the Core audio contract.
+const WAV_IMPORT_MAX_BYTES: u64 = MAX_AUDIO_BYTES as u64;
 
 /// Imports a user-selected bounded PCM WAV recording (absolute path) into a project.
 #[tauri::command(async)]
@@ -980,7 +980,7 @@ pub fn audio_import_wav(
     let file = std::path::Path::new(&path);
     if !file.is_absolute() || !path.to_ascii_lowercase().ends_with(".wav") {
         return Err(CmdError::invalid(
-            "Invalid: choose an absolute .wav file of at most 64 MiB",
+            "Invalid: choose an absolute .wav file of at most 32 MiB",
         ));
     }
     let wav = host::read_bounded(file, WAV_IMPORT_MAX_BYTES)?;
