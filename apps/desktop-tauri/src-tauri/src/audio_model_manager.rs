@@ -533,3 +533,56 @@ mod acquisition_tests {
         assert_eq!(result.unwrap_err(), "Download cancelled");
     }
 }
+
+
+// Explicitly ignored real-network qualification. Only a disposable hosted CI
+// runner may set MEDSCALE_QUAL_REAL_MODEL=1; regular tests make no network call.
+// Files are public Apache-2.0 model weights, never user recordings.
+#[cfg(test)]
+mod real_hub_qualification {
+    use super::*;
+
+    #[test]
+    #[ignore = "requires a disposable CI runner and explicit model-download test opt-in"]
+    fn verified_real_tiny_en_download_creates_admissible_pack() {
+        if std::env::var("MEDSCALE_QUAL_REAL_MODEL").as_deref() != Ok("1") {
+            return;
+        }
+        let root = std::env::temp_dir().join(format!(
+            "medscale-real-whisper-model-ci-{}",
+            std::process::id()
+        ));
+        assert!(!root.exists(), "test must not overwrite a pre-existing directory");
+        std::fs::create_dir(&root).expect("isolated model staging directory");
+        struct RemoveOnDrop(std::path::PathBuf);
+        impl Drop for RemoveOnDrop {
+            fn drop(&mut self) {
+                let _ = std::fs::remove_dir_all(&self.0);
+            }
+        }
+        let _cleanup = RemoveOnDrop(root.clone());
+        let entry = model("whisper-tiny-en").unwrap();
+        let coordinator = Arc::new(Mutex::new(DownloadCoordinator::default()));
+        let cancel = AtomicBool::new(false);
+        let pack_dir = acquire(entry, &root, &cancel, &coordinator)
+            .expect("pinned Hub download, complete digest verification and Pack signing");
+        let manifest = std::fs::read_to_string(
+            std::path::Path::new(&pack_dir).join("pack.manifest.json"),
+        )
+        .expect("signed manifest was atomically installed");
+        let decoded: serde_json::Value =
+            serde_json::from_str(&manifest).expect("Pack manifest JSON");
+        assert_eq!(decoded["pack_id"], "hf-whisper-tiny.en-asr");
+        assert_eq!(decoded["trust_root_id"], medscale_keys::SYNTHETIC_PACK_TRUST_ROOT_ID);
+        assert!(std::path::Path::new(&pack_dir).join("model.safetensors").is_file());
+        assert!(
+            !root.join("audio-models")
+                .join(format!(".download-{}-{}", entry.id, std::process::id()))
+                .exists(),
+            "temporary unverified weights must be removed"
+        );
+        let status = coordinator.lock().unwrap();
+        assert_eq!(status.status.state, "verifying");
+        assert!(status.status.bytes_downloaded > 0);
+    }
+}
