@@ -350,19 +350,24 @@ impl SqliteMetaStore {
         expected_digest: &DigestSha256,
     ) -> Result<(), MetaError> {
         let tx = self.conn().unchecked_transaction()?;
-        let row: Option<(String, Vec<u8>)> = tx
+        let row: Option<(String, String, Vec<u8>)> = tx
             .query_row(
-                "SELECT body_json, content FROM audio_sources WHERE source_id = ?1",
+                "SELECT project_id, body_json, content FROM audio_sources WHERE source_id = ?1",
                 params![source_id.as_str()],
-                |row| Ok((row.get(0)?, row.get(1)?)),
+                |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?)),
             )
             .optional()?;
-        let (body, bytes) = row.ok_or(MetaError::NotFound)?;
+        let (stored_project_id, body, bytes) = row.ok_or(MetaError::NotFound)?;
         let source: AudioSource = from_json(&body, "audio source")?;
         source
             .validate()
             .map_err(|e| corrupt(format!("audio source: {e}")))?;
         check_content(&source, &bytes)?;
+        if stored_project_id != source.project_id.as_str() {
+            return Err(corrupt(
+                "audio source project column disagrees with body".to_owned(),
+            ));
+        }
         if source.header.id != *source_id || source.project_id != *project_id {
             return Err(MetaError::NotFound);
         }

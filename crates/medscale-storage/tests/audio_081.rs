@@ -970,3 +970,39 @@ fn unreferenced_audio_removal_refuses_cross_module_huddle_media() {
     ));
     meta.verify_audio_consistency().unwrap();
 }
+
+#[test]
+fn audio_removal_refuses_mismatched_stored_project_column() {
+    let root = temp_root("remove-project-column-tamper");
+    let meta = open_meta(&root);
+    populate_pre_081(&meta);
+    let wav = bytes(128, 77);
+    let source = imported("source-project-tamper", &wav);
+    meta.insert_imported_audio_source(&source, &wav).unwrap();
+
+    // The indexed project column is independent from the validated JSON body.
+    // Removal must never trust a valid body when its stored owner column differs.
+    raw(&root)
+        .execute(
+            "UPDATE audio_sources SET project_id = ?1 WHERE source_id = ?2",
+            rusqlite::params!["other-project", source.header.id.as_str()],
+        )
+        .unwrap();
+    assert!(matches!(
+        meta.remove_unreferenced_imported_audio_source(
+            &source.project_id,
+            &source.header.id,
+            &source.content_digest,
+        ),
+        Err(MetaError::CorruptObjectBody(_))
+    ));
+    // A refused removal leaves all WAV bytes intact.
+    let count: i64 = raw(&root)
+        .query_row(
+            "SELECT COUNT(*) FROM audio_sources WHERE source_id = ?1 AND length(content) = ?2",
+            rusqlite::params![source.header.id.as_str(), wav.len() as i64],
+            |row| row.get(0),
+        )
+        .unwrap();
+    assert_eq!(count, 1);
+}
