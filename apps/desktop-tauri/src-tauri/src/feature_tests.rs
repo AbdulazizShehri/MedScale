@@ -934,7 +934,10 @@ fn medagent_workbench_agent_context_evidence_and_resume() {
     assert_eq!(preview["delete_available"], false);
     assert_eq!(preview["active_vault_only"], true);
     assert_eq!(preview["older_backups_may_retain_recording"], true);
-    assert_eq!(preview["linked_evidence_requires_separate_retention_policy"], true);
+    assert_eq!(
+        preview["linked_evidence_requires_separate_retention_policy"],
+        true
+    );
     assert_eq!(
         h.call(
             "audio_source_retention_preview",
