@@ -332,6 +332,98 @@ impl SqliteMetaStore {
         .ok_or(MetaError::NotFound)
     }
 
+    /// Remove one unreferenced imported WAV from the *current* vault only.
+    ///
+    /// This intentionally does not expose an end-user erasure action. A future
+    /// authenticated Core command must apply policy, collect explicit consent
+    /// and record retention evidence before calling it. Existing backups,
+    /// snapshots, SQLite WAL pages and physical storage are NOT wiped.
+    ///
+    /// An imported source with transcript revisions, even denied-route audit
+    /// receipts, or a capture-session reference must never be removed. The
+    /// checks and row removal share a single SQLite transaction; any refusal
+    /// rolls back without modifying another source or its provenance.
+    pub fn remove_unreferenced_imported_audio_source(
+        &self,
+        project_id: &OpaqueId,
+        source_id: &OpaqueId,
+        expected_digest: &DigestSha256,
+    ) -> Result<(), MetaError> {
+        let tx = self.conn().unchecked_transaction()?;
+        let row: Option<(String, Vec<u8>)> = tx
+            .query_row(
+                "SELECT body_json, content FROM audio_sources WHERE source_id = ?1",
+                params![source_id.as_str()],
+                |row| Ok((row.get(0)?, row.get(1)?)),
+            )
+            .optional()?;
+        let (body, bytes) = row.ok_or(MetaError::NotFound)?;
+        let source: AudioSource = from_json(&body, "audio source")?;
+        source
+            .validate()
+            .map_err(|e| corrupt(format!("audio source: {e}")))?;
+        check_content(&source, &bytes)?;
+        if source.header.id != *source_id || source.project_id != *project_id {
+            return Err(MetaError::NotFound);
+        }
+        if source.content_digest != *expected_digest {
+            return Err(MetaError::Conflict(
+                "audio source content has changed since confirmation".to_owned(),
+            ));
+        }
+        if source.kind != AudioSourceKind::ImportedFile || source.capture_session_id.is_some() {
+            return Err(MetaError::Conflict(
+                "capture recordings require a separate retention protocol".to_owned(),
+            ));
+        }
+
+        // Huddles (schema v17) can attach an AudioFlow source independently
+        // from any transcript or route receipt. A stored media record, even
+        // a tombstone, is part of provenance and must not be orphaned.
+        let linked: i64 = tx.query_row(
+            "SELECT (SELECT COUNT(*) FROM audio_transcripts WHERE source_id = ?1)
+                  + (SELECT COUNT(*) FROM audio_transcript_receipts WHERE source_id = ?1)
+                  + (SELECT COUNT(*) FROM hud_media WHERE source_id = ?1)",
+            params![source_id.as_str()],
+            |row| row.get(0),
+        )?;
+        if linked != 0 {
+            return Err(MetaError::Conflict(
+                "audio recording has transcript, receipt, or Huddle media references".to_owned(),
+            ));
+        }
+
+        // Capture sessions store their source link inside validated JSON,
+        // rather than a separate indexed column. Check every session and
+        // refuse removal if any session references this source.
+        {
+            let mut stmt = tx.prepare("SELECT body_json FROM audio_capture_sessions")?;
+            let mut rows = stmt.query([])?;
+            while let Some(row) = rows.next()? {
+                let body: String = row.get(0)?;
+                let session: AudioSession = from_json(&body, "capture session")?;
+                if session.source_id.as_ref() == Some(source_id) {
+                    return Err(MetaError::Conflict(
+                        "audio recording is still referenced by a capture session".to_owned(),
+                    ));
+                }
+            }
+        }
+
+        let removed = tx.execute(
+            "DELETE FROM audio_sources
+             WHERE source_id = ?1 AND project_id = ?2 AND body_json = ?3",
+            params![source_id.as_str(), project_id.as_str(), body],
+        )?;
+        if removed != 1 {
+            return Err(MetaError::Conflict(
+                "audio source changed before removal".to_owned(),
+            ));
+        }
+        tx.commit()?;
+        Ok(())
+    }
+
     pub fn list_audio_sources(&self, project_id: &OpaqueId) -> Result<Vec<AudioSource>, MetaError> {
         Ok(self
             .audio_rows(
