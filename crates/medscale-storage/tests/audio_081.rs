@@ -915,6 +915,12 @@ fn unreferenced_audio_removal_refuses_cross_module_huddle_media() {
     let source = imported("source-huddle-linked", &wav);
     meta.insert_imported_audio_source(&source, &wav).unwrap();
 
+    assert_eq!(
+        meta.audio_retention_reference_flags(&source.header.id)
+            .unwrap(),
+        (false, false, false, false)
+    );
+
     // Inject only the indexed Huddle media reference to test the storage
     // layer's fail-closed behavior. No transcript or AudioFlow receipt exists.
     // A source without audio-specific references can still belong to Huddles.
@@ -929,6 +935,11 @@ fn unreferenced_audio_removal_refuses_cross_module_huddle_media() {
             ],
         )
         .unwrap();
+    assert_eq!(
+        meta.audio_retention_reference_flags(&source.header.id)
+            .unwrap(),
+        (false, false, true, false)
+    );
     assert!(
         meta.list_transcript_revisions(&source.header.id)
             .unwrap()
@@ -957,6 +968,11 @@ fn unreferenced_audio_removal_refuses_cross_module_huddle_media() {
             [],
         )
         .unwrap();
+    assert_eq!(
+        meta.audio_retention_reference_flags(&source.header.id)
+            .unwrap(),
+        (false, false, false, false)
+    );
     meta.verify_audio_consistency().unwrap();
     meta.remove_unreferenced_imported_audio_source(
         &source.project_id,
