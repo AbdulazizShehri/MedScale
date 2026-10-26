@@ -994,7 +994,7 @@ fn audio_removal_refuses_mismatched_stored_project_column() {
             &source.header.id,
             &source.content_digest,
         ),
-        Err(MetaError::Corrupt(_))
+        Err(MetaError::CorruptObjectBody(_))
     ));
     // A refused removal leaves all WAV bytes intact.
     let count: i64 = raw(&root)
