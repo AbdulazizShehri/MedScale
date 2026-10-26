@@ -28,6 +28,18 @@ jobs:
         with:
           workspaces: apps/desktop-tauri/src-tauri -> target
           key: real-human-macos-whisper
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: "24.19.0"
+          cache: npm
+          cache-dependency-path: apps/desktop-tauri/package-lock.json
+      - name: Build required bundled desktop frontend before model acquisition
+        working-directory: apps/desktop-tauri
+        run: |
+          npm ci --ignore-scripts --no-audit --no-fund
+          npm test
+          npm run build
+          test -d dist
       - name: Ensure decoder on disposable macOS runner
         run: |
           set -euo pipefail
