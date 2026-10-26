@@ -906,7 +906,6 @@ fn audio_removal_refuses_revisions_receipts_capture_and_stale_digest() {
     meta.verify_audio_consistency().unwrap();
 }
 
-
 #[test]
 fn unreferenced_audio_removal_refuses_cross_module_huddle_media() {
     let root = temp_root("remove-huddle-linked");
@@ -923,11 +922,23 @@ fn unreferenced_audio_removal_refuses_cross_module_huddle_media() {
         .execute(
             "INSERT INTO hud_media(media_id, huddle_id, source_id, state, body_json)
              VALUES (?1, ?2, ?3, 'present', '{}')",
-            rusqlite::params!["media-huddle-linked", "huddle-linked", source.header.id.as_str()],
+            rusqlite::params![
+                "media-huddle-linked",
+                "huddle-linked",
+                source.header.id.as_str()
+            ],
         )
         .unwrap();
-    assert!(meta.list_transcript_revisions(&source.header.id).unwrap().is_empty());
-    assert!(meta.list_transcript_receipts(&source.header.id).unwrap().is_empty());
+    assert!(
+        meta.list_transcript_revisions(&source.header.id)
+            .unwrap()
+            .is_empty()
+    );
+    assert!(
+        meta.list_transcript_receipts(&source.header.id)
+            .unwrap()
+            .is_empty()
+    );
     assert!(matches!(
         meta.remove_unreferenced_imported_audio_source(
             &source.project_id,
@@ -941,7 +952,10 @@ fn unreferenced_audio_removal_refuses_cross_module_huddle_media() {
     // Remove the intentionally incomplete synthetic Huddle fixture to restore
     // a consistent synthetic vault; no production deletion code does this.
     raw(&root)
-        .execute("DELETE FROM hud_media WHERE media_id = 'media-huddle-linked'", [])
+        .execute(
+            "DELETE FROM hud_media WHERE media_id = 'media-huddle-linked'",
+            [],
+        )
         .unwrap();
     meta.verify_audio_consistency().unwrap();
     meta.remove_unreferenced_imported_audio_source(
