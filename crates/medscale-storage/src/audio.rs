@@ -429,6 +429,36 @@ impl SqliteMetaStore {
         Ok(())
     }
 
+    /// Read-only reference flags for retention preflight. A later deletion
+    /// must repeat every guard inside its own write transaction; this result
+    /// is never an authorization or a proof that removal remains safe.
+    pub fn audio_retention_reference_flags(
+        &self,
+        source_id: &OpaqueId,
+    ) -> Result<(bool, bool, bool, bool), MetaError> {
+        let (revisions, receipts, huddles): (i64, i64, i64) = self.conn().query_row(
+            "SELECT (SELECT COUNT(*) FROM audio_transcripts WHERE source_id = ?1),
+                    (SELECT COUNT(*) FROM audio_transcript_receipts WHERE source_id = ?1),
+                    (SELECT COUNT(*) FROM hud_media WHERE source_id = ?1)",
+            params![source_id.as_str()],
+            |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?)),
+        )?;
+        let mut stmt = self
+            .conn()
+            .prepare("SELECT body_json FROM audio_capture_sessions")?;
+        let mut rows = stmt.query([])?;
+        let mut capture_linked = false;
+        while let Some(row) = rows.next()? {
+            let body: String = row.get(0)?;
+            let session: AudioSession = from_json(&body, "capture session")?;
+            session
+                .validate()
+                .map_err(|e| corrupt(format!("capture session: {e}")))?;
+            capture_linked |= session.source_id.as_ref() == Some(source_id);
+        }
+        Ok((revisions > 0, receipts > 0, huddles > 0, capture_linked))
+    }
+
     pub fn list_audio_sources(&self, project_id: &OpaqueId) -> Result<Vec<AudioSource>, MetaError> {
         Ok(self
             .audio_rows(
