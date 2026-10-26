@@ -326,6 +326,27 @@ try {
     // also become visible in the active project after overview reload.
     await find("//section[.//span[contains(@class,'sec-t') and normalize-space(.)='Sources']]//span[contains(@class,'sec-c') and number(normalize-space(.)) > 0]", 30000);
   });
+  await journey("audio-source-retention-readonly", async () => {
+    // Probe the named Core-through-Tauri read command from the *real* Windows
+    // WebView2 surface. No model or data is downloaded and no record is deleted.
+    await nav("Audio");
+    const sourceRow = "//section[.//span[contains(@class,'sec-t') and normalize-space(.)='Sources']]" +
+      "//div[contains(@class,'lr') and .//button[normalize-space(.)='Stored data']]";
+    await find(sourceRow, 30000);
+    await click("(" + sourceRow + ")[1]//button[normalize-space(.)='Stored data']");
+    await see("Stored recording inspected", 30000);
+    await find("//p[@role='status' and contains(.,'Stored audio:') and " +
+      "contains(.,'transcript revisions: 0') and contains(.,'audit receipts: 0') and " +
+      "contains(.,'no data was changed.')]", 30000);
+    // The feature deliberately exposes no source-destructive UI command.
+    const sourceActions = await wd("POST", `/session/${sid}/execute/sync`, {
+      script: "return [...document.querySelectorAll('section')].find(s => /Sources/.test(s.innerText))?.innerText || '';",
+      args: [],
+    });
+    if (/delete recording|erase source/i.test(sourceActions)) {
+      throw new Error("read-only audio source view unexpectedly advertises deletion");
+    }
+  });
   // The real audio journey runs ONLY on an isolated CI host with opt-in inputs.
   // Never screenshot or print genuine voice text, paths, speakers or models.
   const guiModelInstall = process.env.MEDSCALE_E2E_MODEL_GUI_DOWNLOAD === "1";

@@ -943,6 +943,39 @@ pub fn audio_overview(host: tauri::State<'_, Host>, project_id: String) -> CmdRe
     }))
 }
 
+/// Read-only storage/lineage preview for one selected source. This is not a
+/// deletion capability: source, revisions, receipts, and encrypted bytes stay
+/// unchanged. Compare project IDs before returning any source metadata.
+#[tauri::command(async)]
+pub fn audio_source_retention_preview(
+    host: tauri::State<'_, Host>,
+    project_id: String,
+    source_id: String,
+) -> CmdResult<Value> {
+    let mut state = lock(&host)?;
+    let project_id = host::bounded_id(&project_id)?;
+    let source_id = host::bounded_id(&source_id)?;
+    let session = state.session()?;
+    let source = session.audio_source_get(OpaqueId::new(source_id))?;
+    if source.project_id.as_str() != project_id {
+        return Err(CmdError::invalid(
+            "Audio source does not belong to the selected project",
+        ));
+    }
+    let revisions = session.audio_transcript_list(OpaqueId::new(source_id))?;
+    let receipts = session.audio_receipt_list(OpaqueId::new(source_id))?;
+    Ok(json!({
+        "project_id": project_id,
+        "source_id": source_id,
+        "source_kind": source.kind,
+        "recording_bytes": source.byte_length,
+        "revision_count": revisions.len(),
+        "receipt_count": receipts.len(),
+        "delete_available": false,
+        "message": "Read-only inspection. The recording, transcript revisions and receipts remain in this workspace. No files or vault data were deleted."
+    }))
+}
+
 /// Audio routes and the installed local speech recognition, if any.
 #[tauri::command(async)]
 pub fn audio_asr_status(host: tauri::State<'_, Host>) -> CmdResult<Value> {
