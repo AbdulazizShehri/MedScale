@@ -1151,10 +1151,9 @@ fn verified_public_human_wav_transcribes_via_native_tauri() {
     if std::env::var("MEDSCALE_QUAL_REAL_MAC_AUDIO").as_deref() != Ok("1") {
         return;
     }
-    assert!(
-        cfg!(target_os = "macos"),
-        "must run on a macOS hosted runner"
-    );
+    if std::env::consts::OS != "macos" {
+        panic!("must run on a macOS hosted runner");
+    }
     let wav = std::env::var("MEDSCALE_E2E_REAL_WAV_PATH")
         .expect("source-verified LibriSpeech WAV required");
     let pack = std::env::var("MEDSCALE_E2E_REAL_ASR_PACK_PATH")
