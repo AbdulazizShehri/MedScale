@@ -2,6 +2,7 @@
 //! collaboration, workflows and audio.
 
 use medscale_contracts::audio::{MAX_AUDIO_BYTES, PcmFormat};
+use medscale_contracts::envelopes::ResponseBody;
 use medscale_contracts::medagent::ToolKind;
 use medscale_contracts::objects::OpaqueId;
 use medscale_contracts::project_graph::{ArtifactDescriptor, ArtifactKind, ArtifactVersionBinding};
@@ -962,6 +963,26 @@ pub fn audio_source_retention_preview(
             "Audio source does not belong to the selected project",
         ));
     }
+    // Core, not the WebView, checks linked recordings in AudioFlow,
+    // Huddles and capture sessions before returning advisory retention facts.
+    // This remains read-only even for currently unreferenced imported files.
+    let preflight =
+        session.audio_retention_preflight(OpaqueId::new(project_id), OpaqueId::new(source_id))?;
+    let ResponseBody::AudioRetentionPreflight {
+        expected_digest,
+        imported_file,
+        has_transcript_revisions,
+        has_audit_receipts,
+        has_huddle_media_link,
+        has_capture_reference,
+        unreferenced_imported_file,
+        delete_available,
+        older_backups_may_retain_recording,
+        ..
+    } = preflight
+    else {
+        return Err(CmdError::invalid("Unexpected retention preflight response"));
+    };
     let revisions = session.audio_transcript_list(OpaqueId::new(source_id))?;
     let receipts = session.audio_receipt_list(OpaqueId::new(source_id))?;
     Ok(json!({
@@ -971,11 +992,18 @@ pub fn audio_source_retention_preview(
         "recording_bytes": source.byte_length,
         "revision_count": revisions.len(),
         "receipt_count": receipts.len(),
-        "delete_available": false,
+        "expected_digest": expected_digest.to_hex(),
+        "imported_file": imported_file,
+        "has_transcript_revisions": has_transcript_revisions,
+        "has_audit_receipts": has_audit_receipts,
+        "has_huddle_media_link": has_huddle_media_link,
+        "has_capture_reference": has_capture_reference,
+        "unreferenced_imported_file": unreferenced_imported_file,
+        "delete_available": delete_available,
         "active_vault_only": true,
-        "older_backups_may_retain_recording": true,
+        "older_backups_may_retain_recording": older_backups_may_retain_recording,
         "linked_evidence_requires_separate_retention_policy": true,
-        "message": "Read-only inspection. No data was deleted. Older backups and snapshots can retain recordings even after future active-vault removal; linked transcripts and audit receipts require a separate retention policy."
+        "message": "Read-only inspection. No data was deleted. Linked transcripts, Huddles media and audit receipts are retained. Older backups or snapshots may still contain this recording after future active-vault removal."
     }))
 }
 

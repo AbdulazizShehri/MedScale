@@ -3482,6 +3482,26 @@ impl CliSession {
         }
     }
 
+    /// Core-authorized read-only recording retention preflight. The response
+    /// does not authorize or perform deletion; every future write must
+    /// revalidate project, source, digest and links transactionally.
+    pub fn audio_retention_preflight(
+        &mut self,
+        project_id: OpaqueId,
+        source_id: OpaqueId,
+    ) -> Result<ResponseBody, AuthorityError> {
+        match self.dispatch(
+            Capability::AudioRead,
+            RequestBody::AudioRetentionPreflight {
+                project_id,
+                source_id,
+            },
+        )? {
+            response @ ResponseBody::AudioRetentionPreflight { .. } => Ok(response),
+            _ => Err(Self::unexpected("audio retention preflight")),
+        }
+    }
+
     pub fn audio_capture_start(
         &mut self,
         project_id: OpaqueId,

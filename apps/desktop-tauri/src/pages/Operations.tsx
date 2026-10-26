@@ -181,7 +181,7 @@ type ModelDownloadStatus = { state: string; model_id: string | null; bytes_downl
 type Segment = { seq: number; start_ms: number; end_ms: number; status: string; text: string | null; speaker?: { kind: string; index?: number } };
 const speakerLabel = (s: Segment["speaker"]) => (s?.kind === "anonymous" && s.index !== undefined ? `speaker ${s.index}` : null);
 type Transcript = { revision_id: string; revision_no: number; state: string; segments: Segment[] };
-type AudioRetentionPreview = { project_id: string; source_id: string; source_kind: string; recording_bytes: number; revision_count: number; receipt_count: number; delete_available: false; active_vault_only: boolean; older_backups_may_retain_recording: boolean; linked_evidence_requires_separate_retention_policy: boolean; message: string };
+type AudioRetentionPreview = { project_id: string; source_id: string; source_kind: string; recording_bytes: number; revision_count: number; receipt_count: number; expected_digest: string; imported_file: boolean; has_transcript_revisions: boolean; has_audit_receipts: boolean; has_huddle_media_link: boolean; has_capture_reference: boolean; unreferenced_imported_file: boolean; delete_available: false; active_vault_only: boolean; older_backups_may_retain_recording: boolean; linked_evidence_requires_separate_retention_policy: boolean; message: string };
 type TranscribeResult = { decision: { outcome: string; reason?: string | null }; engine: { engine_id: string; is_fixture: boolean } | null; limitations: string[]; transcript: Transcript | null };
 
 function AudioBody({ projectId }: { projectId: string }) {
@@ -303,13 +303,13 @@ function AudioBody({ projectId }: { projectId: string }) {
   }
   async function transcribe(id: string) {
     const r = await run<TranscribeResult>(`t-${id}`, "audio_transcribe", { projectId, sourceId: id, route, language, diarize });
-    if (outcome(r, "Transcription recorded · draft")) { setResult(r.data); setEdit(null); }
+    if (outcome(r, "Transcription recorded · draft")) { setResult(r.data); setEdit(null); setRetentionPreview(null); }
   }
   async function correct(e: FormEvent) {
     e.preventDefault();
     if (!edit || !result?.transcript) return;
     const r = await run<Transcript>("correct", "audio_correct", { revisionId: result.transcript.revision_id, seq: edit.seq, text: edit.text, reason: edit.reason });
-    if (outcome(r, "Correction recorded as a new revision")) { setResult({ ...result, transcript: r.data }); setEdit(null); }
+    if (outcome(r, "Correction recorded as a new revision")) { setResult({ ...result, transcript: r.data }); setEdit(null); setRetentionPreview(null); }
   }
   if (o.state.status === "loading") return <Skeleton />;
   if (o.state.status === "error") return <ErrorState error={o.state.error} onRetry={o.reload} />;
@@ -421,7 +421,7 @@ function AudioBody({ projectId }: { projectId: string }) {
         {retentionPreview?.project_id === projectId && v.sources.some((s) => s.id === retentionPreview.source_id) && (
           <p className="t-sm i2" role="status" aria-live="polite">
             Stored audio: {formatStorage(retentionPreview.recording_bytes)} · transcript revisions: {retentionPreview.revision_count} · audit receipts: {retentionPreview.receipt_count}.
-            {" "}Read-only inspection; no deletion is available and no data was changed. Older backups may still contain this recording. Transcripts and audit receipts require separate retention handling.
+            {" "}{retentionPreview.has_huddle_media_link ? "Linked Huddles media is retained. " : ""}{retentionPreview.has_capture_reference ? "Capture-session evidence is retained. " : ""}{retentionPreview.unreferenced_imported_file ? "No linked evidence found in this active vault at inspection time. " : "Linked evidence may prevent removal. "}Read-only inspection: no deletion is available or performed. Older backups may retain this recording; linked transcripts and audit receipts need separate retention handling.
           </p>
         )}
       </Section>

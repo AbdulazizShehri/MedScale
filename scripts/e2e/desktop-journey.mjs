@@ -337,7 +337,8 @@ try {
     await see("Stored recording inspected", 30000);
     await find("//p[@role='status' and contains(.,'Stored audio:') and " +
       "contains(.,'transcript revisions: 0') and contains(.,'audit receipts: 0') and " +
-      "contains(.,'no data was changed.')]", 30000);
+      "contains(.,'no deletion is available or performed') and " +
+      "contains(.,'Older backups may retain this recording')]", 30000);
     // The feature deliberately exposes no source-destructive UI command.
     const sourceActions = await wd("POST", `/session/${sid}/execute/sync`, {
       script: "return [...document.querySelectorAll('section')].find(s => /Sources/.test(s.innerText))?.innerText || '';",
