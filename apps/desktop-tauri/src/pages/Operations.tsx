@@ -181,7 +181,7 @@ type ModelDownloadStatus = { state: string; model_id: string | null; bytes_downl
 type Segment = { seq: number; start_ms: number; end_ms: number; status: string; text: string | null; speaker?: { kind: string; index?: number } };
 const speakerLabel = (s: Segment["speaker"]) => (s?.kind === "anonymous" && s.index !== undefined ? `speaker ${s.index}` : null);
 type Transcript = { revision_id: string; revision_no: number; state: string; segments: Segment[] };
-type AudioRetentionPreview = { project_id: string; source_id: string; source_kind: string; recording_bytes: number; revision_count: number; receipt_count: number; delete_available: false; message: string };
+type AudioRetentionPreview = { project_id: string; source_id: string; source_kind: string; recording_bytes: number; revision_count: number; receipt_count: number; delete_available: false; active_vault_only: boolean; older_backups_may_retain_recording: boolean; linked_evidence_requires_separate_retention_policy: boolean; message: string };
 type TranscribeResult = { decision: { outcome: string; reason?: string | null }; engine: { engine_id: string; is_fixture: boolean } | null; limitations: string[]; transcript: Transcript | null };
 
 function AudioBody({ projectId }: { projectId: string }) {
@@ -421,7 +421,7 @@ function AudioBody({ projectId }: { projectId: string }) {
         {retentionPreview?.project_id === projectId && v.sources.some((s) => s.id === retentionPreview.source_id) && (
           <p className="t-sm i2" role="status" aria-live="polite">
             Stored audio: {formatStorage(retentionPreview.recording_bytes)} · transcript revisions: {retentionPreview.revision_count} · audit receipts: {retentionPreview.receipt_count}.
-            {" "}Read-only inspection; no deletion is available and no data was changed.
+            {" "}Read-only inspection; no deletion is available and no data was changed. Older backups may still contain this recording. Transcripts and audit receipts require separate retention handling.
           </p>
         )}
       </Section>
