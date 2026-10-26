@@ -1367,6 +1367,11 @@ pub enum RequestBody {
     AudioSourceList {
         project_id: OpaqueId,
     },
+    /// Read-only, scope-checked source retention preflight. This cannot delete.
+    AudioRetentionPreflight {
+        project_id: OpaqueId,
+        source_id: OpaqueId,
+    },
     /// Starts a capture. Only an explicit request starts one.
     AudioCaptureStart {
         project_id: OpaqueId,
@@ -2157,6 +2162,20 @@ pub enum ResponseBody {
     },
     AudioSources {
         sources: Vec<AudioSource>,
+    },
+    /// Informational snapshot; a future delete must recheck transactionally.
+    AudioRetentionPreflight {
+        project_id: OpaqueId,
+        source_id: OpaqueId,
+        expected_digest: DigestSha256,
+        imported_file: bool,
+        has_transcript_revisions: bool,
+        has_audit_receipts: bool,
+        has_huddle_media_link: bool,
+        has_capture_reference: bool,
+        unreferenced_imported_file: bool,
+        delete_available: bool,
+        older_backups_may_retain_recording: bool,
     },
     AudioCapture {
         session: Box<AudioSession>,

@@ -840,3 +840,105 @@ fn audio_state_survives_reopen() {
         CaptureState::Stopped
     );
 }
+
+#[test]
+fn audio_retention_preflight_is_read_only_scope_checked_and_link_aware() {
+    let mut h = Harness::setup("retention-preflight", true);
+    let p = h.project();
+    let other = h.project();
+    let source = h.import(&p, wav(&[(300, false), (700, true)])).unwrap();
+    let query = || RequestBody::AudioRetentionPreflight {
+        project_id: p.clone(),
+        source_id: source.header.id.clone(),
+    };
+    assert!(matches!(
+        h.call(Capability::AudioImport, query()),
+        Err(AuthorityError::Unauthorized)
+    ));
+    let first = h.call(Capability::AudioRead, query()).unwrap();
+    match first {
+        ResponseBody::AudioRetentionPreflight {
+            project_id,
+            source_id,
+            expected_digest,
+            imported_file,
+            has_transcript_revisions,
+            has_audit_receipts,
+            has_huddle_media_link,
+            has_capture_reference,
+            unreferenced_imported_file,
+            delete_available,
+            older_backups_may_retain_recording,
+        } => {
+            assert_eq!(project_id, p);
+            assert_eq!(source_id, source.header.id);
+            assert_eq!(expected_digest, source.content_digest);
+            assert!(imported_file);
+            assert!(!has_transcript_revisions);
+            assert!(!has_audit_receipts);
+            assert!(!has_huddle_media_link);
+            assert!(!has_capture_reference);
+            assert!(unreferenced_imported_file);
+            assert!(!delete_available);
+            assert!(older_backups_may_retain_recording);
+        }
+        other => panic!("{other:?}"),
+    }
+    assert!(matches!(
+        h.call(
+            Capability::AudioRead,
+            RequestBody::AudioRetentionPreflight {
+                project_id: other,
+                source_id: source.header.id.clone(),
+            },
+        ),
+        Err(AuthorityError::NotFound)
+    ));
+    let session = h.session.clone();
+    assert!(matches!(
+        h.raw(
+            "different-scope",
+            Some(session),
+            Capability::AudioRead,
+            query(),
+        ),
+        Err(AuthorityError::WrongScope)
+    ));
+    // The read-only preflight cannot remove or modify the original.
+    assert_eq!(
+        h.call(
+            Capability::AudioRead,
+            RequestBody::AudioSourceGet {
+                source_id: source.header.id.clone(),
+            },
+        )
+        .unwrap(),
+        ResponseBody::AudioSource {
+            source: Box::new(source.clone())
+        }
+    );
+    let _ = h
+        .transcribe(
+            &p,
+            &source,
+            AudioRoute::FixtureAsr,
+            VoiceInputMode::Dictation,
+            false,
+        )
+        .unwrap();
+    match h.call(Capability::AudioRead, query()).unwrap() {
+        ResponseBody::AudioRetentionPreflight {
+            has_transcript_revisions,
+            has_audit_receipts,
+            unreferenced_imported_file,
+            delete_available,
+            ..
+        } => {
+            assert!(has_transcript_revisions);
+            assert!(has_audit_receipts);
+            assert!(!unreferenced_imported_file);
+            assert!(!delete_available);
+        }
+        other => panic!("{other:?}"),
+    }
+}

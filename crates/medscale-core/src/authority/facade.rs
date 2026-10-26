@@ -4675,6 +4675,36 @@ impl CoreFacade {
                 )?;
                 Ok(ResponseBody::AudioSources { sources: value })
             }
+            RequestBody::AudioRetentionPreflight {
+                project_id,
+                source_id,
+            } => {
+                let value = self.audio(
+                    &req.vault_id,
+                    req.realm_id,
+                    req.authority_scope_id,
+                    req.session_id,
+                    |a| a.retention_preflight(&project_id, &source_id),
+                )?;
+                let unreferenced_imported_file = value.imported_file
+                    && !value.has_transcript_revisions
+                    && !value.has_audit_receipts
+                    && !value.has_huddle_media_link
+                    && !value.has_capture_reference;
+                Ok(ResponseBody::AudioRetentionPreflight {
+                    project_id,
+                    source_id,
+                    expected_digest: value.expected_digest,
+                    imported_file: value.imported_file,
+                    has_transcript_revisions: value.has_transcript_revisions,
+                    has_audit_receipts: value.has_audit_receipts,
+                    has_huddle_media_link: value.has_huddle_media_link,
+                    has_capture_reference: value.has_capture_reference,
+                    unreferenced_imported_file,
+                    delete_available: false,
+                    older_backups_may_retain_recording: true,
+                })
+            }
             RequestBody::AudioCaptureStart {
                 project_id,
                 label,
@@ -6165,6 +6195,7 @@ fn capability_matches(cap: &Capability, body: &RequestBody) -> bool {
                 Capability::AudioRead,
                 RequestBody::AudioSourceGet { .. }
                     | RequestBody::AudioSourceList { .. }
+                    | RequestBody::AudioRetentionPreflight { .. }
                     | RequestBody::AudioCaptureGet { .. }
                     | RequestBody::AudioCaptureList { .. }
                     | RequestBody::AudioRouteList

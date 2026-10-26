@@ -22,7 +22,9 @@ use medscale_contracts::audio::{
     audio_request_digest,
 };
 use medscale_contracts::envelopes::AuthorityError;
-use medscale_contracts::objects::{AuthorityScopeId, ObjectHeader, OpaqueId, RealmId, VaultId};
+use medscale_contracts::objects::{
+    AuthorityScopeId, DigestSha256, ObjectHeader, OpaqueId, RealmId, VaultId,
+};
 use medscale_storage::{MetaError, SqliteMetaStore};
 
 use super::store::{InMemoryAuthorityStore, StoredObject};
@@ -672,6 +674,16 @@ pub struct SegmentEdit {
 
 // ----- authority --------------------------------------------------------------
 
+/// Read-only, non-authorizing retention assessment; never a deletion token.
+pub struct AudioRetentionAssessment {
+    pub expected_digest: DigestSha256,
+    pub imported_file: bool,
+    pub has_transcript_revisions: bool,
+    pub has_audit_receipts: bool,
+    pub has_huddle_media_link: bool,
+    pub has_capture_reference: bool,
+}
+
 /// Authenticated AudioFlow view for one request.
 pub struct Audio<'a> {
     pub store: &'a mut InMemoryAuthorityStore,
@@ -804,6 +816,38 @@ impl Audio<'_> {
     pub fn list_sources(&self, project_id: &OpaqueId) -> Result<Vec<AudioSource>, AuthorityError> {
         self.scoped_project(project_id)?;
         self.meta.list_audio_sources(project_id).map_err(meta_err)
+    }
+
+    /// Consults only source-scoped, integrity-checked rows. Eligibility is
+    /// advisory and must be revalidated inside a later delete transaction.
+    /// This read does not write any audit, source, revision or backup.
+    pub fn retention_preflight(
+        &self,
+        project_id: &OpaqueId,
+        source_id: &OpaqueId,
+    ) -> Result<AudioRetentionAssessment, AuthorityError> {
+        self.scoped_project(project_id)?;
+        let source = self.get_source(source_id)?;
+        if source.project_id != *project_id {
+            return Err(AuthorityError::NotFound);
+        }
+        let (
+            has_transcript_revisions,
+            has_audit_receipts,
+            has_huddle_media_link,
+            has_capture_session_link,
+        ) = self
+            .meta
+            .audio_retention_reference_flags(source_id)
+            .map_err(meta_err)?;
+        Ok(AudioRetentionAssessment {
+            expected_digest: source.content_digest,
+            imported_file: source.kind == AudioSourceKind::ImportedFile,
+            has_transcript_revisions,
+            has_audit_receipts,
+            has_huddle_media_link,
+            has_capture_reference: source.capture_session_id.is_some() || has_capture_session_link,
+        })
     }
 
     // ----- capture -----
