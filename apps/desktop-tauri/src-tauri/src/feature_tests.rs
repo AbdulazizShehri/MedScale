@@ -1238,6 +1238,19 @@ fn verified_public_human_wav_transcribes_via_native_tauri() {
         "public human WAV did not produce local Whisper text"
     );
     assert!(revision["revision_id"].is_string());
+    // A real model returning text is not enough: source bytes, transcript
+    // revision and audit receipt must survive an actual app workspace restart.
+    // Reuse the merged project-scoped, read-only native storage inspection.
+    let before_restart = h.ok(
+        "audio_source_retention_preview",
+        json!({"projectId": project_id, "sourceId": source_id}),
+    );
+    assert_eq!(before_restart["source_id"], source_id);
+    assert_eq!(before_restart["revision_count"], 1);
+    assert_eq!(before_restart["receipt_count"], 1);
+    assert!(before_restart["recording_bytes"].as_u64().unwrap() > 44);
+    assert_eq!(before_restart["delete_available"], false);
+
     h.call("workspace_lock", json!({}))
         .unwrap_or_else(|_| panic!("macOS workspace failed to seal"));
     let restored = Harness::restart("mac-real-human-audio");
@@ -1252,6 +1265,14 @@ fn verified_public_human_wav_transcribes_via_native_tauri() {
             .iter()
             .any(|r| r["route"] == "local_asr_pack" && r["available"] == true)),
         "native macOS did not restore the signed Whisper engine"
+    );
+    let after_restart = restored.ok(
+        "audio_source_retention_preview",
+        json!({"projectId": project_id, "sourceId": source_id}),
+    );
+    assert_eq!(
+        after_restart, before_restart,
+        "restart changed stored real source, transcript or receipt lineage"
     );
     // Only aggregate proof; do not print voice, transcript, speaker or paths.
     println!("MAC_NATIVE_REAL_HUMAN_ASR_OK clips=1 model=whisper-tiny-en restart=true");
