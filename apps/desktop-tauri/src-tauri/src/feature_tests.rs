@@ -1141,7 +1141,6 @@ fn medagent_workbench_agent_context_evidence_and_resume() {
     h.dump();
 }
 
-
 /// Explicit macOS real-human-speech qualification, never run in routine CI.
 /// A disposable hosted runner supplies verified public LibriSpeech and signed
 /// immutable Whisper Pack. The production Tauri IPC and Rust Core execute;
@@ -1152,13 +1151,20 @@ fn verified_public_human_wav_transcribes_via_native_tauri() {
     if std::env::var("MEDSCALE_QUAL_REAL_MAC_AUDIO").as_deref() != Ok("1") {
         return;
     }
-    assert!(cfg!(target_os = "macos"), "must run on a macOS hosted runner");
+    assert!(
+        cfg!(target_os = "macos"),
+        "must run on a macOS hosted runner"
+    );
     let wav = std::env::var("MEDSCALE_E2E_REAL_WAV_PATH")
         .expect("source-verified LibriSpeech WAV required");
     let pack = std::env::var("MEDSCALE_E2E_REAL_ASR_PACK_PATH")
         .expect("pinned signed Whisper Pack required");
     assert!(std::path::Path::new(&wav).is_file());
-    assert!(std::path::Path::new(&pack).join("pack.manifest.json").is_file());
+    assert!(
+        std::path::Path::new(&pack)
+            .join("pack.manifest.json")
+            .is_file()
+    );
 
     let h = Harness::new("mac-real-human-audio");
     h.call("workspace_open_synthetic", json!({}))
@@ -1189,9 +1195,13 @@ fn verified_public_human_wav_transcribes_via_native_tauri() {
     assert_eq!(transcribed["decision"]["outcome"], "allow");
     assert_eq!(transcribed["engine"]["is_fixture"], false);
     let revision = &transcribed["transcript"];
-    let segments = revision["segments"].as_array().expect("transcript segments");
+    let segments = revision["segments"]
+        .as_array()
+        .expect("transcript segments");
     assert!(
-        segments.iter().any(|s| s["text"].as_str().is_some_and(|t| t.trim().len() > 8)),
+        segments
+            .iter()
+            .any(|s| s["text"].as_str().is_some_and(|t| t.trim().len() > 8)),
         "public human WAV did not produce local Whisper text"
     );
     assert!(revision["revision_id"].is_string());
@@ -1205,8 +1215,9 @@ fn verified_public_human_wav_transcribes_via_native_tauri() {
         .call("audio_asr_status", json!({}))
         .unwrap_or_else(|_| panic!("ASR status unavailable after restart"));
     assert!(
-        status["routes"].as_array().is_some_and(|routes|
-            routes.iter().any(|r| r["route"] == "local_asr_pack" && r["available"] == true)),
+        status["routes"].as_array().is_some_and(|routes| routes
+            .iter()
+            .any(|r| r["route"] == "local_asr_pack" && r["available"] == true)),
         "native macOS did not restore the signed Whisper engine"
     );
     // Only aggregate proof; do not print voice, transcript, speaker or paths.
