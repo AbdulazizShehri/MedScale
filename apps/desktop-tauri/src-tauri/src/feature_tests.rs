@@ -932,6 +932,21 @@ fn medagent_workbench_agent_context_evidence_and_resume() {
     assert_eq!(preview["revision_count"], 0);
     assert_eq!(preview["receipt_count"], 0);
     assert_eq!(preview["delete_available"], false);
+    assert_eq!(preview["imported_file"], true);
+    assert_eq!(preview["unreferenced_imported_file"], true);
+    assert_eq!(preview["has_huddle_media_link"], false);
+    assert_eq!(preview["has_capture_reference"], false);
+    assert_eq!(preview["active_vault_only"], true);
+    assert_eq!(preview["older_backups_may_retain_recording"], true);
+    assert_eq!(
+        preview["linked_evidence_requires_separate_retention_policy"],
+        true
+    );
+    assert!(
+        preview["expected_digest"]
+            .as_str()
+            .is_some_and(|d| d.len() == 64)
+    );
     assert_eq!(
         h.call(
             "audio_source_retention_preview",
@@ -973,6 +988,10 @@ fn medagent_workbench_agent_context_evidence_and_resume() {
     assert_eq!(persisted["revision_count"], 2, "{persisted}");
     assert_eq!(persisted["receipt_count"], 1, "{persisted}");
     assert_eq!(persisted["delete_available"], false);
+    assert_eq!(persisted["has_transcript_revisions"], true);
+    assert_eq!(persisted["has_audit_receipts"], true);
+    assert_eq!(persisted["unreferenced_imported_file"], false);
+    assert_eq!(persisted["expected_digest"], preview["expected_digest"]);
     // A second read must not consume or mutate lineage.
     assert_eq!(
         persisted,
