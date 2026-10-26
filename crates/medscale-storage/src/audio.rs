@@ -377,15 +377,19 @@ impl SqliteMetaStore {
             ));
         }
 
+        // Huddles (schema v17) can attach an AudioFlow source independently
+        // from any transcript or route receipt. A stored media record, even
+        // a tombstone, is part of provenance and must not be orphaned.
         let linked: i64 = tx.query_row(
             "SELECT (SELECT COUNT(*) FROM audio_transcripts WHERE source_id = ?1)
-                  + (SELECT COUNT(*) FROM audio_transcript_receipts WHERE source_id = ?1)",
+                  + (SELECT COUNT(*) FROM audio_transcript_receipts WHERE source_id = ?1)
+                  + (SELECT COUNT(*) FROM hud_media WHERE source_id = ?1)",
             params![source_id.as_str()],
             |row| row.get(0),
         )?;
         if linked != 0 {
             return Err(MetaError::Conflict(
-                "audio recording has transcript revisions or immutable receipts".to_owned(),
+                "audio recording has transcript, receipt, or Huddle media references".to_owned(),
             ));
         }
 
