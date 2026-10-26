@@ -767,7 +767,6 @@ fn pre_081_v9_backup_restores_with_empty_audio_tables() {
     restored.meta.verify_audio_consistency().unwrap();
 }
 
-
 #[test]
 fn unreferenced_imported_audio_removal_preserves_other_sources_and_prior_backups() {
     let root = temp_root("remove-unreferenced");
@@ -777,31 +776,48 @@ fn unreferenced_imported_audio_removal_preserves_other_sources_and_prior_backups
     let b_bytes = bytes(160, 19);
     let a = imported("source-to-remove", &a_bytes);
     let b = imported("source-to-keep", &b_bytes);
-    vault.meta.insert_imported_audio_source(&a, &a_bytes).unwrap();
-    vault.meta.insert_imported_audio_source(&b, &b_bytes).unwrap();
+    vault
+        .meta
+        .insert_imported_audio_source(&a, &a_bytes)
+        .unwrap();
+    vault
+        .meta
+        .insert_imported_audio_source(&b, &b_bytes)
+        .unwrap();
 
     let prior_backup = root.join("pre-removal-backup");
     backup_vault(&vault, &prior_backup).unwrap();
     assert!(matches!(
         vault.meta.remove_unreferenced_imported_audio_source(
-            &id("other-project"), &a.header.id, &a.content_digest
+            &id("other-project"),
+            &a.header.id,
+            &a.content_digest
         ),
         Err(MetaError::NotFound)
     ));
-    assert_eq!(vault.meta.get_audio_source(&a.header.id).unwrap().1, a_bytes);
+    assert_eq!(
+        vault.meta.get_audio_source(&a.header.id).unwrap().1,
+        a_bytes
+    );
 
-    vault.meta.remove_unreferenced_imported_audio_source(
-        &a.project_id, &a.header.id, &a.content_digest
-    ).unwrap();
+    vault
+        .meta
+        .remove_unreferenced_imported_audio_source(&a.project_id, &a.header.id, &a.content_digest)
+        .unwrap();
     assert!(matches!(
         vault.meta.get_audio_source(&a.header.id),
         Err(MetaError::NotFound)
     ));
-    assert_eq!(vault.meta.get_audio_source(&b.header.id).unwrap().1, b_bytes);
+    assert_eq!(
+        vault.meta.get_audio_source(&b.header.id).unwrap().1,
+        b_bytes
+    );
     vault.meta.verify_audio_consistency().unwrap();
     assert!(matches!(
         vault.meta.remove_unreferenced_imported_audio_source(
-            &a.project_id, &a.header.id, &a.content_digest
+            &a.project_id,
+            &a.header.id,
+            &a.content_digest
         ),
         Err(MetaError::NotFound)
     ));
@@ -814,14 +830,20 @@ fn unreferenced_imported_audio_removal_preserves_other_sources_and_prior_backups
         current.meta.get_audio_source(&a.header.id),
         Err(MetaError::NotFound)
     ));
-    assert_eq!(current.meta.get_audio_source(&b.header.id).unwrap().1, b_bytes);
+    assert_eq!(
+        current.meta.get_audio_source(&b.header.id).unwrap().1,
+        b_bytes
+    );
     current.meta.verify_audio_consistency().unwrap();
 
     // Earlier backups remain intact; this operation must never claim to
     // retroactively erase old snapshots or all copies on physical storage.
     restore_vault(&prior_backup, &root.join("restored-previous")).unwrap();
     let prior = SyntheticVault::open("vault-1", &root.join("restored-previous")).unwrap();
-    assert_eq!(prior.meta.get_audio_source(&a.header.id).unwrap().1, a_bytes);
+    assert_eq!(
+        prior.meta.get_audio_source(&a.header.id).unwrap().1,
+        a_bytes
+    );
     prior.meta.verify_audio_consistency().unwrap();
 }
 
@@ -852,18 +874,23 @@ fn audio_removal_refuses_revisions_receipts_capture_and_stale_digest() {
 
     let audio = bytes(80, 64);
     let with_receipt = imported("source-denied-receipt", &audio);
-    meta.insert_imported_audio_source(&with_receipt, &audio).unwrap();
-    meta.commit_transcript(None, &denied_receipt("r3", &with_receipt)).unwrap();
+    meta.insert_imported_audio_source(&with_receipt, &audio)
+        .unwrap();
+    meta.commit_transcript(None, &denied_receipt("r3", &with_receipt))
+        .unwrap();
     assert!(matches!(
         meta.remove_unreferenced_imported_audio_source(
-            &with_receipt.project_id, &with_receipt.header.id, &with_receipt.content_digest
+            &with_receipt.project_id,
+            &with_receipt.header.id,
+            &with_receipt.content_digest
         ),
         Err(MetaError::Conflict(_))
     ));
 
     let untouched_audio = bytes(96, 5);
     let untouched = imported("source-stale", &untouched_audio);
-    meta.insert_imported_audio_source(&untouched, &untouched_audio).unwrap();
+    meta.insert_imported_audio_source(&untouched, &untouched_audio)
+        .unwrap();
     assert!(matches!(
         meta.remove_unreferenced_imported_audio_source(
             &untouched.project_id,
