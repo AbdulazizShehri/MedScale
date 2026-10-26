@@ -972,7 +972,10 @@ pub fn audio_source_retention_preview(
         "revision_count": revisions.len(),
         "receipt_count": receipts.len(),
         "delete_available": false,
-        "message": "Read-only inspection. The recording, transcript revisions and receipts remain in this workspace. No files or vault data were deleted."
+        "active_vault_only": true,
+        "older_backups_may_retain_recording": true,
+        "linked_evidence_requires_separate_retention_policy": true,
+        "message": "Read-only inspection. No data was deleted. Older backups and snapshots can retain recordings even after future active-vault removal; linked transcripts and audit receipts require a separate retention policy."
     }))
 }
 
