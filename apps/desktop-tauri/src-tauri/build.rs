@@ -80,6 +80,7 @@ fn main() {
             "collab_complete_task",
             "workflow_overview",
             "audio_overview",
+            "audio_source_retention_preview",
             "audio_import_synthetic",
             "audio_segment",
             "audio_asr_status",

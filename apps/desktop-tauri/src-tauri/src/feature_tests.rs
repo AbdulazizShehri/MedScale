@@ -922,6 +922,25 @@ fn medagent_workbench_agent_context_evidence_and_resume() {
         "audio_import_wav",
         json!({ "projectId": pid, "path": wav_path.display().to_string() }),
     );
+    let preview = h.ok(
+        "audio_source_retention_preview",
+        json!({ "projectId": pid, "sourceId": imported["source_id"] }),
+    );
+    assert_eq!(preview["source_id"], imported["source_id"]);
+    assert_eq!(preview["source_kind"], "imported_file");
+    assert!(preview["recording_bytes"].as_u64().unwrap() > 44);
+    assert_eq!(preview["revision_count"], 0);
+    assert_eq!(preview["receipt_count"], 0);
+    assert_eq!(preview["delete_available"], false);
+    assert_eq!(
+        h.call(
+            "audio_source_retention_preview",
+            json!({ "projectId": "wrong-project", "sourceId": imported["source_id"] }),
+        )
+        .unwrap_err()["kind"],
+        "invalid",
+        "source metadata cannot be read using an unrelated selected project"
+    );
     let transcribed = h.ok(
         "audio_transcribe",
         json!({ "projectId": pid, "sourceId": imported["source_id"], "route": "local_asr_pack", "language": "en" }),
@@ -947,6 +966,21 @@ fn medagent_workbench_agent_context_evidence_and_resume() {
     );
     assert_eq!(corrected["revision_no"], 2, "{corrected}");
     assert_eq!(corrected["segments"][0]["text"], "patient has fever");
+    let persisted = h.ok(
+        "audio_source_retention_preview",
+        json!({ "projectId": pid, "sourceId": imported["source_id"] }),
+    );
+    assert_eq!(persisted["revision_count"], 2, "{persisted}");
+    assert_eq!(persisted["receipt_count"], 1, "{persisted}");
+    assert_eq!(persisted["delete_available"], false);
+    // A second read must not consume or mutate lineage.
+    assert_eq!(
+        persisted,
+        h.ok(
+            "audio_source_retention_preview",
+            json!({ "projectId": pid, "sourceId": imported["source_id"] }),
+        )
+    );
     // Draft note from the corrected revision with the fixture Pack: items
     // cite their segment; the draft stays a proposal.
     let draft = h.ok(
