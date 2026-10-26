@@ -364,7 +364,9 @@ impl SqliteMetaStore {
             .map_err(|e| corrupt(format!("audio source: {e}")))?;
         check_content(&source, &bytes)?;
         if stored_project_id != source.project_id.as_str() {
-            return Err(corrupt("audio source project column disagrees with body".to_owned()));
+            return Err(corrupt(
+                "audio source project column disagrees with body".to_owned(),
+            ));
         }
         if source.header.id != *source_id || source.project_id != *project_id {
             return Err(MetaError::NotFound);
