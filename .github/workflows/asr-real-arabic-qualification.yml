@@ -1,0 +1,97 @@
+# Issue #307 — real public Arabic ASR proof, never user PHI or founder disk.
+# Runs only on dedicated qual-arabic-asr/** branches; no paid GPU.
+name: asr-real-arabic-qualification
+on:
+  push:
+    branches: ["qual-arabic-asr/**"]
+permissions:
+  contents: read
+concurrency:
+  group: medscale-arabic-real-public-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  arabic-human-speech:
+    name: MedScale multilingual Whisper / FLEURS ar_eg
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    env:
+      CARGO_TERM_COLOR: always
+      REPO: openai/whisper-tiny
+      REVISION: 169d4a4341b33bc18d8881c4b69c2e104e1cc0af
+      FLEURS_REVISION: 1712be137a62f4b1a69ce0c4820c0975bc7b6067
+      WHISPER_ASSETS_COMMIT: c5d42560760a05584c1c79546a098287e5a771eb
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v4
+      - name: Install isolated pinned Rust with Clippy and rustfmt
+        run: |
+          set -euo pipefail
+          # Runner context cannot be referenced from a job-wide env expression.
+          export RUSTUP_HOME="$RUNNER_TEMP/medscale-rustup-ar"
+          mkdir -p "$RUSTUP_HOME"
+          echo "RUSTUP_HOME=$RUSTUP_HOME" >> "$GITHUB_ENV"
+          rustup toolchain install 1.97.1 --profile default
+          rustup default 1.97.1
+          rustc --version
+          cargo --version
+      - name: Install bounded real speech conversion and build tools
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends ffmpeg libfontconfig1-dev
+          python3 -m venv "$RUNNER_TEMP/arrow-venv"
+          "$RUNNER_TEMP/arrow-venv/bin/pip" install --quiet "pyarrow==21.0.0"
+      - name: Retrieve exact licensed FLEURS Arabic test split and verify content
+        run: |
+          set -euo pipefail
+          curl -sfL --retry 3 --max-time 360 \
+            "https://huggingface.co/datasets/google/fleurs/resolve/$FLEURS_REVISION/ar_eg/test-00000-of-00001.parquet" \
+            -o "$RUNNER_TEMP/fleurs-ar-eg.parquet"
+          echo "3386d58ff9619c2b1395dcaed0a476363fae15420bc68b7ca4870cffdff9936d  $RUNNER_TEMP/fleurs-ar-eg.parquet" | sha256sum --check --status
+          "$RUNNER_TEMP/arrow-venv/bin/python" scripts/qualification/prepare_fleurs_ar_eg.py \
+            "$RUNNER_TEMP/fleurs-ar-eg.parquet" "$RUNNER_TEMP/fleurs-wav"
+          echo "MEDSCALE_ASR_CASES=$RUNNER_TEMP/fleurs-wav/cases.json" >> "$GITHUB_ENV"
+      - name: Acquire pinned multilingual real model and published mel filters
+        run: |
+          set -euo pipefail
+          dir="$RUNNER_TEMP/snapshot"
+          mkdir -p "$dir" "$RUNNER_TEMP/mel"
+          curl -sfL -A medscale-qualification --retry 3 \
+            "https://huggingface.co/api/models/$REPO/revision/$REVISION?blobs=true" -o "$dir/metadata.json"
+          for f in config.json tokenizer.json model.safetensors; do
+            curl -sfL -A medscale-qualification --retry 3 \
+              "https://huggingface.co/$REPO/resolve/$REVISION/$f" -o "$dir/$f"
+          done
+          echo "7ebd0e69e78190ffe1438491fa05cc1f5c1aa3a4c4db3bc1723adbb551ea2395  $dir/model.safetensors" | sha256sum --check --status
+          curl -sfL --retry 3 \
+            "https://raw.githubusercontent.com/openai/whisper/$WHISPER_ASSETS_COMMIT/whisper/assets/mel_filters.npz" \
+            -o "$RUNNER_TEMP/mel_filters.npz"
+          "$RUNNER_TEMP/arrow-venv/bin/pip" install --quiet "numpy==2.3.4"
+          "$RUNNER_TEMP/arrow-venv/bin/python" - "$RUNNER_TEMP/mel_filters.npz" "$RUNNER_TEMP/mel" <<'PY'
+          import os,sys,numpy as np
+          with np.load(sys.argv[1]) as source:
+              for name in ("mel_80", "mel_128"):
+                  source[name].astype("<f4").tofile(os.path.join(sys.argv[2], name+".f32"))
+          PY
+          echo "MEDSCALE_ASR_SNAPSHOT_DIR=$dir" >> "$GITHUB_ENV"
+          echo "MEDSCALE_MEL_FILTERS_DIR=$RUNNER_TEMP/mel" >> "$GITHUB_ENV"
+      - name: Execute actual MedScale runtime with Arabic control token on real speech
+        run: |
+          set -euo pipefail
+          cargo test --release --locked -p medscale-pack --test whisper_arabic_external_106 \
+            actual_arabic_fleurs_transcription -- --ignored --nocapture --test-threads 1 2>&1 | tee qualification.log
+          # Rust test harness prefixes the metric line with "test <name> ...".
+          # Extract only the aggregate JSON marker; fail if no actual metric exists.
+          grep -o 'ARABIC_ASR_REAL_METRICS {.*}' qualification.log | tail -1 >> "$GITHUB_STEP_SUMMARY"
+      - name: Delete datasets and model weights on runner
+        if: always()
+        run: |
+          rm -rf "$RUNNER_TEMP/fleurs-ar-eg.parquet" "$RUNNER_TEMP/fleurs-wav" \
+            "$RUNNER_TEMP/snapshot" "$RUNNER_TEMP/mel" \
+            "$RUNNER_TEMP/mel_filters.npz" "$RUNNER_TEMP/arrow-venv"
+      - name: Retain only aggregate logs
+        if: always()
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v4.6.2
+        with:
+          name: ar-eg-real-aggregate
+          path: qualification.log
+          retention-days: 7
+          if-no-files-found: ignore
