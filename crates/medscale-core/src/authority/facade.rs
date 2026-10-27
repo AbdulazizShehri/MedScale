@@ -4705,6 +4705,29 @@ impl CoreFacade {
                     older_backups_may_retain_recording: true,
                 })
             }
+            RequestBody::AudioRetentionRemove {
+                project_id,
+                source_id,
+                expected_digest,
+                confirmation,
+            } => {
+                let receipt = self.audio(
+                    &req.vault_id,
+                    req.realm_id,
+                    req.authority_scope_id,
+                    req.session_id,
+                    |mut a| {
+                        a.retention_remove(project_id, source_id, expected_digest, confirmation)
+                    },
+                )?;
+                Ok(ResponseBody::AudioRetentionRemoved {
+                    project_id: receipt.project_id,
+                    source_id: receipt.source_id,
+                    receipt_id: receipt.receipt_id,
+                    removed_bytes: receipt.removed_bytes,
+                    older_backups_may_retain_recording: receipt.older_backups_may_retain_recording,
+                })
+            }
             RequestBody::AudioCaptureStart {
                 project_id,
                 label,
@@ -6191,6 +6214,10 @@ fn capability_matches(cap: &Capability, body: &RequestBody) -> bool {
                 RequestBody::BrowseSessionCancel { .. }
             )
             | (Capability::AudioImport, RequestBody::AudioImport { .. })
+            | (
+                Capability::AudioRemove,
+                RequestBody::AudioRetentionRemove { .. }
+            )
             | (
                 Capability::AudioRead,
                 RequestBody::AudioSourceGet { .. }

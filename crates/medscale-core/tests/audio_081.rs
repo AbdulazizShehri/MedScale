@@ -842,6 +842,176 @@ fn audio_state_survives_reopen() {
 }
 
 #[test]
+fn audio_remove_requires_distinct_write_capability_exact_confirmation_and_digest() {
+    let mut h = Harness::setup("retention-authorized-remove", true);
+    let project = h.project();
+    let unrelated = h.project();
+    let source = h
+        .import(&project, wav(&[(300, false), (700, true)]))
+        .unwrap();
+    let other = h.import(&project, wav(&[(400, true)])).unwrap();
+    let phrase = format!("REMOVE {} FROM ACTIVE VAULT", source.header.id.as_str());
+    let request = || RequestBody::AudioRetentionRemove {
+        project_id: project.clone(),
+        source_id: source.header.id.clone(),
+        expected_digest: source.content_digest.clone(),
+        confirmation: phrase.clone(),
+    };
+
+    assert!(matches!(
+        h.call(Capability::AudioRead, request()),
+        Err(AuthorityError::Unauthorized)
+    ));
+    assert!(matches!(
+        h.call(
+            Capability::AudioRemove,
+            RequestBody::AudioRetentionRemove {
+                project_id: project.clone(),
+                source_id: source.header.id.clone(),
+                expected_digest: source.content_digest.clone(),
+                confirmation: "REMOVE ANYTHING".to_owned()
+            }
+        ),
+        Err(AuthorityError::InvalidArgument { .. })
+    ));
+    assert!(matches!(
+        h.call(
+            Capability::AudioRemove,
+            RequestBody::AudioRetentionRemove {
+                project_id: project.clone(),
+                source_id: source.header.id.clone(),
+                expected_digest: DigestSha256::of(b"stale"),
+                confirmation: phrase.clone()
+            }
+        ),
+        Err(AuthorityError::Conflict { .. })
+    ));
+    assert!(matches!(
+        h.call(
+            Capability::AudioRemove,
+            RequestBody::AudioRetentionRemove {
+                project_id: unrelated,
+                source_id: source.header.id.clone(),
+                expected_digest: source.content_digest.clone(),
+                confirmation: phrase.clone()
+            }
+        ),
+        Err(AuthorityError::NotFound)
+    ));
+    let session = h.session.clone();
+    assert!(matches!(
+        h.raw(
+            "different-scope",
+            Some(session),
+            Capability::AudioRemove,
+            request()
+        ),
+        Err(AuthorityError::WrongScope)
+    ));
+    // Refused requests never mutate either existing source.
+    assert_eq!(
+        h.call(
+            Capability::AudioRead,
+            RequestBody::AudioSourceGet {
+                source_id: source.header.id.clone(),
+            }
+        )
+        .unwrap(),
+        ResponseBody::AudioSource {
+            source: Box::new(source.clone())
+        }
+    );
+
+    match h.call(Capability::AudioRemove, request()).unwrap() {
+        ResponseBody::AudioRetentionRemoved {
+            project_id,
+            source_id,
+            receipt_id,
+            removed_bytes,
+            older_backups_may_retain_recording,
+        } => {
+            assert_eq!(project_id, project);
+            assert_eq!(source_id, source.header.id);
+            assert!(!receipt_id.as_str().is_empty());
+            assert_eq!(removed_bytes, source.byte_length);
+            assert!(older_backups_may_retain_recording);
+        }
+        other_response => panic!("{other_response:?}"),
+    }
+    assert!(matches!(
+        h.call(
+            Capability::AudioRead,
+            RequestBody::AudioSourceGet {
+                source_id: source.header.id.clone()
+            },
+        ),
+        Err(AuthorityError::NotFound)
+    ));
+    assert_eq!(
+        h.call(
+            Capability::AudioRead,
+            RequestBody::AudioSourceGet {
+                source_id: other.header.id.clone()
+            },
+        )
+        .unwrap(),
+        ResponseBody::AudioSource {
+            source: Box::new(other)
+        }
+    );
+    assert!(matches!(
+        h.call(Capability::AudioRemove, request()),
+        Err(AuthorityError::NotFound)
+    ));
+}
+
+#[test]
+fn audio_remove_refuses_transcribed_recordings_without_losing_evidence() {
+    let mut h = Harness::setup("retention-transcribed-refusal", true);
+    let project = h.project();
+    let source = h
+        .import(&project, wav(&[(300, false), (700, true)]))
+        .unwrap();
+    let result = h
+        .transcribe(
+            &project,
+            &source,
+            AudioRoute::FixtureAsr,
+            VoiceInputMode::Dictation,
+            false,
+        )
+        .unwrap();
+    let phrase = format!("REMOVE {} FROM ACTIVE VAULT", source.header.id.as_str());
+    assert!(matches!(
+        h.call(
+            Capability::AudioRemove,
+            RequestBody::AudioRetentionRemove {
+                project_id: project,
+                source_id: source.header.id.clone(),
+                expected_digest: source.content_digest.clone(),
+                confirmation: phrase,
+            }
+        ),
+        Err(AuthorityError::Conflict { .. })
+    ));
+    assert_eq!(
+        h.call(
+            Capability::AudioRead,
+            RequestBody::AudioSourceGet {
+                source_id: source.header.id.clone()
+            },
+        )
+        .unwrap(),
+        ResponseBody::AudioSource {
+            source: Box::new(source.clone())
+        }
+    );
+    // The original transcript and route evidence cannot be orphaned.
+    assert!(!h.revisions(&source.header.id).is_empty());
+    let _ = result;
+}
+
+#[test]
 fn audio_retention_preflight_is_read_only_scope_checked_and_link_aware() {
     let mut h = Harness::setup("retention-preflight", true);
     let p = h.project();
