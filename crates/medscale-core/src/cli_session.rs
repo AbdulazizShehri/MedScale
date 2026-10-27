@@ -3502,6 +3502,29 @@ impl CliSession {
         }
     }
 
+    /// Requires a separate Core write permission and a source-specific
+    /// confirmation phrase. Not exposed in the desktop UI yet.
+    pub fn audio_retention_remove(
+        &mut self,
+        project_id: OpaqueId,
+        source_id: OpaqueId,
+        expected_digest: medscale_contracts::objects::DigestSha256,
+        confirmation: String,
+    ) -> Result<ResponseBody, AuthorityError> {
+        match self.dispatch(
+            Capability::AudioRemove,
+            RequestBody::AudioRetentionRemove {
+                project_id,
+                source_id,
+                expected_digest,
+                confirmation,
+            },
+        )? {
+            response @ ResponseBody::AudioRetentionRemoved { .. } => Ok(response),
+            _ => Err(Self::unexpected("audio retention removal acknowledgement")),
+        }
+    }
+
     pub fn audio_capture_start(
         &mut self,
         project_id: OpaqueId,

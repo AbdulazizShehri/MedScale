@@ -246,6 +246,8 @@ pub enum Capability {
     // Spec 081: AudioFlow Foundation.
     AudioImport,
     AudioRead,
+    /// Separate mutation permission for user-confirmed, source-scoped removal.
+    AudioRemove,
     AudioCapture,
     AudioTranscribe,
     AudioCorrect,
@@ -516,6 +518,7 @@ impl Capability {
             Self::BrowseCancel,
             Self::AudioImport,
             Self::AudioRead,
+            Self::AudioRemove,
             Self::AudioCapture,
             Self::AudioTranscribe,
             Self::AudioCorrect,
@@ -1372,6 +1375,14 @@ pub enum RequestBody {
         project_id: OpaqueId,
         source_id: OpaqueId,
     },
+    /// Explicit, source/digest-bound active-vault removal; must be authorised
+    /// with AudioRemove and a typed confirmation phrase, never AudioRead.
+    AudioRetentionRemove {
+        project_id: OpaqueId,
+        source_id: OpaqueId,
+        expected_digest: DigestSha256,
+        confirmation: String,
+    },
     /// Starts a capture. Only an explicit request starts one.
     AudioCaptureStart {
         project_id: OpaqueId,
@@ -2175,6 +2186,14 @@ pub enum ResponseBody {
         has_capture_reference: bool,
         unreferenced_imported_file: bool,
         delete_available: bool,
+        older_backups_may_retain_recording: bool,
+    },
+    /// Durable, source-scoped active-vault removal acknowledgement.
+    AudioRetentionRemoved {
+        project_id: OpaqueId,
+        source_id: OpaqueId,
+        receipt_id: OpaqueId,
+        removed_bytes: u64,
         older_backups_may_retain_recording: bool,
     },
     AudioCapture {
