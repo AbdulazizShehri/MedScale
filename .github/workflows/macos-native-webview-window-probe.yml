@@ -113,22 +113,84 @@ jobs:
                   time.sleep(2)
               else:
                   raise SystemExit(f"Native welcome action inaccessible: {result}")
+              # Audio is ProjectScope in production: without an active
+              # project it deliberately shows "Create a project", not Audio.
+              # Provision one via WKWebView's real accessible controls.
               for _ in range(15):
                   result = ax("Audio", press=True)
                   if result[:2] == (0, "PRESSED"):
-                      print("MAC_NATIVE_WKWEBVIEW_AUDIO_NAV_PASS")
+                      print("MAC_NATIVE_WKWEBVIEW_AUDIO_NAV_ACTION")
                       break
                   time.sleep(2)
               else:
                   raise SystemExit(f"Native Audio navigation inaccessible: {result}")
-              for _ in range(12):
-                  result = ax("Import synthetic tone sample")
+              # Query-only probe first, to avoid confusing a successful
+              # accessibility 'click' call with an actual route transition.
+              for _ in range(10):
+                  result = ax("Create a project")
                   if result[:2] == (0, "FOUND"):
+                      print("MAC_NATIVE_WKWEBVIEW_PROJECT_REQUIRED_CONFIRMED")
+                      break
+                  if ax("Import synthetic tone sample")[:2] == (0, "FOUND"):
                       print("MAC_NATIVE_WKWEBVIEW_AUDIO_CONTROLS_PASS")
+                      result = None
                       break
                   time.sleep(2)
-              else:
-                  raise SystemExit(f"Native Audio controls inaccessible: {result}")
+              if result is not None:
+                  if result[:2] != (0, "FOUND"):
+                      raise SystemExit(f"No project gate or Audio controls after route navigation: {result}")
+                  if ax("Create a project", press=True)[:2] != (0, "PRESSED"):
+                      raise SystemExit("Could not open the project creation form")
+                  # The first text field on this previously empty Projects
+                  # screen is the required project Name. Use a real keypress
+                  # so React observes ordinary DOM input/change events.
+                  fill = (
+                      'tell application "System Events"\n'
+                      f'  set candidates to every process whose unix id is {process.pid}\n'
+                      '  set frontmost of item 1 of candidates to true\n'
+                      '  set fields to every UI element of first window of item 1 of candidates\n'
+                      '  repeat with el in (entire contents of first window of item 1 of candidates)\n'
+                      '    try\n'
+                      '      if role of el is "AXTextField" then\n'
+                      '        click el\n'
+                      '        keystroke "MedScale synthetic macOS QA"\n'
+                      '        return "NAME_ENTERED"\n'
+                      '      end if\n'
+                      '    end try\n'
+                      '  end repeat\n'
+                      '  return "NO_TEXT_FIELD"\n'
+                      'end tell'
+                  )
+                  typed = subprocess.run(["osascript", "-e", fill],
+                      capture_output=True, text=True, timeout=45, check=False)
+                  if (typed.returncode, typed.stdout.strip()) != (0, "NAME_ENTERED"):
+                      raise SystemExit(f"Project name field inaccessible: {typed.returncode}/{typed.stdout.strip()[:80]}/{typed.stderr.strip()[:80]}")
+                  created = False
+                  for _ in range(12):
+                      result = ax("Create project", press=True)
+                      if result[:2] == (0, "PRESSED"):
+                          print("MAC_NATIVE_WKWEBVIEW_PROJECT_CREATE_ACTION")
+                          created = True
+                          break
+                      time.sleep(2)
+                  if not created:
+                      raise SystemExit(f"Project create control inaccessible: {result}")
+                  # Navigation must happen only after the project exists.
+                  for _ in range(15):
+                      result = ax("Audio", press=True)
+                      if result[:2] == (0, "PRESSED"):
+                          break
+                      time.sleep(2)
+                  else:
+                      raise SystemExit(f"Audio navigation missing after project creation: {result}")
+                  for _ in range(15):
+                      result = ax("Import synthetic tone sample")
+                      if result[:2] == (0, "FOUND"):
+                          print("MAC_NATIVE_WKWEBVIEW_AUDIO_CONTROLS_PASS")
+                          break
+                      time.sleep(2)
+                  else:
+                      raise SystemExit(f"Audio controls missing after project creation: {result}")
           finally:
               process.terminate()
               try: process.wait(timeout=12)
@@ -137,4 +199,4 @@ jobs:
       - name: Record narrow claim only
         if: success()
         run: |
-          echo "Native macOS WKWebView sample open and Audio navigation: PASS (synthetic). The full real-human macOS GUI transcription journey remains unqualified." >> "$GITHUB_STEP_SUMMARY"
+          echo "Native macOS WKWebView sample, synthetic project creation, and Audio controls: PASS. The full real-human macOS GUI transcription journey remains unqualified." >> "$GITHUB_STEP_SUMMARY"
