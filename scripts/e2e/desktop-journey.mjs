@@ -361,6 +361,15 @@ try {
     await type("//input[@id='audio-removal-confirmation']", phrase);
     await find("//button[normalize-space(.)='Remove this recording from active vault' and not(@disabled)]");
     await click("//button[normalize-space(.)='Remove this recording from active vault']");
+    // Capture a bounded, synthetic-only diagnostic while the native toast
+    // is still visible. This distinguishes a Core refusal from an E2E
+    // timing-only failure without printing audio or any user data.
+    await sleep(700);
+    const removalDiagnostic = await wd("POST", `/session/${sid}/execute/sync`, {
+      script: "return [...document.querySelectorAll('[role=alert],[role=status],[aria-live]')].map(e => e.textContent?.trim().slice(0,240)).filter(Boolean).slice(0,6);",
+      args: [],
+    });
+    console.log("E2E synthetic removal feedback", JSON.stringify(removalDiagnostic));
     await see("Recording removed from active vault; receipt recorded", 30000);
   });
   // The real audio journey runs ONLY on an isolated CI host with opt-in inputs.

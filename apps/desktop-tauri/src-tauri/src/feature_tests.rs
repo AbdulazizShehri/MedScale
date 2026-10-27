@@ -972,10 +972,12 @@ fn medagent_workbench_agent_context_evidence_and_resume() {
         "expectedDigest": candidate["expected_digest"],
         "confirmation": "not confirmed"
     });
+    let refusal = h
+        .call("audio_source_remove_confirmed", cmd_args.clone())
+        .unwrap_err();
     assert_eq!(
-        h.call("audio_source_remove_confirmed", cmd_args.clone())
-            .unwrap_err()["kind"],
-        "invalid"
+        refusal["kind"], "invalid",
+        "native removal refusal must be typed and diagnostic: {refusal}"
     );
     // No mutation occurred after a refused confirmation.
     assert_eq!(
