@@ -83,6 +83,7 @@
     "dialog:allow-open",
     "allow-audio-overview",
     "allow-audio-source-retention-preview",
+    "allow-audio-source-remove-confirmed",
     "allow-audio-import-synthetic",
     "allow-audio-segment",
     "allow-audio-asr-status",

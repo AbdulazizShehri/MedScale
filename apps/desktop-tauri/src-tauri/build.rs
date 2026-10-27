@@ -81,6 +81,7 @@ fn main() {
             "workflow_overview",
             "audio_overview",
             "audio_source_retention_preview",
+            "audio_source_remove_confirmed",
             "audio_import_synthetic",
             "audio_segment",
             "audio_asr_status",
