@@ -42,7 +42,7 @@ jobs:
       - name: Bundle unsigned native macOS app exclusively on CI
         working-directory: apps/desktop-tauri
         run: npm run tauri -- build --bundles app --no-sign --ci --features custom-protocol -- --locked
-      - name: Launch actual WKWebView window and inspect through OS accessibility
+      - name: Interact with real WKWebView sample and Audio through OS accessibility
         timeout-minutes: 4
         env:
           MEDSCALE_PROBE_CI_ONLY: "1"
@@ -82,6 +82,53 @@ jobs:
                   time.sleep(3)
               else:
                   raise SystemExit(f"Native MedScale window was not accessible: {last}")
+              # Exercise production WKWebView accessibility (not MockRuntime)
+              # with synthetic subjects only. No model, microphone or PHI.
+              def ax(needle, press=False):
+                  command = (
+                      'tell application "System Events"\n'
+                      f'  set candidates to every process whose unix id is {process.pid}\n'
+                      '  if (count of candidates) is 0 then return "NO_PROCESS"\n'
+                      '  set elements to entire contents of first window of item 1 of candidates\n'
+                      '  repeat with el in elements\n'
+                      '    try\n'
+                      '      set elementName to name of el as text\n'
+                      f'      if elementName contains "{needle}" then\n'
+                      + ('        click el\n        return "PRESSED"\n' if press
+                         else '        return "FOUND"\n')
+                      + '      end if\n'
+                      '    end try\n'
+                      '  end repeat\n'
+                      '  return "NOT_FOUND"\n'
+                      'end tell'
+                  )
+                  out = subprocess.run(["osascript", "-e", command],
+                      capture_output=True, text=True, timeout=40, check=False)
+                  return out.returncode, out.stdout.strip(), out.stderr.strip()[:160]
+              for _ in range(10):
+                  result = ax("Try MedScale with sample data", press=True)
+                  if result[:2] == (0, "PRESSED"):
+                      print("MAC_NATIVE_WKWEBVIEW_SAMPLE_CLICK_PASS")
+                      break
+                  time.sleep(2)
+              else:
+                  raise SystemExit(f"Native welcome action inaccessible: {result}")
+              for _ in range(15):
+                  result = ax("Audio", press=True)
+                  if result[:2] == (0, "PRESSED"):
+                      print("MAC_NATIVE_WKWEBVIEW_AUDIO_NAV_PASS")
+                      break
+                  time.sleep(2)
+              else:
+                  raise SystemExit(f"Native Audio navigation inaccessible: {result}")
+              for _ in range(12):
+                  result = ax("Import synthetic tone sample")
+                  if result[:2] == (0, "FOUND"):
+                      print("MAC_NATIVE_WKWEBVIEW_AUDIO_CONTROLS_PASS")
+                      break
+                  time.sleep(2)
+              else:
+                  raise SystemExit(f"Native Audio controls inaccessible: {result}")
           finally:
               process.terminate()
               try: process.wait(timeout=12)
@@ -90,4 +137,4 @@ jobs:
       - name: Record narrow claim only
         if: success()
         run: |
-          echo "Native macOS Tauri bundled app/window accessible: PASS. This does NOT yet prove complete macOS graphical audio workflow." >> "$GITHUB_STEP_SUMMARY"
+          echo "Native macOS WKWebView sample open and Audio navigation: PASS (synthetic). The full real-human macOS GUI transcription journey remains unqualified." >> "$GITHUB_STEP_SUMMARY"
