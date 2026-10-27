@@ -1,0 +1,43 @@
+# Disposable GitHub-hosted macOS capability probe. Not a product test.
+# Confirm that public CI runner grants actual graphical accessibility before
+# attempting costly native WebView automation or downloading model weights.
+name: macos-gui-automation-probe
+on:
+  push:
+    branches: ["diag/macos-gui-automation-probe-*"]
+permissions:
+  contents: read
+jobs:
+  macos-accessibility:
+    name: inspect macOS GUI automation entitlement
+    runs-on: macos-latest
+    timeout-minutes: 8
+    steps:
+      - name: Detect AppleScript accessibility and native window access
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import subprocess
+          def apple(script: str):
+              run = subprocess.run(
+                  ["osascript", "-e", script],
+                  capture_output=True, text=True, timeout=20, check=False
+              )
+              return run.returncode, run.stdout.strip(), run.stderr.strip()[:240]
+          rc, enabled, error = apple('tell application "System Events" to get UI elements enabled')
+          print(f"MAC_GUI_ACCESSIBILITY status={rc} enabled={enabled} error={error}")
+          if rc or enabled.lower() != "true":
+              raise SystemExit("Runner does not grant UI scripting; cannot qualify true macOS GUI from this runner")
+          subprocess.run(["open", "-a", "TextEdit"], check=True, timeout=12)
+          try:
+              rc, windows, error = apple(
+                  'tell application "System Events" to tell process "TextEdit" to count windows'
+              )
+              print(f"MAC_GUI_WINDOW_QUERY status={rc} windows={windows} error={error}")
+              if rc or not windows.isdigit():
+                  raise SystemExit("OS process window enumeration is unavailable")
+              print("MAC_GUI_AUTOMATION_CAPABILITY_PASS")
+          finally:
+              apple('tell application "TextEdit" to quit')
+          PY
