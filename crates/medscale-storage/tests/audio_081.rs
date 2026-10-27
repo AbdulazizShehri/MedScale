@@ -988,6 +988,70 @@ fn unreferenced_audio_removal_refuses_cross_module_huddle_media() {
 }
 
 #[test]
+fn audio_retention_fails_closed_on_corrupt_unrelated_capture_index() {
+    let root = temp_root("retention-capture-index");
+    let meta = open_meta(&root);
+    populate_pre_081(&meta);
+    let data = bytes(136, 46);
+    let source = imported("source-capture-index", &data);
+    meta.insert_imported_audio_source(&source, &data).unwrap();
+    let session = capture("cap-index-integrity");
+    meta.insert_capture_session(&session).unwrap();
+
+    // A capture's indexed project ID is separate from its valid JSON body.
+    // A corrupt, unrelated session must not let retention or deletion
+    // silently proceed as though the reference graph were trustworthy.
+    raw(&root)
+        .execute(
+            "UPDATE audio_capture_sessions SET project_id = ?1 WHERE session_id = ?2",
+            rusqlite::params!["different-project", session.header.id.as_str()],
+        )
+        .unwrap();
+    assert!(matches!(
+        meta.audio_retention_reference_flags(&source.header.id),
+        Err(MetaError::CorruptObjectBody(_))
+    ));
+    assert!(matches!(
+        meta.remove_unreferenced_imported_audio_source(
+            &source.project_id,
+            &source.header.id,
+            &source.content_digest,
+        ),
+        Err(MetaError::CorruptObjectBody(_))
+    ));
+    assert_eq!(meta.get_audio_source(&source.header.id).unwrap().1, data);
+
+    // Repair the injected corruption and confirm the exact same source can
+    // be inspected and removed while preserving unrelated capture records.
+    raw(&root)
+        .execute(
+            "UPDATE audio_capture_sessions SET project_id = ?1 WHERE session_id = ?2",
+            rusqlite::params![session.project_id.as_str(), session.header.id.as_str()],
+        )
+        .unwrap();
+    assert_eq!(
+        meta.audio_retention_reference_flags(&source.header.id)
+            .unwrap(),
+        (false, false, false, false)
+    );
+    meta.remove_unreferenced_imported_audio_source(
+        &source.project_id,
+        &source.header.id,
+        &source.content_digest,
+    )
+    .unwrap();
+    assert!(matches!(
+        meta.get_audio_source(&source.header.id),
+        Err(MetaError::NotFound)
+    ));
+    assert_eq!(
+        meta.get_capture_session(&session.header.id).unwrap(),
+        session
+    );
+    meta.verify_audio_consistency().unwrap();
+}
+
+#[test]
 fn audio_removal_refuses_mismatched_stored_project_column() {
     let root = temp_root("remove-project-column-tamper");
     let meta = open_meta(&root);

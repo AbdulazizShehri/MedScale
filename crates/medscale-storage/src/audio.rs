@@ -111,6 +111,30 @@ fn to_i64(value: u64) -> i64 {
     i64::try_from(value).unwrap_or(i64::MAX)
 }
 
+/// Fail closed if the independent SQLite capture index disagrees with the
+/// validated JSON object. Both retention inspection and removal use this.
+fn check_retention_capture_row(
+    session: &AudioSession,
+    indexed_id: &str,
+    indexed_project: &str,
+    indexed_revision: i64,
+) -> Result<(), MetaError> {
+    session
+        .validate()
+        .map_err(|e| corrupt(format!("capture session: {e}")))?;
+    let revision = i64::try_from(session.revision)
+        .map_err(|_| corrupt("capture session revision overflow".to_owned()))?;
+    if session.header.id.as_str() != indexed_id
+        || session.project_id.as_str() != indexed_project
+        || revision != indexed_revision
+    {
+        return Err(corrupt(
+            "capture session indexed columns disagree with body".to_owned(),
+        ));
+    }
+    Ok(())
+}
+
 fn to_json<T: Serialize>(value: &T) -> Result<String, MetaError> {
     serde_json::to_string(value).map_err(|e| corrupt(e.to_string()))
 }
@@ -402,11 +426,22 @@ impl SqliteMetaStore {
         // rather than a separate indexed column. Check every session and
         // refuse removal if any session references this source.
         {
-            let mut stmt = tx.prepare("SELECT body_json FROM audio_capture_sessions")?;
+            let mut stmt = tx.prepare(
+                "SELECT session_id, project_id, revision, body_json FROM audio_capture_sessions",
+            )?;
             let mut rows = stmt.query([])?;
             while let Some(row) = rows.next()? {
-                let body: String = row.get(0)?;
+                let indexed_id: String = row.get(0)?;
+                let indexed_project: String = row.get(1)?;
+                let indexed_revision: i64 = row.get(2)?;
+                let body: String = row.get(3)?;
                 let session: AudioSession = from_json(&body, "capture session")?;
+                check_retention_capture_row(
+                    &session,
+                    &indexed_id,
+                    &indexed_project,
+                    indexed_revision,
+                )?;
                 if session.source_id.as_ref() == Some(source_id) {
                     return Err(MetaError::Conflict(
                         "audio recording is still referenced by a capture session".to_owned(),
@@ -443,17 +478,18 @@ impl SqliteMetaStore {
             params![source_id.as_str()],
             |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?)),
         )?;
-        let mut stmt = self
-            .conn()
-            .prepare("SELECT body_json FROM audio_capture_sessions")?;
+        let mut stmt = self.conn().prepare(
+            "SELECT session_id, project_id, revision, body_json FROM audio_capture_sessions",
+        )?;
         let mut rows = stmt.query([])?;
         let mut capture_linked = false;
         while let Some(row) = rows.next()? {
-            let body: String = row.get(0)?;
+            let indexed_id: String = row.get(0)?;
+            let indexed_project: String = row.get(1)?;
+            let indexed_revision: i64 = row.get(2)?;
+            let body: String = row.get(3)?;
             let session: AudioSession = from_json(&body, "capture session")?;
-            session
-                .validate()
-                .map_err(|e| corrupt(format!("capture session: {e}")))?;
+            check_retention_capture_row(&session, &indexed_id, &indexed_project, indexed_revision)?;
             capture_linked |= session.source_id.as_ref() == Some(source_id);
         }
         Ok((revisions > 0, receipts > 0, huddles > 0, capture_linked))
