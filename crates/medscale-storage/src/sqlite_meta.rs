@@ -318,6 +318,12 @@ impl SqliteMetaStore {
             self.conn.execute_batch(crate::federation::V20_DDL)?;
             self.finish_migration(20)?;
         }
+        let journal = self.migration_journal()?;
+        if journal.finished_version < 21 {
+            self.begin_migration(21)?;
+            self.conn.execute_batch(crate::audio::V21_DDL)?;
+            self.finish_migration(21)?;
+        }
         Ok(())
     }
 
@@ -680,6 +686,11 @@ impl SqliteMetaStore {
             (
                 "audio_transcript_receipts",
                 serde_json::to_value(self.list_all_transcript_receipts()?),
+            ),
+            // Active-vault removals have independent, immutable receipts.
+            (
+                "audio_retention_removal_receipts",
+                serde_json::to_value(self.list_audio_retention_removal_receipts()?),
             ),
             // Spec 082: Analytics Gate rows (derived table bytes as hex).
             (

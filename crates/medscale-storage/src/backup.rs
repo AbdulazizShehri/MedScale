@@ -106,7 +106,9 @@ pub fn restore_vault(src: &Path, dest_vault_root: &Path) -> Result<(u64, u64), S
     let snapshot_schema = snapshot_value
         .get("schema_version")
         .and_then(|v| v.as_u64());
-    if snapshot_schema == Some(20) {
+    if snapshot_schema == Some(21) {
+        restore_v21(&vault, &snapshot_value, &mut sources)?;
+    } else if snapshot_schema == Some(20) {
         restore_v20(&vault, &snapshot_value, &mut sources)?;
     } else if snapshot_schema == Some(19) {
         restore_v19(&vault, &snapshot_value, &mut sources)?;
@@ -654,6 +656,22 @@ fn restore_required_rows<T: serde::de::DeserializeOwned>(
         return Err(format!("tampered metadata snapshot: {key} is missing"));
     }
     restore_rows(snapshot, key, restore)
+}
+
+fn restore_v21(
+    vault: &SyntheticVault,
+    snapshot: &serde_json::Value,
+    sources: &mut u64,
+) -> Result<(), String> {
+    restore_v20(vault, snapshot, sources)?;
+    restore_required_rows(snapshot, "audio_retention_removal_receipts", |row| {
+        vault.meta.restore_audio_retention_removal_receipt_row(row)
+    })?;
+    vault
+        .meta
+        .verify_audio_retention_removal_receipts()
+        .map_err(|e| e.to_string())?;
+    Ok(())
 }
 
 fn restore_v20(

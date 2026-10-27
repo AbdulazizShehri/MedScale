@@ -66,6 +66,53 @@ CREATE UNIQUE INDEX IF NOT EXISTS idx_audio_transcript_receipts_revision
   ON audio_transcript_receipts(revision_id) WHERE revision_id IS NOT NULL;
 ";
 
+/// An additive durable tombstone ledger; never stores removed recording bytes.
+pub(crate) const V21_DDL: &str = r"
+CREATE TABLE IF NOT EXISTS audio_retention_removal_receipts (
+  receipt_id TEXT PRIMARY KEY,
+  source_id TEXT NOT NULL UNIQUE,
+  body_json TEXT NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_audio_retention_receipts_source
+  ON audio_retention_removal_receipts(source_id);
+";
+
+/// A durable acknowledgement for exactly one removal from the active vault.
+///
+/// This is evidence of a narrowly scoped storage change, not proof of
+/// erasure from older backups, snapshots, WAL pages, or physical media.
+/// A future authenticated Core command must supply actor + explicit consent.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct AudioRetentionRemovalReceipt {
+    pub receipt_id: OpaqueId,
+    pub project_id: OpaqueId,
+    pub source_id: OpaqueId,
+    pub source_digest: DigestSha256,
+    pub removed_bytes: u64,
+    pub actor_id: OpaqueId,
+    pub confirmation_digest: DigestSha256,
+    pub user_confirmed: bool,
+    pub active_vault_only: bool,
+    pub older_backups_may_retain_recording: bool,
+}
+
+impl AudioRetentionRemovalReceipt {
+    fn validate(&self) -> Result<(), MetaError> {
+        if self.removed_bytes == 0
+            || !self.user_confirmed
+            || !self.active_vault_only
+            || !self.older_backups_may_retain_recording
+            || self.confirmation_digest == DigestSha256::of(b"")
+        {
+            return Err(MetaError::Conflict(
+                "audio retention receipt lacks confirmation or active-vault scope".to_owned(),
+            ));
+        }
+        Ok(())
+    }
+}
+
 /// Source row plus its WAV bytes (backup form: bytes as lowercase hex).
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
@@ -373,6 +420,39 @@ impl SqliteMetaStore {
         source_id: &OpaqueId,
         expected_digest: &DigestSha256,
     ) -> Result<(), MetaError> {
+        self.remove_imported_audio_internal(project_id, source_id, expected_digest, None)
+    }
+
+    /// Atomic source removal and permanent, backup-preserved receipt.
+    /// A typed receipt is storage evidence, not authentication of consent.
+    /// For the future authenticated Core flow only; this storage method
+    /// deliberately does not grant a user-facing deletion capability.
+    pub fn remove_unreferenced_imported_audio_source_with_receipt(
+        &self,
+        project_id: &OpaqueId,
+        source_id: &OpaqueId,
+        expected_digest: &DigestSha256,
+        receipt: &AudioRetentionRemovalReceipt,
+    ) -> Result<(), MetaError> {
+        receipt.validate()?;
+        if &receipt.project_id != project_id
+            || &receipt.source_id != source_id
+            || &receipt.source_digest != expected_digest
+        {
+            return Err(MetaError::Conflict(
+                "audio retention receipt does not match confirmed source".to_owned(),
+            ));
+        }
+        self.remove_imported_audio_internal(project_id, source_id, expected_digest, Some(receipt))
+    }
+
+    fn remove_imported_audio_internal(
+        &self,
+        project_id: &OpaqueId,
+        source_id: &OpaqueId,
+        expected_digest: &DigestSha256,
+        receipt: Option<&AudioRetentionRemovalReceipt>,
+    ) -> Result<(), MetaError> {
         let tx = self.conn().unchecked_transaction()?;
         let row: Option<(String, String, Vec<u8>)> = tx
             .query_row(
@@ -398,6 +478,11 @@ impl SqliteMetaStore {
         if source.content_digest != *expected_digest {
             return Err(MetaError::Conflict(
                 "audio source content has changed since confirmation".to_owned(),
+            ));
+        }
+        if receipt.is_some_and(|r| r.removed_bytes != bytes.len() as u64) {
+            return Err(MetaError::Conflict(
+                "audio retention receipt disagrees with stored byte count".to_owned(),
             ));
         }
         if source.kind != AudioSourceKind::ImportedFile || source.capture_session_id.is_some() {
@@ -468,7 +553,86 @@ impl SqliteMetaStore {
                 "audio source changed before removal".to_owned(),
             ));
         }
+        if let Some(receipt) = receipt {
+            map_insert(
+                tx.execute(
+                    "INSERT INTO audio_retention_removal_receipts(receipt_id, source_id, body_json)
+                     VALUES (?1, ?2, ?3)",
+                    params![
+                        receipt.receipt_id.as_str(),
+                        receipt.source_id.as_str(),
+                        to_json(receipt)?
+                    ],
+                ),
+                "audio retention removal receipt",
+                receipt.receipt_id.as_str(),
+            )?;
+        }
         tx.commit()?;
+        Ok(())
+    }
+
+    /// Immutable, strictly decoded removal receipts; never returns audio bytes.
+    pub fn list_audio_retention_removal_receipts(
+        &self,
+    ) -> Result<Vec<AudioRetentionRemovalReceipt>, MetaError> {
+        let mut stmt = self.conn().prepare(
+            "SELECT receipt_id, source_id, body_json
+             FROM audio_retention_removal_receipts ORDER BY rowid",
+        )?;
+        let mut rows = stmt.query([])?;
+        let mut receipts = Vec::new();
+        while let Some(row) = rows.next()? {
+            let id: String = row.get(0)?;
+            let source_id: String = row.get(1)?;
+            let body: String = row.get(2)?;
+            let receipt: AudioRetentionRemovalReceipt =
+                from_json(&body, "audio retention removal receipt")?;
+            receipt.validate()?;
+            if receipt.receipt_id.as_str() != id || receipt.source_id.as_str() != source_id {
+                return Err(corrupt(
+                    "audio retention receipt index disagrees with body".to_owned(),
+                ));
+            }
+            receipts.push(receipt);
+        }
+        Ok(receipts)
+    }
+
+    /// Restore a previous receipt without replaying any deletion or consent.
+    pub fn restore_audio_retention_removal_receipt_row(
+        &self,
+        receipt: &AudioRetentionRemovalReceipt,
+    ) -> Result<(), MetaError> {
+        receipt.validate()?;
+        map_insert(
+            self.conn().execute(
+                "INSERT INTO audio_retention_removal_receipts(receipt_id, source_id, body_json)
+                 VALUES (?1, ?2, ?3)",
+                params![
+                    receipt.receipt_id.as_str(),
+                    receipt.source_id.as_str(),
+                    to_json(receipt)?
+                ],
+            ),
+            "audio retention removal receipt",
+            receipt.receipt_id.as_str(),
+        )
+    }
+
+    pub fn verify_audio_retention_removal_receipts(&self) -> Result<(), MetaError> {
+        for receipt in self.list_audio_retention_removal_receipts()? {
+            let exists: i64 = self.conn().query_row(
+                "SELECT EXISTS(SELECT 1 FROM audio_sources WHERE source_id = ?1)",
+                params![receipt.source_id.as_str()],
+                |row| row.get(0),
+            )?;
+            if exists != 0 {
+                return Err(corrupt(
+                    "removed audio source reappears beside a retention receipt".to_owned(),
+                ));
+            }
+        }
         Ok(())
     }
 
