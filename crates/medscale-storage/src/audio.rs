@@ -66,6 +66,53 @@ CREATE UNIQUE INDEX IF NOT EXISTS idx_audio_transcript_receipts_revision
   ON audio_transcript_receipts(revision_id) WHERE revision_id IS NOT NULL;
 ";
 
+/// An additive durable tombstone ledger; never stores removed recording bytes.
+pub(crate) const V21_DDL: &str = r"
+CREATE TABLE IF NOT EXISTS audio_retention_removal_receipts (
+  receipt_id TEXT PRIMARY KEY,
+  source_id TEXT NOT NULL UNIQUE,
+  body_json TEXT NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_audio_retention_receipts_source
+  ON audio_retention_removal_receipts(source_id);
+";
+
+/// A durable acknowledgement for exactly one removal from the active vault.
+///
+/// This is evidence of a narrowly scoped storage change, not proof of
+/// erasure from older backups, snapshots, WAL pages, or physical media.
+/// A future authenticated Core command must supply actor + explicit consent.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct AudioRetentionRemovalReceipt {
+    pub receipt_id: OpaqueId,
+    pub project_id: OpaqueId,
+    pub source_id: OpaqueId,
+    pub source_digest: DigestSha256,
+    pub removed_bytes: u64,
+    pub actor_id: OpaqueId,
+    pub confirmation_digest: DigestSha256,
+    pub user_confirmed: bool,
+    pub active_vault_only: bool,
+    pub older_backups_may_retain_recording: bool,
+}
+
+impl AudioRetentionRemovalReceipt {
+    fn validate(&self) -> Result<(), MetaError> {
+        if self.removed_bytes == 0
+            || !self.user_confirmed
+            || !self.active_vault_only
+            || !self.older_backups_may_retain_recording
+            || self.confirmation_digest == DigestSha256::of(b"")
+        {
+            return Err(MetaError::Conflict(
+                "audio retention receipt lacks confirmation or active-vault scope".to_owned(),
+            ));
+        }
+        Ok(())
+    }
+}
+
 /// Source row plus its WAV bytes (backup form: bytes as lowercase hex).
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
@@ -109,6 +156,30 @@ fn restore_conflict_is_corrupt(result: Result<(), MetaError>) -> Result<(), Meta
 
 fn to_i64(value: u64) -> i64 {
     i64::try_from(value).unwrap_or(i64::MAX)
+}
+
+/// Fail closed if the independent SQLite capture index disagrees with the
+/// validated JSON object. Both retention inspection and removal use this.
+fn check_retention_capture_row(
+    session: &AudioSession,
+    indexed_id: &str,
+    indexed_project: &str,
+    indexed_revision: i64,
+) -> Result<(), MetaError> {
+    session
+        .validate()
+        .map_err(|e| corrupt(format!("capture session: {e}")))?;
+    let revision = i64::try_from(session.revision)
+        .map_err(|_| corrupt("capture session revision overflow".to_owned()))?;
+    if session.header.id.as_str() != indexed_id
+        || session.project_id.as_str() != indexed_project
+        || revision != indexed_revision
+    {
+        return Err(corrupt(
+            "capture session indexed columns disagree with body".to_owned(),
+        ));
+    }
+    Ok(())
 }
 
 fn to_json<T: Serialize>(value: &T) -> Result<String, MetaError> {
@@ -330,6 +401,273 @@ impl SqliteMetaStore {
         .into_iter()
         .next()
         .ok_or(MetaError::NotFound)
+    }
+
+    /// Remove one unreferenced imported WAV from the *current* vault only.
+    ///
+    /// This intentionally does not expose an end-user erasure action. A future
+    /// authenticated Core command must apply policy, collect explicit consent
+    /// and record retention evidence before calling it. Existing backups,
+    /// snapshots, SQLite WAL pages and physical storage are NOT wiped.
+    ///
+    /// An imported source with transcript revisions, even denied-route audit
+    /// receipts, or a capture-session reference must never be removed. The
+    /// checks and row removal share a single SQLite transaction; any refusal
+    /// rolls back without modifying another source or its provenance.
+    pub fn remove_unreferenced_imported_audio_source(
+        &self,
+        project_id: &OpaqueId,
+        source_id: &OpaqueId,
+        expected_digest: &DigestSha256,
+    ) -> Result<(), MetaError> {
+        self.remove_imported_audio_internal(project_id, source_id, expected_digest, None)
+    }
+
+    /// Atomic source removal and permanent, backup-preserved receipt.
+    /// A typed receipt is storage evidence, not authentication of consent.
+    /// For the future authenticated Core flow only; this storage method
+    /// deliberately does not grant a user-facing deletion capability.
+    pub fn remove_unreferenced_imported_audio_source_with_receipt(
+        &self,
+        project_id: &OpaqueId,
+        source_id: &OpaqueId,
+        expected_digest: &DigestSha256,
+        receipt: &AudioRetentionRemovalReceipt,
+    ) -> Result<(), MetaError> {
+        receipt.validate()?;
+        if &receipt.project_id != project_id
+            || &receipt.source_id != source_id
+            || &receipt.source_digest != expected_digest
+        {
+            return Err(MetaError::Conflict(
+                "audio retention receipt does not match confirmed source".to_owned(),
+            ));
+        }
+        self.remove_imported_audio_internal(project_id, source_id, expected_digest, Some(receipt))
+    }
+
+    fn remove_imported_audio_internal(
+        &self,
+        project_id: &OpaqueId,
+        source_id: &OpaqueId,
+        expected_digest: &DigestSha256,
+        receipt: Option<&AudioRetentionRemovalReceipt>,
+    ) -> Result<(), MetaError> {
+        let tx = self.conn().unchecked_transaction()?;
+        let row: Option<(String, String, Vec<u8>)> = tx
+            .query_row(
+                "SELECT project_id, body_json, content FROM audio_sources WHERE source_id = ?1",
+                params![source_id.as_str()],
+                |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?)),
+            )
+            .optional()?;
+        let (stored_project_id, body, bytes) = row.ok_or(MetaError::NotFound)?;
+        let source: AudioSource = from_json(&body, "audio source")?;
+        source
+            .validate()
+            .map_err(|e| corrupt(format!("audio source: {e}")))?;
+        check_content(&source, &bytes)?;
+        if stored_project_id != source.project_id.as_str() {
+            return Err(corrupt(
+                "audio source project column disagrees with body".to_owned(),
+            ));
+        }
+        if source.header.id != *source_id || source.project_id != *project_id {
+            return Err(MetaError::NotFound);
+        }
+        if source.content_digest != *expected_digest {
+            return Err(MetaError::Conflict(
+                "audio source content has changed since confirmation".to_owned(),
+            ));
+        }
+        if receipt.is_some_and(|r| r.removed_bytes != bytes.len() as u64) {
+            return Err(MetaError::Conflict(
+                "audio retention receipt disagrees with stored byte count".to_owned(),
+            ));
+        }
+        if source.kind != AudioSourceKind::ImportedFile || source.capture_session_id.is_some() {
+            return Err(MetaError::Conflict(
+                "capture recordings require a separate retention protocol".to_owned(),
+            ));
+        }
+
+        // Huddles (schema v17) can attach an AudioFlow source independently
+        // from any transcript or route receipt. A stored media record, even
+        // a tombstone, is part of provenance and must not be orphaned.
+        let linked: i64 = tx.query_row(
+            "SELECT (SELECT COUNT(*) FROM audio_transcripts WHERE source_id = ?1)
+                  + (SELECT COUNT(*) FROM audio_transcript_receipts WHERE source_id = ?1)",
+            params![source_id.as_str()],
+            |row| row.get(0),
+        )?;
+        // Inspect all indexed and typed Huddles media, not just a source_id
+        // column count. Tampering with that column must never conceal a JSON
+        // reference to a source whose bytes are about to be removed.
+        // This read uses the same connection while the write transaction is
+        // active; no decision from an earlier UI preflight is trusted.
+        let huddle_linked = self
+            .list_huddle_media(None)?
+            .iter()
+            .any(|media| media.source_id == *source_id);
+        if linked != 0 || huddle_linked {
+            return Err(MetaError::Conflict(
+                "audio recording has transcript, receipt, or Huddle media references".to_owned(),
+            ));
+        }
+
+        // Capture sessions store their source link inside validated JSON,
+        // rather than a separate indexed column. Check every session and
+        // refuse removal if any session references this source.
+        {
+            let mut stmt = tx.prepare(
+                "SELECT session_id, project_id, revision, body_json FROM audio_capture_sessions",
+            )?;
+            let mut rows = stmt.query([])?;
+            while let Some(row) = rows.next()? {
+                let indexed_id: String = row.get(0)?;
+                let indexed_project: String = row.get(1)?;
+                let indexed_revision: i64 = row.get(2)?;
+                let body: String = row.get(3)?;
+                let session: AudioSession = from_json(&body, "capture session")?;
+                check_retention_capture_row(
+                    &session,
+                    &indexed_id,
+                    &indexed_project,
+                    indexed_revision,
+                )?;
+                if session.source_id.as_ref() == Some(source_id) {
+                    return Err(MetaError::Conflict(
+                        "audio recording is still referenced by a capture session".to_owned(),
+                    ));
+                }
+            }
+        }
+
+        let removed = tx.execute(
+            "DELETE FROM audio_sources
+             WHERE source_id = ?1 AND project_id = ?2 AND body_json = ?3",
+            params![source_id.as_str(), project_id.as_str(), body],
+        )?;
+        if removed != 1 {
+            return Err(MetaError::Conflict(
+                "audio source changed before removal".to_owned(),
+            ));
+        }
+        if let Some(receipt) = receipt {
+            map_insert(
+                tx.execute(
+                    "INSERT INTO audio_retention_removal_receipts(receipt_id, source_id, body_json)
+                     VALUES (?1, ?2, ?3)",
+                    params![
+                        receipt.receipt_id.as_str(),
+                        receipt.source_id.as_str(),
+                        to_json(receipt)?
+                    ],
+                ),
+                "audio retention removal receipt",
+                receipt.receipt_id.as_str(),
+            )?;
+        }
+        tx.commit()?;
+        Ok(())
+    }
+
+    /// Immutable, strictly decoded removal receipts; never returns audio bytes.
+    pub fn list_audio_retention_removal_receipts(
+        &self,
+    ) -> Result<Vec<AudioRetentionRemovalReceipt>, MetaError> {
+        let mut stmt = self.conn().prepare(
+            "SELECT receipt_id, source_id, body_json
+             FROM audio_retention_removal_receipts ORDER BY rowid",
+        )?;
+        let mut rows = stmt.query([])?;
+        let mut receipts = Vec::new();
+        while let Some(row) = rows.next()? {
+            let id: String = row.get(0)?;
+            let source_id: String = row.get(1)?;
+            let body: String = row.get(2)?;
+            let receipt: AudioRetentionRemovalReceipt =
+                from_json(&body, "audio retention removal receipt")?;
+            receipt.validate()?;
+            if receipt.receipt_id.as_str() != id || receipt.source_id.as_str() != source_id {
+                return Err(corrupt(
+                    "audio retention receipt index disagrees with body".to_owned(),
+                ));
+            }
+            receipts.push(receipt);
+        }
+        Ok(receipts)
+    }
+
+    /// Restore a previous receipt without replaying any deletion or consent.
+    pub fn restore_audio_retention_removal_receipt_row(
+        &self,
+        receipt: &AudioRetentionRemovalReceipt,
+    ) -> Result<(), MetaError> {
+        receipt.validate()?;
+        map_insert(
+            self.conn().execute(
+                "INSERT INTO audio_retention_removal_receipts(receipt_id, source_id, body_json)
+                 VALUES (?1, ?2, ?3)",
+                params![
+                    receipt.receipt_id.as_str(),
+                    receipt.source_id.as_str(),
+                    to_json(receipt)?
+                ],
+            ),
+            "audio retention removal receipt",
+            receipt.receipt_id.as_str(),
+        )
+    }
+
+    pub fn verify_audio_retention_removal_receipts(&self) -> Result<(), MetaError> {
+        for receipt in self.list_audio_retention_removal_receipts()? {
+            let exists: i64 = self.conn().query_row(
+                "SELECT EXISTS(SELECT 1 FROM audio_sources WHERE source_id = ?1)",
+                params![receipt.source_id.as_str()],
+                |row| row.get(0),
+            )?;
+            if exists != 0 {
+                return Err(corrupt(
+                    "removed audio source reappears beside a retention receipt".to_owned(),
+                ));
+            }
+        }
+        Ok(())
+    }
+
+    /// Read-only reference flags for retention preflight. A later deletion
+    /// must repeat every guard inside its own write transaction; this result
+    /// is never an authorization or a proof that removal remains safe.
+    pub fn audio_retention_reference_flags(
+        &self,
+        source_id: &OpaqueId,
+    ) -> Result<(bool, bool, bool, bool), MetaError> {
+        let (revisions, receipts): (i64, i64) = self.conn().query_row(
+            "SELECT (SELECT COUNT(*) FROM audio_transcripts WHERE source_id = ?1),
+                    (SELECT COUNT(*) FROM audio_transcript_receipts WHERE source_id = ?1)",
+            params![source_id.as_str()],
+            |row| Ok((row.get(0)?, row.get(1)?)),
+        )?;
+        let huddles = self
+            .list_huddle_media(None)?
+            .iter()
+            .any(|media| media.source_id == *source_id);
+        let mut stmt = self.conn().prepare(
+            "SELECT session_id, project_id, revision, body_json FROM audio_capture_sessions",
+        )?;
+        let mut rows = stmt.query([])?;
+        let mut capture_linked = false;
+        while let Some(row) = rows.next()? {
+            let indexed_id: String = row.get(0)?;
+            let indexed_project: String = row.get(1)?;
+            let indexed_revision: i64 = row.get(2)?;
+            let body: String = row.get(3)?;
+            let session: AudioSession = from_json(&body, "capture session")?;
+            check_retention_capture_row(&session, &indexed_id, &indexed_project, indexed_revision)?;
+            capture_linked |= session.source_id.as_ref() == Some(source_id);
+        }
+        Ok((revisions > 0, receipts > 0, huddles, capture_linked))
     }
 
     pub fn list_audio_sources(&self, project_id: &OpaqueId) -> Result<Vec<AudioSource>, MetaError> {

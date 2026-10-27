@@ -22,8 +22,10 @@ use medscale_contracts::audio::{
     audio_request_digest,
 };
 use medscale_contracts::envelopes::AuthorityError;
-use medscale_contracts::objects::{AuthorityScopeId, ObjectHeader, OpaqueId, RealmId, VaultId};
-use medscale_storage::{MetaError, SqliteMetaStore};
+use medscale_contracts::objects::{
+    AuthorityScopeId, DigestSha256, ObjectHeader, OpaqueId, RealmId, VaultId,
+};
+use medscale_storage::{AudioRetentionRemovalReceipt, MetaError, SqliteMetaStore};
 
 use super::store::{InMemoryAuthorityStore, StoredObject};
 use crate::process::{LeaseRegistry, SessionRegistry};
@@ -610,7 +612,7 @@ impl AsrEngine for PackAsrEngine {
         format: PcmFormat,
         pcm: &[u8],
         segments: &[(u64, u64)],
-        _language: Option<&str>,
+        language: Option<&str>,
     ) -> Result<Vec<Option<String>>, String> {
         if format.sample_rate != 16_000 || format.bits_per_sample != 16 {
             return Err("local ASR needs 16 kHz 16-bit PCM".to_owned());
@@ -631,7 +633,7 @@ impl AsrEngine for PackAsrEngine {
                 }
                 let text = self
                     .asr
-                    .transcribe(&samples[a..b])
+                    .transcribe_with_language(&samples[a..b], language.unwrap_or("en"))
                     .map_err(|e| e.to_string())?;
                 let text = text.trim().to_owned();
                 Ok(if text.is_empty() { None } else { Some(text) })
@@ -671,6 +673,16 @@ pub struct SegmentEdit {
 }
 
 // ----- authority --------------------------------------------------------------
+
+/// Read-only, non-authorizing retention assessment; never a deletion token.
+pub struct AudioRetentionAssessment {
+    pub expected_digest: DigestSha256,
+    pub imported_file: bool,
+    pub has_transcript_revisions: bool,
+    pub has_audit_receipts: bool,
+    pub has_huddle_media_link: bool,
+    pub has_capture_reference: bool,
+}
 
 /// Authenticated AudioFlow view for one request.
 pub struct Audio<'a> {
@@ -804,6 +816,90 @@ impl Audio<'_> {
     pub fn list_sources(&self, project_id: &OpaqueId) -> Result<Vec<AudioSource>, AuthorityError> {
         self.scoped_project(project_id)?;
         self.meta.list_audio_sources(project_id).map_err(meta_err)
+    }
+
+    /// Consults only source-scoped, integrity-checked rows. Eligibility is
+    /// advisory and must be revalidated inside a later delete transaction.
+    /// This read does not write any audit, source, revision or backup.
+    pub fn retention_preflight(
+        &self,
+        project_id: &OpaqueId,
+        source_id: &OpaqueId,
+    ) -> Result<AudioRetentionAssessment, AuthorityError> {
+        self.scoped_project(project_id)?;
+        let source = self.get_source(source_id)?;
+        if source.project_id != *project_id {
+            return Err(AuthorityError::NotFound);
+        }
+        let (
+            has_transcript_revisions,
+            has_audit_receipts,
+            has_huddle_media_link,
+            has_capture_session_link,
+        ) = self
+            .meta
+            .audio_retention_reference_flags(source_id)
+            .map_err(meta_err)?;
+        Ok(AudioRetentionAssessment {
+            expected_digest: source.content_digest,
+            imported_file: source.kind == AudioSourceKind::ImportedFile,
+            has_transcript_revisions,
+            has_audit_receipts,
+            has_huddle_media_link,
+            has_capture_reference: source.capture_session_id.is_some() || has_capture_session_link,
+        })
+    }
+
+    /// Scoped and actor-bound removal for an unreferenced imported recording.
+    /// The request must carry both the digest displayed in the preflight and
+    /// an explicit source-specific active-vault confirmation. Storage repeats
+    /// the entire link/integrity check within the delete+receipt transaction.
+    /// This cannot erase recordings retained in old vault backups or WAL.
+    pub fn retention_remove(
+        &mut self,
+        project_id: OpaqueId,
+        source_id: OpaqueId,
+        expected_digest: DigestSha256,
+        confirmation: String,
+    ) -> Result<AudioRetentionRemovalReceipt, AuthorityError> {
+        self.scoped_project(&project_id)?;
+        let source = self.get_source(&source_id)?;
+        if source.project_id != project_id {
+            return Err(AuthorityError::NotFound);
+        }
+        if source.content_digest != expected_digest {
+            return Err(AuthorityError::Conflict {
+                message: "audio source changed since inspection".to_owned(),
+            });
+        }
+        let phrase = format!("REMOVE {} FROM ACTIVE VAULT", source_id.as_str());
+        if confirmation != phrase {
+            return Err(invalid(
+                "recording removal requires exact source-specific active-vault confirmation",
+            ));
+        }
+        let actor = self.actor()?;
+        let receipt = AudioRetentionRemovalReceipt {
+            receipt_id: self.alloc("audio-retention-removal")?,
+            project_id: project_id.clone(),
+            source_id: source_id.clone(),
+            source_digest: expected_digest.clone(),
+            removed_bytes: source.byte_length,
+            actor_id: actor,
+            confirmation_digest: DigestSha256::of(confirmation.as_bytes()),
+            user_confirmed: true,
+            active_vault_only: true,
+            older_backups_may_retain_recording: true,
+        };
+        self.meta
+            .remove_unreferenced_imported_audio_source_with_receipt(
+                &project_id,
+                &source_id,
+                &expected_digest,
+                &receipt,
+            )
+            .map_err(meta_err)?;
+        Ok(receipt)
     }
 
     // ----- capture -----

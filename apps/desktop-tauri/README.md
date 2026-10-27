@@ -1,5 +1,7 @@
 # MedScale desktop (Tauri)
 
+**Starting Beta 0.1.0?** Read the [first-run guide](../../docs/BETA_FIRST_RUN.md) before opening an unsigned installer or changing an existing vault. The Audio tab also supports real, nonpatient WAV recordings using an explicitly downloaded, locally verified Whisper model. Engineering installer availability does not mean a public release has been published.
+
 The Tauri 2 desktop shell over the real MedScale Core. Rust owns the Core session (`CliSession`, in-process `CoreFacade`), the same way the Slint desktop does. The React/TypeScript frontend only renders projections and sends bounded requests. No vault key, passphrase or Core handle crosses into the WebView after a command returns.
 
 Feature surfaces reuse the Slint desktop view models through `crates/medscale-desktop-vm`, so both desktops present the same Core truth:
@@ -27,6 +29,16 @@ npm run tauri -- dev
 ```
 
 Native builds on Windows need Strawberry Perl first on `PATH`, with `PERL` pointing at it, for the vendored OpenSSL used by SQLCipher. The Git-for-Windows msys perl does not work.
+
+## Local Audio quick start
+
+1. Open **Audio** in a local workspace and select a pinned Whisper model. English-only and multilingual checkpoints are distinct; choose a multilingual checkpoint for Arabic.
+2. Select **Check disk budget** to see available and required storage. Approve the exact model source in the checkbox, then select **Download, verify and install**. The download is optional; no speech-model weights ship inside the installer.
+3. For an already downloaded Pack, use **Activate saved model**. MedScale checks signed Pack identity before Core admission and does not overwrite an existing incomplete cache.
+4. Choose **Browse WAV…** to import a supported PCM WAV recording (16 kHz, 16-bit). Imports are bounded to **32 MiB**. Choose English or Arabic before transcription, then review and correct the local transcript.
+5. Existing recordings and transcript revisions persist in their workspace. Do not assume closing the window or uninstalling the desktop deletes recorded data; manage retention deliberately.
+
+The application does not silently upload imported recordings. Fetching an approved model is a separate, user-confirmed network operation. A real Windows user-driven transcription and restart was [verified on licensed LibriSpeech audio](https://github.com/AbdulazizShehri/MedScale/actions/runs/40209018576); macOS model acquisition/hash/Pack verification is [separately qualified](https://github.com/AbdulazizShehri/MedScale/actions/runs/40216374598). These checks do not establish identical transcription accuracy or interactive real-speech usability on every macOS device.
 
 ## Tests
 
@@ -98,5 +110,5 @@ Whether an uninstall removes app data is measured per platform in the Spec 101 e
 
 - Real PHI is not authorized.
 - Dependency policy runs the repository `deny.toml` unchanged, with the graph limited to the shipped Windows and macOS targets (`scripts/ci/tauri_deny_config.py`); it also fails if any GTK or `glib` crate enters a shipped graph. F096-T01 (`glib` 0.18.5, RUSTSEC-2024-0429) is Linux-only and not ignored; it is why there is no Linux desktop. See `specs/096-tauri-foundation/findings.md`.
-- Signing, installers, cross-platform behavior, physical keyboard and screen-reader passes, performance and privacy containment are not qualified.
+- Unsigned Windows x64 and macOS Apple Silicon engineering installer packaging, native launch and uninstall passed source-bound CI; **production signing/notarization, end-user device and accessibility matrix, real-speech macOS GUI journey and privacy containment** remain separate qualification work.
 - Do not infer product or private-data readiness from this desktop.

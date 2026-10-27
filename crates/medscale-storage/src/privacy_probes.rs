@@ -3,6 +3,8 @@
 //! Never claims `PRIVATE_DATA_READY` or measured swap/hibernate/snapshot **protection**.
 
 use std::io::ErrorKind;
+#[cfg(windows)]
+use std::os::windows::process::CommandExt;
 use std::path::Path;
 #[cfg(any(windows, target_os = "macos"))]
 use std::process::Command;
@@ -183,7 +185,18 @@ fn windows_snapshot_probe() -> OsFileProbeResult {
         OsFileProbeResult::Detected | OsFileProbeResult::NotFound
     ) {
         // Best-effort: try listing shadows without elevating (often Access Denied).
-        match Command::new("vssadmin").args(["list", "shadows"]).output() {
+        // This probe runs in-process from desktop startup/Settings/About.
+        // A console-subsystem child otherwise flashes a temporary CMD window
+        // whenever the GUI refreshes its Doctor report. CREATE_NO_WINDOW is
+        // a Win32 CreateProcess flag; the probe still executes and reports
+        // the same output/status (or fails soft on access denied).
+        const CREATE_NO_WINDOW: u32 = 0x0800_0000;
+        let mut command = Command::new("vssadmin");
+        let output = command
+            .args(["list", "shadows"])
+            .creation_flags(CREATE_NO_WINDOW)
+            .output();
+        match output {
             Ok(out) if out.status.success() => {
                 let text = String::from_utf8_lossy(&out.stdout);
                 if text.to_ascii_lowercase().contains("shadow copy")

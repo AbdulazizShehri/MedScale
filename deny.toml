@@ -29,7 +29,7 @@ allow = [
 unused-allowed-license = "allow"
 
 exceptions = [
-    { crate = "clipboard-win@5.4.1", allow = ["BSL-1.0"] },
+    { crate = "clipboard-win@5.4.3", allow = ["BSL-1.0"] },
     { crate = "error-code@3.4.0", allow = ["BSL-1.0"] },
     { crate = "libfuzzer-sys@0.4.13", allow = ["NCSA"] },
     # Spec 096: unmodified Tauri presentation dependencies; source archives and

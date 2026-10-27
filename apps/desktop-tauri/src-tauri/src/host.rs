@@ -5,7 +5,7 @@
 //! location and the subject context, and returns typed DTOs or a typed error.
 
 use std::path::{Path, PathBuf};
-use std::sync::Mutex;
+use std::sync::{Arc, Mutex};
 
 use medscale_contracts::envelopes::AuthorityError;
 use medscale_core::CliSession;
@@ -142,6 +142,7 @@ pub struct State {
 #[derive(Default)]
 pub struct Host {
     pub state: Mutex<State>,
+    pub model_download: Arc<Mutex<crate::audio_model_manager::DownloadCoordinator>>,
 }
 
 /// Synthetic FHIR fixtures shipped inside the binary (no repository needed at
@@ -554,10 +555,18 @@ pub fn create_encrypted(state: &mut State, passphrase: &str) -> CmdResult<Vec<St
 pub fn unlock_encrypted(state: &mut State, passphrase: &str) -> CmdResult<()> {
     validate_passphrase(passphrase)?;
     let vault_root = encrypted_root(state)?;
-    if !manifest_path(&vault_root).exists() {
+    // The sibling .desktop-seed.json is a UI roster, not encrypted Core
+    // material. Stale files must never trigger an attempted vault unlock.
+    if !vault_root.join("vault_header.json").is_file() {
         return Err(CmdError::new(
             "missing",
             "Missing: no encrypted vault at the default location",
+        ));
+    }
+    if !vault_root.join("meta.sealed").is_file() {
+        return Err(CmdError::new(
+            "corrupt",
+            "Corrupt: encrypted vault metadata is missing; original files were not changed",
         ));
     }
     let mut session = CliSession::connect("desktop-encrypted")?;

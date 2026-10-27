@@ -53,7 +53,10 @@ fn models_and_competitive_evidence_are_first_class_and_truthful() {
     assert!(app.contains("MedScale Evidence Center"));
     assert!(app.contains("MedScale evidence · measured claims only · limitations explicit"));
     assert!(app.contains("model-runtime-summary"));
-    assert!(product.contains("real portable ONNX runtime admitted"));
+    assert!(product.contains("real portable ONNX runtime"));
+    assert!(product.contains("Model Center operator session"));
+    assert!(product.contains("Try a model evaluates Packs in a separate workspace session"));
+    assert!(product.contains("Admission in one session does not imply admission in the other"));
     assert!(product.contains("production clinical model not promoted"));
     assert!(product.contains("verdict: \"UNMEASURED\""));
     assert!(product.contains("verdict: \"STRUCTURAL ONLY\""));

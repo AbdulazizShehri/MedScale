@@ -3482,6 +3482,49 @@ impl CliSession {
         }
     }
 
+    /// Core-authorized read-only recording retention preflight. The response
+    /// does not authorize or perform deletion; every future write must
+    /// revalidate project, source, digest and links transactionally.
+    pub fn audio_retention_preflight(
+        &mut self,
+        project_id: OpaqueId,
+        source_id: OpaqueId,
+    ) -> Result<ResponseBody, AuthorityError> {
+        match self.dispatch(
+            Capability::AudioRead,
+            RequestBody::AudioRetentionPreflight {
+                project_id,
+                source_id,
+            },
+        )? {
+            response @ ResponseBody::AudioRetentionPreflight { .. } => Ok(response),
+            _ => Err(Self::unexpected("audio retention preflight")),
+        }
+    }
+
+    /// Requires a separate Core write permission and a source-specific
+    /// confirmation phrase. Not exposed in the desktop UI yet.
+    pub fn audio_retention_remove(
+        &mut self,
+        project_id: OpaqueId,
+        source_id: OpaqueId,
+        expected_digest: medscale_contracts::objects::DigestSha256,
+        confirmation: String,
+    ) -> Result<ResponseBody, AuthorityError> {
+        match self.dispatch(
+            Capability::AudioRemove,
+            RequestBody::AudioRetentionRemove {
+                project_id,
+                source_id,
+                expected_digest,
+                confirmation,
+            },
+        )? {
+            response @ ResponseBody::AudioRetentionRemoved { .. } => Ok(response),
+            _ => Err(Self::unexpected("audio retention removal acknowledgement")),
+        }
+    }
+
     pub fn audio_capture_start(
         &mut self,
         project_id: OpaqueId,

@@ -96,6 +96,84 @@ impl Harness {
     }
 }
 
+/// Exercises the real named native command across a simulated app restart,
+/// without an installed model, microphone, user data or external network.
+#[test]
+fn confirmed_imported_audio_removal_survives_native_restart() {
+    let h = Harness::new("audio-removal-restart");
+    h.ok("workspace_open_synthetic", json!({}));
+    let project = h.ok(
+        "project_create",
+        json!({"name": "Disposable audio retention check", "description": null}),
+    );
+    let project_id = project["id"]
+        .as_str()
+        .expect("created project ID")
+        .to_owned();
+    let imported = h.ok("audio_import_synthetic", json!({"projectId": project_id}));
+    let source_id = imported["source_id"]
+        .as_str()
+        .expect("source ID")
+        .to_owned();
+    let inspected = h.ok(
+        "audio_source_retention_preview",
+        json!({"projectId": project_id, "sourceId": source_id}),
+    );
+    assert_eq!(inspected["delete_available"], true, "{inspected}");
+    let expected_digest = inspected["expected_digest"]
+        .as_str()
+        .expect("source SHA-256")
+        .to_owned();
+    let acknowledged = h.ok(
+        "audio_source_remove_confirmed",
+        json!({
+            "projectId": project_id,
+            "sourceId": source_id,
+            "expectedDigest": expected_digest,
+            "confirmation": format!("REMOVE {source_id} FROM ACTIVE VAULT"),
+        }),
+    );
+    assert_eq!(acknowledged["source_id"], source_id);
+    assert_eq!(acknowledged["removed_bytes"], inspected["recording_bytes"]);
+    assert!(acknowledged["receipt_id"].is_string(), "{acknowledged}");
+    assert_eq!(acknowledged["active_vault_only"], true);
+    assert_eq!(acknowledged["older_backups_may_retain_recording"], true);
+    h.ok("workspace_lock", json!({}));
+    drop(h);
+
+    let restarted = Harness::restart("audio-removal-restart");
+    restarted.ok("workspace_open_synthetic", json!({}));
+    let overview = restarted.ok("audio_overview", json!({"projectId": project_id}));
+    assert!(
+        overview["sources"]
+            .as_array()
+            .expect("source list")
+            .iter()
+            .all(|s| s["id"] != source_id),
+        "a removed source reappeared after native restart: {overview}"
+    );
+    let inspect_error = restarted
+        .call(
+            "audio_source_retention_preview",
+            json!({"projectId": project_id, "sourceId": source_id}),
+        )
+        .unwrap_err();
+    assert_eq!(inspect_error["kind"], "missing", "{inspect_error}");
+    // A second attempt must never silently succeed after restart.
+    let repeated = restarted
+        .call(
+            "audio_source_remove_confirmed",
+            json!({
+                "projectId": project_id,
+                "sourceId": source_id,
+                "expectedDigest": expected_digest,
+                "confirmation": format!("REMOVE {source_id} FROM ACTIVE VAULT"),
+            }),
+        )
+        .unwrap_err();
+    assert_eq!(repeated["kind"], "missing", "{repeated}");
+}
+
 #[test]
 fn every_surface_runs_against_real_core() {
     let h = Harness::new("all");
@@ -442,6 +520,52 @@ fn every_surface_runs_against_real_core() {
         h.call("patients_list", json!({})).unwrap_err()["kind"],
         "unavailable"
     );
+}
+
+#[test]
+fn orphaned_encrypted_seed_marker_is_not_a_vault() {
+    let h = Harness::new("orphan-encrypted-seed");
+    let root = std::env::temp_dir().join(format!(
+        "medscale-tauri-feature-orphan-encrypted-seed-{}",
+        std::process::id()
+    ));
+    let marker = root.join("encrypted-workspace.desktop-seed.json");
+    let original = b"{\"subjects\":[],\"sources\":[]}";
+    std::fs::write(&marker, original).unwrap();
+
+    let status = h.ok("workspace_status", json!({}));
+    assert_eq!(status["encrypted_vault_exists"], false);
+    assert_eq!(status["open"], false);
+
+    let missing = h
+        .call(
+            "workspace_unlock",
+            json!({ "passphrase": "fictional test only" }),
+        )
+        .unwrap_err();
+    assert_eq!(missing["kind"], "missing", "{missing}");
+    assert_eq!(std::fs::read(&marker).unwrap(), original);
+    assert!(!root.join("encrypted-workspace").exists());
+
+    // A partially written vault header without sealed Core metadata is
+    // not an unlockable vault either; do not open, delete, or rewrite it.
+    let vault_root = root.join("encrypted-workspace");
+    std::fs::create_dir_all(&vault_root).unwrap();
+    let header = vault_root.join("vault_header.json");
+    std::fs::write(&header, b"{}").unwrap();
+    assert_eq!(
+        h.ok("workspace_status", json!({}))["encrypted_vault_exists"],
+        false
+    );
+    let incomplete = h
+        .call(
+            "workspace_unlock",
+            json!({ "passphrase": "fictional test only" }),
+        )
+        .unwrap_err();
+    assert_eq!(incomplete["kind"], "corrupt", "{incomplete}");
+    assert_eq!(std::fs::read(&header).unwrap(), b"{}");
+    assert_eq!(std::fs::read(&marker).unwrap(), original);
 }
 
 #[test]
@@ -849,16 +973,135 @@ fn medagent_workbench_agent_context_evidence_and_resume() {
         ),
     )
     .unwrap();
+    // Desktop and Core share the same 32 MiB WAV limit. Reject one byte
+    // beyond the contract before attempting to parse or persist a source.
+    let oversized_wav = dir.join("oversized-recording.wav");
+    std::fs::File::create(&oversized_wav)
+        .unwrap()
+        .set_len(medscale_contracts::audio::MAX_AUDIO_BYTES as u64 + 1)
+        .unwrap();
+    let err = h
+        .call(
+            "audio_import_wav",
+            json!({ "projectId": pid, "path": oversized_wav.display().to_string() }),
+        )
+        .unwrap_err();
+    assert_eq!(err["kind"], "invalid", "{err}");
+    assert!(
+        err["message"]
+            .as_str()
+            .unwrap_or_default()
+            .contains("33554432"),
+        "oversized recording must be refused at Core's exact bound: {err}"
+    );
+    std::fs::remove_file(&oversized_wav).unwrap();
+
     let imported = h.ok(
         "audio_import_wav",
         json!({ "projectId": pid, "path": wav_path.display().to_string() }),
     );
+    let preview = h.ok(
+        "audio_source_retention_preview",
+        json!({ "projectId": pid, "sourceId": imported["source_id"] }),
+    );
+    assert_eq!(preview["source_id"], imported["source_id"]);
+    assert_eq!(preview["source_kind"], "imported_file");
+    assert!(preview["recording_bytes"].as_u64().unwrap() > 44);
+    assert_eq!(preview["revision_count"], 0);
+    assert_eq!(preview["receipt_count"], 0);
+    assert_eq!(preview["delete_available"], true);
+    assert_eq!(preview["imported_file"], true);
+    assert_eq!(preview["unreferenced_imported_file"], true);
+    assert_eq!(preview["has_huddle_media_link"], false);
+    assert_eq!(preview["has_capture_reference"], false);
+    assert_eq!(preview["active_vault_only"], true);
+    assert_eq!(preview["older_backups_may_retain_recording"], true);
+    assert_eq!(
+        preview["linked_evidence_requires_separate_retention_policy"],
+        true
+    );
+    assert!(
+        preview["expected_digest"]
+            .as_str()
+            .is_some_and(|d| d.len() == 64)
+    );
+    assert_eq!(
+        h.call(
+            "audio_source_retention_preview",
+            json!({ "projectId": "wrong-project", "sourceId": imported["source_id"] }),
+        )
+        .unwrap_err()["kind"],
+        "invalid",
+        "source metadata cannot be read using an unrelated selected project"
+    );
+    // Qualify a separate, unreferenced real WAV with the actual native
+    // command. The first source remains intact for genuine Whisper ASR QA.
+    let disposable = h.ok(
+        "audio_import_wav",
+        json!({ "projectId": pid, "path": wav_path.display().to_string() }),
+    );
+    let candidate = h.ok(
+        "audio_source_retention_preview",
+        json!({ "projectId": pid, "sourceId": disposable["source_id"] }),
+    );
+    assert_eq!(candidate["delete_available"], true);
+    let cmd_args = json!({
+        "projectId": pid, "sourceId": disposable["source_id"],
+        "expectedDigest": candidate["expected_digest"],
+        "confirmation": "not confirmed"
+    });
+    let refusal = h
+        .call("audio_source_remove_confirmed", cmd_args.clone())
+        .unwrap_err();
+    assert_eq!(
+        refusal["kind"], "invalid",
+        "native removal refusal must be typed and diagnostic: {refusal}"
+    );
+    // No mutation occurred after a refused confirmation.
+    assert_eq!(
+        h.ok(
+            "audio_source_retention_preview",
+            json!({ "projectId": pid, "sourceId": disposable["source_id"] })
+        )["expected_digest"],
+        candidate["expected_digest"]
+    );
+    let confirmed = h.ok(
+        "audio_source_remove_confirmed",
+        json!({
+            "projectId": pid, "sourceId": disposable["source_id"],
+            "expectedDigest": candidate["expected_digest"],
+            "confirmation": format!("REMOVE {} FROM ACTIVE VAULT",
+                disposable["source_id"].as_str().unwrap()),
+        }),
+    );
+    assert!(confirmed["receipt_id"].is_string());
+    assert_eq!(confirmed["removed_bytes"], candidate["recording_bytes"]);
+    assert_eq!(confirmed["older_backups_may_retain_recording"], true);
+    assert!(
+        h.call(
+            "audio_source_retention_preview",
+            json!({ "projectId": pid, "sourceId": disposable["source_id"] }),
+        )
+        .is_err()
+    );
     let transcribed = h.ok(
         "audio_transcribe",
-        json!({ "projectId": pid, "sourceId": imported["source_id"], "route": "local_asr_pack" }),
+        json!({ "projectId": pid, "sourceId": imported["source_id"], "route": "local_asr_pack", "language": "en" }),
     );
     assert_eq!(transcribed["decision"]["outcome"], "allow", "{transcribed}");
     assert_eq!(transcribed["engine"]["is_fixture"], false, "{transcribed}");
+    // The locally installed English-only Audio Pack must refuse Arabic.
+    // This ensures language is forwarded all the way through Core's engine
+    // instead of silently falling back to English.
+    assert!(
+        h.call(
+            "audio_transcribe",
+            json!({ "projectId": pid, "sourceId": imported["source_id"],
+                     "route": "local_asr_pack", "language": "ar" })
+        )
+        .is_err(),
+        "English-only Whisper Audio Pack must reject unsupported Arabic"
+    );
     let revision = transcribed["transcript"]["revision_id"].clone();
     let corrected = h.ok(
         "audio_correct",
@@ -866,6 +1109,25 @@ fn medagent_workbench_agent_context_evidence_and_resume() {
     );
     assert_eq!(corrected["revision_no"], 2, "{corrected}");
     assert_eq!(corrected["segments"][0]["text"], "patient has fever");
+    let persisted = h.ok(
+        "audio_source_retention_preview",
+        json!({ "projectId": pid, "sourceId": imported["source_id"] }),
+    );
+    assert_eq!(persisted["revision_count"], 2, "{persisted}");
+    assert_eq!(persisted["receipt_count"], 1, "{persisted}");
+    assert_eq!(persisted["delete_available"], false);
+    assert_eq!(persisted["has_transcript_revisions"], true);
+    assert_eq!(persisted["has_audit_receipts"], true);
+    assert_eq!(persisted["unreferenced_imported_file"], false);
+    assert_eq!(persisted["expected_digest"], preview["expected_digest"]);
+    // A second read must not consume or mutate lineage.
+    assert_eq!(
+        persisted,
+        h.ok(
+            "audio_source_retention_preview",
+            json!({ "projectId": pid, "sourceId": imported["source_id"] }),
+        )
+    );
     // Draft note from the corrected revision with the fixture Pack: items
     // cite their segment; the draft stays a proposal.
     let draft = h.ok(
@@ -899,7 +1161,103 @@ fn medagent_workbench_agent_context_evidence_and_resume() {
         .unwrap_err()["kind"],
         "invalid"
     );
-    // Restart again: the remembered Audio Pack engine is reinstalled on open.
+    // Reject arbitrary or malformed UI language values before model execution.
+    for invalid_language in ["en-US", "AR", "<|ar|>", ""] {
+        assert_eq!(
+            h.call(
+                "audio_transcribe",
+                json!({ "projectId": pid, "sourceId": imported["source_id"],
+                         "route": "local_asr_pack", "language": invalid_language })
+            )
+            .unwrap_err()["kind"],
+            "invalid",
+            "malformed language {invalid_language:?} must be refused"
+        );
+    }
+    // Recovery path: previously downloaded app-owned model Packs are
+    // re-admitted via the SAME signed Core boundary, not merely trusted
+    // because an app-data directory happens to contain a manifest.
+    let stored = h
+        ._app
+        .state::<crate::host::Host>()
+        .state
+        .lock()
+        .unwrap()
+        .data_dir()
+        .unwrap()
+        .join("audio-models")
+        .join("whisper-tiny-en");
+    std::fs::create_dir_all(&stored).unwrap();
+    // The native command must refuse any existing app-owned cache before
+    // spawning an HTTP worker, even if a user approves a second download.
+    // This checks the actual named IPC handler; no network is ever opened.
+    assert_eq!(
+        h.call(
+            "audio_model_download_start",
+            json!({ "modelId": "whisper-tiny-en", "consent": true })
+        )
+        .unwrap_err()["kind"],
+        "conflict",
+        "a partial cached model cannot be silently overwritten"
+    );
+    std::fs::write(stored.join("pack.manifest.json"), b"{}").unwrap();
+    let rejected = h.call(
+        "audio_model_activate_existing",
+        json!({ "modelId": "whisper-tiny-en" }),
+    );
+    assert!(
+        rejected.is_err(),
+        "Core must reject an unsigned saved model"
+    );
+    assert_eq!(
+        h.call(
+            "audio_model_activate_existing",
+            json!({ "modelId": "../../arbitrary" })
+        )
+        .unwrap_err()["kind"],
+        "invalid",
+        "model IDs may never become arbitrary filesystem paths"
+    );
+    std::fs::remove_dir_all(&stored).unwrap();
+    medscale_pack::asr_fixtures::synthetic_audio_pack(&stored);
+    let catalog = h.ok("audio_model_catalog", json!({}));
+    assert!(
+        catalog
+            .as_array()
+            .unwrap()
+            .iter()
+            .any(|m| m["id"] == "whisper-tiny-en" && m["pack_files_present"] == true),
+        "downloaded Pack must remain discoverable after relaunch: {catalog}"
+    );
+    // The signed synthetic Audio Pack correctly identifies the pinned
+    // Whisper tiny.en provenance; change only an app-owned test copy of
+    // model.meta.json to simulate a mislabeled local model. This must fail
+    // before reaching Core; then restore exact original bytes for admission.
+    let provenance_path = stored.join("model.meta.json");
+    let original_provenance = std::fs::read(&provenance_path).unwrap();
+    let mut altered: Value = serde_json::from_slice(&original_provenance).unwrap();
+    altered["repository"] = json!("openai/whisper-tiny");
+    std::fs::write(&provenance_path, serde_json::to_vec(&altered).unwrap()).unwrap();
+    let wrong_source = h.call(
+        "audio_model_activate_existing",
+        json!({ "modelId": "whisper-tiny-en" }),
+    );
+    assert_eq!(
+        wrong_source.unwrap_err()["kind"],
+        "denied",
+        "even an otherwise signed Pack cannot masquerade as another pinned model"
+    );
+    std::fs::write(&provenance_path, original_provenance).unwrap();
+    // A genuine signed Pack with matching provenance now passes both the
+    // allowlist preflight and Core's independent signature/digest admission.
+    let recovered = h.ok(
+        "audio_model_activate_existing",
+        json!({ "modelId": "whisper-tiny-en" }),
+    );
+    assert_eq!(recovered["installed"], true, "{recovered}");
+
+    // Restart again: Core re-verifies and restores the remembered Audio
+    // Pack without any network request.
     h.ok("workspace_lock", json!({}));
     {
         let again = Harness::restart("medagent");
@@ -962,4 +1320,107 @@ fn medagent_workbench_agent_context_evidence_and_resume() {
         h.ok(cmd, args);
     }
     h.dump();
+}
+
+/// Explicit macOS real-human-speech qualification, never run in routine CI.
+/// A disposable hosted runner supplies verified public LibriSpeech and signed
+/// immutable Whisper Pack. The production Tauri IPC and Rust Core execute;
+/// MockRuntime replaces only the OS WebView (not actual GUI automation).
+#[test]
+#[ignore = "requires disposable macOS runner, licensed human speech and pinned real Whisper"]
+fn verified_public_human_wav_transcribes_via_native_tauri() {
+    if std::env::var("MEDSCALE_QUAL_REAL_MAC_AUDIO").as_deref() != Ok("1") {
+        return;
+    }
+    if std::env::consts::OS != "macos" {
+        panic!("must run on a macOS hosted runner");
+    }
+    let wav = std::env::var("MEDSCALE_E2E_REAL_WAV_PATH")
+        .expect("source-verified LibriSpeech WAV required");
+    let pack = std::env::var("MEDSCALE_E2E_REAL_ASR_PACK_PATH")
+        .expect("pinned signed Whisper Pack required");
+    assert!(std::path::Path::new(&wav).is_file());
+    assert!(
+        std::path::Path::new(&pack)
+            .join("pack.manifest.json")
+            .is_file()
+    );
+
+    let h = Harness::new("mac-real-human-audio");
+    h.call("workspace_open_synthetic", json!({}))
+        .unwrap_or_else(|_| panic!("macOS workspace open failed"));
+    let project = h
+        .call(
+            "project_create",
+            json!({"name": "Public real audio qualification", "description": null}),
+        )
+        .unwrap_or_else(|_| panic!("macOS project creation failed"));
+    let project_id = project["id"].as_str().expect("project ID");
+    h.call("audio_admit_asr_pack", json!({"path": pack}))
+        .unwrap_or_else(|_| panic!("native Core refused verified Pack"));
+    let imported = h
+        .call(
+            "audio_import_wav",
+            json!({"projectId": project_id, "path": wav}),
+        )
+        .unwrap_or_else(|_| panic!("native WAV import failed"));
+    let source_id = imported["source_id"].as_str().expect("audio source ID");
+    let transcribed = h
+        .call(
+            "audio_transcribe",
+            json!({"projectId": project_id, "sourceId": source_id,
+                   "route": "local_asr_pack", "language": "en"}),
+        )
+        .unwrap_or_else(|_| panic!("real Whisper transcription failed on macOS"));
+    assert_eq!(transcribed["decision"]["outcome"], "allow");
+    assert_eq!(transcribed["engine"]["is_fixture"], false);
+    let revision = &transcribed["transcript"];
+    let segments = revision["segments"]
+        .as_array()
+        .expect("transcript segments");
+    assert!(
+        segments
+            .iter()
+            .any(|s| s["text"].as_str().is_some_and(|t| t.trim().len() > 8)),
+        "public human WAV did not produce local Whisper text"
+    );
+    assert!(revision["revision_id"].is_string());
+    // A real model returning text is not enough: source bytes, transcript
+    // revision and audit receipt must survive an actual app workspace restart.
+    // Reuse the merged project-scoped, read-only native storage inspection.
+    let before_restart = h.ok(
+        "audio_source_retention_preview",
+        json!({"projectId": project_id, "sourceId": source_id}),
+    );
+    assert_eq!(before_restart["source_id"], source_id);
+    assert_eq!(before_restart["revision_count"], 1);
+    assert_eq!(before_restart["receipt_count"], 1);
+    assert!(before_restart["recording_bytes"].as_u64().unwrap() > 44);
+    assert_eq!(before_restart["delete_available"], false);
+
+    h.call("workspace_lock", json!({}))
+        .unwrap_or_else(|_| panic!("macOS workspace failed to seal"));
+    let restored = Harness::restart("mac-real-human-audio");
+    restored
+        .call("workspace_open_synthetic", json!({}))
+        .unwrap_or_else(|_| panic!("macOS workspace did not reopen"));
+    let status = restored
+        .call("audio_asr_status", json!({}))
+        .unwrap_or_else(|_| panic!("ASR status unavailable after restart"));
+    assert!(
+        status["routes"].as_array().is_some_and(|routes| routes
+            .iter()
+            .any(|r| r["route"] == "local_asr_pack" && r["available"] == true)),
+        "native macOS did not restore the signed Whisper engine"
+    );
+    let after_restart = restored.ok(
+        "audio_source_retention_preview",
+        json!({"projectId": project_id, "sourceId": source_id}),
+    );
+    assert_eq!(
+        after_restart, before_restart,
+        "restart changed stored real source, transcript or receipt lineage"
+    );
+    // Only aggregate proof; do not print voice, transcript, speaker or paths.
+    println!("MAC_NATIVE_REAL_HUMAN_ASR_OK clips=1 model=whisper-tiny-en restart=true");
 }
