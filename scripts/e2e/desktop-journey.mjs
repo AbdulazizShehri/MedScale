@@ -337,16 +337,31 @@ try {
     await see("Stored recording inspected", 30000);
     await find("//p[@role='status' and contains(.,'Stored audio:') and " +
       "contains(.,'transcript revisions: 0') and contains(.,'audit receipts: 0') and " +
-      "contains(.,'no deletion is available or performed') and " +
+      "contains(.,'no deletion has been performed') and " +
       "contains(.,'Older backups may retain this recording')]", 30000);
-    // The feature deliberately exposes no source-destructive UI command.
-    const sourceActions = await wd("POST", `/session/${sid}/execute/sync`, {
-      script: "return [...document.querySelectorAll('section')].find(s => /Sources/.test(s.innerText))?.innerText || '';",
+    // The source is merely inspected. A destructive command cannot run
+    // unless a user enters the exact source-specific confirmation phrase.
+    const armed = await wd("POST", `/session/${sid}/execute/sync`, {
+      script: "return [...document.querySelectorAll('button')].filter(b => /Remove this recording from active vault/.test(b.innerText)).every(b => b.disabled);",
       args: [],
     });
-    if (/delete recording|erase source/i.test(sourceActions)) {
-      throw new Error("read-only audio source view unexpectedly advertises deletion");
+    if (armed !== true) throw new Error("unconfirmed recording removal is enabled");
+  });
+  await journey("audio-source-confirmed-removal-synthetic", async () => {
+    // The test data belongs to this disposable CI vault. An explicit typed
+    // phrase is required; the previous journey already proved the button
+    // remains disabled before confirmation.
+    const phrase = await wd("POST", `/session/${sid}/execute/sync`, {
+      script: "return document.querySelector('#audio-removal-confirmation')?.parentElement?.querySelector('code')?.textContent || '';",
+      args: [],
+    });
+    if (!/^REMOVE .+ FROM ACTIVE VAULT$/.test(phrase)) {
+      throw new Error("source-specific recording removal phrase is absent");
     }
+    await type("//input[@id='audio-removal-confirmation']", phrase);
+    await find("//button[normalize-space(.)='Remove this recording from active vault' and not(@disabled)]");
+    await click("//button[normalize-space(.)='Remove this recording from active vault']");
+    await see("Recording removed from active vault; receipt recorded", 30000);
   });
   // The real audio journey runs ONLY on an isolated CI host with opt-in inputs.
   // Never screenshot or print genuine voice text, paths, speakers or models.

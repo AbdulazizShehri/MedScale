@@ -1049,7 +1049,7 @@ fn audio_retention_preflight_is_read_only_scope_checked_and_link_aware() {
             assert!(!has_huddle_media_link);
             assert!(!has_capture_reference);
             assert!(unreferenced_imported_file);
-            assert!(!delete_available);
+            assert!(delete_available);
             assert!(older_backups_may_retain_recording);
         }
         other => panic!("{other:?}"),

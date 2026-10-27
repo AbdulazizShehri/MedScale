@@ -110,6 +110,7 @@ fn presentation_builder<R: tauri::Runtime>(builder: tauri::Builder<R>) -> tauri:
             cmd_ops::workflow_overview,
             cmd_ops::audio_overview,
             cmd_ops::audio_source_retention_preview,
+            cmd_ops::audio_source_remove_confirmed,
             cmd_ops::audio_import_synthetic,
             cmd_ops::audio_segment,
             cmd_ops::audio_asr_status,
