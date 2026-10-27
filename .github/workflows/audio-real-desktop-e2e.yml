@@ -33,15 +33,41 @@ jobs:
         with:
           workspaces: apps/desktop-tauri/src-tauri -> target
           key: real-human-audio
-      - name: Ensure ffmpeg is available only on temporary runner
+      - name: Ensure FFmpeg on temporary runner with bounded mirror fallback
         shell: pwsh
         run: |
           $ErrorActionPreference = 'Stop'
           if (-not (Get-Command ffmpeg -ErrorAction SilentlyContinue)) {
-            choco install ffmpeg -y --no-progress
-            if ($LASTEXITCODE -ne 0) { throw 'ffmpeg install failed' }
-            'C:\ProgramData\chocolatey\bin' | Out-File -Append -FilePath $env:GITHUB_PATH -Encoding utf8
-            $env:PATH += ';C:\ProgramData\chocolatey\bin'
+            # Chocolatey may return transient 504 Gateway Timeout from its feed.
+            # Retrying or using a pinned Python wheel is CI-only: no founder
+            # device, model weights or production application is modified.
+            for ($attempt = 1; $attempt -le 3; $attempt++) {
+              try {
+                choco install ffmpeg -y --no-progress --execution-timeout 480
+              } catch {
+                Write-Host "Chocolatey attempt $attempt failed: $($_.Exception.Message)"
+              }
+              $env:PATH += ';C:\ProgramData\chocolatey\bin'
+              if (Get-Command ffmpeg -ErrorAction SilentlyContinue) { break }
+              if ($attempt -lt 3) { Start-Sleep -Seconds (8 * $attempt) }
+            }
+          }
+          if (-not (Get-Command ffmpeg -ErrorAction SilentlyContinue)) {
+            # This wheel bundles its own FFmpeg executable for Windows; only
+            # this disposable runner gets the dependency. Do not pip-install
+            # a model or any package on the founder's machine.
+            python -m pip install --disable-pip-version-check --no-input --only-binary=:all: --no-deps imageio-ffmpeg==0.6.0
+            if ($LASTEXITCODE -ne 0) { throw 'Pinned FFmpeg fallback install failed' }
+            $wheelExe = (python -c 'import imageio_ffmpeg; print(imageio_ffmpeg.get_ffmpeg_exe())').Trim()
+            if (-not (Test-Path -LiteralPath $wheelExe)) { throw 'Pinned FFmpeg executable missing' }
+            $ffmpegDir = Join-Path $env:RUNNER_TEMP 'medscale-ffmpeg'
+            New-Item -ItemType Directory -Path $ffmpegDir -Force | Out-Null
+            Copy-Item -LiteralPath $wheelExe -Destination (Join-Path $ffmpegDir 'ffmpeg.exe') -Force
+            $env:PATH = "$ffmpegDir;$env:PATH"
+            $ffmpegDir | Out-File -Append -FilePath $env:GITHUB_PATH -Encoding utf8
+          }
+          if (-not (Get-Command ffmpeg -ErrorAction SilentlyContinue)) {
+            throw 'No verified FFmpeg executable on disposable runner'
           }
           ffmpeg -version | Select-Object -First 1
       - name: Acquire genuine public audio and verify OpenSLR source integrity
