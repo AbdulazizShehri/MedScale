@@ -22,16 +22,17 @@ use medscale_contracts::objects::{
 };
 use medscale_contracts::project_graph::Project;
 use medscale_storage::{
-    CURRENT_META_SCHEMA_VERSION, MetaError, SqliteMetaStore, SyntheticVault, backup_vault,
-    restore_vault,
+    AudioRetentionRemovalReceipt, CURRENT_META_SCHEMA_VERSION, MetaError, SqliteMetaStore,
+    SyntheticVault, backup_vault, restore_vault,
 };
 
-const AUDIO_TABLES: [&str; 5] = [
+const AUDIO_TABLES: [&str; 6] = [
     "audio_sources",
     "audio_capture_sessions",
     "audio_capture_chunks",
     "audio_transcripts",
     "audio_transcript_receipts",
+    "audio_retention_removal_receipts",
 ];
 
 fn temp_root(name: &str) -> PathBuf {
@@ -846,6 +847,181 @@ fn unreferenced_imported_audio_removal_preserves_other_sources_and_prior_backups
         a_bytes
     );
     prior.meta.verify_audio_consistency().unwrap();
+}
+
+#[test]
+fn atomic_audio_removal_receipt_rolls_back_and_survives_backup_restore() {
+    let root = temp_root("atomic-retention-receipt");
+    let vault = SyntheticVault::open("vault-1", &root.join("vault")).unwrap();
+    populate_pre_081(&vault.meta);
+    let source_bytes = bytes(160, 41);
+    let other_bytes = bytes(128, 70);
+    let source = imported("source-atomic-receipt", &source_bytes);
+    let other = imported("source-atomic-untouched", &other_bytes);
+    vault
+        .meta
+        .insert_imported_audio_source(&source, &source_bytes)
+        .unwrap();
+    vault
+        .meta
+        .insert_imported_audio_source(&other, &other_bytes)
+        .unwrap();
+
+    let before_backup = root.join("backup-before-removal");
+    backup_vault(&vault, &before_backup).unwrap();
+    let receipt = AudioRetentionRemovalReceipt {
+        receipt_id: id("retention-receipt-1"),
+        project_id: source.project_id.clone(),
+        source_id: source.header.id.clone(),
+        source_digest: source.content_digest.clone(),
+        removed_bytes: source_bytes.len() as u64,
+        actor_id: id("actor-confirmed"),
+        confirmation_digest: DigestSha256::of(b"explicit active-vault-only confirmation"),
+        user_confirmed: true,
+        active_vault_only: true,
+        older_backups_may_retain_recording: true,
+    };
+    let bad_bytes = AudioRetentionRemovalReceipt {
+        removed_bytes: (source_bytes.len() + 1) as u64,
+        ..receipt.clone()
+    };
+    assert!(matches!(
+        vault
+            .meta
+            .remove_unreferenced_imported_audio_source_with_receipt(
+                &source.project_id,
+                &source.header.id,
+                &source.content_digest,
+                &bad_bytes,
+            ),
+        Err(MetaError::Conflict(_))
+    ));
+    let no_consent = AudioRetentionRemovalReceipt {
+        user_confirmed: false,
+        ..receipt.clone()
+    };
+    assert!(matches!(
+        vault
+            .meta
+            .remove_unreferenced_imported_audio_source_with_receipt(
+                &source.project_id,
+                &source.header.id,
+                &source.content_digest,
+                &no_consent,
+            ),
+        Err(MetaError::Conflict(_))
+    ));
+    assert!(
+        vault
+            .meta
+            .list_audio_retention_removal_receipts()
+            .unwrap()
+            .is_empty()
+    );
+    assert_eq!(
+        vault.meta.get_audio_source(&source.header.id).unwrap().1,
+        source_bytes
+    );
+
+    vault
+        .meta
+        .remove_unreferenced_imported_audio_source_with_receipt(
+            &source.project_id,
+            &source.header.id,
+            &source.content_digest,
+            &receipt,
+        )
+        .unwrap();
+    assert!(matches!(
+        vault.meta.get_audio_source(&source.header.id),
+        Err(MetaError::NotFound)
+    ));
+    assert_eq!(
+        vault.meta.list_audio_retention_removal_receipts().unwrap(),
+        vec![receipt.clone()]
+    );
+    vault
+        .meta
+        .verify_audio_retention_removal_receipts()
+        .unwrap();
+
+    let duplicate_id = AudioRetentionRemovalReceipt {
+        project_id: other.project_id.clone(),
+        source_id: other.header.id.clone(),
+        source_digest: other.content_digest.clone(),
+        removed_bytes: other_bytes.len() as u64,
+        ..receipt.clone()
+    };
+    assert!(matches!(
+        vault
+            .meta
+            .remove_unreferenced_imported_audio_source_with_receipt(
+                &other.project_id,
+                &other.header.id,
+                &other.content_digest,
+                &duplicate_id,
+            ),
+        Err(MetaError::Conflict(_))
+    ));
+    // The duplicate receipt rejects the same transaction that would remove
+    // another source. Neither original audio nor the prior receipt changes.
+    assert_eq!(
+        vault.meta.get_audio_source(&other.header.id).unwrap().1,
+        other_bytes
+    );
+    assert_eq!(
+        vault.meta.list_audio_retention_removal_receipts().unwrap(),
+        vec![receipt.clone()]
+    );
+    vault.meta.verify_audio_consistency().unwrap();
+
+    let after_backup = root.join("backup-after-removal");
+    backup_vault(&vault, &after_backup).unwrap();
+    restore_vault(&after_backup, &root.join("restored-after")).unwrap();
+    let restored = SyntheticVault::open("vault-1", &root.join("restored-after")).unwrap();
+    assert!(matches!(
+        restored.meta.get_audio_source(&source.header.id),
+        Err(MetaError::NotFound)
+    ));
+    assert_eq!(
+        restored
+            .meta
+            .list_audio_retention_removal_receipts()
+            .unwrap(),
+        vec![receipt.clone()]
+    );
+    restored
+        .meta
+        .verify_audio_retention_removal_receipts()
+        .unwrap();
+    assert_eq!(
+        restored.meta.get_audio_source(&other.header.id).unwrap().1,
+        other_bytes
+    );
+
+    // Historical backups are not retroactively erased.
+    restore_vault(&before_backup, &root.join("restored-before")).unwrap();
+    let older = SyntheticVault::open("vault-1", &root.join("restored-before")).unwrap();
+    assert_eq!(
+        older.meta.get_audio_source(&source.header.id).unwrap().1,
+        source_bytes
+    );
+    assert!(
+        older
+            .meta
+            .list_audio_retention_removal_receipts()
+            .unwrap()
+            .is_empty()
+    );
+
+    // Required v21 receipt family must not silently disappear from backup.
+    tamper_backup(&after_backup, |snapshot| {
+        snapshot
+            .as_object_mut()
+            .unwrap()
+            .remove("audio_retention_removal_receipts");
+    });
+    assert!(restore_vault(&after_backup, &root.join("tampered-restore")).is_err());
 }
 
 #[test]
