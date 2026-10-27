@@ -424,6 +424,7 @@ impl SqliteMetaStore {
     }
 
     /// Atomic source removal and permanent, backup-preserved receipt.
+    /// A typed receipt is storage evidence, not authentication of consent.
     /// For the future authenticated Core flow only; this storage method
     /// deliberately does not grant a user-facing deletion capability.
     pub fn remove_unreferenced_imported_audio_source_with_receipt(
