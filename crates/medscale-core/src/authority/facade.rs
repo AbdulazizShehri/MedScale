@@ -4701,7 +4701,7 @@ impl CoreFacade {
                     has_huddle_media_link: value.has_huddle_media_link,
                     has_capture_reference: value.has_capture_reference,
                     unreferenced_imported_file,
-                    delete_available: false,
+                    delete_available: unreferenced_imported_file,
                     older_backups_may_retain_recording: true,
                 })
             }

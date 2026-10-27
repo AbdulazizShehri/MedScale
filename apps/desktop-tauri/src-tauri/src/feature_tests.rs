@@ -931,7 +931,7 @@ fn medagent_workbench_agent_context_evidence_and_resume() {
     assert!(preview["recording_bytes"].as_u64().unwrap() > 44);
     assert_eq!(preview["revision_count"], 0);
     assert_eq!(preview["receipt_count"], 0);
-    assert_eq!(preview["delete_available"], false);
+    assert_eq!(preview["delete_available"], true);
     assert_eq!(preview["imported_file"], true);
     assert_eq!(preview["unreferenced_imported_file"], true);
     assert_eq!(preview["has_huddle_media_link"], false);
@@ -955,6 +955,56 @@ fn medagent_workbench_agent_context_evidence_and_resume() {
         .unwrap_err()["kind"],
         "invalid",
         "source metadata cannot be read using an unrelated selected project"
+    );
+    // Qualify a separate, unreferenced real WAV with the actual native
+    // command. The first source remains intact for genuine Whisper ASR QA.
+    let disposable = h.ok(
+        "audio_import_wav",
+        json!({ "projectId": pid, "path": wav_path.display().to_string() }),
+    );
+    let candidate = h.ok(
+        "audio_source_retention_preview",
+        json!({ "projectId": pid, "sourceId": disposable["source_id"] }),
+    );
+    assert_eq!(candidate["delete_available"], true);
+    let cmd_args = json!({
+        "projectId": pid, "sourceId": disposable["source_id"],
+        "expectedDigest": candidate["expected_digest"],
+        "confirmation": "not confirmed"
+    });
+    let refusal = h
+        .call("audio_source_remove_confirmed", cmd_args.clone())
+        .unwrap_err();
+    assert_eq!(
+        refusal["kind"], "invalid",
+        "native removal refusal must be typed and diagnostic: {refusal}"
+    );
+    // No mutation occurred after a refused confirmation.
+    assert_eq!(
+        h.ok(
+            "audio_source_retention_preview",
+            json!({ "projectId": pid, "sourceId": disposable["source_id"] })
+        )["expected_digest"],
+        candidate["expected_digest"]
+    );
+    let confirmed = h.ok(
+        "audio_source_remove_confirmed",
+        json!({
+            "projectId": pid, "sourceId": disposable["source_id"],
+            "expectedDigest": candidate["expected_digest"],
+            "confirmation": format!("REMOVE {} FROM ACTIVE VAULT",
+                disposable["source_id"].as_str().unwrap()),
+        }),
+    );
+    assert!(confirmed["receipt_id"].is_string());
+    assert_eq!(confirmed["removed_bytes"], candidate["recording_bytes"]);
+    assert_eq!(confirmed["older_backups_may_retain_recording"], true);
+    assert!(
+        h.call(
+            "audio_source_retention_preview",
+            json!({ "projectId": pid, "sourceId": disposable["source_id"] }),
+        )
+        .is_err()
     );
     let transcribed = h.ok(
         "audio_transcribe",

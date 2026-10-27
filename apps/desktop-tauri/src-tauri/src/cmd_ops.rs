@@ -1007,6 +1007,58 @@ pub fn audio_source_retention_preview(
     }))
 }
 
+/// Explicitly removes one unreferenced imported recording from the active
+/// vault. The selected source/digest are checked again by Core and inside
+/// storage's delete+durable-receipt transaction; the preview is advisory.
+/// Older backups, snapshots and physical storage are not erased.
+#[tauri::command(async)]
+pub fn audio_source_remove_confirmed(
+    host: tauri::State<'_, Host>,
+    project_id: String,
+    source_id: String,
+    expected_digest: String,
+    confirmation: String,
+) -> CmdResult<Value> {
+    let mut state = lock(&host)?;
+    let project_id = host::bounded_id(&project_id)?;
+    let source_id = host::bounded_id(&source_id)?;
+    let session = state.session()?;
+    let source = session.audio_source_get(OpaqueId::new(source_id))?;
+    if source.project_id.as_str() != project_id {
+        return Err(CmdError::invalid(
+            "Audio source does not belong to the selected project",
+        ));
+    }
+    if source.content_digest.to_hex() != expected_digest {
+        return Err(CmdError::invalid(
+            "Audio recording changed since inspection. Inspect stored data again.",
+        ));
+    }
+    let removed = session.audio_retention_remove(
+        OpaqueId::new(project_id),
+        OpaqueId::new(source_id),
+        source.content_digest,
+        confirmation,
+    )?;
+    let ResponseBody::AudioRetentionRemoved {
+        receipt_id,
+        removed_bytes,
+        older_backups_may_retain_recording,
+        ..
+    } = removed
+    else {
+        return Err(CmdError::invalid("Unexpected retention removal response"));
+    };
+    Ok(json!({
+        "project_id": project_id,
+        "source_id": source_id,
+        "receipt_id": receipt_id,
+        "removed_bytes": removed_bytes,
+        "active_vault_only": true,
+        "older_backups_may_retain_recording": older_backups_may_retain_recording,
+    }))
+}
+
 /// Audio routes and the installed local speech recognition, if any.
 #[tauri::command(async)]
 pub fn audio_asr_status(host: tauri::State<'_, Host>) -> CmdResult<Value> {
