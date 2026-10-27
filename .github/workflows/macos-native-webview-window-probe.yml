@@ -151,7 +151,8 @@ jobs:
                       '  set fields to every UI element of first window of item 1 of candidates\n'
                       '  repeat with el in (entire contents of first window of item 1 of candidates)\n'
                       '    try\n'
-                      '      if role of el is "AXTextField" then\n'
+                      '      set elementRole to role of el as text\n'
+                      '      if elementRole contains "TextField" or elementRole contains "text field" then\n'
                       '        click el\n'
                       '        keystroke "MedScale synthetic macOS QA"\n'
                       '        return "NAME_ENTERED"\n'
@@ -161,10 +162,40 @@ jobs:
                       '  return "NO_TEXT_FIELD"\n'
                       'end tell'
                   )
-                  typed = subprocess.run(["osascript", "-e", fill],
-                      capture_output=True, text=True, timeout=45, check=False)
-                  if (typed.returncode, typed.stdout.strip()) != (0, "NAME_ENTERED"):
-                      raise SystemExit(f"Project name field inaccessible: {typed.returncode}/{typed.stdout.strip()[:80]}/{typed.stderr.strip()[:80]}")
+                  # Native WebKit's AX subtree can take several seconds to
+                  # materialize after clicking navigation. Query repeatedly;
+                  # do not report route success from a mere 'click' return.
+                  for _ in range(15):
+                      typed = subprocess.run(["osascript", "-e", fill],
+                          capture_output=True, text=True, timeout=45, check=False)
+                      if (typed.returncode, typed.stdout.strip()) == (0, "NAME_ENTERED"):
+                          print("MAC_NATIVE_WKWEBVIEW_PROJECT_NAME_TYPED")
+                          break
+                      time.sleep(2)
+                  else:
+                      # Only log bounded accessibility role counts and two
+                      # fixed UI-label checks; never names/values or screenshots.
+                      diag = (
+                          'tell application "System Events"\n'
+                          f'  set candidates to every process whose unix id is {process.pid}\n'
+                          '  set roleNames to {}\n'
+                          '  repeat with el in (entire contents of first window of item 1 of candidates)\n'
+                          '    try\n'
+                          '      set end of roleNames to (role of el as text)\n'
+                          '    end try\n'
+                          '  end repeat\n'
+                          '  return roleNames as text\n'
+                          'end tell'
+                      )
+                      snapshot = subprocess.run(["osascript", "-e", diag],
+                          capture_output=True, text=True, timeout=40, check=False)
+                      role_text = snapshot.stdout.lower()
+                      print(f"MAC_AX_ROLE_DIAG total_characters={len(role_text)} "
+                            f"text_field={role_text.count('textfield')} "
+                            f"button={role_text.count('button')} "
+                            f"create_control={ax('Create project')[1]} "
+                            f"name_label={ax('Name')[1]}")
+                      raise SystemExit(f"Native project name field not exposed to AX after bounded retries: status={typed.returncode} result={typed.stdout.strip()[:40]}")
                   created = False
                   for _ in range(12):
                       result = ax("Create project", press=True)
