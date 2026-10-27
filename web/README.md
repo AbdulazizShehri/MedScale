@@ -1,6 +1,6 @@
 # MedScale website
 
-The public product and open-source website. It is a Next.js App Router site with TypeScript and a static export, so it needs no backend and no paid hosting. The website is separate from the MedScale desktop app and never connects to it or to any clinical system.
+The public website for MedScale Beta, an open-source product in active development. It is a Next.js App Router site with TypeScript and a static export, so it needs no backend and no paid hosting. The website is separate from the MedScale desktop app and never connects to it or to any clinical system.
 
 The design system is in [`docs/brand/WEBSITE_SYSTEM.md`](../docs/brand/WEBSITE_SYSTEM.md) and the copy rules are in [`docs/brand/MARKETING_COPY.md`](../docs/brand/MARKETING_COPY.md).
 
@@ -106,6 +106,24 @@ References:
 
 ## Downloads
 
+### Unsigned synthetic-only engineering preview (no paid developer accounts)
+
+The desktop CI already builds and probes Windows NSIS `.exe` and macOS `.dmg` installers. A **separate and explicitly unqualified** distribution track is staged in `.github/workflows/unsigned-engineering-preview.yml`:
+
+1. Wait for a successful **push-to-main** `tauri-preview` workflow run at the exact current main SHA, including native installer lifecycle tests.
+2. Manually dispatch **Publish unsigned synthetic-only preview** from `main`, with the successful workflow run ID and the exact confirmation phrase `PUBLISH_UNSIGNED_SYNTHETIC_PREVIEW`.
+3. The workflow independently checks that both sets came from the exact same main commit, verifies manifests and SHA256 digests, requires Windows/macOS installer install/launch/uninstall PASS receipts, and refuses tampered/missing artifacts or duplicate tags.
+4. Only after those checks, GitHub hosts a **pre-release** containing the unsigned Windows EXE, unnotarized macOS DMG, and checksum file. Visitors can download it without signing in to GitHub. The website dynamically discovers only those exact GitHub pre-release assets, and shows no preview button until one actually exists.
+
+**MedScale Beta is under active development. This is not the signed/public-production release channel.** `QUALIFIED_RELEASE_TAGS` stays empty, `RELEASE_READY=false`, and real PHI is forbidden. Do not distribute preview binaries for clinical decisions or real patient data.
+
+**Windows:** Download the EXE directly; Windows Defender SmartScreen and Smart App Control may warn or block unsigned software. Do not suppress system policies programmatically. Require checksum verification and a trusted official download URL.
+
+**macOS:** Download the DMG, copy the app to Applications, and open it. Gatekeeper can block software without Developer ID notarization. If the user has independently verified the official source and checksum, macOS may offer an explicit one-app exception under System Settings → Privacy & Security → Open Anyway. Never instruct users to disable Gatekeeper globally.
+
+**No Microsoft or Apple paid developer membership is required to *build and host* this engineering preview**, but equally frictionless installs on every Windows/macOS device cannot be guaranteed without trusted signing. GitHub Actions artifacts are for authenticated repo users; the separate prerelease is the public-download route.
+
+The website's actual signed/qualified production installer gate is deliberately stricter:
 The platform cards show what is genuinely available and never invent an installer URL. `src/lib/release.ts` holds the platform-aware installer selection, adapted from CommunityFinance-CoFi's tested selector, plus a qualification gate: `QUALIFIED_RELEASE_TAGS` is empty, so the site makes no release request and links only to build instructions.
 
 Enable direct downloads only when all of these hold:

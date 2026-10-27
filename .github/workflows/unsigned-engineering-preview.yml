@@ -1,0 +1,141 @@
+# Founder-directed, account-free, synthetic-only engineering preview distribution.
+# This does NOT promote RELEASE_READY or authorize any medical/real-PHI use.
+# Never runs on pull_request or ordinary push. Requires a successful same-SHA
+# main tauri-preview run, explicit manual confirmation, and verified install probes.
+name: Publish unsigned synthetic-only preview
+
+on:
+  workflow_dispatch:
+    inputs:
+      source_run_id:
+        description: 'Successful tauri-preview workflow run ID from this exact main commit'
+        required: true
+        type: string
+      confirmation:
+        description: 'Type PUBLISH_UNSIGNED_SYNTHETIC_PREVIEW to authorize a public pre-release'
+        required: true
+        type: string
+
+permissions:
+  contents: write
+  actions: read
+
+concurrency:
+  group: medscale-unsigned-preview
+  cancel-in-progress: false
+
+jobs:
+  prepare-and-publish:
+    if: ${{ github.ref == 'refs/heads/main' && inputs.confirmation == 'PUBLISH_UNSIGNED_SYNTHETIC_PREVIEW' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v4, pinned
+      - name: Verify workflow origin and qualified build run
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RUN_ID: ${{ inputs.source_run_id }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          [[ "$RUN_ID" =~ ^[0-9]{8,15}$ ]] || { echo "::error::Invalid workflow run ID"; exit 1; }
+          run_json=$(gh api "repos/$GITHUB_REPOSITORY/actions/runs/$RUN_ID")
+          echo "$run_json" | jq -e --arg sha "$GITHUB_SHA" '
+            .name == "tauri-preview" and
+            .event == "push" and
+            .head_branch == "main" and
+            .head_sha == $sha and
+            .status == "completed" and
+            .conclusion == "success"
+          ' >/dev/null || { echo "::error::Source run must be a successful push-to-main Tauri preview at this exact SHA"; exit 1; }
+          # Confirm exact-SHA push-to-main CI and desktop E2E also succeeded.
+          completed=$(gh api "repos/$GITHUB_REPOSITORY/actions/runs?head_sha=$GITHUB_SHA&per_page=100")
+          for required in ci desktop-e2e; do
+            echo "$completed" | jq -e --arg sha "$GITHUB_SHA" --arg required "$required" '
+              any(.workflow_runs[]?;
+                .name == $required and
+                .event == "push" and
+                .head_branch == "main" and
+                .head_sha == $sha and
+                .status == "completed" and
+                .conclusion == "success")
+            ' >/dev/null || { echo "::error::Missing exact-SHA success for $required"; exit 1; }
+          done
+          tag="engineering-preview-${GITHUB_SHA:0:12}"
+          if gh release view "$tag" >/dev/null 2>&1; then
+            echo "::error::Refusing to replace an existing preview release: $tag"
+            exit 1
+          fi
+      - name: Download both exact-run installer sets
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RUN_ID: ${{ inputs.source_run_id }}
+        run: |
+          set -euo pipefail
+          mkdir -p "$RUNNER_TEMP/installer-win" "$RUNNER_TEMP/installer-mac"
+          gh run download "$RUN_ID" -R "$GITHUB_REPOSITORY" -n tauri-installer-windows-latest -D "$RUNNER_TEMP/installer-win"
+          gh run download "$RUN_ID" -R "$GITHUB_REPOSITORY" -n tauri-installer-macos-latest -D "$RUNNER_TEMP/installer-mac"
+      - name: Verify source provenance, digests, and real installer probes
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $win = Join-Path $env:RUNNER_TEMP 'installer-win/tauri-release/windows'
+          $mac = Join-Path $env:RUNNER_TEMP 'installer-mac/tauri-release/macos'
+          foreach ($dir in @($win, $mac)) {
+            if (-not (Test-Path -LiteralPath $dir)) { throw "Missing exact-run release set: $dir" }
+            & ./scripts/verify-tauri-release.ps1 -Root $dir -ExpectedSourceSha $env:GITHUB_SHA
+            if ($LASTEXITCODE -ne 0) { throw "Release set verification failed: $dir" }
+          }
+          $winReport = Join-Path $env:RUNNER_TEMP 'installer-win/tauri-release-qualification/windows.json'
+          $macReport = Join-Path $env:RUNNER_TEMP 'installer-mac/tauri-release-qualification/macos.json'
+          if (-not (Test-Path -LiteralPath $winReport) -or -not (Test-Path -LiteralPath $macReport)) {
+            throw 'Missing Windows/macOS installer lifecycle receipts'
+          }
+          $w = Get-Content -LiteralPath $winReport -Raw | ConvertFrom-Json
+          $m = Get-Content -LiteralPath $macReport -Raw | ConvertFrom-Json
+          foreach ($key in @('INSTALL','LAUNCH','UNINSTALL')) {
+            if ($w.$key -ne 'PASS' -or $m.$key -ne 'PASS') { throw "Installer qualification missing: $key" }
+          }
+          foreach ($key in @('DMG_VERIFY','DMG_MOUNT')) {
+            if ($m.$key -ne 'PASS') { throw "macOS package qualification missing: $key" }
+          }
+          if ($w.SIGNING -ne 'NOT_GRANTED' -or $m.SIGNING -ne 'NOT_GRANTED') {
+            throw 'This workflow distributes only explicitly unsigned engineering previews'
+          }
+      - name: Assemble transparent unsigned preview files
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p publish
+          win_root="$RUNNER_TEMP/installer-win/tauri-release/windows/installer"
+          mac_root="$RUNNER_TEMP/installer-mac/tauri-release/macos/installer"
+          mapfile -t win < <(find "$win_root" -maxdepth 1 -type f -name '*.exe')
+          mapfile -t mac < <(find "$mac_root" -maxdepth 1 -type f -name '*.dmg')
+          [[ ${#win[@]} -eq 1 && ${#mac[@]} -eq 1 ]] || { echo "::error::Expected one EXE and one DMG"; exit 1; }
+          cp -- "${win[0]}" "publish/MedScale-engineering-preview-windows-x64.exe"
+          cp -- "${mac[0]}" "publish/MedScale-engineering-preview-macos.dmg"
+          # Include each platform's source notices, license, SBOM, manifest,
+          # provenance and installer lifecycle receipts, excluding duplicate installers.
+          for platform in win mac; do
+            case "$platform" in win) kind=windows ;; mac) kind=macos ;; esac
+            root="$RUNNER_TEMP/installer-$platform"
+            (cd "$root" && zip -qr "$GITHUB_WORKSPACE/publish/MedScale-engineering-preview-$kind-provenance.zip" \
+              tauri-release tauri-release-qualification \
+              -x "tauri-release/$kind/installer/*")
+          done
+          (cd publish && sha256sum *.exe *.dmg *.zip > SHA256SUMS)
+          printf '%s\n'             'MedScale Beta — active development; SYNTHETIC DATA ONLY.'             'UNSIGNED Windows installer; macOS DMG is NOT notarized.'             'NOT qualified for clinical work, real patient data, or production deployments.'             'Windows SmartScreen or Smart App Control may warn or block the installer.'             'macOS Gatekeeper may block it; never disable system security globally.'             'Verify SHA256SUMS and review the exact source SHA on GitHub.'             "Source SHA: $GITHUB_SHA"             > publish/PREVIEW-README.txt
+      - name: Publish an explicitly non-production pre-release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          tag="engineering-preview-${GITHUB_SHA:0:12}"
+          gh release create "$tag" publish/* \
+            --repo "$GITHUB_REPOSITORY" \
+            --target "$GITHUB_SHA" \
+            --title "MedScale Beta (unsigned synthetic-only engineering build) (${GITHUB_SHA:0:12})" \
+            --prerelease --latest=false \
+            --notes-file publish/PREVIEW-README.txt
+          gh release view "$tag" -R "$GITHUB_REPOSITORY" --json url,isPrerelease --jq '{url:.url,prerelease:.isPrerelease}'
