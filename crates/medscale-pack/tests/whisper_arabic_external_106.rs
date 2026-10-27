@@ -95,7 +95,18 @@ fn actual_arabic_fleurs_transcription() {
         &std::fs::read(required("MEDSCALE_ASR_CASES")).expect("true FLEURS recordings"),
     )
     .expect("valid evaluation manifest");
-    assert_eq!(cases.len(), 24, "bounded real Arabic pilot");
+    let expected_cases: usize = required("MEDSCALE_ASR_EXPECT_CASES")
+        .parse()
+        .expect("expected sample count must be a number");
+    assert!(
+        matches!(expected_cases, 24 | 100),
+        "only fixed FLEURS 24/100 sample counts are permitted"
+    );
+    assert_eq!(
+        cases.len(),
+        expected_cases,
+        "complete real Arabic cohort required"
+    );
     let (mut total_werr, mut total_wr, mut total_cerr, mut total_cr) = (0, 0, 0, 0);
     let (mut audio_samples, mut transcribe_ms) = (0usize, 0u128);
     for item in &cases {

@@ -15,6 +15,14 @@ on:
           - tiny
           - base
           - small
+      samples:
+        description: "Pinned FLEURS ar_eg recordings (24 pilot or 100 extended)"
+        required: true
+        default: "24"
+        type: choice
+        options:
+          - "24"
+          - "100"
 permissions:
   contents: read
 concurrency:
@@ -28,6 +36,7 @@ jobs:
     env:
       CARGO_TERM_COLOR: always
       MODEL_SELECTION: ${{ inputs.model || 'tiny' }}
+      SAMPLE_SELECTION: ${{ inputs.samples || '24' }}
       FLEURS_REVISION: 1712be137a62f4b1a69ce0c4820c0975bc7b6067
       WHISPER_ASSETS_COMMIT: c5d42560760a05584c1c79546a098287e5a771eb
     steps:
@@ -57,8 +66,9 @@ jobs:
             -o "$RUNNER_TEMP/fleurs-ar-eg.parquet"
           echo "3386d58ff9619c2b1395dcaed0a476363fae15420bc68b7ca4870cffdff9936d  $RUNNER_TEMP/fleurs-ar-eg.parquet" | sha256sum --check --status
           "$RUNNER_TEMP/arrow-venv/bin/python" scripts/qualification/prepare_fleurs_ar_eg.py \
-            "$RUNNER_TEMP/fleurs-ar-eg.parquet" "$RUNNER_TEMP/fleurs-wav"
+            "$RUNNER_TEMP/fleurs-ar-eg.parquet" "$RUNNER_TEMP/fleurs-wav" "$SAMPLE_SELECTION"
           echo "MEDSCALE_ASR_CASES=$RUNNER_TEMP/fleurs-wav/cases.json" >> "$GITHUB_ENV"
+          echo "MEDSCALE_ASR_EXPECT_CASES=$SAMPLE_SELECTION" >> "$GITHUB_ENV"
       - name: Select only source-governed immutable multilingual Whisper revision
         run: |
           set -euo pipefail
