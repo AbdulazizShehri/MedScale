@@ -74,7 +74,7 @@ jobs:
       - name: Run actual MedScale Audio Pack on 100 real human recordings
         run: |
           set -euo pipefail
-          cargo test --release --locked -p medscale-pack --test whisper_external_106 \
+          cargo +1.97.1 test --release --locked -p medscale-pack --test whisper_external_106 \
             pinned_whisper_transcribes_synthetic_speech -- --ignored --nocapture --test-threads 1 2>&1 | tee qualification.log
           grep '^ASR_METRICS ' qualification.log | tail -1 >> "$GITHUB_STEP_SUMMARY"
           grep '^ASR_REAL_METRICS ' qualification.log | tail -1 >> "$GITHUB_STEP_SUMMARY"
