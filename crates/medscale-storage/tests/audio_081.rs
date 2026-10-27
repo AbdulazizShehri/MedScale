@@ -15,6 +15,7 @@ use medscale_contracts::audio::{
     TranscriptOrigin, TranscriptReceipt, TranscriptRevision, TranscriptSegment, VadParameters,
     VoiceInputMode,
 };
+use medscale_contracts::huddles::{HuddleMedia, MediaOrigin, MediaState};
 use medscale_contracts::ingest::BackupManifest;
 use medscale_contracts::objects::{
     AuthorityScopeId, DigestSha256, ObjectHeader, OpaqueId, RealmId,
@@ -921,17 +922,28 @@ fn unreferenced_audio_removal_refuses_cross_module_huddle_media() {
         (false, false, false, false)
     );
 
-    // Inject only the indexed Huddle media reference to test the storage
-    // layer's fail-closed behavior. No transcript or AudioFlow receipt exists.
-    // A source without audio-specific references can still belong to Huddles.
+    // A source without audio-specific references can still belong to
+    // Huddles. Use a valid typed row, not an incomplete JSON stub.
+    let media = HuddleMedia {
+        header: h("media-huddle-linked"),
+        huddle_id: id("huddle-linked"),
+        source_id: source.header.id.clone(),
+        source_digest: source.content_digest.clone(),
+        origin: MediaOrigin::HumanRecording,
+        synthetic: false,
+        attached_day: 20_000,
+        state: MediaState::Present,
+    };
     raw(&root)
         .execute(
             "INSERT INTO hud_media(media_id, huddle_id, source_id, state, body_json)
-             VALUES (?1, ?2, ?3, 'present', '{}')",
+             VALUES (?1, ?2, ?3, ?4, ?5)",
             rusqlite::params![
-                "media-huddle-linked",
-                "huddle-linked",
-                source.header.id.as_str()
+                media.header.id.as_str(),
+                media.huddle_id.as_str(),
+                media.source_id.as_str(),
+                media.state.as_str(),
+                serde_json::to_string(&media).unwrap(),
             ],
         )
         .unwrap();
@@ -1049,6 +1061,77 @@ fn audio_retention_fails_closed_on_corrupt_unrelated_capture_index() {
         session
     );
     meta.verify_audio_consistency().unwrap();
+}
+
+#[test]
+fn audio_retention_fails_closed_on_huddle_index_body_mismatch() {
+    let root = temp_root("retention-huddle-index-mismatch");
+    let meta = open_meta(&root);
+    populate_pre_081(&meta);
+    let wav = bytes(128, 89);
+    let source = imported("source-huddle-hidden-reference", &wav);
+    meta.insert_imported_audio_source(&source, &wav).unwrap();
+
+    let media = HuddleMedia {
+        header: h("media-hidden-reference"),
+        huddle_id: id("huddle-hidden-reference"),
+        source_id: source.header.id.clone(),
+        source_digest: source.content_digest.clone(),
+        origin: MediaOrigin::HumanRecording,
+        synthetic: false,
+        attached_day: 20_000,
+        state: MediaState::Present,
+    };
+    // A corrupted index claims a different source; the validated JSON still
+    // links this recording. An indexed-only COUNT would incorrectly allow
+    // removal and orphan the media.
+    raw(&root)
+        .execute(
+            "INSERT INTO hud_media(media_id, huddle_id, source_id, state, body_json)
+             VALUES (?1, ?2, ?3, ?4, ?5)",
+            rusqlite::params![
+                media.header.id.as_str(),
+                media.huddle_id.as_str(),
+                "unrelated-index-source",
+                media.state.as_str(),
+                serde_json::to_string(&media).unwrap(),
+            ],
+        )
+        .unwrap();
+    assert!(matches!(
+        meta.audio_retention_reference_flags(&source.header.id),
+        Err(MetaError::CorruptObjectBody(_))
+    ));
+    assert!(matches!(
+        meta.remove_unreferenced_imported_audio_source(
+            &source.project_id,
+            &source.header.id,
+            &source.content_digest,
+        ),
+        Err(MetaError::CorruptObjectBody(_))
+    ));
+    assert_eq!(meta.get_audio_source(&source.header.id).unwrap().1, wav);
+
+    raw(&root)
+        .execute(
+            "UPDATE hud_media SET source_id = ?1 WHERE media_id = ?2",
+            rusqlite::params![source.header.id.as_str(), media.header.id.as_str()],
+        )
+        .unwrap();
+    assert_eq!(
+        meta.audio_retention_reference_flags(&source.header.id)
+            .unwrap(),
+        (false, false, true, false)
+    );
+    assert!(matches!(
+        meta.remove_unreferenced_imported_audio_source(
+            &source.project_id,
+            &source.header.id,
+            &source.content_digest,
+        ),
+        Err(MetaError::Conflict(_))
+    ));
+    assert_eq!(meta.get_audio_source(&source.header.id).unwrap().1, wav);
 }
 
 #[test]

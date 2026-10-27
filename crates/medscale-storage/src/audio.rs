@@ -411,12 +411,20 @@ impl SqliteMetaStore {
         // a tombstone, is part of provenance and must not be orphaned.
         let linked: i64 = tx.query_row(
             "SELECT (SELECT COUNT(*) FROM audio_transcripts WHERE source_id = ?1)
-                  + (SELECT COUNT(*) FROM audio_transcript_receipts WHERE source_id = ?1)
-                  + (SELECT COUNT(*) FROM hud_media WHERE source_id = ?1)",
+                  + (SELECT COUNT(*) FROM audio_transcript_receipts WHERE source_id = ?1)",
             params![source_id.as_str()],
             |row| row.get(0),
         )?;
-        if linked != 0 {
+        // Inspect all indexed and typed Huddles media, not just a source_id
+        // column count. Tampering with that column must never conceal a JSON
+        // reference to a source whose bytes are about to be removed.
+        // This read uses the same connection while the write transaction is
+        // active; no decision from an earlier UI preflight is trusted.
+        let huddle_linked = self
+            .list_huddle_media(None)?
+            .iter()
+            .any(|media| media.source_id == *source_id);
+        if linked != 0 || huddle_linked {
             return Err(MetaError::Conflict(
                 "audio recording has transcript, receipt, or Huddle media references".to_owned(),
             ));
@@ -471,13 +479,16 @@ impl SqliteMetaStore {
         &self,
         source_id: &OpaqueId,
     ) -> Result<(bool, bool, bool, bool), MetaError> {
-        let (revisions, receipts, huddles): (i64, i64, i64) = self.conn().query_row(
+        let (revisions, receipts): (i64, i64) = self.conn().query_row(
             "SELECT (SELECT COUNT(*) FROM audio_transcripts WHERE source_id = ?1),
-                    (SELECT COUNT(*) FROM audio_transcript_receipts WHERE source_id = ?1),
-                    (SELECT COUNT(*) FROM hud_media WHERE source_id = ?1)",
+                    (SELECT COUNT(*) FROM audio_transcript_receipts WHERE source_id = ?1)",
             params![source_id.as_str()],
-            |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?)),
+            |row| Ok((row.get(0)?, row.get(1)?)),
         )?;
+        let huddles = self
+            .list_huddle_media(None)?
+            .iter()
+            .any(|media| media.source_id == *source_id);
         let mut stmt = self.conn().prepare(
             "SELECT session_id, project_id, revision, body_json FROM audio_capture_sessions",
         )?;
@@ -492,7 +503,7 @@ impl SqliteMetaStore {
             check_retention_capture_row(&session, &indexed_id, &indexed_project, indexed_revision)?;
             capture_linked |= session.source_id.as_ref() == Some(source_id);
         }
-        Ok((revisions > 0, receipts > 0, huddles > 0, capture_linked))
+        Ok((revisions > 0, receipts > 0, huddles, capture_linked))
     }
 
     pub fn list_audio_sources(&self, project_id: &OpaqueId) -> Result<Vec<AudioSource>, MetaError> {
