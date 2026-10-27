@@ -4,6 +4,17 @@ name: asr-real-arabic-qualification
 on:
   push:
     branches: ["qual-arabic-asr/**"]
+  workflow_dispatch:
+    inputs:
+      model:
+        description: "Pinned multilingual Whisper model to benchmark on FLEURS ar_eg"
+        required: true
+        default: tiny
+        type: choice
+        options:
+          - tiny
+          - base
+          - small
 permissions:
   contents: read
 concurrency:
@@ -16,8 +27,7 @@ jobs:
     timeout-minutes: 90
     env:
       CARGO_TERM_COLOR: always
-      REPO: openai/whisper-tiny
-      REVISION: 169d4a4341b33bc18d8881c4b69c2e104e1cc0af
+      MODEL_SELECTION: ${{ inputs.model || 'tiny' }}
       FLEURS_REVISION: 1712be137a62f4b1a69ce0c4820c0975bc7b6067
       WHISPER_ASSETS_COMMIT: c5d42560760a05584c1c79546a098287e5a771eb
     steps:
@@ -49,6 +59,33 @@ jobs:
           "$RUNNER_TEMP/arrow-venv/bin/python" scripts/qualification/prepare_fleurs_ar_eg.py \
             "$RUNNER_TEMP/fleurs-ar-eg.parquet" "$RUNNER_TEMP/fleurs-wav"
           echo "MEDSCALE_ASR_CASES=$RUNNER_TEMP/fleurs-wav/cases.json" >> "$GITHUB_ENV"
+      - name: Select only source-governed immutable multilingual Whisper revision
+        run: |
+          set -euo pipefail
+          case "$MODEL_SELECTION" in
+            tiny)
+              repo="openai/whisper-tiny"
+              revision="169d4a4341b33bc18d8881c4b69c2e104e1cc0af"
+              digest="7ebd0e69e78190ffe1438491fa05cc1f5c1aa3a4c4db3bc1723adbb551ea2395"
+              ;;
+            base)
+              repo="openai/whisper-base"
+              revision="e37978b90ca9030d5170a5c07aadb050351a65bb"
+              digest="07cadb9f25677c8d50df603e66a98fbd842cce45047139baeb16e6219a1e807b"
+              ;;
+            small)
+              repo="openai/whisper-small"
+              revision="973afd24965f72e36ca33b3055d56a652f456b4d"
+              digest="1d7734884874f1a1513ed9aa760a4f8e97aaa02fd6d93a3a85d27b2ae9ca596b"
+              ;;
+            *) echo "Unapproved model selection" >&2; exit 1 ;;
+          esac
+          echo "REPO=$repo" >> "$GITHUB_ENV"
+          echo "REVISION=$revision" >> "$GITHUB_ENV"
+          echo "PINNED_SHA256=$digest" >> "$GITHUB_ENV"
+          echo "MEDSCALE_ASR_EXPECT_MODEL_ID=$repo" >> "$GITHUB_ENV"
+          echo "MEDSCALE_ASR_EXPECT_REVISION=$revision" >> "$GITHUB_ENV"
+          echo "FLEURS selected model=$repo pinned revision=$revision" >> "$GITHUB_STEP_SUMMARY"
       - name: Acquire pinned multilingual real model and published mel filters
         run: |
           set -euo pipefail
@@ -60,7 +97,7 @@ jobs:
             curl -sfL -A medscale-qualification --retry 3 \
               "https://huggingface.co/$REPO/resolve/$REVISION/$f" -o "$dir/$f"
           done
-          echo "7ebd0e69e78190ffe1438491fa05cc1f5c1aa3a4c4db3bc1723adbb551ea2395  $dir/model.safetensors" | sha256sum --check --status
+          echo "$PINNED_SHA256  $dir/model.safetensors" | sha256sum --check --status
           curl -sfL --retry 3 \
             "https://raw.githubusercontent.com/openai/whisper/$WHISPER_ASSETS_COMMIT/whisper/assets/mel_filters.npz" \
             -o "$RUNNER_TEMP/mel_filters.npz"

@@ -69,9 +69,19 @@ fn actual_arabic_fleurs_transcription() {
         &std::fs::read(root.join("metadata.json")).expect("pinned Hugging Face metadata"),
     )
     .expect("valid metadata");
+    let selected = required("MEDSCALE_ASR_EXPECT_MODEL_ID");
+    assert!(
+        matches!(
+            selected.as_str(),
+            "openai/whisper-tiny" | "openai/whisper-base" | "openai/whisper-small"
+        ),
+        "only three pinned multilingual Whisper sources are permitted"
+    );
+    assert_eq!(metadata.id, selected, "selected immutable model mismatch");
     assert_eq!(
-        metadata.id, "openai/whisper-tiny",
-        "multilingual model only"
+        metadata.sha,
+        required("MEDSCALE_ASR_EXPECT_REVISION"),
+        "selected immutable revision mismatch"
     );
     let dir = std::env::temp_dir().join(format!("medscale-real-ar-{}", std::process::id()));
     assert!(!dir.exists(), "temporary pack path must not already exist");
