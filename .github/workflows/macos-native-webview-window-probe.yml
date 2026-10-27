@@ -1,0 +1,93 @@
+# Experimental macOS WKWebView *real app* launch probe on disposable CI only.
+# The earlier probe established System Events Accessibility is enabled; this
+# does not use the Tauri mock runtime and downloads no model/recording.
+# Deliberately diagnostic: it is NOT complete macOS UI/audio qualification.
+name: macos-native-webview-window-probe
+on:
+  push:
+    branches: ["diag/macos-gui-automation-probe-*"]
+permissions:
+  contents: read
+concurrency:
+  group: macos-real-webview-probe-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  real-wkwebview:
+    name: launch actual MedScale WKWebView and inspect native window
+    runs-on: macos-latest
+    timeout-minutes: 110
+    env:
+      RUSTFLAGS: -Dwarnings
+      CARGO_BUILD_JOBS: "2"
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: "24.19.0"
+          cache: npm
+          cache-dependency-path: apps/desktop-tauri/package-lock.json
+      - uses: dtolnay/rust-toolchain@d1031067263f94b142dd6c0ce24c5eb9d02d52a0
+        with:
+          toolchain: "1.97.1"
+      - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6
+        with:
+          workspaces: apps/desktop-tauri/src-tauri -> target
+          key: macos-gui-probe
+      - name: Frontend tests and app build
+        working-directory: apps/desktop-tauri
+        run: |
+          npm ci --ignore-scripts --no-audit --no-fund
+          npm test
+          npm run build
+      - name: Bundle unsigned native macOS app exclusively on CI
+        working-directory: apps/desktop-tauri
+        run: npm run tauri -- build --bundles app --no-sign --ci --features custom-protocol -- --locked
+      - name: Launch actual WKWebView window and inspect through OS accessibility
+        timeout-minutes: 4
+        env:
+          MEDSCALE_PROBE_CI_ONLY: "1"
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          import pathlib, subprocess, time
+          roots = [pathlib.Path("apps/desktop-tauri/src-tauri/target"),
+                   pathlib.Path("target")]
+          apps = [p for root in roots if root.exists()
+                  for p in root.rglob("MedScale.app")
+                  if "/bundle/macos/" in str(p)]
+          if len(apps) != 1:
+              raise SystemExit(f"Expected exactly one newly built MedScale.app; count={len(apps)}")
+          executable = apps[0] / "Contents" / "MacOS" / "medscale-desktop-tauri"
+          if not executable.is_file():
+              raise SystemExit("Built app binary missing")
+          process = subprocess.Popen([str(executable)], stdout=subprocess.DEVNULL,
+                                     stderr=subprocess.DEVNULL)
+          try:
+              last = ""
+              for attempt in range(35):
+                  if process.poll() is not None:
+                      raise SystemExit(f"Native app exited before UI check: code={process.returncode}")
+                  script = ('tell application "System Events"\n'
+                            f'  set candidates to every process whose unix id is {process.pid}\n'
+                            '  if (count of candidates) is 0 then return "NO_PROCESS"\n'
+                            '  set titles to name of every window of item 1 of candidates\n'
+                            '  return titles as text\n'
+                            'end tell')
+                  query = subprocess.run(["osascript", "-e", script],
+                      capture_output=True, text=True, timeout=18, check=False)
+                  last = (query.stdout.strip() if query.returncode == 0 else query.stderr.strip())[:180]
+                  if query.returncode == 0 and "MedScale" in last:
+                      print("MAC_NATIVE_WKWEBVIEW_WINDOW_PASS window_title=MedScale renderer=native")
+                      break
+                  time.sleep(3)
+              else:
+                  raise SystemExit(f"Native MedScale window was not accessible: {last}")
+          finally:
+              process.terminate()
+              try: process.wait(timeout=12)
+              except subprocess.TimeoutExpired: process.kill()
+          PY
+      - name: Record narrow claim only
+        if: success()
+        run: |
+          echo "Native macOS Tauri bundled app/window accessible: PASS. This does NOT yet prove complete macOS graphical audio workflow." >> "$GITHUB_STEP_SUMMARY"
