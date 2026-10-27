@@ -141,62 +141,48 @@ jobs:
                       raise SystemExit(f"No project gate or Audio controls after route navigation: {result}")
                   if ax("Create a project", press=True)[:2] != (0, "PRESSED"):
                       raise SystemExit("Could not open the project creation form")
-                  # WebKit's AX API returns name-of-element but not role-of-element
-                  # for this runner. Target the real associated HTML label Name
-                  # (or its input placeholder), then type using OS key events.
-                  # Assert actual project creation and Audio afterward.
-                  fill = (
-                      'tell application "System Events"\n'
-                      f'  set candidates to every process whose unix id is {process.pid}\n'
-                      '  set frontmost of item 1 of candidates to true\n'
-                      '  set fields to every UI element of first window of item 1 of candidates\n'
-                      '  repeat with el in (entire contents of first window of item 1 of candidates)\n'
-                      '    try\n'
-                      '      set elementName to name of el as text\n'
-                      '      if elementName is "Name" or elementName contains "e.g. Coverage audit" then\n'
-                      '        click el\n'
-                      '        keystroke "MedScale synthetic macOS QA"\n'
-                      '        return "NAME_ENTERED"\n'
-                      '      end if\n'
-                      '    end try\n'
-                      '  end repeat\n'
-                      '  return "NO_TEXT_FIELD"\n'
-                      'end tell'
-                  )
-                  # Native WebKit's AX subtree can take several seconds to
-                  # materialize after clicking navigation. Query repeatedly;
-                  # do not report route success from a mere 'click' return.
-                  for _ in range(15):
-                      typed = subprocess.run(["osascript", "-e", fill],
-                          capture_output=True, text=True, timeout=45, check=False)
-                      if (typed.returncode, typed.stdout.strip()) == (0, "NAME_ENTERED"):
-                          print("MAC_NATIVE_WKWEBVIEW_PROJECT_NAME_TYPED")
+                  # Confirm the project editor actually rendered. A click
+                  # returning PRESSED does not guarantee navigation.
+                  for _ in range(12):
+                      destination = ax("New project")
+                      if destination[:2] == (0, "FOUND"):
+                          print("MAC_NATIVE_WKWEBVIEW_PROJECT_EDITOR_VISIBLE")
                           break
                       time.sleep(2)
                   else:
-                      # Only log bounded accessibility role counts and two
-                      # fixed UI-label checks; never names/values or screenshots.
-                      diag = (
+                      raise SystemExit(f"Could not verify real Projects editor after click: {destination}")
+                  # This GH-hosted WKWebView exposes named labels but not
+                  # usable AXRole or AXTextField elements via AppleScript.
+                  # Click the actual <label htmlFor="pn">Name</label> through
+                  # accessibility, then send native keyboard input. Tab is
+                  # a fallback to focus its associated DOM text input.
+                  typed = False
+                  for strategy in ("label", "label-tab", "tab"):
+                      if strategy != "tab":
+                          focus = ax("Name", press=True)
+                          if focus[:2] != (0, "PRESSED"):
+                              time.sleep(2)
+                              continue
+                      script = (
                           'tell application "System Events"\n'
                           f'  set candidates to every process whose unix id is {process.pid}\n'
-                          '  set roleNames to {}\n'
-                          '  repeat with el in (entire contents of first window of item 1 of candidates)\n'
-                          '    try\n'
-                          '      set end of roleNames to (role of el as text)\n'
-                          '    end try\n'
-                          '  end repeat\n'
-                          '  return roleNames as text\n'
+                          '  set frontmost of item 1 of candidates to true\n'
+                          + ('  key code 48\n' if strategy != "label" else '')
+                          + '  keystroke "MedScale synthetic macOS QA"\n'
+                          '  return "KEYSTROKES_SENT"\n'
                           'end tell'
                       )
-                      snapshot = subprocess.run(["osascript", "-e", diag],
-                          capture_output=True, text=True, timeout=40, check=False)
-                      role_text = snapshot.stdout.lower()
-                      print(f"MAC_AX_ROLE_DIAG total_characters={len(role_text)} "
-                            f"text_field={role_text.count('textfield')} "
-                            f"button={role_text.count('button')} "
-                            f"create_control={ax('Create project')[1]} "
-                            f"name_label={ax('Name')[1]}")
-                      raise SystemExit(f"Native project Name label not usable via AX after bounded retries: status={typed.returncode} result={typed.stdout.strip()[:40]}")
+                      key_result = subprocess.run(["osascript", "-e", script],
+                          capture_output=True, text=True, timeout=28, check=False)
+                      if (key_result.returncode, key_result.stdout.strip()) != (0, "KEYSTROKES_SENT"):
+                          raise SystemExit(f"Native keyboard injection failed: {key_result.returncode}/{key_result.stderr.strip()[:100]}")
+                      # A project creation is verified below by actual Audio
+                      # controls, never by sent keystrokes or AX click alone.
+                      print(f"MAC_NATIVE_WKWEBVIEW_PROJECT_INPUT_ATTEMPT strategy={strategy}")
+                      typed = True
+                      break
+                  if not typed:
+                      raise SystemExit("Native project Name label could not be focused")
                   created = False
                   for _ in range(12):
                       result = ax("Create project", press=True)
