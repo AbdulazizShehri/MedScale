@@ -141,9 +141,10 @@ jobs:
                       raise SystemExit(f"No project gate or Audio controls after route navigation: {result}")
                   if ax("Create a project", press=True)[:2] != (0, "PRESSED"):
                       raise SystemExit("Could not open the project creation form")
-                  # The first text field on this previously empty Projects
-                  # screen is the required project Name. Use a real keypress
-                  # so React observes ordinary DOM input/change events.
+                  # WebKit's AX API returns name-of-element but not role-of-element
+                  # for this runner. Target the real associated HTML label Name
+                  # (or its input placeholder), then type using OS key events.
+                  # Assert actual project creation and Audio afterward.
                   fill = (
                       'tell application "System Events"\n'
                       f'  set candidates to every process whose unix id is {process.pid}\n'
@@ -151,8 +152,8 @@ jobs:
                       '  set fields to every UI element of first window of item 1 of candidates\n'
                       '  repeat with el in (entire contents of first window of item 1 of candidates)\n'
                       '    try\n'
-                      '      set elementRole to role of el as text\n'
-                      '      if elementRole contains "TextField" or elementRole contains "text field" then\n'
+                      '      set elementName to name of el as text\n'
+                      '      if elementName is "Name" or elementName contains "e.g. Coverage audit" then\n'
                       '        click el\n'
                       '        keystroke "MedScale synthetic macOS QA"\n'
                       '        return "NAME_ENTERED"\n'
@@ -195,7 +196,7 @@ jobs:
                             f"button={role_text.count('button')} "
                             f"create_control={ax('Create project')[1]} "
                             f"name_label={ax('Name')[1]}")
-                      raise SystemExit(f"Native project name field not exposed to AX after bounded retries: status={typed.returncode} result={typed.stdout.strip()[:40]}")
+                      raise SystemExit(f"Native project Name label not usable via AX after bounded retries: status={typed.returncode} result={typed.stdout.strip()[:40]}")
                   created = False
                   for _ in range(12):
                       result = ax("Create project", press=True)
