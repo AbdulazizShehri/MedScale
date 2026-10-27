@@ -1,7 +1,8 @@
 //! Intelligence and operations commands: models, MedAgent, model fleet,
 //! collaboration, workflows and audio.
 
-use medscale_contracts::audio::PcmFormat;
+use medscale_contracts::audio::{MAX_AUDIO_BYTES, PcmFormat};
+use medscale_contracts::envelopes::ResponseBody;
 use medscale_contracts::medagent::ToolKind;
 use medscale_contracts::objects::OpaqueId;
 use medscale_contracts::project_graph::{ArtifactDescriptor, ArtifactKind, ArtifactVersionBinding};
@@ -915,6 +916,22 @@ pub fn workflow_overview(host: tauri::State<'_, Host>) -> CmdResult<Value> {
 
 // ───────────────────────────── audio ─────────────────────────────
 
+/// Pinned, supported Whisper options. No download or installation side effect.
+#[tauri::command(async)]
+pub fn audio_model_catalog(host: tauri::State<'_, Host>) -> CmdResult<Value> {
+    let state = lock(&host)?;
+    Ok(json!(crate::audio_model_manager::catalog(
+        state.data_dir()?
+    )))
+}
+
+/// Checks the selected pinned model's conservative staging + Pack disk budget.
+#[tauri::command(async)]
+pub fn audio_model_preflight(host: tauri::State<'_, Host>, model_id: String) -> CmdResult<Value> {
+    let state = lock(&host)?;
+    crate::audio_model_manager::preflight(&model_id, state.data_dir()?)
+}
+
 #[tauri::command(async)]
 pub fn audio_overview(host: tauri::State<'_, Host>, project_id: String) -> CmdResult<Value> {
     let mut state = lock(&host)?;
@@ -924,6 +941,121 @@ pub fn audio_overview(host: tauri::State<'_, Host>, project_id: String) -> CmdRe
         "captures": o.captures.iter().map(|r| crate::obj!(r => id, label, state, detail)).collect::<Vec<_>>(),
         "routes": o.routes,
         "native_capture": o.native_capture,
+    }))
+}
+
+/// Read-only storage/lineage preview for one selected source. This is not a
+/// deletion capability: source, revisions, receipts, and encrypted bytes stay
+/// unchanged. Compare project IDs before returning any source metadata.
+#[tauri::command(async)]
+pub fn audio_source_retention_preview(
+    host: tauri::State<'_, Host>,
+    project_id: String,
+    source_id: String,
+) -> CmdResult<Value> {
+    let mut state = lock(&host)?;
+    let project_id = host::bounded_id(&project_id)?;
+    let source_id = host::bounded_id(&source_id)?;
+    let session = state.session()?;
+    let source = session.audio_source_get(OpaqueId::new(source_id))?;
+    if source.project_id.as_str() != project_id {
+        return Err(CmdError::invalid(
+            "Audio source does not belong to the selected project",
+        ));
+    }
+    // Core, not the WebView, checks linked recordings in AudioFlow,
+    // Huddles and capture sessions before returning advisory retention facts.
+    // This remains read-only even for currently unreferenced imported files.
+    let preflight =
+        session.audio_retention_preflight(OpaqueId::new(project_id), OpaqueId::new(source_id))?;
+    let ResponseBody::AudioRetentionPreflight {
+        expected_digest,
+        imported_file,
+        has_transcript_revisions,
+        has_audit_receipts,
+        has_huddle_media_link,
+        has_capture_reference,
+        unreferenced_imported_file,
+        delete_available,
+        older_backups_may_retain_recording,
+        ..
+    } = preflight
+    else {
+        return Err(CmdError::invalid("Unexpected retention preflight response"));
+    };
+    let revisions = session.audio_transcript_list(OpaqueId::new(source_id))?;
+    let receipts = session.audio_receipt_list(OpaqueId::new(source_id))?;
+    Ok(json!({
+        "project_id": project_id,
+        "source_id": source_id,
+        "source_kind": source.kind,
+        "recording_bytes": source.byte_length,
+        "revision_count": revisions.len(),
+        "receipt_count": receipts.len(),
+        "expected_digest": expected_digest.to_hex(),
+        "imported_file": imported_file,
+        "has_transcript_revisions": has_transcript_revisions,
+        "has_audit_receipts": has_audit_receipts,
+        "has_huddle_media_link": has_huddle_media_link,
+        "has_capture_reference": has_capture_reference,
+        "unreferenced_imported_file": unreferenced_imported_file,
+        "delete_available": delete_available,
+        "active_vault_only": true,
+        "older_backups_may_retain_recording": older_backups_may_retain_recording,
+        "linked_evidence_requires_separate_retention_policy": true,
+        "message": "Read-only inspection. No data was deleted. Linked transcripts, Huddles media and audit receipts are retained. Older backups or snapshots may still contain this recording after future active-vault removal."
+    }))
+}
+
+/// Explicitly removes one unreferenced imported recording from the active
+/// vault. The selected source/digest are checked again by Core and inside
+/// storage's delete+durable-receipt transaction; the preview is advisory.
+/// Older backups, snapshots and physical storage are not erased.
+#[tauri::command(async)]
+pub fn audio_source_remove_confirmed(
+    host: tauri::State<'_, Host>,
+    project_id: String,
+    source_id: String,
+    expected_digest: String,
+    confirmation: String,
+) -> CmdResult<Value> {
+    let mut state = lock(&host)?;
+    let project_id = host::bounded_id(&project_id)?;
+    let source_id = host::bounded_id(&source_id)?;
+    let session = state.session()?;
+    let source = session.audio_source_get(OpaqueId::new(source_id))?;
+    if source.project_id.as_str() != project_id {
+        return Err(CmdError::invalid(
+            "Audio source does not belong to the selected project",
+        ));
+    }
+    if source.content_digest.to_hex() != expected_digest {
+        return Err(CmdError::invalid(
+            "Audio recording changed since inspection. Inspect stored data again.",
+        ));
+    }
+    let removed = session.audio_retention_remove(
+        OpaqueId::new(project_id),
+        OpaqueId::new(source_id),
+        source.content_digest,
+        confirmation,
+    )?;
+    let ResponseBody::AudioRetentionRemoved {
+        receipt_id,
+        removed_bytes,
+        older_backups_may_retain_recording,
+        ..
+    } = removed
+    else {
+        return Err(CmdError::invalid("Unexpected retention removal response"));
+    };
+    Ok(json!({
+        "project_id": project_id,
+        "source_id": source_id,
+        "receipt_id": receipt_id,
+        "removed_bytes": removed_bytes,
+        "active_vault_only": true,
+        "older_backups_may_retain_recording": older_backups_may_retain_recording,
     }))
 }
 
@@ -937,6 +1069,40 @@ pub fn audio_asr_status(host: tauri::State<'_, Host>) -> CmdResult<Value> {
         "routes": routes,
         "asr_pack_dir": host::load_asr_pack(&root),
     }))
+}
+
+/// Starts a user-consented acquisition of a pinned Whisper Audio Pack.
+#[tauri::command(async)]
+pub fn audio_model_download_start(
+    host: tauri::State<'_, Host>,
+    model_id: String,
+    consent: bool,
+) -> CmdResult<Value> {
+    crate::audio_model_manager::start(&host, model_id, consent)
+}
+
+#[tauri::command(async)]
+pub fn audio_model_download_status(host: tauri::State<'_, Host>) -> CmdResult<Value> {
+    crate::audio_model_manager::status(&host)
+}
+
+#[tauri::command(async)]
+pub fn audio_model_download_cancel(host: tauri::State<'_, Host>) -> CmdResult<Value> {
+    crate::audio_model_manager::cancel(&host)
+}
+
+/// Re-admit a previously downloaded, app-owned Pack without downloading any
+/// weights again. Core verifies the signature and all artifact digests.
+#[tauri::command(async)]
+pub fn audio_model_activate_existing(
+    host: tauri::State<'_, Host>,
+    model_id: String,
+) -> CmdResult<Value> {
+    let path = {
+        let state = lock(&host)?;
+        crate::audio_model_manager::existing_pack_path(&model_id, state.data_dir()?)?
+    };
+    audio_admit_asr_pack(host, path)
 }
 
 /// Admits an Audio Pack folder (Spec 106) and installs its Whisper engine
@@ -965,10 +1131,10 @@ pub fn audio_admit_asr_pack(host: tauri::State<'_, Host>, path: String) -> CmdRe
     Ok(json!({ "id": pack_id.as_str(), "installed": true }))
 }
 
-/// Largest WAV file the desktop imports (64 MiB).
-const WAV_IMPORT_MAX_BYTES: u64 = 64 << 20;
+// Keep desktop import bound identical to the Core audio contract.
+const WAV_IMPORT_MAX_BYTES: u64 = MAX_AUDIO_BYTES as u64;
 
-/// Imports a synthetic WAV recording (absolute path) into a project.
+/// Imports a user-selected bounded PCM WAV recording (absolute path) into a project.
 #[tauri::command(async)]
 pub fn audio_import_wav(
     host: tauri::State<'_, Host>,
@@ -980,7 +1146,7 @@ pub fn audio_import_wav(
     let file = std::path::Path::new(&path);
     if !file.is_absolute() || !path.to_ascii_lowercase().ends_with(".wav") {
         return Err(CmdError::invalid(
-            "Invalid: choose an absolute .wav file of at most 64 MiB",
+            "Invalid: choose an absolute .wav file of at most 32 MiB",
         ));
     }
     let wav = host::read_bounded(file, WAV_IMPORT_MAX_BYTES)?;
@@ -1017,8 +1183,15 @@ pub fn audio_transcribe(
     source_id: String,
     route: String,
     diarize: Option<bool>,
+    language: Option<String>,
 ) -> CmdResult<Value> {
     use medscale_contracts::audio::{AudioRoute, AudioRouteRequest, VoiceInputMode};
+    let language = language.unwrap_or_else(|| "en".to_owned());
+    if language.len() != 2 || !language.bytes().all(|b| b.is_ascii_lowercase()) {
+        return Err(CmdError::invalid(
+            "Invalid: language must be two lowercase ASCII letters",
+        ));
+    }
     let route = match route.as_str() {
         "local_asr_pack" => AudioRoute::LocalAsrPack,
         "fixture_asr" => AudioRoute::FixtureAsr,
@@ -1031,7 +1204,7 @@ pub fn audio_transcribe(
         source_id: OpaqueId::new(host::bounded_id(&source_id)?),
         route,
         mode: VoiceInputMode::Dictation,
-        language: Some("en".to_owned()),
+        language: Some(language),
         // Optional speaker grouping: unvalidated acoustic clustering (Spec 106).
         diarization_required: diarize.unwrap_or(false),
     })?;

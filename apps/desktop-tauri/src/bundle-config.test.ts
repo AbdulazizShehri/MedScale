@@ -25,10 +25,21 @@ test("product name changes do not move app data: identifier is unchanged", () =>
   assert.equal(conf.identifier, "org.medscale.desktop.preview");
 });
 
-test("packaging adds no updater, plugin or capability", () => {
+test("packaging keeps updater and config-managed plugins absent", () => {
   assert.equal(conf.plugins, undefined);
   assert.equal(conf.bundle.createUpdaterArtifacts, undefined);
   assert.deepEqual(conf.app.security.capabilities, ["default"]);
+});
+
+test("native Audio picker grants OS open only, never broad file access", () => {
+  const capability = JSON.parse(readFileSync(new URL("../src-tauri/capabilities/default.json", import.meta.url), "utf8"));
+  assert.ok(capability.permissions.includes("dialog:allow-open"));
+  assert.deepEqual(capability.permissions.filter((name: string) => name.startsWith("dialog:")), ["dialog:allow-open"]);
+  assert.ok(!capability.permissions.some((name: string) => /^(?:fs|shell|http):/.test(name)));
+  const cargo = readFileSync(new URL("../src-tauri/Cargo.toml", import.meta.url), "utf8");
+  const native = readFileSync(new URL("../src-tauri/src/main.rs", import.meta.url), "utf8");
+  assert.match(cargo, /tauri-plugin-dialog = "=2\.6\.0"/);
+  assert.match(native, /\.plugin\(tauri_plugin_dialog::init\(\)\)/);
 });
 
 test("production CSP still allows no remote origin", () => {
@@ -39,17 +50,25 @@ test("production CSP still allows no remote origin", () => {
 
 test("the test-only e2e-webdriver build is never used for packaging or release", () => {
   // That feature opens a WebView2 debugging port and turns off InPrivate.
-  // Only the desktop E2E workflow may name it.
+  // Only dedicated, isolated Windows desktop E2E workflows may name it.
+  // Their feature-gated binaries must never enter installer/release workflows.
   const root = new URL("../../../", import.meta.url);
   const workflows = new URL(".github/workflows/", root);
   const scripts = new URL("scripts/", root);
+  const realVoiceE2e = readFileSync(new URL("audio-real-desktop-e2e.yml", workflows), "utf8");
+  assert.match(realVoiceE2e, /name: audio-real-desktop-e2e/);
+  assert.match(realVoiceE2e, /runs-on: windows-latest/);
+  assert.match(realVoiceE2e, /feature\/audio-real-ui-e2e-/);
+  assert.match(realVoiceE2e, /--features custom-protocol,e2e-webdriver/);
+  assert.doesNotMatch(realVoiceE2e, /^  pull_request:/m);
+  assert.doesNotMatch(realVoiceE2e, /\b(?:tauri\s+build|cargo\s+tauri\s+build|gh\s+release\s+create)\b/);
   const offenders: string[] = [];
   for (const [dir, files] of [
     [workflows, readdirSync(workflows)],
     [scripts, readdirSync(scripts).filter((f) => /\.(ps1|sh|mjs|js)$/.test(f))],
   ] as const) {
     for (const file of files) {
-      if (file === "desktop-e2e.yml") continue;
+      if (file === "desktop-e2e.yml" || file === "audio-real-desktop-e2e.yml") continue;
       if (readFileSync(new URL(file, dir), "utf8").includes("e2e-webdriver")) offenders.push(file);
     }
   }

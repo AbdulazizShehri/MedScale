@@ -135,6 +135,15 @@ async function find(xpath, timeout = 30000) {
   throw new Error(`not found within ${timeout} ms: ${xpath}${last ? ` (${last.message})` : ""}`);
 }
 const text = (t) => `contains(normalize-space(.), ${JSON.stringify(t)})`;
+// Unlike find(), disabledGuard deliberately accepts a disabled DOM element.
+// WebDriver must not click a model-download control during synthetic E2E.
+async function assertDisabled(xpath) {
+  const disabled = await wd("POST", `/session/${sid}/execute/sync`, {
+    script: "const e=document.evaluate(arguments[0],document,null,XPathResult.FIRST_ORDERED_NODE_TYPE,null).singleNodeValue; const r=e?.getBoundingClientRect(); return !!e && e.disabled === true && r.width > 0 && r.height > 0;",
+    args: [xpath],
+  });
+  if (!disabled) throw new Error(`missing or enabled model-download control: ${xpath}`);
+}
 // Native WebDriver input first; if WebView2 reports the element as not
 // interactable on the CI desktop, fall back to DOM events on the same element.
 async function click(xpath, timeout) {
@@ -202,15 +211,15 @@ async function shot(name) {
   const png = await wd("GET", `/session/${sid}/screenshot`);
   fs.writeFileSync(path.join(shots, `${String(++step).padStart(2, "0")}-${name}.png`), Buffer.from(png, "base64"));
 }
-async function journey(name, fn) {
+async function journey(name, fn, { screenshot = true } = {}) {
   const started = Date.now();
   try {
     await fn();
-    await shot(name);
+    if (screenshot) await shot(name);
     results.push({ journey: name, ok: true, ms: Date.now() - started });
     console.log(`E2E PASS ${name}`);
   } catch (err) {
-    await shot(`${name}-FAILED`).catch(() => {});
+    if (screenshot) await shot(`${name}-FAILED`).catch(() => {});
     try {
       const handles = await wd("GET", `/session/${sid}/window/handles`);
       const title = await wd("GET", `/session/${sid}/title`);
@@ -233,7 +242,7 @@ async function journey(name, fn) {
 try {
   await launch();
   await journey("launch-and-open-synthetic-workspace", async () => {
-    await click(`//button[${text("Open synthetic workspace")}]`, 60000);
+    await click(`//button[${text("Try MedScale with sample data")}]`, 60000);
     await find(`//button[contains(@class,'nav') and ${text("Patients")}]`, 60000);
   });
   await journey("patients", async () => {
@@ -256,6 +265,9 @@ try {
     await type(`//input[@aria-label='Bindings']`, `t=${snap}`);
     await click(`//button[normalize-space(.)='Run']`);
     await see("4 rows", 60000);
+    // The success toast/result can precede the asynchronous receipt reload.
+    // Require the visible Core-backed receipt count after the UI settles.
+    await find("//section[.//span[contains(@class,'sec-t') and normalize-space(.)='Receipts']]//span[contains(@class,'sec-c') and number(normalize-space(.)) > 0]", 30000);
   });
   await journey("analytics-explains-invalid-bindings", async () => {
     await type(`//input[@aria-label='Bindings']`, "not-a-binding");
@@ -295,9 +307,123 @@ try {
   });
   await journey("audio-synthetic-tone-import", async () => {
     await nav("Audio");
+    // Desktop Core preflight checks actual available disk space without downloading.
+    await find("//select[@aria-label='Available speech models']");
+    await click("//button[normalize-space(.)='Check disk budget']");
+    await see("Storage checked", 30000);
+    await find("//*[@data-testid='audio-model-preflight' and contains(normalize-space(.),'No download has started')]");
+    // Headless E2E must never approve or start network/model downloads.
+    await find("//input[@aria-label='Approve Whisper model download' and not(@checked)]");
+    await assertDisabled("//button[normalize-space(.)='Download, verify and install']");
+    await assertDisabled("//button[normalize-space(.)='Activate saved model']");
+    // Assert production's native chooser buttons are visible; do not open an
+    // OS modal in unattended E2E. Real WAV/Pack inputs still use explicit paths.
+    await find("//form[.//input[@id='ap1']]//button[@type='button' and contains(normalize-space(.),'Browse folder')]");
+    await find("//form[.//input[@id='wp1']]//button[@type='button' and contains(normalize-space(.),'Browse WAV')]");
     await click(`//button[${text("Import synthetic tone sample")}]`);
     await see("Synthetic tone imported", 60000);
+    // An action toast alone is insufficient; imported synthetic lineage must
+    // also become visible in the active project after overview reload.
+    await find("//section[.//span[contains(@class,'sec-t') and normalize-space(.)='Sources']]//span[contains(@class,'sec-c') and number(normalize-space(.)) > 0]", 30000);
   });
+  await journey("audio-source-retention-readonly", async () => {
+    // Probe the named Core-through-Tauri read command from the *real* Windows
+    // WebView2 surface. No model or data is downloaded and no record is deleted.
+    await nav("Audio");
+    const sourceRow = "//section[.//span[contains(@class,'sec-t') and normalize-space(.)='Sources']]" +
+      "//div[contains(@class,'lr') and .//button[normalize-space(.)='Stored data']]";
+    await find(sourceRow, 30000);
+    await click("(" + sourceRow + ")[1]//button[normalize-space(.)='Stored data']");
+    await see("Stored recording inspected", 30000);
+    await find("//p[@role='status' and contains(.,'Stored audio:') and " +
+      "contains(.,'transcript revisions: 0') and contains(.,'audit receipts: 0') and " +
+      "contains(.,'no deletion has been performed') and " +
+      "contains(.,'Older backups may retain this recording')]", 30000);
+    // The source is merely inspected. A destructive command cannot run
+    // unless a user enters the exact source-specific confirmation phrase.
+    const armed = await wd("POST", `/session/${sid}/execute/sync`, {
+      script: "return [...document.querySelectorAll('button')].filter(b => /Remove this recording from active vault/.test(b.innerText)).every(b => b.disabled);",
+      args: [],
+    });
+    if (armed !== true) throw new Error("unconfirmed recording removal is enabled");
+  });
+  await journey("audio-source-confirmed-removal-synthetic", async () => {
+    // The test data belongs to this disposable CI vault. An explicit typed
+    // phrase is required; the previous journey already proved the button
+    // remains disabled before confirmation.
+    const phrase = await wd("POST", `/session/${sid}/execute/sync`, {
+      script: "return document.querySelector('#audio-removal-confirmation')?.parentElement?.querySelector('code')?.textContent || '';",
+      args: [],
+    });
+    if (!/^REMOVE .+ FROM ACTIVE VAULT$/.test(phrase)) {
+      throw new Error("source-specific recording removal phrase is absent");
+    }
+    await type("//input[@id='audio-removal-confirmation']", phrase);
+    await find("//button[normalize-space(.)='Remove this recording from active vault' and not(@disabled)]");
+    await click("//button[normalize-space(.)='Remove this recording from active vault']");
+    // Capture a bounded, synthetic-only diagnostic while the native toast
+    // is still visible. This distinguishes a Core refusal from an E2E
+    // timing-only failure without printing audio or any user data.
+    await sleep(700);
+    const removalDiagnostic = await wd("POST", `/session/${sid}/execute/sync`, {
+      script: "return [...document.querySelectorAll('[role=alert],[role=status],[aria-live]')].map(e => e.textContent?.trim().slice(0,240)).filter(Boolean).slice(0,6);",
+      args: [],
+    });
+    console.log("E2E synthetic removal feedback", JSON.stringify(removalDiagnostic));
+    await see("Recording removed from active vault; receipt recorded", 30000);
+  });
+  // The real audio journey runs ONLY on an isolated CI host with opt-in inputs.
+  // Never screenshot or print genuine voice text, paths, speakers or models.
+  const guiModelInstall = process.env.MEDSCALE_E2E_MODEL_GUI_DOWNLOAD === "1";
+  if (process.env.MEDSCALE_E2E_REAL_WAV_PATH || process.env.MEDSCALE_E2E_REAL_ASR_PACK_PATH || guiModelInstall) {
+    if (!process.env.MEDSCALE_E2E_REAL_WAV_PATH ||
+        (!guiModelInstall && !process.env.MEDSCALE_E2E_REAL_ASR_PACK_PATH)) {
+      throw new Error("real audio CI needs a licensed WAV and either pinned UI acquisition or an already verified Pack");
+    }
+    await journey("real-human-speech-local-whisper-ui", async () => {
+      await nav("Audio");
+      if (guiModelInstall) {
+        // Opt-in only for the dedicated licensed-real-voice CI workflow. All
+        // ordinary E2E remains strictly offline and never approves a download.
+        await click("//button[normalize-space(.)='Check disk budget']");
+        await see("Storage checked", 30000);
+        await see("Enough local storage", 30000);
+        await click("//input[@aria-label='Approve Whisper model download']");
+        await click("//button[normalize-space(.)='Download, verify and install']");
+        // Exercise the production HTTP download and Pack signature checks,
+        // not preassembled weights or an injected test engine.
+        await waitForText(/Model download: ready\./, 420000);
+        await see("Local Whisper engine installed", 180000);
+      } else {
+        await type("//input[@id='ap1']", process.env.MEDSCALE_E2E_REAL_ASR_PACK_PATH);
+        await click("//form[.//input[@id='ap1']]//button[@type='submit']");
+        await see("Audio Pack admitted", 180000);
+        await see("Local Whisper engine installed", 180000);
+      }
+      await type("//input[@id='wp1']", process.env.MEDSCALE_E2E_REAL_WAV_PATH);
+      await click("//form[.//input[@id='wp1']]//button[@type='submit']");
+      await see("Recording imported", 60000);
+      const quotedFile = JSON.stringify(path.basename(process.env.MEDSCALE_E2E_REAL_WAV_PATH));
+      const realSource = "//section[.//span[contains(@class,'sec-t') and normalize-space(.)='Sources']]" +
+        "//div[contains(@class,'lr') and .//span[contains(normalize-space(.), " + quotedFile + ")]]";
+      await find(realSource, 60000);
+      await click(realSource + "//button[normalize-space(.)='Transcribe']", 60000);
+      await see("Transcription recorded", 240000);
+      await find(
+        "//section[.//span[contains(@class,'sec-t') and normalize-space(.)='Transcript']]" +
+          "//div[contains(@class,'lr')]/span[3]" +
+          "[string-length(normalize-space(.)) > 8]" +
+          "[not(contains(., '(untranscribed)'))]" +
+          "[not(contains(., '[fixture'))]",
+        90000,
+      );
+      const nonFixtureWhisper = await wd("POST", `/session/${sid}/execute/sync`, {
+        script: "const s=[...document.querySelectorAll('section')].find(s => /Transcript/.test(s.innerText) && /engine/.test(s.innerText)); return !!s && /whisper/i.test(s.innerText) && !/\\(fixture\\)/i.test(s.innerText);",
+        args: [],
+      });
+      if (!nonFixtureWhisper) throw new Error("verified nonfixture local Whisper receipt not visible");
+    }, { screenshot: false });
+  }
   await journey("medagent-agent-run-evidence", async () => {
     await nav("MedAgent");
     await click(`//button[${text("New agent")}]`);
@@ -317,6 +443,42 @@ try {
     await click(`//button[@role='tab' and ${text("Catalog")}]`);
     await see("of 2266", 60000);
   });
+  // Catalog inventory is metadata, not downloaded or executable models.
+  // Exercise the actual IPC pagination, not just the tab's initial shell.
+  await journey("models-catalog-pagination", async () => {
+    await see("A listing is not a download");
+    await click(`//button[normalize-space(.)='Next']`);
+    await waitForText(/rows 51[–-]100/, 60000);
+    await click(`//button[normalize-space(.)='Previous']`);
+    await waitForText(/rows 1[–-]50/, 60000);
+  });
+  // The Rust Core already tests real synthetic ONNX evaluation, but a user
+  // must also be able to select the fixture and run it via packaged WebView2.
+  // medagent_models exposes only admitted runnable Packs; no network fetch.
+  await journey("models-evaluate-synthetic-onnx", async () => {
+    await click(`//button[@role='tab' and ${text("Try a model")}]`);
+    await find(`//select[@id='ep']`, 60000);
+    const until = Date.now() + 60000;
+    let packId = "";
+    while (!packId && Date.now() < until) {
+      packId = await wd("POST", `/session/${sid}/execute/sync`, {
+        script: "return document.querySelector('#ep')?.value || '';",
+        args: [],
+      });
+      if (!packId) await sleep(250);
+    }
+    if (!packId) throw new Error("no admitted runnable synthetic model Pack selected");
+    await click(`//button[@type='submit' and normalize-space(.)='Evaluate']`);
+    await see("Full proposal payload", 60000);
+    await see("prepared cache");
+    const evidence = await wd("POST", `/session/${sid}/execute/sync`, {
+      script: "const t = document.body.innerText; return { localRuntime: t.includes('runtime') && t.includes('audit'), authority: t.includes('Evaluation evidence, not a record.') };",
+      args: [],
+    });
+    if (!evidence.localRuntime || !evidence.authority) {
+      throw new Error("synthetic model evaluation omitted runtime/audit or no-promotion boundary");
+    }
+  });
   await journey("documents", async () => {
     await nav("Documents");
     await see("patient-golden.json");
@@ -331,15 +493,43 @@ try {
     await nav("Audit Trail");
     await see("e2e synthetic interchange");
   });
+  // These routes refresh Core Doctor on Windows. They previously launched
+  // vssadmin with a visible short-lived console child; keep the real IPC
+  // navigation paths covered in native E2E alongside the silent-probe fix.
+  await journey("settings-doctor", async () => {
+    await nav("Settings");
+    await see("Appearance");
+    await see("Privacy & network", 60000);
+    const handles = await wd("GET", `/session/${sid}/window/handles`);
+    if (handles.length !== 1) throw new Error(`Settings unexpectedly opened ${handles.length} WebView windows`);
+  });
+  await journey("about-doctor", async () => {
+    await nav("About");
+    await see("Tauri 2", 60000);
+    await see("Apache-2.0");
+    const handles = await wd("GET", `/session/${sid}/window/handles`);
+    if (handles.length !== 1) throw new Error(`About unexpectedly opened ${handles.length} WebView windows`);
+  });
   await quit();
   // Relaunch the binary: the vault must bring the run back.
   await launch();
   await journey("restart-persistence", async () => {
-    await click(`//button[${text("Open synthetic workspace")}]`, 60000);
+    await click(`//button[${text("Try MedScale with sample data")}]`, 60000);
     await nav("MedAgent");
     await see("summarize the bound sources", 60000);
     await see("completed");
   });
+  if (process.env.MEDSCALE_E2E_MODEL_GUI_DOWNLOAD === "1") {
+    await journey("whisper-still-active-after-restart", async () => {
+      await nav("Audio");
+      await see("Local Whisper engine installed", 180000);
+      const saved = await wd("POST", `/session/${sid}/execute/sync`, {
+        script: "const e=[...document.querySelectorAll('button')].find(b=>b.textContent.trim()==='Activate saved model'); return !!e && e.disabled===false;",
+        args: [],
+      });
+      if (!saved) throw new Error("verified downloaded model is not recoverable after restart");
+    }, { screenshot: false });
+  }
   // Switch to the dark theme through the command palette, as a user would,
   // then capture the main product areas in it.
   await journey("dark-theme-via-command-palette", async () => {

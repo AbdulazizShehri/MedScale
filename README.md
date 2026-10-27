@@ -5,7 +5,7 @@
   <img src="assets/brand/medscale-horizontal-black.svg" alt="MedScale" width="280">
 </picture>
 
-**Local-first clinical intelligence, built with verifiable evidence and explicit human oversight.**
+**Free, local-first desktop software for audio, models, research and evidence-backed health work.**
 
 [![CI](https://github.com/AbdulazizShehri/MedScale/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/AbdulazizShehri/MedScale/actions/workflows/ci.yml)
 [![Desktop E2E](https://github.com/AbdulazizShehri/MedScale/actions/workflows/desktop-e2e.yml/badge.svg?branch=main)](https://github.com/AbdulazizShehri/MedScale/actions/workflows/desktop-e2e.yml)
@@ -13,12 +13,13 @@
 
 MedScale is an open-source Rust-based platform for exploring evidence-backed health information in local workspaces. The trusted Rust Core owns records, provenance, validation, policy decisions and audit trails. The desktop and CLI present that Core's results rather than becoming independent sources of authority.
 
-> [!IMPORTANT]
-> **Status: engineering preview, synthetic data only.** MedScale is not clinically validated and is not a certified medical device, authorized patient-data processor, or signed production release. This repository is open for development and review only. Do not enter real patient data, identifying health records, credentials, or confidential materials. No medical diagnosis or treatment decisions should rely on this software. See [current external gates](docs/qualification/EXTERNAL_GATES.md).
+> [!NOTE]
+> **Beta 0.1.0 is in final product QA.** Windows x64 and Apple Silicon engineering installers have passed source-bound native checks; an updated AudioFlow build is staged for private review. Public download links have not been switched to this build yet. MedScale can transcribe actual public, nonpatient speech locally with an approved Whisper model. See [feature evidence and outstanding qualification](docs/qualification/EXTERNAL_GATES.md) for supported environments and current release limits.
 
 ## Why MedScale?
 
-- **Local first:** useful Core functionality does not require a cloud account; network actions are explicitly governed and default-denied.
+- **Free and local first:** useful Core functionality does not require a cloud account; network actions are governed and default-denied unless explicitly approved.
+- **Real offline transcription:** import supported PCM WAV audio, explicitly approve a pinned Whisper model download, verify its source and local Pack, then transcribe and review locally. English and Arabic selection is available for multilingual checkpoints; [measured quality differs by model](docs/qualification/EXTERNAL_GATES.md).
 - **Evidence before conclusions:** source identity, coverage, conflicts and review state remain visible; unsupported claims are not silently filled in.
 - **Protected workspaces:** SQLCipher-encrypted vaults with explicit lock/unlock and recovery controls; this is not a claim of complete endpoint or private-data security.
 - **Model transparency:** local model listings, downloads, admission and qualification are separate states; a catalog entry is not an endorsement.
@@ -30,10 +31,11 @@ MedScale is an open-source Rust-based platform for exploring evidence-backed hea
 | Area | Current scope |
 | --- | --- |
 | Core and CLI | Rust; tested in CI on Windows, macOS and Linux |
-| Desktop | Tauri 2 + React/TypeScript; unsigned engineering installers for Windows and macOS |
-| Linux desktop | Not shipped; see the [GTK security/dependency gate](docs/qualification/EXTERNAL_GATES.md) |
-| Data | Synthetic fixtures only; real PHI **not authorized** |
-| Release | Source available; production/clinical deployment **not qualified** |
+| Desktop | Tauri 2 + React/TypeScript; qualified unsigned engineering installers for Windows x64 and macOS Apple Silicon |
+| Local audio | Real Windows user-driven Whisper transcription and restart verified; optional model acquisition with user consent, pinned sources and disk preflight |
+| Linux desktop | Not shipped; Core/CLI tested on Linux |
+| Data | Synthetic workspace fixtures and opted-in, licensed nonpatient speech; patient records and live clinical deployment are not qualified |
+| Release | Source is available; updated Beta installer candidate is privately staged, **not newly published** |
 
 See [the desktop guide](apps/desktop-tauri/README.md) and [external qualification gates](docs/qualification/EXTERNAL_GATES.md). Historical engineering artifacts and comparison data are reproducible evidence, not marketing or clinical claims.
 
@@ -49,7 +51,7 @@ cargo run -p medscale-cli --locked -- --version
 cargo run -p medscale-cli --locked -- doctor
 ```
 
-For the desktop, follow [`apps/desktop-tauri/README.md`](apps/desktop-tauri/README.md). Windows desktop builds require Strawberry Perl for the vendored SQLCipher/OpenSSL dependency; unsigned installers are testing artifacts, not end-user releases.
+For the desktop, follow [`apps/desktop-tauri/README.md`](apps/desktop-tauri/README.md), including the model download and audio import guide. Windows native builds require Strawberry Perl for vendored SQLCipher/OpenSSL. The current unsigned Beta candidate is for private review; no new public installer download has been published.
 
 ## Architecture
 
@@ -63,6 +65,10 @@ For the desktop, follow [`apps/desktop-tauri/README.md`](apps/desktop-tauri/READ
 | [`third_party/`](third_party/) · [`vendor/`](vendor/) | Pinned third-party resources and their licenses/provenance |
 
 The older Slint desktop is preserved as an engineering reference, not the current consumer-facing desktop. See [the design system](DESIGN.md) for UI principles.
+
+## Real audio evidence
+
+MedScale's native Windows AudioFlow has completed a real human-speech import, locally verified Whisper acquisition, transcription and restart journey on an isolated CI desktop ([Windows evidence](https://github.com/AbdulazizShehri/MedScale/actions/runs/40209018576)). Source-pinned Whisper downloads and signed model Packs passed a [four-model macOS verification matrix](https://github.com/AbdulazizShehri/MedScale/actions/runs/40216374598). Actual Arabic FLEURS evaluation of Tiny, Base and Small multilingual checkpoints is documented with measured WER and sample scope in the [qualification record](docs/qualification/EXTERNAL_GATES.md). These public-read-speech evaluations do not measure clinical accuracy. Model weights are not bundled with the installers; downloading is an explicit opt-in action.
 
 ## Join the community
 

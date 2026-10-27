@@ -1,0 +1,151 @@
+# Issue #314: licensed real human voice -> actual Windows MedScale desktop.
+# Standard GitHub public-repo runner; neither model nor audio reaches founder PC.
+name: audio-real-desktop-e2e
+on:
+  push:
+    branches: ["feature/audio-real-ui-e2e-*"]
+permissions:
+  contents: read
+concurrency:
+  group: medscale-real-audio-e2e-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  actual-voice:
+    name: licensed LibriSpeech -> admitted Whisper -> native transcript
+    runs-on: windows-latest
+    timeout-minutes: 130
+    env:
+      CARGO_BUILD_JOBS: "2"
+      # Dedicated opt-in real-data journey: the user-facing button performs
+      # the actual bounded Hub download and Core signed-Pack installation.
+      MEDSCALE_E2E_MODEL_GUI_DOWNLOAD: "1"
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v4
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: "24.19.0"
+          cache: npm
+          cache-dependency-path: apps/desktop-tauri/package-lock.json
+      - uses: dtolnay/rust-toolchain@d1031067263f94b142dd6c0ce24c5eb9d02d52a0
+        with:
+          toolchain: "1.97.1"
+      - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2
+        with:
+          workspaces: apps/desktop-tauri/src-tauri -> target
+          key: real-human-audio
+      - name: Ensure FFmpeg on temporary runner with bounded mirror fallback
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          if (-not (Get-Command ffmpeg -ErrorAction SilentlyContinue)) {
+            # Chocolatey may return transient 504 Gateway Timeout from its feed.
+            # Retrying or using a pinned Python wheel is CI-only: no founder
+            # device, model weights or production application is modified.
+            for ($attempt = 1; $attempt -le 3; $attempt++) {
+              try {
+                choco install ffmpeg -y --no-progress --execution-timeout 480
+              } catch {
+                Write-Host "Chocolatey attempt $attempt failed: $($_.Exception.Message)"
+              }
+              $env:PATH += ';C:\ProgramData\chocolatey\bin'
+              if (Get-Command ffmpeg -ErrorAction SilentlyContinue) { break }
+              if ($attempt -lt 3) { Start-Sleep -Seconds (8 * $attempt) }
+            }
+          }
+          if (-not (Get-Command ffmpeg -ErrorAction SilentlyContinue)) {
+            # This wheel bundles its own FFmpeg executable for Windows; only
+            # this disposable runner gets the dependency. Do not pip-install
+            # a model or any package on the founder's machine.
+            python -m pip install --disable-pip-version-check --no-input --only-binary=:all: --no-deps imageio-ffmpeg==0.6.0
+            if ($LASTEXITCODE -ne 0) { throw 'Pinned FFmpeg fallback install failed' }
+            $wheelExe = (python -c 'import imageio_ffmpeg; print(imageio_ffmpeg.get_ffmpeg_exe())').Trim()
+            if (-not (Test-Path -LiteralPath $wheelExe)) { throw 'Pinned FFmpeg executable missing' }
+            $ffmpegDir = Join-Path $env:RUNNER_TEMP 'medscale-ffmpeg'
+            New-Item -ItemType Directory -Path $ffmpegDir -Force | Out-Null
+            Copy-Item -LiteralPath $wheelExe -Destination (Join-Path $ffmpegDir 'ffmpeg.exe') -Force
+            $env:PATH = "$ffmpegDir;$env:PATH"
+            $ffmpegDir | Out-File -Append -FilePath $env:GITHUB_PATH -Encoding utf8
+          }
+          if (-not (Get-Command ffmpeg -ErrorAction SilentlyContinue)) {
+            throw 'No verified FFmpeg executable on disposable runner'
+          }
+          ffmpeg -version | Select-Object -First 1
+      - name: Acquire genuine public audio and verify OpenSLR source integrity
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $archive = Join-Path $env:RUNNER_TEMP 'test-clean.tar.gz'
+          curl.exe -fLsS --retry 3 --max-time 480 'https://www.openslr.org/resources/12/test-clean.tar.gz' -o $archive
+          if ($LASTEXITCODE -ne 0) { throw 'Upstream real speech download failed' }
+          $hash = (Get-FileHash -LiteralPath $archive -Algorithm MD5).Hash.ToLowerInvariant()
+          if ($hash -ne '32fa31d27d2e1cad72775fee3f4849a9' -or (Get-Item $archive).Length -ne 346663984) { throw 'Unverified LibriSpeech archive refused' }
+          $wav = Join-Path $env:RUNNER_TEMP 'real-human-voice.wav'
+          python scripts/qualification/prepare_librispeech_one_wav.py $archive $wav
+          if ($LASTEXITCODE -ne 0) { throw 'No genuine public speech example' }
+          "MEDSCALE_E2E_REAL_WAV_PATH=$wav" | Out-File -Append -FilePath $env:GITHUB_ENV -Encoding utf8
+      - name: Build signed, source-bound real Whisper Audio Pack
+        # The new full UI route downloads/verifies/installs from MedScale itself.
+        # Preserve this old route for a non-GUI qualification when opted in.
+        if: env.MEDSCALE_E2E_MODEL_GUI_DOWNLOAD != '1'
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $snapshot = Join-Path $env:RUNNER_TEMP 'real-whisper-snapshot'
+          New-Item -ItemType Directory -Path $snapshot -Force | Out-Null
+          $urls = @{
+            'metadata.json' = 'https://huggingface.co/api/models/openai/whisper-tiny.en/revision/87c7102498dcde7456f24cfd30239ca606ed9063?blobs=true'
+            'config.json' = 'https://huggingface.co/openai/whisper-tiny.en/resolve/87c7102498dcde7456f24cfd30239ca606ed9063/config.json'
+            'tokenizer.json' = 'https://huggingface.co/openai/whisper-tiny.en/resolve/87c7102498dcde7456f24cfd30239ca606ed9063/tokenizer.json'
+            'model.safetensors' = 'https://huggingface.co/openai/whisper-tiny.en/resolve/87c7102498dcde7456f24cfd30239ca606ed9063/model.safetensors'
+          }
+          foreach ($filename in $urls.Keys) {
+            curl.exe -fLsS --retry 3 --max-time 600 -A medscale-qualification $urls[$filename] -o (Join-Path $snapshot $filename)
+            if ($LASTEXITCODE -ne 0) { throw "Pinned model download failed for $filename" }
+          }
+          $meta = Get-Content -LiteralPath (Join-Path $snapshot 'metadata.json') -Raw | ConvertFrom-Json
+          if ($meta.id -ne 'openai/whisper-tiny.en' -or $meta.sha -ne '87c7102498dcde7456f24cfd30239ca606ed9063') { throw 'Unpinned model refused' }
+          $pack = Join-Path $env:RUNNER_TEMP 'real-whisper-admitted-pack'
+          cargo run --release --locked -p medscale-pack --example prepare_asr_e2e_pack -- $snapshot $pack
+          if ($LASTEXITCODE -ne 0) { throw 'MedScale Pack verification/admission refused' }
+          "MEDSCALE_E2E_REAL_ASR_PACK_PATH=$pack" | Out-File -Append -FilePath $env:GITHUB_ENV -Encoding utf8
+      - name: Build native frontend
+        working-directory: apps/desktop-tauri
+        run: |
+          npm ci --ignore-scripts --no-audit --no-fund
+          npm run build
+      - name: Build real desktop with test-only WebView2 automation
+        run: cargo build --manifest-path apps/desktop-tauri/src-tauri/Cargo.toml --features custom-protocol,e2e-webdriver --release --locked
+      - name: Enable WebView2 remote debugging on this disposable runner
+        shell: pwsh
+        run: |
+          New-Item -Path 'HKLM:\SOFTWARE\Policies\Microsoft\Edge' -Force | Out-Null
+          Set-ItemProperty -Path 'HKLM:\SOFTWARE\Policies\Microsoft\Edge' -Name RemoteDebuggingAllowed -Value 1 -Type DWord
+      - name: Execute opt-in GUI acquisition, actual user transcription and restart
+        # Real licensed audio and model stay only on this temporary runner.
+        # No screenshot of human recordings or transcripts is retained.
+        shell: pwsh
+        run: |
+          $driver = Join-Path $env:EDGEWEBDRIVER 'msedgedriver.exe'
+          $wd = Start-Process -FilePath $driver -ArgumentList @('--port=9515') -PassThru -NoNewWindow
+          Start-Sleep -Seconds 3
+          try {
+            node scripts/e2e/desktop-journey.mjs apps/desktop-tauri/src-tauri/target/release/medscale-desktop-tauri.exe target/e2e-shots
+            if ($LASTEXITCODE -ne 0) { throw 'Real-audio native WebView2 journey failed' }
+          } finally {
+            Stop-Process -Id $wd.Id -Force -ErrorAction SilentlyContinue
+          }
+      - name: Remove actual recordings, weights and temporary Pack
+        if: always()
+        shell: pwsh
+        run: |
+          foreach ($name in @('test-clean.tar.gz','real-human-voice.wav','real-whisper-snapshot','real-whisper-admitted-pack')) {
+            Remove-Item -LiteralPath (Join-Path $env:RUNNER_TEMP $name) -Recurse -Force -ErrorAction SilentlyContinue
+          }
+      - name: Retain synthetic screenshots and aggregate E2E result only
+        if: ${{ !cancelled() }}
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v4.6.2
+        with:
+          name: synthetic-screenshots-real-human-asr-evidence
+          path: target/e2e-shots/
+          if-no-files-found: warn
+          retention-days: 7

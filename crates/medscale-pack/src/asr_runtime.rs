@@ -39,6 +39,14 @@ pub const ASR_SOURCES: &[(&str, &str)] = &[
         "openai/whisper-base.en",
         "911407f4214e0e1d82085af863093ec0b66f9cd6",
     ),
+    (
+        "openai/whisper-base",
+        "e37978b90ca9030d5170a5c07aadb050351a65bb",
+    ),
+    (
+        "openai/whisper-small",
+        "973afd24965f72e36ca33b3055d56a652f456b4d",
+    ),
 ];
 /// Longest audio one call transcribes (10 minutes at 16 kHz).
 pub const MAX_ASR_SAMPLES: usize = 10 * 60 * whisper::SAMPLE_RATE;
@@ -72,6 +80,10 @@ pub enum AsrRuntimeError {
     Execution(String),
     #[error("audio is empty or longer than the admitted bound")]
     InputBound,
+    #[error("language code must be two lowercase ASCII letters")]
+    InvalidLanguage,
+    #[error("selected language is not supported by this Whisper checkpoint: {0}")]
+    UnsupportedLanguage(String),
 }
 
 fn prep(e: impl fmt::Display) -> AsrRuntimeError {
@@ -161,8 +173,8 @@ struct ControlTokens {
     transcribe: u32,
     no_timestamps: u32,
     eot: u32,
-    /// Present for multilingual checkpoints only.
-    english: Option<u32>,
+    /// True only when the verified config and tokenizer admit language control.
+    multilingual: bool,
     suppress: Vec<u32>,
 }
 
@@ -211,8 +223,11 @@ pub fn prepare_whisper_from_bytes(
     }
     let tokenizer = Tokenizer::from_bytes(tokenizer_bytes)
         .map_err(|e| AsrRuntimeError::Tokenizer(e.to_string()))?;
-    let english = tokenizer.token_to_id("<|en|>");
     let multilingual = config.vocab_size >= 51865;
+    if multilingual {
+        // Fail closed if a purported multilingual checkpoint cannot prompt en.
+        token(&tokenizer, "<|en|>")?;
+    }
     let mut suppress = config.suppress_tokens.clone();
     // Without timestamps, timestamp tokens are never valid output.
     if let Some(first_ts) = tokenizer.token_to_id("<|0.00|>") {
@@ -223,7 +238,7 @@ pub fn prepare_whisper_from_bytes(
         transcribe: token(&tokenizer, whisper::TRANSCRIBE_TOKEN)?,
         no_timestamps: token(&tokenizer, whisper::NO_TIMESTAMPS_TOKEN)?,
         eot: token(&tokenizer, whisper::EOT_TOKEN)?,
-        english: if multilingual { english } else { None },
+        multilingual,
         suppress,
     };
     let device = Device::Cpu;
@@ -299,12 +314,24 @@ impl PreparedWhisperAsr {
         &self.content_digest
     }
 
-    /// Transcribes 16 kHz mono samples in 30-second windows (greedy, no
-    /// timestamps). Multilingual checkpoints are prompted for English.
+    /// Preserves the existing English transcription default for all callers.
+    /// Multilingual callers must opt in to an explicit supported language.
     pub fn transcribe(&self, samples: &[f32]) -> Result<String, AsrRuntimeError> {
+        self.transcribe_with_language(samples, "en")
+    }
+
+    /// Transcribes 16 kHz mono with an explicit Whisper language control token.
+    /// Refuses unsupported languages or English-only checkpoints without silently
+    /// forcing English. Two-letter codes are checked against the verified tokenizer.
+    pub fn transcribe_with_language(
+        &self,
+        samples: &[f32],
+        language: &str,
+    ) -> Result<String, AsrRuntimeError> {
         if samples.is_empty() || samples.len() > MAX_ASR_SAMPLES {
             return Err(AsrRuntimeError::InputBound);
         }
+        let language_id = self.language_token(language)?;
         let n_mels = self.config.num_mel_bins;
         let mel = audio::pcm_to_mel(&self.config, samples, &self.filters);
         let n_frames = mel.len() / n_mels;
@@ -327,7 +354,7 @@ impl PreparedWhisperAsr {
             let seconds = (content_frames - seek).min(whisper::N_FRAMES) * whisper::HOP_LENGTH
                 / whisper::SAMPLE_RATE;
             let budget = TOKEN_MARGIN + TOKENS_PER_SECOND * (seconds + 1);
-            let piece = self.decode_window(&mut model, &window, budget)?;
+            let piece = self.decode_window(&mut model, &window, budget, language_id)?;
             if !piece.is_empty() {
                 if !text.is_empty() {
                     text.push(' ');
@@ -339,16 +366,34 @@ impl PreparedWhisperAsr {
         Ok(text)
     }
 
+    fn language_token(&self, language: &str) -> Result<Option<u32>, AsrRuntimeError> {
+        if language.len() != 2 || !language.bytes().all(|b| b.is_ascii_lowercase()) {
+            return Err(AsrRuntimeError::InvalidLanguage);
+        }
+        if !self.tokens.multilingual {
+            return if language == "en" {
+                Ok(None)
+            } else {
+                Err(AsrRuntimeError::UnsupportedLanguage(language.to_owned()))
+            };
+        }
+        self.tokenizer
+            .token_to_id(&format!("<|{language}|>"))
+            .map(Some)
+            .ok_or_else(|| AsrRuntimeError::UnsupportedLanguage(language.to_owned()))
+    }
+
     fn decode_window(
         &self,
         model: &mut Whisper,
         mel: &Tensor,
         audio_budget: usize,
+        language_id: Option<u32>,
     ) -> Result<String, AsrRuntimeError> {
         let features = model.encoder.forward(mel, true).map_err(exec)?;
         let mut tokens = vec![self.tokens.sot];
-        if let Some(en) = self.tokens.english {
-            tokens.push(en);
+        if let Some(language) = language_id {
+            tokens.push(language);
         }
         tokens.push(self.tokens.transcribe);
         tokens.push(self.tokens.no_timestamps);
@@ -577,6 +622,27 @@ mod tests {
         // Longer than one window: two windows decode.
         let long = vec![0.0f32; 31 * 16_000];
         asr.transcribe(&long).expect("two windows");
+    }
+
+    #[test]
+    fn explicit_language_refuses_malformed_codes_and_english_only_arabic() {
+        let asr = tiny();
+        assert!(asr.language_token("en").unwrap().is_none());
+        assert!(matches!(
+            asr.language_token("ar"),
+            Err(AsrRuntimeError::UnsupportedLanguage(_))
+        ));
+        for bad in ["", "AR", "eng", "a/", "<|ar|>", "a1"] {
+            assert!(matches!(
+                asr.language_token(bad),
+                Err(AsrRuntimeError::InvalidLanguage)
+            ));
+        }
+        // Rejection occurs before any expensive inference or model token decode.
+        assert!(matches!(
+            asr.transcribe_with_language(&[0.0; 16_000], "ar"),
+            Err(AsrRuntimeError::UnsupportedLanguage(_))
+        ));
     }
 
     #[test]

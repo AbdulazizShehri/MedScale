@@ -1,3 +1,4 @@
+/Cargo.lock text eol=lf
 evidence/008-local-ai-capability-fabric/fixtures/** text eol=lf
 evidence/012-mesc-artifact-integration/fixtures/** text eol=lf
 assets/brand/fonts/* -text -whitespace

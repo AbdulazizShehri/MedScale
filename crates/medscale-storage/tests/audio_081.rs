@@ -15,22 +15,24 @@ use medscale_contracts::audio::{
     TranscriptOrigin, TranscriptReceipt, TranscriptRevision, TranscriptSegment, VadParameters,
     VoiceInputMode,
 };
+use medscale_contracts::huddles::{HuddleMedia, MediaOrigin, MediaState};
 use medscale_contracts::ingest::BackupManifest;
 use medscale_contracts::objects::{
     AuthorityScopeId, DigestSha256, ObjectHeader, OpaqueId, RealmId,
 };
 use medscale_contracts::project_graph::Project;
 use medscale_storage::{
-    CURRENT_META_SCHEMA_VERSION, MetaError, SqliteMetaStore, SyntheticVault, backup_vault,
-    restore_vault,
+    AudioRetentionRemovalReceipt, CURRENT_META_SCHEMA_VERSION, MetaError, SqliteMetaStore,
+    SyntheticVault, backup_vault, restore_vault,
 };
 
-const AUDIO_TABLES: [&str; 5] = [
+const AUDIO_TABLES: [&str; 6] = [
     "audio_sources",
     "audio_capture_sessions",
     "audio_capture_chunks",
     "audio_transcripts",
     "audio_transcript_receipts",
+    "audio_retention_removal_receipts",
 ];
 
 fn temp_root(name: &str) -> PathBuf {
@@ -765,4 +767,581 @@ fn pre_081_v9_backup_restores_with_empty_audio_tables() {
     let restored = SyntheticVault::open("vault-1", &root.join("restored")).unwrap();
     assert!(restored.meta.list_all_audio_sources().unwrap().is_empty());
     restored.meta.verify_audio_consistency().unwrap();
+}
+
+#[test]
+fn unreferenced_imported_audio_removal_preserves_other_sources_and_prior_backups() {
+    let root = temp_root("remove-unreferenced");
+    let vault = SyntheticVault::open("vault-1", &root.join("vault")).unwrap();
+    populate_pre_081(&vault.meta);
+    let a_bytes = bytes(128, 3);
+    let b_bytes = bytes(160, 19);
+    let a = imported("source-to-remove", &a_bytes);
+    let b = imported("source-to-keep", &b_bytes);
+    vault
+        .meta
+        .insert_imported_audio_source(&a, &a_bytes)
+        .unwrap();
+    vault
+        .meta
+        .insert_imported_audio_source(&b, &b_bytes)
+        .unwrap();
+
+    let prior_backup = root.join("pre-removal-backup");
+    backup_vault(&vault, &prior_backup).unwrap();
+    assert!(matches!(
+        vault.meta.remove_unreferenced_imported_audio_source(
+            &id("other-project"),
+            &a.header.id,
+            &a.content_digest
+        ),
+        Err(MetaError::NotFound)
+    ));
+    assert_eq!(
+        vault.meta.get_audio_source(&a.header.id).unwrap().1,
+        a_bytes
+    );
+
+    vault
+        .meta
+        .remove_unreferenced_imported_audio_source(&a.project_id, &a.header.id, &a.content_digest)
+        .unwrap();
+    assert!(matches!(
+        vault.meta.get_audio_source(&a.header.id),
+        Err(MetaError::NotFound)
+    ));
+    assert_eq!(
+        vault.meta.get_audio_source(&b.header.id).unwrap().1,
+        b_bytes
+    );
+    vault.meta.verify_audio_consistency().unwrap();
+    assert!(matches!(
+        vault.meta.remove_unreferenced_imported_audio_source(
+            &a.project_id,
+            &a.header.id,
+            &a.content_digest
+        ),
+        Err(MetaError::NotFound)
+    ));
+
+    let next_backup = root.join("post-removal-backup");
+    backup_vault(&vault, &next_backup).unwrap();
+    restore_vault(&next_backup, &root.join("restored-current")).unwrap();
+    let current = SyntheticVault::open("vault-1", &root.join("restored-current")).unwrap();
+    assert!(matches!(
+        current.meta.get_audio_source(&a.header.id),
+        Err(MetaError::NotFound)
+    ));
+    assert_eq!(
+        current.meta.get_audio_source(&b.header.id).unwrap().1,
+        b_bytes
+    );
+    current.meta.verify_audio_consistency().unwrap();
+
+    // Earlier backups remain intact; this operation must never claim to
+    // retroactively erase old snapshots or all copies on physical storage.
+    restore_vault(&prior_backup, &root.join("restored-previous")).unwrap();
+    let prior = SyntheticVault::open("vault-1", &root.join("restored-previous")).unwrap();
+    assert_eq!(
+        prior.meta.get_audio_source(&a.header.id).unwrap().1,
+        a_bytes
+    );
+    prior.meta.verify_audio_consistency().unwrap();
+}
+
+#[test]
+fn atomic_audio_removal_receipt_rolls_back_and_survives_backup_restore() {
+    let root = temp_root("atomic-retention-receipt");
+    let vault = SyntheticVault::open("vault-1", &root.join("vault")).unwrap();
+    populate_pre_081(&vault.meta);
+    let source_bytes = bytes(160, 41);
+    let other_bytes = bytes(128, 70);
+    let source = imported("source-atomic-receipt", &source_bytes);
+    let other = imported("source-atomic-untouched", &other_bytes);
+    vault
+        .meta
+        .insert_imported_audio_source(&source, &source_bytes)
+        .unwrap();
+    vault
+        .meta
+        .insert_imported_audio_source(&other, &other_bytes)
+        .unwrap();
+
+    let before_backup = root.join("backup-before-removal");
+    backup_vault(&vault, &before_backup).unwrap();
+    let receipt = AudioRetentionRemovalReceipt {
+        receipt_id: id("retention-receipt-1"),
+        project_id: source.project_id.clone(),
+        source_id: source.header.id.clone(),
+        source_digest: source.content_digest.clone(),
+        removed_bytes: source_bytes.len() as u64,
+        actor_id: id("actor-confirmed"),
+        confirmation_digest: DigestSha256::of(b"explicit active-vault-only confirmation"),
+        user_confirmed: true,
+        active_vault_only: true,
+        older_backups_may_retain_recording: true,
+    };
+    let bad_bytes = AudioRetentionRemovalReceipt {
+        removed_bytes: (source_bytes.len() + 1) as u64,
+        ..receipt.clone()
+    };
+    assert!(matches!(
+        vault
+            .meta
+            .remove_unreferenced_imported_audio_source_with_receipt(
+                &source.project_id,
+                &source.header.id,
+                &source.content_digest,
+                &bad_bytes,
+            ),
+        Err(MetaError::Conflict(_))
+    ));
+    let no_consent = AudioRetentionRemovalReceipt {
+        user_confirmed: false,
+        ..receipt.clone()
+    };
+    assert!(matches!(
+        vault
+            .meta
+            .remove_unreferenced_imported_audio_source_with_receipt(
+                &source.project_id,
+                &source.header.id,
+                &source.content_digest,
+                &no_consent,
+            ),
+        Err(MetaError::Conflict(_))
+    ));
+    assert!(
+        vault
+            .meta
+            .list_audio_retention_removal_receipts()
+            .unwrap()
+            .is_empty()
+    );
+    assert_eq!(
+        vault.meta.get_audio_source(&source.header.id).unwrap().1,
+        source_bytes
+    );
+
+    vault
+        .meta
+        .remove_unreferenced_imported_audio_source_with_receipt(
+            &source.project_id,
+            &source.header.id,
+            &source.content_digest,
+            &receipt,
+        )
+        .unwrap();
+    assert!(matches!(
+        vault.meta.get_audio_source(&source.header.id),
+        Err(MetaError::NotFound)
+    ));
+    assert_eq!(
+        vault.meta.list_audio_retention_removal_receipts().unwrap(),
+        vec![receipt.clone()]
+    );
+    vault
+        .meta
+        .verify_audio_retention_removal_receipts()
+        .unwrap();
+
+    let duplicate_id = AudioRetentionRemovalReceipt {
+        project_id: other.project_id.clone(),
+        source_id: other.header.id.clone(),
+        source_digest: other.content_digest.clone(),
+        removed_bytes: other_bytes.len() as u64,
+        ..receipt.clone()
+    };
+    assert!(matches!(
+        vault
+            .meta
+            .remove_unreferenced_imported_audio_source_with_receipt(
+                &other.project_id,
+                &other.header.id,
+                &other.content_digest,
+                &duplicate_id,
+            ),
+        Err(MetaError::Conflict(_))
+    ));
+    // The duplicate receipt rejects the same transaction that would remove
+    // another source. Neither original audio nor the prior receipt changes.
+    assert_eq!(
+        vault.meta.get_audio_source(&other.header.id).unwrap().1,
+        other_bytes
+    );
+    assert_eq!(
+        vault.meta.list_audio_retention_removal_receipts().unwrap(),
+        vec![receipt.clone()]
+    );
+    vault.meta.verify_audio_consistency().unwrap();
+
+    let after_backup = root.join("backup-after-removal");
+    backup_vault(&vault, &after_backup).unwrap();
+    restore_vault(&after_backup, &root.join("restored-after")).unwrap();
+    let restored = SyntheticVault::open("vault-1", &root.join("restored-after")).unwrap();
+    assert!(matches!(
+        restored.meta.get_audio_source(&source.header.id),
+        Err(MetaError::NotFound)
+    ));
+    assert_eq!(
+        restored
+            .meta
+            .list_audio_retention_removal_receipts()
+            .unwrap(),
+        vec![receipt.clone()]
+    );
+    restored
+        .meta
+        .verify_audio_retention_removal_receipts()
+        .unwrap();
+    assert_eq!(
+        restored.meta.get_audio_source(&other.header.id).unwrap().1,
+        other_bytes
+    );
+
+    // Historical backups are not retroactively erased.
+    restore_vault(&before_backup, &root.join("restored-before")).unwrap();
+    let older = SyntheticVault::open("vault-1", &root.join("restored-before")).unwrap();
+    assert_eq!(
+        older.meta.get_audio_source(&source.header.id).unwrap().1,
+        source_bytes
+    );
+    assert!(
+        older
+            .meta
+            .list_audio_retention_removal_receipts()
+            .unwrap()
+            .is_empty()
+    );
+
+    // Required v21 receipt family must not silently disappear from backup.
+    tamper_backup(&after_backup, |snapshot| {
+        snapshot
+            .as_object_mut()
+            .unwrap()
+            .remove("audio_retention_removal_receipts");
+    });
+    assert!(restore_vault(&after_backup, &root.join("tampered-restore")).is_err());
+}
+
+#[test]
+fn audio_removal_refuses_revisions_receipts_capture_and_stale_digest() {
+    let root = temp_root("remove-refusals");
+    let meta = open_meta(&root);
+    populate_pre_081(&meta);
+    build_state(&meta);
+    let (with_revision, _) = meta.get_audio_source(&id("src-1")).unwrap();
+    assert!(matches!(
+        meta.remove_unreferenced_imported_audio_source(
+            &with_revision.project_id,
+            &with_revision.header.id,
+            &with_revision.content_digest
+        ),
+        Err(MetaError::Conflict(_))
+    ));
+    let (capture_recording, _) = meta.get_audio_source(&id("src-2")).unwrap();
+    assert!(matches!(
+        meta.remove_unreferenced_imported_audio_source(
+            &capture_recording.project_id,
+            &capture_recording.header.id,
+            &capture_recording.content_digest
+        ),
+        Err(MetaError::Conflict(_))
+    ));
+
+    let audio = bytes(80, 64);
+    let with_receipt = imported("source-denied-receipt", &audio);
+    meta.insert_imported_audio_source(&with_receipt, &audio)
+        .unwrap();
+    meta.commit_transcript(None, &denied_receipt("r3", &with_receipt))
+        .unwrap();
+    assert!(matches!(
+        meta.remove_unreferenced_imported_audio_source(
+            &with_receipt.project_id,
+            &with_receipt.header.id,
+            &with_receipt.content_digest
+        ),
+        Err(MetaError::Conflict(_))
+    ));
+
+    let untouched_audio = bytes(96, 5);
+    let untouched = imported("source-stale", &untouched_audio);
+    meta.insert_imported_audio_source(&untouched, &untouched_audio)
+        .unwrap();
+    assert!(matches!(
+        meta.remove_unreferenced_imported_audio_source(
+            &untouched.project_id,
+            &untouched.header.id,
+            &DigestSha256::of(b"old-version")
+        ),
+        Err(MetaError::Conflict(_))
+    ));
+    assert_eq!(
+        meta.get_audio_source(&untouched.header.id).unwrap().1,
+        untouched_audio
+    );
+    meta.verify_audio_consistency().unwrap();
+}
+
+#[test]
+fn unreferenced_audio_removal_refuses_cross_module_huddle_media() {
+    let root = temp_root("remove-huddle-linked");
+    let meta = open_meta(&root);
+    populate_pre_081(&meta);
+    let wav = bytes(144, 51);
+    let source = imported("source-huddle-linked", &wav);
+    meta.insert_imported_audio_source(&source, &wav).unwrap();
+
+    assert_eq!(
+        meta.audio_retention_reference_flags(&source.header.id)
+            .unwrap(),
+        (false, false, false, false)
+    );
+
+    // A source without audio-specific references can still belong to
+    // Huddles. Use a valid typed row, not an incomplete JSON stub.
+    let media = HuddleMedia {
+        header: h("media-huddle-linked"),
+        huddle_id: id("huddle-linked"),
+        source_id: source.header.id.clone(),
+        source_digest: source.content_digest.clone(),
+        origin: MediaOrigin::HumanRecording,
+        synthetic: false,
+        attached_day: 20_000,
+        state: MediaState::Present,
+    };
+    raw(&root)
+        .execute(
+            "INSERT INTO hud_media(media_id, huddle_id, source_id, state, body_json)
+             VALUES (?1, ?2, ?3, ?4, ?5)",
+            rusqlite::params![
+                media.header.id.as_str(),
+                media.huddle_id.as_str(),
+                media.source_id.as_str(),
+                media.state.as_str(),
+                serde_json::to_string(&media).unwrap(),
+            ],
+        )
+        .unwrap();
+    assert_eq!(
+        meta.audio_retention_reference_flags(&source.header.id)
+            .unwrap(),
+        (false, false, true, false)
+    );
+    assert!(
+        meta.list_transcript_revisions(&source.header.id)
+            .unwrap()
+            .is_empty()
+    );
+    assert!(
+        meta.list_transcript_receipts(&source.header.id)
+            .unwrap()
+            .is_empty()
+    );
+    assert!(matches!(
+        meta.remove_unreferenced_imported_audio_source(
+            &source.project_id,
+            &source.header.id,
+            &source.content_digest,
+        ),
+        Err(MetaError::Conflict(_))
+    ));
+    assert_eq!(meta.get_audio_source(&source.header.id).unwrap().1, wav);
+
+    // Remove the intentionally incomplete synthetic Huddle fixture to restore
+    // a consistent synthetic vault; no production deletion code does this.
+    raw(&root)
+        .execute(
+            "DELETE FROM hud_media WHERE media_id = 'media-huddle-linked'",
+            [],
+        )
+        .unwrap();
+    assert_eq!(
+        meta.audio_retention_reference_flags(&source.header.id)
+            .unwrap(),
+        (false, false, false, false)
+    );
+    meta.verify_audio_consistency().unwrap();
+    meta.remove_unreferenced_imported_audio_source(
+        &source.project_id,
+        &source.header.id,
+        &source.content_digest,
+    )
+    .unwrap();
+    assert!(matches!(
+        meta.get_audio_source(&source.header.id),
+        Err(MetaError::NotFound)
+    ));
+    meta.verify_audio_consistency().unwrap();
+}
+
+#[test]
+fn audio_retention_fails_closed_on_corrupt_unrelated_capture_index() {
+    let root = temp_root("retention-capture-index");
+    let meta = open_meta(&root);
+    populate_pre_081(&meta);
+    let data = bytes(136, 46);
+    let source = imported("source-capture-index", &data);
+    meta.insert_imported_audio_source(&source, &data).unwrap();
+    let session = capture("cap-index-integrity");
+    meta.insert_capture_session(&session).unwrap();
+
+    // A capture's indexed project ID is separate from its valid JSON body.
+    // A corrupt, unrelated session must not let retention or deletion
+    // silently proceed as though the reference graph were trustworthy.
+    raw(&root)
+        .execute(
+            "UPDATE audio_capture_sessions SET project_id = ?1 WHERE session_id = ?2",
+            rusqlite::params!["different-project", session.header.id.as_str()],
+        )
+        .unwrap();
+    assert!(matches!(
+        meta.audio_retention_reference_flags(&source.header.id),
+        Err(MetaError::CorruptObjectBody(_))
+    ));
+    assert!(matches!(
+        meta.remove_unreferenced_imported_audio_source(
+            &source.project_id,
+            &source.header.id,
+            &source.content_digest,
+        ),
+        Err(MetaError::CorruptObjectBody(_))
+    ));
+    assert_eq!(meta.get_audio_source(&source.header.id).unwrap().1, data);
+
+    // Repair the injected corruption and confirm the exact same source can
+    // be inspected and removed while preserving unrelated capture records.
+    raw(&root)
+        .execute(
+            "UPDATE audio_capture_sessions SET project_id = ?1 WHERE session_id = ?2",
+            rusqlite::params![session.project_id.as_str(), session.header.id.as_str()],
+        )
+        .unwrap();
+    assert_eq!(
+        meta.audio_retention_reference_flags(&source.header.id)
+            .unwrap(),
+        (false, false, false, false)
+    );
+    meta.remove_unreferenced_imported_audio_source(
+        &source.project_id,
+        &source.header.id,
+        &source.content_digest,
+    )
+    .unwrap();
+    assert!(matches!(
+        meta.get_audio_source(&source.header.id),
+        Err(MetaError::NotFound)
+    ));
+    assert_eq!(
+        meta.get_capture_session(&session.header.id).unwrap(),
+        session
+    );
+    meta.verify_audio_consistency().unwrap();
+}
+
+#[test]
+fn audio_retention_fails_closed_on_huddle_index_body_mismatch() {
+    let root = temp_root("retention-huddle-index-mismatch");
+    let meta = open_meta(&root);
+    populate_pre_081(&meta);
+    let wav = bytes(128, 89);
+    let source = imported("source-huddle-hidden-reference", &wav);
+    meta.insert_imported_audio_source(&source, &wav).unwrap();
+
+    let media = HuddleMedia {
+        header: h("media-hidden-reference"),
+        huddle_id: id("huddle-hidden-reference"),
+        source_id: source.header.id.clone(),
+        source_digest: source.content_digest.clone(),
+        origin: MediaOrigin::HumanRecording,
+        synthetic: false,
+        attached_day: 20_000,
+        state: MediaState::Present,
+    };
+    // A corrupted index claims a different source; the validated JSON still
+    // links this recording. An indexed-only COUNT would incorrectly allow
+    // removal and orphan the media.
+    raw(&root)
+        .execute(
+            "INSERT INTO hud_media(media_id, huddle_id, source_id, state, body_json)
+             VALUES (?1, ?2, ?3, ?4, ?5)",
+            rusqlite::params![
+                media.header.id.as_str(),
+                media.huddle_id.as_str(),
+                "unrelated-index-source",
+                media.state.as_str(),
+                serde_json::to_string(&media).unwrap(),
+            ],
+        )
+        .unwrap();
+    assert!(matches!(
+        meta.audio_retention_reference_flags(&source.header.id),
+        Err(MetaError::CorruptObjectBody(_))
+    ));
+    assert!(matches!(
+        meta.remove_unreferenced_imported_audio_source(
+            &source.project_id,
+            &source.header.id,
+            &source.content_digest,
+        ),
+        Err(MetaError::CorruptObjectBody(_))
+    ));
+    assert_eq!(meta.get_audio_source(&source.header.id).unwrap().1, wav);
+
+    raw(&root)
+        .execute(
+            "UPDATE hud_media SET source_id = ?1 WHERE media_id = ?2",
+            rusqlite::params![source.header.id.as_str(), media.header.id.as_str()],
+        )
+        .unwrap();
+    assert_eq!(
+        meta.audio_retention_reference_flags(&source.header.id)
+            .unwrap(),
+        (false, false, true, false)
+    );
+    assert!(matches!(
+        meta.remove_unreferenced_imported_audio_source(
+            &source.project_id,
+            &source.header.id,
+            &source.content_digest,
+        ),
+        Err(MetaError::Conflict(_))
+    ));
+    assert_eq!(meta.get_audio_source(&source.header.id).unwrap().1, wav);
+}
+
+#[test]
+fn audio_removal_refuses_mismatched_stored_project_column() {
+    let root = temp_root("remove-project-column-tamper");
+    let meta = open_meta(&root);
+    populate_pre_081(&meta);
+    let wav = bytes(128, 77);
+    let source = imported("source-project-tamper", &wav);
+    meta.insert_imported_audio_source(&source, &wav).unwrap();
+
+    // The indexed project column is independent from the validated JSON body.
+    // Removal must never trust a valid body when its stored owner column differs.
+    raw(&root)
+        .execute(
+            "UPDATE audio_sources SET project_id = ?1 WHERE source_id = ?2",
+            rusqlite::params!["other-project", source.header.id.as_str()],
+        )
+        .unwrap();
+    assert!(matches!(
+        meta.remove_unreferenced_imported_audio_source(
+            &source.project_id,
+            &source.header.id,
+            &source.content_digest,
+        ),
+        Err(MetaError::CorruptObjectBody(_))
+    ));
+    // A refused removal leaves all WAV bytes intact.
+    let count: i64 = raw(&root)
+        .query_row(
+            "SELECT COUNT(*) FROM audio_sources WHERE source_id = ?1 AND length(content) = ?2",
+            rusqlite::params![source.header.id.as_str(), wav.len() as i64],
+            |row| row.get(0),
+        )
+        .unwrap();
+    assert_eq!(count, 1);
 }

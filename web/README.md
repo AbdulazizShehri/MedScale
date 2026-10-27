@@ -39,15 +39,70 @@ Both builds are verified by `npm run check`. Canonical links, Open Graph URLs, `
 
 `.github/workflows/website.yml` builds and checks every pull request that touches `web/`. On `main` it publishes `web/out` to GitHub Pages through the `github-pages` environment. The `preview/medscale-site-live` branch can publish a preview through the same environment. Update it only by merging, never by force-pushing.
 
-## Cutover to medscale.si (not done)
+## medscale.si cutover — staged, not activated
 
-Do these steps only after the founder authorizes the cutover.
+The live website currently runs at `https://abdulazizshehri.github.io/MedScale/`.
+The cutover PR changes the `main` Pages deployment to **publish the root-domain
+build last**, with `NEXT_PUBLIC_SITE_BASE_PATH=""` and
+`NEXT_PUBLIC_SITE_URL=https://medscale.si`. It keeps the /MedScale
+build-and-check gate as a regression test.
 
-1. In the website workflow, set `NEXT_PUBLIC_SITE_BASE_PATH` to empty and `NEXT_PUBLIC_SITE_URL` to `https://medscale.si`. Add `web/public/CNAME` containing `medscale.si`.
-2. At the DNS provider, add apex `A` records for GitHub Pages (185.199.108.153, 185.199.109.153, 185.199.110.153, 185.199.111.153), the matching `AAAA` records, and a `www` CNAME to `abdulazizshehri.github.io`.
-3. In the repository's Pages settings, set the custom domain to `medscale.si`, wait for the certificate, then turn on **Enforce HTTPS**.
-4. Verify that `https://medscale.si/` returns 200 with the hero and that `npm run check` passes for the root build. Then check `sitemap.xml`, `robots.txt`, the favicon and the social card.
-5. Leave the project Pages URL working until search engines pick up the new canonical URLs.
+**Do not merge the cutover PR until the actual domain switch is coordinated**:
+deploying a root build to the existing project URL before configuring the
+GitHub Pages custom domain can break navigation and assets.
+
+### DNS to configure at the provider
+
+The authoritative nameservers checked on 2026-10-23 were
+`artemis.dns-parking.com` and `hermes.dns-parking.com` (Hostinger DNS).
+Verify the active nameservers before making changes.
+
+| Type | Host | Destination |
+| --- | --- | --- |
+| A | `@` | `185.199.108.153` |
+| A | `@` | `185.199.109.153` |
+| A | `@` | `185.199.110.153` |
+| A | `@` | `185.199.111.153` |
+| CNAME | `www` | `abdulazizshehri.github.io` |
+
+Optional `AAAA` records: `2606:50c0:8000::153`,
+`2606:50c0:8001::153`, `2606:50c0:8002::153`,
+`2606:50c0:8003::153`. Never add duplicate/conflicting
+apex A/AAAA or `www` A/AAAA records. Remove the existing parked apex
+`A` value only when ready to point the website to GitHub Pages. Preserve
+MX, SPF, DKIM, DMARC, and unrelated TXT records (especially email).
+Do not change nameservers or use wildcard DNS records.
+
+### Coordinated cutover checklist
+
+1. Confirm ownership and access to the DNS panel, and coordinate the exact
+   cutover window with the website maintainer. Leave the cutover PR as a draft
+   until then.
+2. First register `medscale.si` in repository **Settings → Pages → Custom
+   domain** to claim it with GitHub before directing DNS to GitHub, as
+   GitHub's official documentation recommends. This may temporarily redirect
+   the old site URL, so proceed directly to the next steps.
+3. Set the apex A records and `www` CNAME above at the DNS provider.
+   Check authoritative DNS resolution and allow for propagation.
+4. After the GitHub Pages domain is registered and DNS is resolving to
+   GitHub, merge the cutover PR through the required branch-protection checks.
+   The main workflow then publishes the **root** build.
+5. Verify `https://medscale.si/`, `/product/`, `/models/`, `/download/`,
+   `/docs/`, and `/community/`, along with JS chunks, fonts, image assets,
+   `sitemap.xml`, `robots.txt`, the icon and social preview. Confirm no
+   links rely on the old `/MedScale/` base path.
+6. After the Pages HTTPS certificate is issued, enable **Enforce HTTPS**
+   and verify `www.medscale.si` redirects to the apex domain. GitHub Pages
+   may take up to 24 hours to finish DNS propagation and certificate issuance.
+
+For **custom GitHub Actions Pages deployment**, a repository `CNAME`
+file is not required and is ignored; the site domain is configured in GitHub
+Pages settings. The original `github.io/MedScale` URL is normally redirected
+to the configured custom domain by GitHub Pages.
+
+References:
+- https://docs.github.com/en/pages/configuring-a-custom-domain-for-your-github-pages-site/managing-a-custom-domain-for-your-github-pages-site
+- https://docs.github.com/en/pages/configuring-a-custom-domain-for-your-github-pages-site/verifying-your-custom-domain-for-github-pages
 
 ## Downloads
 
