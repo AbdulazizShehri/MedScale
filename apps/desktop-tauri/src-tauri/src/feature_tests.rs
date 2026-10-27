@@ -96,6 +96,84 @@ impl Harness {
     }
 }
 
+/// Exercises the real named native command across a simulated app restart,
+/// without an installed model, microphone, user data or external network.
+#[test]
+fn confirmed_imported_audio_removal_survives_native_restart() {
+    let h = Harness::new("audio-removal-restart");
+    h.ok("workspace_open_synthetic", json!({}));
+    let project = h.ok(
+        "project_create",
+        json!({"name": "Disposable audio retention check", "description": null}),
+    );
+    let project_id = project["id"]
+        .as_str()
+        .expect("created project ID")
+        .to_owned();
+    let imported = h.ok("audio_import_synthetic", json!({"projectId": project_id}));
+    let source_id = imported["source_id"]
+        .as_str()
+        .expect("source ID")
+        .to_owned();
+    let inspected = h.ok(
+        "audio_source_retention_preview",
+        json!({"projectId": project_id, "sourceId": source_id}),
+    );
+    assert_eq!(inspected["delete_available"], true, "{inspected}");
+    let expected_digest = inspected["expected_digest"]
+        .as_str()
+        .expect("source SHA-256")
+        .to_owned();
+    let acknowledged = h.ok(
+        "audio_source_remove_confirmed",
+        json!({
+            "projectId": project_id,
+            "sourceId": source_id,
+            "expectedDigest": expected_digest,
+            "confirmation": format!("REMOVE {source_id} FROM ACTIVE VAULT"),
+        }),
+    );
+    assert_eq!(acknowledged["source_id"], source_id);
+    assert_eq!(acknowledged["removed_bytes"], inspected["recording_bytes"]);
+    assert!(acknowledged["receipt_id"].is_string(), "{acknowledged}");
+    assert_eq!(acknowledged["active_vault_only"], true);
+    assert_eq!(acknowledged["older_backups_may_retain_recording"], true);
+    h.ok("workspace_lock", json!({}));
+    drop(h);
+
+    let restarted = Harness::restart("audio-removal-restart");
+    restarted.ok("workspace_open_synthetic", json!({}));
+    let overview = restarted.ok("audio_overview", json!({"projectId": project_id}));
+    assert!(
+        overview["sources"]
+            .as_array()
+            .expect("source list")
+            .iter()
+            .all(|s| s["id"] != source_id),
+        "a removed source reappeared after native restart: {overview}"
+    );
+    let inspect_error = restarted
+        .call(
+            "audio_source_retention_preview",
+            json!({"projectId": project_id, "sourceId": source_id}),
+        )
+        .unwrap_err();
+    assert_eq!(inspect_error["kind"], "missing", "{inspect_error}");
+    // A second attempt must never silently succeed after restart.
+    let repeated = restarted
+        .call(
+            "audio_source_remove_confirmed",
+            json!({
+                "projectId": project_id,
+                "sourceId": source_id,
+                "expectedDigest": expected_digest,
+                "confirmation": format!("REMOVE {source_id} FROM ACTIVE VAULT"),
+            }),
+        )
+        .unwrap_err();
+    assert_eq!(repeated["kind"], "missing", "{repeated}");
+}
+
 #[test]
 fn every_surface_runs_against_real_core() {
     let h = Harness::new("all");
