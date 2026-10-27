@@ -1,0 +1,26 @@
+\section{Experimental Evaluation}
+
+We separate newly executed paper experiments from pre-existing integrated qualification evidence. All paper-only experiments use synthetic data and bind results to an exact repository revision. The mutation corpus is a conformance suite; it is not an estimator of attack prevalence, clinical failure probability, or clinical benefit.
+
+\subsection{Experiment A: provenance integrity}
+Experiment A contains two layers. A0 exercises contract-level provenance controls, including source/content identity separation, digest mutation detection, conservative handling of unknown evidence, and invalid support references. A1 exercises the production \texttt{CoreFacade} path under session and capability enforcement, including exact parent-source binding, transform/version/output digest retention, cross-scope refusal, and nonexistent-source refusal.
+
+At experimental revision \texttt{6a04266ae59bfb75f24d6634becd3bc4d32576c4}, A0 contained seven unique cases and A1 contained six. Each set executed successfully on hosted Linux, macOS, and Windows runners. Thus A0 contributed 21/21 successful platform executions and A1 contributed 18/18. The environment manifests record the exact checkout SHA separately from GitHub's synthetic pull-request event SHA.
+
+\subsection{Experiment B: authority and effect conformance}
+B0 contains six cases covering proposal-versus-promotion separation, reviewer identity retention, payload-bound external action intent, refusal of an illegal transition to \texttt{Sent}, reconciliation before retry from an \texttt{Unknown} external effect, and the explicit NPHIES external gate requirement. All six cases completed successfully on each of the three hosted operating systems, yielding 18/18 successful platform executions.
+
+Across A0, A1, and B0, the campaign therefore contains 19 unique cases and 57 repeated platform executions, all successful. The 57 executions must not be interpreted as 57 unique independent test designs. These results establish conformance only for the specified synthetic cases at the exact experimental revision; they do not establish universal security, clinical safety, regulatory fitness, production-PHI readiness, or platform qualification.
+
+\subsection{Experiment C: reproducibility and recovery}
+The pre-existing integrated baseline C0 is Spec 092 at the frozen scientific snapshot. Its \texttt{whole\_platform\_092} path exercised a synthetic vault across the qualified platform planes and then performed backup, restoration into a fresh directory, consistency verification, restart/reopen, and post-restart semantic checks. Spec 092 classified 35 evidence areas, retained failed qualification runs, and recorded two defects discovered during integrated qualification before repair and regression testing: restore ID-sequence loss and a nondeterministic privacy-matcher false positive. Exact-head CI run \texttt{36360503149} completed all six required jobs. These facts support an integrated recovery/verification baseline, while the canonical audit still states \texttt{PLATFORM\_QUALIFIED=false}, clinical validation not performed, and regulatory validation not performed.
+
+C1 was preregistered before result inspection and reused the production Spec 092 integration test rather than a paper-only recovery simulation. At exact checkout \texttt{e1cf8935f3920c95cf7229221619fbfb24fd0fa4}, the production backup/restore/restart path was executed in three separate Cargo test processes on each of hosted Linux, macOS, and Windows. All nine planned platform-repeat executions completed successfully (Linux 3/3, macOS 3/3, Windows 3/3) in GitHub Actions run \texttt{36645800815}. Each platform artifact retained the environment manifest, three raw C1 logs, and SHA-256 checksums; the manifests bind all nine executions to the same exact checkout revision.
+
+C1 therefore adds repeatability evidence beyond the single canonical integrated qualification campaign, but its endpoint is deliberately narrow: semantic conformance of the specified synthetic recovery path. It does not establish arbitrary crash/corruption durability, production disaster-recovery fitness, universal determinism, clinical safety, regulatory fitness, production-PHI readiness, or platform qualification.
+
+\subsection{Experiment D: performance and storage cost}
+Synthetic scales of 100, 1,000, and 10,000 artifacts are the initial targets, subject to safe resource usage. Planned measurements include ingestion, provenance recording/verification, backup/restore, selected retrieval/analytics operations, and storage growth. Hosted-CI timing, if used, will be described as a feasibility signal rather than qualified production performance.
+
+\subsection{Experiment E: optional ablation}
+An ablation will be included only if an isolated research fixture can answer a specific scientific question without weakening production code. The current candidate is a comparison between full provenance validation and an intentionally simplified research-only verifier, scored on the same mutation corpus. This experiment remains deferred until its confounding risks are resolved.

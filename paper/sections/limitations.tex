@@ -1,0 +1,9 @@
+\section{Limitations}
+
+This study has substantial limitations that bound every claim. First, the dedicated evaluation uses synthetic data only; it provides no prospective or retrospective clinical validation. Second, no real PHI use is authorized, and encryption-at-rest behavior must not be interpreted as PHI readiness. Third, the frozen repository explicitly records \texttt{PLATFORM\_QUALIFIED=false}, \texttt{RELEASE\_READY=false}, and \texttt{PRIVATE\_DATA\_READY=false}. Fourth, clinical validation and regulatory evaluation were not performed.
+
+Several execution surfaces are intentionally absent or partial. Managed R code execution and executable extension code are not admitted. Medical ASR accuracy is unmeasured where applicable. Institutional network transport and live partner EHR/FHIR/SMART/NPHIES integrations are not production-qualified. Federation is bounded and synthetic, not evidence of production multi-institutional deployment. Hosted CI across Linux, Windows, and macOS does not substitute for qualification on target clinical hardware or operating environments. Worker OS memory/CPU sandbox qualification, release signing, accessibility qualification, terminology licensing, and other external gates remain open.
+
+The architecture itself can introduce cost and complexity. Explicit provenance, state, and authority contracts increase storage and validation work, and the paper's performance experiments are necessary before characterizing that cost. The current whole-platform evidence is also repository-specific; external replication is not yet available.
+
+Finally, the literature comparison is dimension-based rather than a claim of universal superiority. A competing system may implement properties that are not described in its publication. Such cells are marked not reported/unknown rather than negative.
