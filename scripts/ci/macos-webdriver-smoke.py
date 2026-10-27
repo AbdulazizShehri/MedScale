@@ -1,6 +1,6 @@
 """Native macOS WKWebView W3C browser smoke on a disposable GitHub runner.
 
-No screenshots, sensitive data, AI model downloads, or local user devices.
+No screenshots, personal data, or use of local founder devices; optional pinned public model runs only on disposable CI.
 Requires feature-gated plugin instrumented only in runner workspace.
 """
 import json
@@ -98,6 +98,66 @@ try:
     click(session, button(session, "Audio"))
     button(session, "Import synthetic tone sample")
     print("MAC_NATIVE_WEBDRIVER_AUDIO_CONTROLS_PASS")
+
+    # Optional explicit real-human test. This branch's dedicated workflow
+    # provides *both* a legally sourced, verified real WAV and a pinned,
+    # MedScale-signed local Whisper Pack in the disposable runner only.
+    wav_path = os.environ.get("MEDSCALE_E2E_REAL_WAV_PATH")
+    pack_path = os.environ.get("MEDSCALE_E2E_REAL_ASR_PACK_PATH")
+    if wav_path or pack_path:
+        if not wav_path or not pack_path:
+            raise SystemExit("Real ASR qualification requires both actual WAV and verified Pack")
+        temp = Path(os.environ["RUNNER_TEMP"]).resolve()
+        for name, source in (("WAV", wav_path), ("Pack", pack_path)):
+            p = Path(source).resolve()
+            if temp not in p.parents or not p.exists():
+                raise SystemExit(f"Refusing {name} outside disposable runner temp")
+        print("MAC_NATIVE_WEBDRIVER_REAL_AUDIO_INPUTS_VERIFIED")
+
+        def fill(css, value):
+            el = await_element(session, "css selector", css)
+            if http("GET", f"/session/{session}/element/{el}/displayed") is not True:
+                raise AssertionError(f"Expected visible form input: {css}")
+            http("POST", f"/session/{session}/element/{el}/value",
+                 {"text": str(value), "value": list(str(value))})
+
+        fill("#ap1", pack_path)
+        click(session, button(session, "Admit and install"))
+        await_element(session, "xpath",
+                      "//*[contains(text(),'Local Whisper engine installed')]", timeout=110)
+        print("MAC_NATIVE_WEBDRIVER_WHISPER_ADMITTED_PASS")
+
+        fill("#wp1", wav_path)
+        # Exact button: prevent accidentally clicking the synthetic importer.
+        imported = await_element(session, "xpath", "//button[normalize-space(.)='Import']")
+        click(session, imported)
+        source = await_element(session, "xpath",
+                               "//button[normalize-space(.)='Transcribe']", timeout=100)
+        route = http("POST", f"/session/{session}/execute/sync", {
+            "script": "return document.querySelector('select[aria-label=\"Transcription route\"]')?.value === 'local_asr_pack' && document.querySelector('select[aria-label=\"Transcription language\"]')?.value === 'en'",
+            "args": [],
+        })
+        if route is not True:
+            raise AssertionError("Native UI is not set to actual English local Whisper")
+        print("MAC_NATIVE_WEBDRIVER_REAL_WAV_IMPORTED_PASS")
+
+        click(session, source)
+        verified = False
+        deadline = time.monotonic() + 220
+        # Only a boolean is returned/logged. No transcript, speech, or
+        # patient data is printed or kept in public CI artifacts.
+        while time.monotonic() < deadline:
+            state = http("POST", f"/session/{session}/execute/sync", {
+                "script": """const section=[...document.querySelectorAll('section.section')].find(x=>[...x.querySelectorAll('.sec-t')].some(h=>h.textContent?.trim()==='Transcript'));if(!section)return false;const corrected=[...section.querySelectorAll('button')].some(b=>b.textContent?.trim()==='Correct');return corrected&&!section.textContent.includes('(fixture)')&&!section.textContent.includes('(untranscribed)');""",
+                "args": [],
+            })
+            if state is True:
+                verified = True
+                break
+            time.sleep(3)
+        if not verified:
+            raise AssertionError("No confirmed, nonfixture real voice transcript visible in WKWebView")
+        print("MAC_NATIVE_WEBDRIVER_REAL_HUMAN_WHISPER_TRANSCRIPT_PASS")
 finally:
     if session:
         try:
