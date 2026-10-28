@@ -20,6 +20,8 @@ jobs:
   rust:
     name: rust (${{ matrix.os }})
     runs-on: ${{ matrix.os }}
+    # Bound Rust across platforms; Windows full-workspace tests have measured 121 minutes.
+    timeout-minutes: 240
     strategy:
       fail-fast: false
       matrix:
@@ -71,6 +73,8 @@ jobs:
 
       - name: Test
         run: cargo test --workspace --locked
+        # Allow measured Windows 121-minute tests plus headroom; fail visibly if stalled.
+        timeout-minutes: 180
 
       - name: Qualify portable release package
         shell: pwsh
