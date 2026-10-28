@@ -21,6 +21,7 @@ BLOCKED_FILES = {
 BLOCKED_PREFIXES = (
     ".cursor/", ".specify/", ".impeccable/",
     "docs/planning/", "docs/matrices/",
+    "specs/review-trusted-v1-2026-09-09/",
 )
 BLOCKED_BASENAMES = {
     "plan.md", "tasks.md", "research.md", "requirements.md",
