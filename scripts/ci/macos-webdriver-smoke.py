@@ -99,6 +99,85 @@ try:
     button(session, "Import synthetic tone sample")
     print("MAC_NATIVE_WEBDRIVER_AUDIO_CONTROLS_PASS")
 
+    # This runs only on an ephemeral GitHub macOS runner and never selects a
+    # file. It must observe an actual new OS window/sheet, then cancel it
+    # through macOS accessibility rather than mocking the Tauri dialog API.
+    if os.getenv("MEDSCALE_MAC_E2E_NATIVE_PICKER_CANCEL") == "1":
+        def picker_windows_and_sheets():
+            apple = """
+tell application "System Events"
+    tell (first application process whose frontmost is true)
+        set windowCount to count of windows
+        set sheetCount to 0
+        if windowCount > 0 then set sheetCount to count of sheets of window 1
+        return (windowCount as text) & "," & (sheetCount as text)
+    end tell
+end tell
+"""
+            result = subprocess.run(["osascript", "-e", apple],
+                                    capture_output=True, text=True, timeout=12)
+            if result.returncode != 0:
+                raise AssertionError("macOS Accessibility permission or native window inspection unavailable: "
+                                     + result.stderr.strip()[:200])
+            parts = result.stdout.strip().split(",")
+            if len(parts) != 2 or not all(x.strip().isdigit() for x in parts):
+                raise AssertionError("Unexpected macOS window/sheet count from System Events")
+            return tuple(int(x.strip()) for x in parts)
+
+        def field_value(selector):
+            return http("POST", f"/session/{session}/execute/sync", {
+                "script": "return document.querySelector(arguments[0])?.value ?? null;",
+                "args": [selector],
+            })
+
+        for selector, label, sentinel in [
+            ("#wp1", "Browse WAV", "unchanged-private-audio.wav"),
+            ("#ap1", "Browse folder", "unchanged-private-pack"),
+        ]:
+            # The sentinel denotes a non-existing path inside disposable CI;
+            # it is never opened or imported, and no user source is touched.
+            expected = str(Path(os.environ["RUNNER_TEMP"]) / sentinel)
+            element = await_element(session, "css selector", selector)
+            http("POST", f"/session/{session}/element/{element}/value",
+                 {"text": expected, "value": list(expected)})
+            if field_value(selector) != expected:
+                raise AssertionError(f"Could not seed controlled picker input: {selector}")
+            baseline = picker_windows_and_sheets()
+            click(session, button(session, label))
+            observed = False
+            try:
+                for _ in range(15):
+                    current = picker_windows_and_sheets()
+                    if current[0] > baseline[0] or current[1] > baseline[1]:
+                        observed = True
+                        break
+                    time.sleep(1)
+            finally:
+                # Fail instead of claiming qualification if macOS denies
+                # automation's Escape key: no fake cancellation success.
+                escaped = subprocess.run(
+                    ["osascript", "-e",
+                     'tell application "System Events" to key code 53'],
+                    capture_output=True, text=True, timeout=12,
+                )
+                if escaped.returncode != 0:
+                    raise AssertionError("Native dialog cancellation requires macOS Accessibility approval: "
+                                         + escaped.stderr.strip()[:200])
+            if not observed:
+                raise AssertionError(f"No native file/folder dialog observed: {label}")
+            recovered = False
+            for _ in range(20):
+                if field_value(selector) == expected:
+                    control = button(session, label)
+                    enabled = http("GET", f"/session/{session}/element/{control}/enabled")
+                    if enabled is True:
+                        recovered = True
+                        break
+                time.sleep(1)
+            if not recovered:
+                raise AssertionError(f"Cancelled native picker changed path or left UI busy: {label}")
+            print("MAC_NATIVE_PICKER_CANCEL_PRESERVES_PATH_PASS", label)
+
     # Optional explicit real-human test. This branch's dedicated workflow
     # provides *both* a legally sourced, verified real WAV and a pinned,
     # MedScale-signed local Whisper Pack in the disposable runner only.
