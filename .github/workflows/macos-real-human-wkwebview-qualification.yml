@@ -3,7 +3,7 @@
 name: macos-real-human-wkwebview-qualification
 on:
   push:
-    branches: ["diag/macos-gui-real-human-whisper-*"]
+    branches: ["diag/macos-gui-real-human-whisper-*", "test/macos-gui-whisper-consent-e2e-*"]
 permissions:
   contents: read
 concurrency:
@@ -17,6 +17,8 @@ jobs:
     env:
       CARGO_BUILD_JOBS: "2"
       RUSTFLAGS: "-Dwarnings"
+      # CI-only path: test end-user model consent + model acquisition inside the app.
+      MEDSCALE_MAC_E2E_MODEL_GUI_DOWNLOAD: "1"
     steps:
       - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
       - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
@@ -60,6 +62,7 @@ jobs:
           echo "MEDSCALE_E2E_REAL_WAV_PATH=$wav" >> "$GITHUB_ENV"
           echo "REAL_VOICE_WAV_PREPARED source=LibriSpeech-test-clean license=CC-BY-4.0 clips=1"
       - name: Prepare immutable, digest-verified local Whisper tiny-en Audio Pack
+        if: env.MEDSCALE_MAC_E2E_MODEL_GUI_DOWNLOAD != '1'
         run: |
           set -euo pipefail
           snap="$RUNNER_TEMP/pinned-whisper-snapshot"
@@ -82,14 +85,14 @@ jobs:
       - name: Bundle true native app with CI-only localhost WebDriver enabled
         working-directory: apps/desktop-tauri
         run: npm run tauri -- build --bundles app --no-sign --ci --features custom-protocol,macos-webdriver-ci
-      - name: Real macOS WKWebView import, model admission and nonfixture transcript
-        timeout-minutes: 8
+      - name: Real macOS WKWebView import, consented model download and nonfixture transcript
+        timeout-minutes: 16
         run: python3 -u scripts/ci/macos-webdriver-smoke.py
       - name: Strict source-bound evidence
         if: success()
         run: |
-          echo "Native macOS WKWebView user journey: real pinned LibriSpeech human WAV + genuine, source-bound Whisper tiny-en Pack + visible nonfixture local transcript: PASS." >> "$GITHUB_STEP_SUMMARY"
-          echo "This is one bounded English public-read-speech journey, not general-language WER, medical accuracy, Apple code-signing or end-user upgrade qualification." >> "$GITHUB_STEP_SUMMARY"
+          echo "Native macOS WKWebView user journey: real pinned LibriSpeech human WAV + explicit GUI consent, disk preflight, app-downloaded verified Whisper tiny-en Pack + visible nonfixture local transcript: PASS." >> "$GITHUB_STEP_SUMMARY"
+          echo "This is one bounded English public-read-speech GUI journey, not general-language WER, medical accuracy, Apple code-signing, OS dialog-picker automation or end-user upgrade qualification." >> "$GITHUB_STEP_SUMMARY"
       - name: Remove public audio, model checkpoint, archive and temp Pack
         if: always()
         run: |
