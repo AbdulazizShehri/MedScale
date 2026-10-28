@@ -137,10 +137,14 @@ try:
                 raise AssertionError("Real app rejected model disk preflight; no download attempted")
             print("MAC_NATIVE_WEBDRIVER_MODEL_DISK_PREFLIGHT_PASS")
 
+            install = button(session, "Download, verify and install")
+            if http("GET", f"/session/{session}/element/{install}/enabled") is not False:
+                raise AssertionError("Model download must be disabled before explicit user consent")
+            print("MAC_NATIVE_WEBDRIVER_DOWNLOAD_DISABLED_BEFORE_CONSENT_PASS")
+
             consent = await_element(session, "css selector",
                                     'input[aria-label="Approve Whisper model download"]')
             click(session, consent)
-            install = button(session, "Download, verify and install")
             if http("GET", f"/session/{session}/element/{install}/enabled") is not True:
                 raise AssertionError("Explicit user consent did not enable model download")
             click(session, install)
