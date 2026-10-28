@@ -165,6 +165,19 @@ end tell
                                          + escaped.stderr.strip()[:200])
             if not observed:
                 raise AssertionError(f"No native file/folder dialog observed: {label}")
+            # A successful Escape keystroke alone does not prove the native
+            # AppKit chooser closed. Require the observed extra window/sheet
+            # to disappear before asserting UI recovery or path retention.
+            dismissed = False
+            for _ in range(20):
+                current = picker_windows_and_sheets()
+                if current[0] <= baseline[0] and current[1] <= baseline[1]:
+                    dismissed = True
+                    break
+                time.sleep(1)
+            if not dismissed:
+                raise AssertionError(f"Native file/folder dialog remained open after Escape: {label}")
+            print("MAC_NATIVE_PICKER_OS_DIALOG_DISMISSED_PASS", label)
             recovered = False
             for _ in range(20):
                 if field_value(selector) == expected:
