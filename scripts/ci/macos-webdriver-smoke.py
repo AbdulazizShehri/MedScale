@@ -104,11 +104,13 @@ try:
     # MedScale-signed local Whisper Pack in the disposable runner only.
     wav_path = os.environ.get("MEDSCALE_E2E_REAL_WAV_PATH")
     pack_path = os.environ.get("MEDSCALE_E2E_REAL_ASR_PACK_PATH")
-    if wav_path or pack_path:
-        if not wav_path or not pack_path:
-            raise SystemExit("Real ASR qualification requires both actual WAV and verified Pack")
+    gui_model_download = os.environ.get("MEDSCALE_MAC_E2E_MODEL_GUI_DOWNLOAD") == "1"
+    if wav_path or pack_path or gui_model_download:
+        if not wav_path or not (pack_path or gui_model_download):
+            raise SystemExit("Real ASR requires genuine WAV and either verified Pack or explicit GUI model download")
         temp = Path(os.environ["RUNNER_TEMP"]).resolve()
-        for name, source in (("WAV", wav_path), ("Pack", pack_path)):
+        sources = [("WAV", wav_path)] + ([("Pack", pack_path)] if pack_path else [])
+        for name, source in sources:
             p = Path(source).resolve()
             if temp not in p.parents or not p.exists():
                 raise SystemExit(f"Refusing {name} outside disposable runner temp")
@@ -121,11 +123,36 @@ try:
             http("POST", f"/session/{session}/element/{el}/value",
                  {"text": str(value), "value": list(str(value))})
 
-        fill("#ap1", pack_path)
-        click(session, button(session, "Admit and install"))
-        await_element(session, "xpath",
-                      "//*[contains(text(),'Local Whisper engine installed')]", timeout=110)
-        print("MAC_NATIVE_WEBDRIVER_WHISPER_ADMITTED_PASS")
+        if gui_model_download:
+            # Verify a brand-new user's non-download preflight, explicit source
+            # consent and actual native Core acquisition. Never install anything
+            # on the founder's Mac/PC; this test runs only on GitHub's macOS runner.
+            click(session, button(session, "Check disk budget"))
+            await_element(session, "css selector", '[data-testid="audio-model-preflight"]')
+            sufficient = http("POST", f"/session/{session}/execute/sync", {
+                "script": """return document.querySelector('[data-testid="audio-model-preflight"]')?.textContent?.includes('Enough local storage') === true;""",
+                "args": [],
+            })
+            if sufficient is not True:
+                raise AssertionError("Real app rejected model disk preflight; no download attempted")
+            print("MAC_NATIVE_WEBDRIVER_MODEL_DISK_PREFLIGHT_PASS")
+
+            consent = await_element(session, "css selector",
+                                    'input[aria-label="Approve Whisper model download"]')
+            click(session, consent)
+            install = button(session, "Download, verify and install")
+            if http("GET", f"/session/{session}/element/{install}/enabled") is not True:
+                raise AssertionError("Explicit user consent did not enable model download")
+            click(session, install)
+            await_element(session, "xpath",
+                          "//*[contains(text(),'Local Whisper engine installed')]", timeout=650)
+            print("MAC_NATIVE_WEBDRIVER_CONSENTED_GUI_WHISPER_INSTALL_PASS")
+        else:
+            fill("#ap1", pack_path)
+            click(session, button(session, "Admit and install"))
+            await_element(session, "xpath",
+                          "//*[contains(text(),'Local Whisper engine installed')]", timeout=110)
+            print("MAC_NATIVE_WEBDRIVER_WHISPER_ADMITTED_PASS")
 
         fill("#wp1", wav_path)
         # Exact button: prevent accidentally clicking the synthetic importer.
