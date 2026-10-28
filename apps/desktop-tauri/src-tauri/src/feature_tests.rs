@@ -96,6 +96,73 @@ impl Harness {
     }
 }
 
+/// The production Tauri IPC endpoint must deny model acquisition before
+/// creating a worker, local cache or any network request. This checks the
+/// native command path, not only the React consent checkbox.
+#[test]
+fn model_download_requires_native_consent_and_allowlisted_identity() {
+    let h = Harness::new("model-no-consent");
+    let data_dir = h
+        ._app
+        .state::<crate::host::Host>()
+        .state
+        .lock()
+        .unwrap()
+        .data_dir()
+        .unwrap()
+        .to_path_buf();
+    let models_dir = data_dir.join("audio-models");
+    let existed_before = models_dir.exists();
+
+    let denied = h
+        .call(
+            "audio_model_download_start",
+            json!({ "modelId": "whisper-tiny-en", "consent": false }),
+        )
+        .unwrap_err();
+    assert_eq!(denied["kind"], "denied", "{denied}");
+    assert_eq!(
+        models_dir.exists(),
+        existed_before,
+        "no-consent call unexpectedly created a model cache"
+    );
+
+    for id in [
+        "../../private",
+        "https://example.org/weights",
+        "unknown-model",
+    ] {
+        let error = h
+            .call(
+                "audio_model_download_start",
+                json!({ "modelId": id, "consent": true }),
+            )
+            .unwrap_err();
+        assert_eq!(
+            error["kind"], "invalid",
+            "non-allowlisted model ID {id:?} unexpectedly passed: {error}"
+        );
+    }
+
+    let cancellation = h
+        .call("audio_model_download_cancel", json!({}))
+        .unwrap_err();
+    assert_eq!(
+        cancellation["kind"], "conflict",
+        "a rejected download must never leave a running worker"
+    );
+    let status = h.ok("audio_model_download_status", json!({}));
+    assert!(
+        status["model_id"].is_null(),
+        "refused downloads must not acquire a model: {status}"
+    );
+    assert_eq!(
+        models_dir.exists(),
+        existed_before,
+        "refused downloads must not write to the model cache"
+    );
+}
+
 /// Exercises the real named native command across a simulated app restart,
 /// without an installed model, microphone, user data or external network.
 #[test]
