@@ -16,7 +16,7 @@ Feature surfaces reuse the Slint desktop view models through `crates/medscale-de
 
 Workspaces:
 
-- **Synthetic workspace.** Opens a synthetic vault in app-local data. On first open, two synthetic subjects are seeded through governed FHIR ingest and proposal promotion, using the repository fixtures. Browse, ASR and privacy keys use Core's offline fixtures.
+- **Synthetic workspace.** Opens a synthetic vault in app-local data. On first open, two synthetic subjects are seeded through governed FHIR ingest and proposal promotion, using the repository fixtures. Patient/clinical content remains synthetic; real **nonpatient** speech is an optional separately consented Audio workflow, not an automatically provided fixture.
 - **Encrypted vault.** Created and unlocked with a passphrase, which is not an identity, and gets recovery codes. Core accepts clinical FHIR ingest into synthetic vaults only, so an encrypted vault starts without subjects.
 
 From this directory:
@@ -38,7 +38,7 @@ Native builds on Windows need Strawberry Perl first on `PATH`, with `PERL` point
 4. Choose **Browse WAV…** to import a supported PCM WAV recording (16 kHz, 16-bit). Imports are bounded to **32 MiB**. Choose English or Arabic before transcription, then review and correct the local transcript.
 5. Existing recordings and transcript revisions persist in their workspace. Do not assume closing the window or uninstalling the desktop deletes recorded data; manage retention deliberately.
 
-The application does not silently upload imported recordings. Fetching an approved model is a separate, user-confirmed network operation. A real Windows user-driven transcription and restart was [verified on licensed LibriSpeech audio](https://github.com/AbdulazizShehri/MedScale/actions/runs/40209018576); macOS model acquisition/hash/Pack verification is [separately qualified](https://github.com/AbdulazizShehri/MedScale/actions/runs/40216374598). These checks do not establish identical transcription accuracy or interactive real-speech usability on every macOS device.
+The application does not silently upload imported recordings. Fetching an approved model is a separate, user-confirmed network operation. On standard, disposable GitHub-hosted runners, [Windows native E2E #40575188135](https://github.com/AbdulazizShehri/MedScale/actions/runs/40575188135) passed **26/26** user journeys, including the GUI model download, real LibriSpeech transcription and persistence after restart. [macOS native WKWebView E2E #40687382970](https://github.com/AbdulazizShehri/MedScale/actions/runs/40687382970) independently passed disk preflight, **download disabled before user consent**, user-approved Whisper acquisition and activation, and visible transcription from genuine licensed human speech. The macOS native dialog picker, VoiceOver, offline/insufficient-space errors, signed installer and real end-user hardware remain separate qualifications; read-speech measurements do not establish clinical ASR accuracy.
 
 ## Tests
 
@@ -110,5 +110,5 @@ Whether an uninstall removes app data is measured per platform in the Spec 101 e
 
 - Real PHI is not authorized.
 - Dependency policy runs the repository `deny.toml` unchanged, with the graph limited to the shipped Windows and macOS targets (`scripts/ci/tauri_deny_config.py`); it also fails if any GTK or `glib` crate enters a shipped graph. F096-T01 (`glib` 0.18.5, RUSTSEC-2024-0429) is Linux-only and not ignored; it is why there is no Linux desktop. See `specs/096-tauri-foundation/findings.md`.
-- Unsigned Windows x64 and macOS Apple Silicon engineering installer packaging, native launch and uninstall passed source-bound CI; **production signing/notarization, end-user device and accessibility matrix, real-speech macOS GUI journey and privacy containment** remain separate qualification work.
+- Unsigned Windows x64 and macOS Apple Silicon engineering installer packaging, native launch and uninstall passed source-bound CI; native real-speech Windows and macOS GUI runs are linked above. **Production signing/notarization, end-user device and accessibility matrix, macOS native picker/VoiceOver, offline/low-space negative cases and full privacy containment** remain separate qualification work.
 - Do not infer product or private-data readiness from this desktop.
