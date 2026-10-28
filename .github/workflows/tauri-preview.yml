@@ -7,6 +7,8 @@ on:
   pull_request:
     paths:
       - apps/desktop-tauri/**
+      # Native GUI journey changes require fresh Windows/macOS desktop qualification.
+      - scripts/e2e/desktop-journey.mjs
       - scripts/package-tauri-preview.ps1
       - scripts/package-tauri-release.ps1
       - scripts/verify-tauri-release.ps1
