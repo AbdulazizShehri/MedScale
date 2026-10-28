@@ -127,7 +127,11 @@ fn model_download_requires_native_consent_and_allowlisted_identity() {
         "no-consent call unexpectedly created a model cache"
     );
 
-    for id in ["../../private", "https://example.org/weights", "unknown-model"] {
+    for id in [
+        "../../private",
+        "https://example.org/weights",
+        "unknown-model",
+    ] {
         let error = h
             .call(
                 "audio_model_download_start",
@@ -140,7 +144,9 @@ fn model_download_requires_native_consent_and_allowlisted_identity() {
         );
     }
 
-    let cancellation = h.call("audio_model_download_cancel", json!({})).unwrap_err();
+    let cancellation = h
+        .call("audio_model_download_cancel", json!({}))
+        .unwrap_err();
     assert_eq!(
         cancellation["kind"], "conflict",
         "a rejected download must never leave a running worker"
