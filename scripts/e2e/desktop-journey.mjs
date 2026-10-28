@@ -456,6 +456,31 @@ try {
       });
       if (!nonFixtureWhisper) throw new Error("verified nonfixture local Whisper receipt not visible");
     }, { screenshot: false });
+    await journey("real-human-transcript-linked-retention-denies-removal", async () => {
+      // Genuine CC-BY-4.0 human audio must remain protected after its real
+      // transcript and audit receipt were created. The Core allows removal
+      // only of unreferenced sources; never discard linked evidence here.
+      // This checks the actual native WebView2 UI with no audio, path,
+      // transcript, source identifier or screenshot in public CI output.
+      await nav("Audio");
+      const name = JSON.stringify(path.basename(process.env.MEDSCALE_E2E_REAL_WAV_PATH));
+      const source = "//section[.//span[contains(@class,'sec-t') and normalize-space(.)='Sources']]" +
+        "//div[contains(@class,'lr') and .//span[contains(normalize-space(.), " + name + ")]]";
+      await find(source, 30000);
+      await click(source + "//button[normalize-space(.)='Stored data']");
+      await see("Stored recording inspected", 30000);
+      await find("//p[@role='status' and contains(.,'Stored audio:') and " +
+        "contains(.,'transcript revisions: 1') and contains(.,'audit receipts: 1') and " +
+        "contains(.,'Linked evidence may prevent removal') and " +
+        "contains(.,'Older backups may retain this recording')]", 30000);
+      const denied = await wd("POST", `/session/${sid}/execute/sync`, {
+        script: "return !document.querySelector('#audio-removal-confirmation') && ![...document.querySelectorAll('button')].some(b => b.textContent?.trim() === 'Remove this recording from active vault');",
+        args: [],
+      });
+      if (denied !== true) {
+        throw new Error("linked real human speech was offered destructive active-vault removal");
+      }
+    }, { screenshot: false });
   }
   await journey("medagent-agent-run-evidence", async () => {
     await nav("MedAgent");
