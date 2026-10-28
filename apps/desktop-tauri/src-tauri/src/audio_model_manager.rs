@@ -143,12 +143,10 @@ pub fn catalog(data_dir: &Path) -> Vec<Value> {
     MODELS.iter().map(|m| m.describe(data_dir)).collect()
 }
 
-pub fn preflight(id: &str, data_dir: &Path) -> CmdResult<Value> {
-    let entry = model(id)?;
-    // Data dir is Tauri-owned and resolved by startup. No arbitrary user path.
-    let free_bytes = fs2::available_space(data_dir)
-        .map_err(|_| CmdError::unavailable("Unavailable: cannot measure local free storage"))?;
-    Ok(json!({
+/// Pure projection shared by the real filesystem preflight and deterministic
+/// low-storage regression tests. Never creates a cache or starts a download.
+fn preflight_with_available_bytes(entry: Model, data_dir: &Path, free_bytes: u64) -> Value {
+    json!({
         "model": entry.describe(data_dir),
         "free_bytes": free_bytes,
         "required_space_bytes": entry.required_bytes(),
@@ -156,7 +154,26 @@ pub fn preflight(id: &str, data_dir: &Path) -> CmdResult<Value> {
         "download_started": false,
         "download_requires_explicit_consent": true,
         "cache_entry_exists": entry.directory(data_dir).exists(),
-    }))
+    })
+}
+
+pub fn preflight(id: &str, data_dir: &Path) -> CmdResult<Value> {
+    let entry = model(id)?;
+    // Data dir is Tauri-owned and resolved by startup. No arbitrary user path.
+    let free_bytes = fs2::available_space(data_dir)
+        .map_err(|_| CmdError::unavailable("Unavailable: cannot measure local free storage"))?;
+    Ok(preflight_with_available_bytes(entry, data_dir, free_bytes))
+}
+
+/// This is the same fail-closed decision used by the native download command,
+/// not merely the browser's disabled-button logic.
+fn require_download_space(status: &Value) -> CmdResult<()> {
+    if status["enough_space"] != true {
+        return Err(CmdError::invalid(
+            "Invalid: insufficient local storage for model staging",
+        ));
+    }
+    Ok(())
 }
 
 #[cfg(test)]
@@ -171,6 +188,47 @@ mod tests {
             assert!(entry.required_bytes() > entry.max_snapshot_bytes);
         }
         assert_eq!(MODELS.len(), medscale_pack::ASR_SOURCES.len());
+    }
+
+    #[test]
+    fn low_storage_preflight_blocks_native_download_at_budget_boundary_without_side_effects() {
+        let root = std::env::temp_dir().join(format!(
+            "medscale-low-space-preflight-{}",
+            std::process::id()
+        ));
+        let data_dir = root.join("nonexistent-model-cache");
+        assert!(
+            !data_dir.exists(),
+            "test requires an absent cache directory"
+        );
+        let entry = model("whisper-tiny-en").unwrap();
+        let required = entry.required_bytes();
+        assert!(required > 0);
+
+        for available in [0, required - 1] {
+            let status = preflight_with_available_bytes(entry, &data_dir, available);
+            assert_eq!(status["free_bytes"], available);
+            assert_eq!(status["required_space_bytes"], required);
+            assert_eq!(status["enough_space"], false);
+            assert_eq!(status["download_started"], false);
+            assert_eq!(status["download_requires_explicit_consent"], true);
+            assert_eq!(status["cache_entry_exists"], false);
+            let denied = require_download_space(&status).unwrap_err();
+            assert_eq!(denied.kind, "invalid");
+            assert!(denied.message.contains("insufficient local storage"));
+            assert!(
+                !data_dir.exists(),
+                "preflight must never create a model cache"
+            );
+        }
+
+        let exact = preflight_with_available_bytes(entry, &data_dir, required);
+        assert_eq!(exact["enough_space"], true);
+        require_download_space(&exact).unwrap();
+        assert!(
+            !data_dir.exists(),
+            "budget boundary test must remain read-only"
+        );
     }
 
     #[test]
@@ -585,11 +643,7 @@ pub fn start(host: &Host, model_id: String, consent: bool) -> CmdResult<Value> {
         ));
     }
     let status = preflight(&model_id, &data_dir)?;
-    if status["enough_space"] != true {
-        return Err(CmdError::invalid(
-            "Invalid: insufficient local storage for model staging",
-        ));
-    }
+    require_download_space(&status)?;
     let mut manager = host
         .model_download
         .lock()
