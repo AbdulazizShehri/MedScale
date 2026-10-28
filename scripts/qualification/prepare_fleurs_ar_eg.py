@@ -15,13 +15,15 @@ import wave
 
 import pyarrow.parquet as pq
 
-COUNT = 24
+ALLOWED_COUNTS = frozenset({24, 100})
 MAX_PER_SPEAKER = 4
 
 def rank(i: int) -> str:
     return hashlib.sha256(f"medscale-fleurs-ar-eg-v1:{i}".encode()).hexdigest()
 
-def main(parquet: Path, dest: Path) -> None:
+def main(parquet: Path, dest: Path, count: int) -> None:
+    if count not in ALLOWED_COUNTS:
+        raise ValueError("Only fixed 24/100 FLEURS sample counts are permitted")
     dest.mkdir(parents=True, exist_ok=False)
     reader = pq.ParquetFile(parquet)
     columns = reader.schema_arrow.names
@@ -44,7 +46,7 @@ def main(parquet: Path, dest: Path) -> None:
                     candidate.append((rank(position), position, raw, text, row.get(speaker_key) if speaker_key else None))
             position += 1
     candidate.sort(key=lambda item: item[0])
-    if len(candidate) < COUNT:
+    if len(candidate) < count:
         raise RuntimeError(f"Insufficient real audio samples in pinned FLEURS test split: {len(candidate)}")
     cases, counts = [], {}
     for _, _, raw, text, speaker in candidate:
@@ -68,10 +70,10 @@ def main(parquet: Path, dest: Path) -> None:
         cases.append({"wav": str(wav), "text": text})
         if speaker is not None:
             counts[str(speaker)] = counts.get(str(speaker), 0) + 1
-        if len(cases) >= COUNT:
+        if len(cases) >= count:
             break
-    if len(cases) != COUNT:
-        raise RuntimeError(f"Only {len(cases)}/{COUNT} suitable actual Arabic recordings")
+    if len(cases) != count:
+        raise RuntimeError(f"Only {len(cases)}/{count} suitable actual Arabic recordings")
     (dest / "cases.json").write_text(json.dumps(cases, ensure_ascii=False), encoding="utf-8")
     print(
         f"ARABIC_REAL_DATA_OK clips={len(cases)} language=ar_eg "
@@ -81,6 +83,6 @@ def main(parquet: Path, dest: Path) -> None:
     )
 
 if __name__ == "__main__":
-    if len(sys.argv) != 3:
-        raise SystemExit("usage: prepare_fleurs_ar_eg.py PINNED_PARQUET OUTPUT_DIRECTORY")
-    main(Path(sys.argv[1]), Path(sys.argv[2]))
+    if len(sys.argv) != 4:
+        raise SystemExit("usage: prepare_fleurs_ar_eg.py PINNED_PARQUET OUTPUT_DIRECTORY 24|100")
+    main(Path(sys.argv[1]), Path(sys.argv[2]), int(sys.argv[3]))
