@@ -197,7 +197,10 @@ mod tests {
             std::process::id()
         ));
         let data_dir = root.join("nonexistent-model-cache");
-        assert!(!data_dir.exists(), "test requires an absent cache directory");
+        assert!(
+            !data_dir.exists(),
+            "test requires an absent cache directory"
+        );
         let entry = model("whisper-tiny-en").unwrap();
         let required = entry.required_bytes();
         assert!(required > 0);
@@ -213,13 +216,19 @@ mod tests {
             let denied = require_download_space(&status).unwrap_err();
             assert_eq!(denied.kind, "invalid");
             assert!(denied.message.contains("insufficient local storage"));
-            assert!(!data_dir.exists(), "preflight must never create a model cache");
+            assert!(
+                !data_dir.exists(),
+                "preflight must never create a model cache"
+            );
         }
 
         let exact = preflight_with_available_bytes(entry, &data_dir, required);
         assert_eq!(exact["enough_space"], true);
         require_download_space(&exact).unwrap();
-        assert!(!data_dir.exists(), "budget boundary test must remain read-only");
+        assert!(
+            !data_dir.exists(),
+            "budget boundary test must remain read-only"
+        );
     }
 
     #[test]
