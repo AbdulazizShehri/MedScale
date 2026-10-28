@@ -1,0 +1,86 @@
+# Issue #307: real public human-speech ASR, ephemeral standard runner.
+# Never triggered by main or PRs; downloads no data to founder's PC.
+name: asr-real-public-qualification
+on:
+  push:
+    branches: ["qual-real-asr/**"]
+permissions:
+  contents: read
+concurrency:
+  group: medscale-asr-real-public
+  cancel-in-progress: true
+jobs:
+  human-speech:
+    name: MedScale Whisper / LibriSpeech real test-clean
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    env:
+      REPO: openai/whisper-tiny.en
+      REVISION: 87c7102498dcde7456f24cfd30239ca606ed9063
+      WHISPER_ASSETS_COMMIT: c5d42560760a05584c1c79546a098287e5a771eb
+      CARGO_TERM_COLOR: always
+      MEDSCALE_ASR_REAL_DATASET: openslr/librispeech/test-clean
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v4
+      - uses: dtolnay/rust-toolchain@d1031067263f94b142dd6c0ce24c5eb9d02d52a0
+        with:
+          toolchain: "1.97.1"
+      - name: Install minimal audio conversion and build dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends ffmpeg libfontconfig1-dev
+      - name: Fetch and verify licensed real public data
+        run: |
+          set -euo pipefail
+          curl -fLsS --retry 3 --max-time 240 \
+            https://www.openslr.org/resources/12/test-clean.tar.gz -o "$RUNNER_TEMP/test-clean.tar.gz"
+          echo "32fa31d27d2e1cad72775fee3f4849a9  $RUNNER_TEMP/test-clean.tar.gz" | md5sum --check --status
+          test "$(stat -c '%s' "$RUNNER_TEMP/test-clean.tar.gz")" -eq 346663984
+          sha256sum "$RUNNER_TEMP/test-clean.tar.gz" | awk '{print "ARCHIVE_SHA256 " $1}'
+          python3 scripts/qualification/prepare_librispeech_real_asr.py \
+            "$RUNNER_TEMP/test-clean.tar.gz" "$RUNNER_TEMP/human-speech"
+          echo "MEDSCALE_ASR_CASES=$RUNNER_TEMP/human-speech/cases.json" >> "$GITHUB_ENV"
+      - name: Download pinned real Whisper tiny.en weights and reference filters
+        run: |
+          set -euo pipefail
+          dir="$RUNNER_TEMP/snapshot"
+          mkdir -p "$dir" "$RUNNER_TEMP/mel"
+          curl -sfL -A medscale-qualification --retry 3 \
+            "https://huggingface.co/api/models/$REPO/revision/$REVISION?blobs=true" -o "$dir/metadata.json"
+          for f in config.json tokenizer.json model.safetensors; do
+            curl -sfL -A medscale-qualification --retry 3 \
+              "https://huggingface.co/$REPO/resolve/$REVISION/$f" -o "$dir/$f"
+          done
+          curl -sfL -A medscale-qualification --retry 3 \
+            "https://raw.githubusercontent.com/openai/whisper/$WHISPER_ASSETS_COMMIT/whisper/assets/mel_filters.npz" \
+            -o "$RUNNER_TEMP/mel_filters.npz"
+          python3 -m venv "$RUNNER_TEMP/np"
+          "$RUNNER_TEMP/np/bin/pip" install --quiet "numpy==2.3.4"
+          "$RUNNER_TEMP/np/bin/python" - "$RUNNER_TEMP/mel_filters.npz" "$RUNNER_TEMP/mel" <<'PY'
+          import os, sys, numpy as np
+          with np.load(sys.argv[1]) as source:
+              for name in ("mel_80", "mel_128"):
+                  source[name].astype("<f4").tofile(os.path.join(sys.argv[2], name + ".f32"))
+          PY
+          echo "MEDSCALE_ASR_SNAPSHOT_DIR=$dir" >> "$GITHUB_ENV"
+          echo "MEDSCALE_MEL_FILTERS_DIR=$RUNNER_TEMP/mel" >> "$GITHUB_ENV"
+      - name: Run actual MedScale Audio Pack on 12 human recordings
+        run: |
+          set -euo pipefail
+          cargo +1.97.1 test --release --locked -p medscale-pack --test whisper_external_106 \
+            pinned_whisper_transcribes_synthetic_speech -- --ignored --nocapture --test-threads 1 2>&1 | tee qualification.log
+          grep '^ASR_METRICS ' qualification.log | tail -1 >> "$GITHUB_STEP_SUMMARY"
+          echo "These are REAL licensed, nonclinical audiobook recordings; not PHI and not medical accuracy." >> "$GITHUB_STEP_SUMMARY"
+      - name: Delete audio, weights and scratch materials
+        if: always()
+        run: |
+          rm -rf "$RUNNER_TEMP/test-clean.tar.gz" "$RUNNER_TEMP/human-speech" \
+            "$RUNNER_TEMP/snapshot" "$RUNNER_TEMP/mel" "$RUNNER_TEMP/mel_filters.npz" "$RUNNER_TEMP/np"
+      - name: Retain logs only, no source speech or weights
+        if: always()
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v4.6.2
+        with:
+          name: asr-real-aggregate
+          path: qualification.log
+          if-no-files-found: ignore
+          retention-days: 7
