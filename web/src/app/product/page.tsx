@@ -43,7 +43,7 @@ export default function Product() {
         <div className="shell" style={{ display: "grid", gap: 20, maxWidth: 820 }}>
           <span className="eyebrow">Also in the workspace</span>
           <p className="body" style={{ fontSize: 17 }}>Projects, data snapshots and analytics queries, a governed browser, collaboration rooms, synthetic audio import, the model fleet and FHIR exports are each covered by the desktop end-to-end journeys that run on the release binary. Workflows, tasks, messages and privacy settings are there too.</p>
-          <div className="notice"><strong>Engineering preview</strong><p>Synthetic data only. MedScale is not clinically validated, is not a medical device and must not be used for patient care. See the <a className="text-link" style={{ fontSize: 14 }} href={docs.qualification}>external gates</a>.</p></div>
+          <div className="notice"><strong>Engineering preview</strong><p>Synthetic workspaces and user-approved licensed nonpatient audio are supported. Real patient data and clinical decisions are not authorized; MedScale is not clinically validated. See the <a className="text-link" style={{ fontSize: 14 }} href={docs.qualification}>external gates</a>.</p></div>
         </div>
       </section>
     </main>
