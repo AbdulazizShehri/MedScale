@@ -89,6 +89,26 @@ def focused(session):
     };""")
 
 
+def picker_windows_and_sheets(pid):
+    """Copy-first AppKit window/sheet probe from macos-webdriver-smoke.py."""
+    script = f'''tell application "System Events"
+    set targetProcess to first application process whose unix id is {pid}
+    set windowCount to count of windows of targetProcess
+    set sheetCount to 0
+    if windowCount > 0 then set sheetCount to count of sheets of window 1 of targetProcess
+    return (windowCount as text) & "," & (sheetCount as text)
+end tell'''
+    result = subprocess.run(["osascript", "-e", script],
+                            capture_output=True, text=True, timeout=12)
+    if result.returncode != 0:
+        raise AssertionError("macOS native picker window inspection unavailable: "
+                             + result.stderr.strip()[:220])
+    counts = result.stdout.strip().split(",")
+    if len(counts) != 2 or not all(x.strip().isdigit() for x in counts):
+        raise AssertionError("Unexpected real macOS window/sheet count")
+    return tuple(int(x.strip()) for x in counts)
+
+
 session = None
 process = subprocess.Popen([str(binary)],
                            env=dict(os.environ, TAURI_WEBDRIVER_PORT="4445"),
@@ -139,7 +159,17 @@ try:
         if (not isinstance(metadata, dict) or not metadata.get("isInput")
                 or expected_label not in metadata.get("labels", [])):
             raise AssertionError(f"Accessible HTML label is missing: {field_id}")
+        # Runner-only non-existent sentinel: never import a customer file.
+        suffix = "keyboard-audio.wav" if field_id == "wp1" else "keyboard-pack"
+        expected_path = str(Path(os.environ["RUNNER_TEMP"]) / suffix)
         input_node = element(session, "css selector", f"#{field_id}")
+        http("POST", f"/session/{session}/element/{input_node}/value", {
+            "text": expected_path, "value": list(expected_path),
+        })
+        actual_path = evaluate(session,
+                               f"return document.getElementById('{field_id}')?.value ?? null;")
+        if actual_path != expected_path:
+            raise AssertionError(f"Could not seed disposable input: {field_id}")
         click(session, input_node)
         if focused(session).get("id") != field_id:
             raise AssertionError(f"Mouse click failed to focus native input: {field_id}")
@@ -158,6 +188,63 @@ try:
         if back_focus.get("id") != field_id:
             raise AssertionError(f"Real macOS Shift+Tab did not restore input focus: {field_id}")
         print("MAC_NATIVE_KEYBOARD_SHIFT_TAB_RETURN_PASS", field_id)
+
+        # Extend the proven focus route to an *actual keyboard-triggered*
+        # native AppKit chooser. Adapt the picker counter + real Escape method
+        # from macos-webdriver-smoke.py. No click(), JS event or fake dialog.
+        keypress(process.pid, 48)
+        target = focused(session)
+        if (target.get("tag") != "BUTTON" or
+                expected_button not in target.get("text", "")):
+            raise AssertionError(f"Second real Tab lost Browse focus: {field_id}")
+        baseline = picker_windows_and_sheets(process.pid)
+        keypress(process.pid, 49)  # Real macOS Space on the focused Browse button
+        opened = False
+        try:
+            for _ in range(20):
+                counts = picker_windows_and_sheets(process.pid)
+                if counts[0] > baseline[0] or counts[1] > baseline[1]:
+                    opened = True
+                    break
+                time.sleep(1)
+        finally:
+            # Do not leave native sheet open even on an assertion failure.
+            keypress(process.pid, 53)  # Real PID-targeted macOS Escape
+        if not opened:
+            raise AssertionError(f"Real Space did not open native chooser: {expected_button}")
+        dismissed = False
+        escape_count = 1
+        for attempt in range(2):
+            for _ in range(10 if attempt == 0 else 20):
+                counts = picker_windows_and_sheets(process.pid)
+                if counts[0] <= baseline[0] and counts[1] <= baseline[1]:
+                    dismissed = True
+                    break
+                time.sleep(1)
+            if dismissed:
+                break
+            if attempt == 0:
+                keypress(process.pid, 53)
+                escape_count = 2
+        if not dismissed:
+            raise AssertionError(
+                f"Native chooser remained after {escape_count} real Escape keys: {expected_button}"
+            )
+        print("MAC_NATIVE_KEYBOARD_SPACE_OPENS_OS_PICKER_PASS", expected_button)
+        print("MAC_NATIVE_KEYBOARD_ESCAPE_DISMISSES_OS_PICKER_PASS", expected_button)
+        retained = False
+        for _ in range(20):
+            actual_path = evaluate(session,
+                                   f"return document.getElementById('{field_id}')?.value ?? null;")
+            browse_node = button(session, expected_button)
+            if (actual_path == expected_path and
+                    http("GET", f"/session/{session}/element/{browse_node}/enabled") is True):
+                retained = True
+                break
+            time.sleep(1)
+        if not retained:
+            raise AssertionError(f"Keyboard picker cancellation lost input or control: {field_id}")
+        print("MAC_NATIVE_KEYBOARD_PICKER_CANCEL_RETAINS_PATH_PASS", field_id)
 
     print("MAC_NATIVE_KEYBOARD_LABELS_AND_FOCUS_ORDER_PASS")
 finally:
