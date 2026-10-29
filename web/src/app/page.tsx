@@ -8,7 +8,7 @@ import { Quickstart } from "@/components/Quickstart";
 import { Shot } from "@/components/Shot";
 import { asset, docs, github, pageMeta } from "@/lib/site";
 
-const homeMeta = pageMeta("/", "Your health AI. One open workspace.", "Open-source, local-first workspace for health records, evidence and AI models. Engineering preview for synthetic data.");
+const homeMeta = pageMeta("/", "Your health AI. One open workspace.", "Open-source, local-first workspace for health records, evidence and AI models. Engineering preview: synthetic workspaces and user-approved licensed nonpatient audio.");
 const homeTitle = "MedScale — Your health AI. One open workspace.";
 export const metadata: Metadata = { ...homeMeta, title: { absolute: homeTitle }, openGraph: { ...homeMeta.openGraph, title: homeTitle }, twitter: { ...homeMeta.twitter, title: homeTitle } };
 
@@ -20,7 +20,7 @@ const strip = [
 ];
 
 const faq = [
-  ["Can I use MedScale with real patient records?", "No. MedScale is an open-source engineering preview. It is authorized for synthetic data only, is not clinically validated and is not a medical device. Real patient data, clinical decisions and production deployments are out of scope until the external gates are met."],
+  ["Can I use MedScale with real patient records?", "No. MedScale is an open-source engineering preview. Synthetic workspace fixtures and user-approved licensed nonpatient audio are supported for local testing and transcription. MedScale is not clinically validated; real patient records, clinical decisions and production deployments are not authorized until external qualification gates are met."],
   ["Is there an installer I can download?", "Not a public one yet. CI builds unsigned engineering-preview packages for Windows and macOS to test the release process, but they are not signed, notarized or qualified for public use. You can build the desktop app from source on Windows and macOS today, and the CLI on Windows, macOS and Linux."],
   ["Does MedScale need the cloud or an account?", "No. The Rust Core runs locally and network access is denied by default; browsing and egress are explicit, governed actions. Local workspace access is not organizational sign-in, and a full privacy qualification is still an open gate."],
   ["Which AI models does it run?", "Models run locally through MedScale's own runtime, from admitted model packs. The desktop app includes a browsable catalog of models with their source, task, format and size. A model being listed in the catalog does not mean it is qualified for any clinical task."],
@@ -34,7 +34,7 @@ export default function Home() {
       <section className="hero" aria-labelledby="hero-title">
         <div className="shell">
           <div className="hero-copy">
-            <a className="status-pill" href={docs.qualification}><b>Preview</b><span>Open source · synthetic data only</span><ArrowRight size={14} /></a>
+            <a className="status-pill" href={docs.qualification}><b>Preview</b><span>Open source · local first</span><ArrowRight size={14} /></a>
             <h1 id="hero-title" className="display">Your health AI.<br /><span className="mute">One open workspace.</span></h1>
             <p className="lede">MedScale brings records, evidence and local AI models into one source-aware desktop workspace. Open source, local-first, and built so a person stays in charge of every decision.</p>
             <div className="actions">
@@ -173,7 +173,7 @@ export default function Home() {
             <p className="lede">The source is open today. A signed public installer is not released yet, so each platform shows exactly what you can run now.</p>
           </div>
           <DownloadCards />
-          <div className="download-foot"><span>Engineering preview · synthetic data only · not for clinical use</span><Link className="text-link" href="/download/" style={{ fontSize: 13 }}>Full release status</Link></div>
+          <div className="download-foot"><span>Engineering preview · synthetic workspaces + licensed nonpatient audio · not for clinical use</span><Link className="text-link" href="/download/" style={{ fontSize: 13 }}>Full release status</Link></div>
         </div>
       </section>
 
