@@ -99,6 +99,70 @@ try:
     button(session, "Import synthetic tone sample")
     print("MAC_NATIVE_WEBDRIVER_AUDIO_CONTROLS_PASS")
 
+    # A CI-only network failure is injected into the real native model HTTP
+    # entry point before it can send bytes. This exercises the shipped GUI,
+    # native worker and cleanup/error state without any model download.
+    if os.getenv("MEDSCALE_MAC_E2E_FORCE_OFFLINE") == "1":
+        if os.getenv("MEDSCALE_MAC_E2E_MODEL_GUI_DOWNLOAD") == "1" or os.getenv("MEDSCALE_E2E_REAL_WAV_PATH"):
+            raise AssertionError("Offline negative proof cannot run with real model or audio sources")
+        click(session, button(session, "Check disk budget"))
+        await_element(session, "css selector", '[data-testid="audio-model-preflight"]')
+        preflight = http("POST", f"/session/{session}/execute/sync", {
+            "script": """return document.querySelector('[data-testid="audio-model-preflight"]')?.textContent?.includes('Enough local storage') === true;""",
+            "args": [],
+        })
+        if preflight is not True:
+            raise AssertionError("Host lacks sufficient free storage to test network failure; no download attempted")
+        install = button(session, "Download, verify and install")
+        if http("GET", f"/session/{session}/element/{install}/enabled") is not False:
+            raise AssertionError("Model download must require consent before offline error test")
+        print("MAC_NATIVE_OFFLINE_GUI_CONSENT_REQUIRED_PASS")
+        consent = await_element(session, "css selector",
+                                'input[aria-label="Approve Whisper model download"]')
+        click(session, consent)
+        if http("GET", f"/session/{session}/element/{install}/enabled") is not True:
+            raise AssertionError("Checked storage and approval did not enable selected model download")
+        click(session, install)
+        failed_cleanly = False
+        end = time.monotonic() + 55
+        while time.monotonic() < end:
+            observation = http("POST", f"/session/{session}/execute/sync", {
+                "script": """const status=[...document.querySelectorAll('[role="status"]')].map(el=>el.textContent||'');return {failed:status.some(t=>t.includes('Model download: error.')&&t.includes('Network request failed; check connection and retry')&&t.includes('0 MiB received')),installed:document.body.innerText.includes('Local Whisper engine installed')};""",
+                "args": [],
+            })
+            if observation.get("installed"):
+                raise AssertionError("Model was unexpectedly installed in a no-network negative test")
+            if observation.get("failed"):
+                failed_cleanly = True
+                break
+            time.sleep(2)
+        if not failed_cleanly:
+            raise AssertionError("Actual native download worker did not expose a sanitized offline error in WKWebView")
+
+        # The injected native acquisition path writes this path marker only
+        # into RUNNER_TEMP. Inspect the actual cache root, never an inferred
+        # application directory. No staging or verified Pack may survive.
+        marker = Path(os.environ["RUNNER_TEMP"]) / "medscale-offline-cache-root.txt"
+        if not marker.is_file():
+            raise AssertionError("Native worker was not reached: missing CI cache-root proof")
+        model_root = Path(marker.read_text().strip())
+        if model_root.name != "audio-models" or Path.home() not in model_root.parents:
+            raise AssertionError("Native worker reported an unexpected cache root")
+        if not model_root.is_dir():
+            raise AssertionError("Native model staging directory was not created")
+        if (model_root / "whisper-tiny-en").exists():
+            raise AssertionError("Unverified model was published after offline failure")
+        if any(p.name.startswith(".download-") for p in model_root.iterdir()):
+            raise AssertionError("Offline failure left an app-owned temporary model stage")
+        print("MAC_NATIVE_OFFLINE_ERROR_AND_OWNED_STAGE_CLEANUP_PASS")
+
+        if http("GET", f"/session/{session}/element/{install}/enabled") is not False:
+            raise AssertionError("Failed download unexpectedly retained previous user consent")
+        click(session, consent)
+        if http("GET", f"/session/{session}/element/{install}/enabled") is not True:
+            raise AssertionError("User cannot retry failed offline download after a new explicit approval")
+        print("MAC_NATIVE_OFFLINE_RECONSENT_RETRY_READY_PASS")
+
     # This runs only on an ephemeral GitHub macOS runner and never selects a
     # file. It must observe an actual new OS window/sheet, then cancel it
     # through macOS accessibility rather than mocking the Tauri dialog API.
