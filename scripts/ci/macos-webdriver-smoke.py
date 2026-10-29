@@ -104,14 +104,13 @@ try:
     # through macOS accessibility rather than mocking the Tauri dialog API.
     if os.getenv("MEDSCALE_MAC_E2E_NATIVE_PICKER_CANCEL") == "1":
         def picker_windows_and_sheets():
-            apple = """
+            apple = f"""
 tell application "System Events"
-    tell (first application process whose frontmost is true)
-        set windowCount to count of windows
-        set sheetCount to 0
-        if windowCount > 0 then set sheetCount to count of sheets of window 1
-        return (windowCount as text) & "," & (sheetCount as text)
-    end tell
+    set targetProcess to first application process whose unix id is ${process.pid}
+    set windowCount to count of windows of targetProcess
+    set sheetCount to 0
+    if windowCount > 0 then set sheetCount to count of sheets of window 1 of targetProcess
+    return (windowCount as text) & "," & (sheetCount as text)
 end tell
 """
             result = subprocess.run(["osascript", "-e", apple],
@@ -157,7 +156,11 @@ end tell
                 # automation's Escape key: no fake cancellation success.
                 escaped = subprocess.run(
                     ["osascript", "-e",
-                     'tell application "System Events" to key code 53'],
+                     f'''tell application "System Events"
+    set targetProcess to first application process whose unix id is {process.pid}
+    set frontmost of targetProcess to true
+    key code 53
+end tell'''],
                     capture_output=True, text=True, timeout=12,
                 )
                 if escaped.returncode != 0:
@@ -169,14 +172,16 @@ end tell
             # AppKit chooser closed. Require the observed extra window/sheet
             # to disappear before asserting UI recovery or path retention.
             dismissed = False
+            last_count = None
             for _ in range(20):
                 current = picker_windows_and_sheets()
+                last_count = current
                 if current[0] <= baseline[0] and current[1] <= baseline[1]:
                     dismissed = True
                     break
                 time.sleep(1)
             if not dismissed:
-                raise AssertionError(f"Native file/folder dialog remained open after Escape: {label}")
+                raise AssertionError(f"Native file/folder dialog remained open after targeted Escape: {label}; baseline={baseline}, observed={current}, final={last_count}")
             print("MAC_NATIVE_PICKER_OS_DIALOG_DISMISSED_PASS", label)
             recovered = False
             for _ in range(20):
