@@ -58,7 +58,9 @@ for (const f of files) {
 
 const home = read(path.join(out, "index.html"));
 const dl = read(path.join(out, "download/index.html"));
-check(home.includes("synthetic data only"), "home: preview disclosure missing");
+check(home.includes("synthetic workspaces + licensed nonpatient audio"), "home: accurate preview data scope missing");
+check(home.includes("real patient records, clinical decisions and production deployments are not authorized"), "home: patient/clinical restriction missing");
+check(!home.includes("synthetic data only"), "home: inaccurate synthetic-only claim reintroduced");
 check(home.includes("Real screenshot"), "home: screenshot provenance label missing");
 check(home.includes("Interactive example"), "home: interactive example label missing");
 check(dl.includes("There is no signed public installer yet"), "download: release status missing");
