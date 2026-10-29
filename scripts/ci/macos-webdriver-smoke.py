@@ -99,6 +99,68 @@ try:
     button(session, "Import synthetic tone sample")
     print("MAC_NATIVE_WEBDRIVER_AUDIO_CONTROLS_PASS")
 
+    # CI-only zero-byte model budget in actual native preflight and download IPC.
+    # No disk filling, weights, recordings, network, or founder-device access.
+    if os.getenv("MEDSCALE_MAC_E2E_FORCE_LOW_SPACE") == "1":
+        if (os.getenv("MEDSCALE_MAC_E2E_FORCE_OFFLINE") == "1" or
+                os.getenv("MEDSCALE_MAC_E2E_MODEL_GUI_DOWNLOAD") == "1" or
+                os.getenv("MEDSCALE_E2E_REAL_WAV_PATH")):
+            raise AssertionError("Low-storage test cannot use real models, audio or network fault")
+        click(session, button(session, "Check disk budget"))
+        await_element(session, "css selector", '[data-testid="audio-model-preflight"]')
+        preflight = http("POST", f"/session/{session}/execute/sync", {
+            "script": """const el=document.querySelector('[data-testid="audio-model-preflight"]');return {text:el?.textContent||'',installed:document.body.innerText.includes('Local Whisper engine installed')};""",
+            "args": [],
+        })
+        if (not isinstance(preflight, dict) or preflight.get("installed") or
+                "Insufficient free storage; no download should start." not in preflight.get("text", "") or
+                "No download has started." not in preflight.get("text", "")):
+            raise AssertionError("Native WKWebView did not show insufficient-storage preflight")
+        install = button(session, "Download, verify and install")
+        consent = await_element(session, "css selector",
+                                'input[aria-label="Approve Whisper model download"]')
+        if http("GET", f"/session/{session}/element/{install}/enabled") is not False:
+            raise AssertionError("Low-storage GUI enabled download before consent")
+        click(session, consent)
+        if http("GET", f"/session/{session}/element/{install}/enabled") is not False:
+            raise AssertionError("Consent incorrectly overrode insufficient storage")
+        print("MAC_NATIVE_LOW_SPACE_GUI_DENIED_WITH_CONSENT_PASS")
+
+        # Bypass the disabled button to prove the Rust IPC independently denies.
+        started = http("POST", f"/session/{session}/execute/sync", {
+            "script": """window.__medscaleLowSpaceIPC={kind:'pending'};const invoke=window.__TAURI_INTERNALS__?.invoke;if(typeof invoke!=='function')return 'native IPC unavailable';invoke('audio_model_download_start',{modelId:'whisper-tiny-en',consent:true}).then(()=>{window.__medscaleLowSpaceIPC={kind:'unexpected-success'}}).catch(e=>{window.__medscaleLowSpaceIPC={kind:'rejected',detail:typeof e==='string'?e:JSON.stringify(e)}});return 'started';""",
+            "args": [],
+        })
+        if started != "started":
+            raise AssertionError(f"Native IPC was unavailable in actual WKWebView: {started}")
+        result = None
+        deadline = time.monotonic() + 25
+        while time.monotonic() < deadline:
+            result = http("POST", f"/session/{session}/execute/sync", {
+                "script": "return window.__medscaleLowSpaceIPC||null;",
+                "args": [],
+            })
+            if isinstance(result, dict) and result.get("kind") != "pending":
+                break
+            time.sleep(1)
+        if (not isinstance(result, dict) or result.get("kind") != "rejected" or
+                "insufficient local storage" not in result.get("detail", "").lower()):
+            raise AssertionError(f"Native Rust IPC did not reject insufficient storage: {result}")
+        print("MAC_NATIVE_LOW_SPACE_DIRECT_IPC_DENIED_PASS")
+
+        marker = Path(os.environ["RUNNER_TEMP"]) / "medscale-low-space-cache-root.txt"
+        if not marker.is_file():
+            raise AssertionError("Native preflight was not reached")
+        root = Path(marker.read_text().strip())
+        if root.name != "audio-models" or Path.home() not in root.parents:
+            raise AssertionError("Native preflight returned unexpected cache path")
+        if root.exists() and (root.joinpath("whisper-tiny-en").exists() or
+                any(p.name.startswith(".download-") for p in root.iterdir())):
+            raise AssertionError("Low storage created a model Pack or temporary download")
+        if (Path(os.environ["RUNNER_TEMP"]) / "medscale-low-space-acquire-entered.txt").exists():
+            raise AssertionError("Native model acquisition ran despite insufficient storage")
+        print("MAC_NATIVE_LOW_SPACE_NO_STAGING_OR_NETWORK_PASS")
+
     # A CI-only network failure is injected into the real native model HTTP
     # entry point before it can send bytes. This exercises the shipped GUI,
     # native worker and cleanup/error state without any model download.
