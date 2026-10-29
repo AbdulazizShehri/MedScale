@@ -115,7 +115,7 @@ try:
         click(session, button(session, "Check disk budget"))
         await_element(session, "css selector", '[data-testid="audio-model-preflight"]')
         preflight = http("POST", f"/session/{session}/execute/sync", {
-            "script": """const s=document.querySelector('[data-testid="audio-model-preflight"]')?.textContent||'';return {insufficient:s.includes('Insufficient free storage'),zero:s.includes('Free: 0 B'),notStarted:s.includes('No download has started')};""",
+            "script": """const s=document.querySelector('[data-testid="audio-model-preflight"]')?.textContent||'';return {insufficient:s.includes('Insufficient free storage'),zero:s.includes('Free: 0 MiB'),notStarted:s.includes('No download has started')};""",
             "args": [],
         })
         if preflight != {"insufficient": True, "zero": True, "notStarted": True}:
