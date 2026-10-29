@@ -9,7 +9,7 @@ export function Footer() {
           <div className="footer-brand">
             <Link href="/" aria-label="MedScale home"><img src={asset("/brand/medscale-horizontal-white.svg")} alt="" width={95} height={24} /></Link>
             <p>An open-source, local-first workspace for health records, evidence and AI models.</p>
-            <p>Engineering preview. Synthetic data only. Not for clinical use.</p>
+            <p>Engineering preview. Synthetic workspaces and licensed nonpatient audio. Not for clinical use.</p>
           </div>
           <div className="footer-col">
             <h2>Product</h2>
