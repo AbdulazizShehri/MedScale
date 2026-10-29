@@ -99,6 +99,58 @@ try:
     button(session, "Import synthetic tone sample")
     print("MAC_NATIVE_WEBDRIVER_AUDIO_CONTROLS_PASS")
 
+    # Exercise native storage preflight and real WKWebView button gating under
+    # a CI-only 0-byte simulation. No actual disk fill, HTTP or model bytes.
+    if os.getenv("MEDSCALE_MAC_E2E_FORCE_LOW_STORAGE") == "1":
+        if any(os.getenv(k) for k in (
+            "MEDSCALE_MAC_E2E_FORCE_OFFLINE",
+            "MEDSCALE_MAC_E2E_MODEL_GUI_DOWNLOAD",
+            "MEDSCALE_E2E_REAL_WAV_PATH",
+            "MEDSCALE_E2E_REAL_ASR_PACK_PATH",
+        )):
+            raise AssertionError("Low-space safety test must not run with network/model/audio mode")
+        install = button(session, "Download, verify and install")
+        if http("GET", f"/session/{session}/element/{install}/enabled") is not False:
+            raise AssertionError("No download should be available before preflight and approval")
+        click(session, button(session, "Check disk budget"))
+        await_element(session, "css selector", '[data-testid="audio-model-preflight"]')
+        preflight = http("POST", f"/session/{session}/execute/sync", {
+            "script": """const s=document.querySelector('[data-testid="audio-model-preflight"]')?.textContent||'';return {insufficient:s.includes('Insufficient free storage'),zero:s.includes('Free: 0 B'),notStarted:s.includes('No download has started')};""",
+            "args": [],
+        })
+        if preflight != {"insufficient": True, "zero": True, "notStarted": True}:
+            raise AssertionError(f"Native zero-space preflight did not render fail-closed state: {preflight}")
+        if http("GET", f"/session/{session}/element/{install}/enabled") is not False:
+            raise AssertionError("Zero free space unexpectedly enabled download before consent")
+        consent = await_element(session, "css selector",
+                                'input[aria-label="Approve Whisper model download"]')
+        click(session, consent)
+        if http("GET", f"/session/{session}/element/{install}/enabled") is not False:
+            raise AssertionError("Consent must not override native insufficient-storage rejection")
+        print("MAC_NATIVE_LOW_SPACE_GUI_DENIES_WITH_CONSENT_PASS")
+
+        # The temporary runner Rust preflight records the app-owned data dir
+        # so we can inspect the right cache root without guessing platform
+        # paths. The UI does not start a worker or write a staging folder.
+        marker = Path(os.environ["RUNNER_TEMP"]) / "medscale-low-storage-data-dir.txt"
+        if not marker.is_file():
+            raise AssertionError("Native storage preflight never ran: missing runner marker")
+        data_dir = Path(marker.read_text().strip())
+        if Path.home() not in data_dir.parents or not data_dir.is_dir():
+            raise AssertionError("Native preflight did not resolve an app-owned macOS data folder")
+        models = data_dir / "audio-models"
+        if models.exists():
+            if (models / "whisper-tiny-en").exists() or any(
+                    p.name.startswith(".download-") for p in models.iterdir()):
+                raise AssertionError("Low-space inspection created an installed or temporary model")
+        status = http("POST", f"/session/{session}/execute/sync", {
+            "script": """return [...document.querySelectorAll('[role="status"]')].some(e=>/Model download: (downloading|verifying|ready)/.test(e.textContent||''));""",
+            "args": [],
+        })
+        if status is not False:
+            raise AssertionError("Unexpected model-download worker state after low-space denial")
+        print("MAC_NATIVE_LOW_SPACE_NO_WORKER_NO_CACHE_PASS")
+
     # A CI-only network failure is injected into the real native model HTTP
     # entry point before it can send bytes. This exercises the shipped GUI,
     # native worker and cleanup/error state without any model download.
