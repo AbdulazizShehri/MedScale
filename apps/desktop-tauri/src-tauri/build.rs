@@ -4,6 +4,9 @@
 /// mechanism against someone intentionally changing source or environment.
 fn verify_webdriver_build_scope() {
     println!("cargo:rerun-if-env-changed=MEDSCALE_E2E_WEBDRIVER_CI");
+    // Revalidate the CI-only scope when a cached Cargo target changes runners.
+    println!("cargo:rerun-if-env-changed=GITHUB_ACTIONS");
+    println!("cargo:rerun-if-env-changed=RUNNER_OS");
     if std::env::var_os("CARGO_FEATURE_E2E_WEBDRIVER").is_none() {
         return;
     }

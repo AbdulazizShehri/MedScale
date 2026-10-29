@@ -82,6 +82,10 @@ test("the test-only e2e-webdriver build is never used for packaging or release",
   assert.match(guard, /MEDSCALE_E2E_WEBDRIVER_CI/);
   assert.match(guard, /GITHUB_ACTIONS/);
   assert.match(guard, /RUNNER_OS/);
+  // Cargo must rerun the build script if CI provenance changes in a reused target dir.
+  for (const variable of ["MEDSCALE_E2E_WEBDRIVER_CI", "GITHUB_ACTIONS", "RUNNER_OS"]) {
+    assert.ok(guard.includes(`cargo:rerun-if-env-changed=${variable}`));
+  }
   assert.match(desktopE2e, /MEDSCALE_E2E_WEBDRIVER_CI: "1"/);
   assert.match(realVoiceE2e, /MEDSCALE_E2E_WEBDRIVER_CI: "1"/);
   for (const file of readdirSync(workflows)) {
