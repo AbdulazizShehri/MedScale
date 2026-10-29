@@ -150,7 +150,12 @@ mod tests {
         let raw = "panic at /Users/example/PrivateNotes/synthetic-secret-token";
         let shown = message(raw);
         assert_eq!(shown, message("some different OS error"));
-        for fragment in ["/Users/", "PrivateNotes", "synthetic-secret-token", "panic at"] {
+        for fragment in [
+            "/Users/",
+            "PrivateNotes",
+            "synthetic-secret-token",
+            "panic at",
+        ] {
             assert!(!shown.contains(fragment));
         }
         assert!(shown.contains("WebView2 Evergreen Runtime"));
