@@ -39,6 +39,29 @@ probe = """    if std::env::var("MEDSCALE_MAC_E2E_FORCE_OFFLINE").as_deref() == 
         .map_err(|_| "Cannot record CI-only app cache path".to_owned())?;
     }
 """
+# Seed an unrelated sentinel and synthetic partial staging payload *inside*
+# the real acquire() cleanup scope. No model bytes, real recordings or HTTP.
+# The native GUI assertion must prove that only the exclusively created
+# download stage disappears while this independent cache file survives.
+run_anchor = "    let run = || -> Result<String, String> {\\n"
+if body.count(run_anchor) != 1:
+    raise SystemExit("Native acquisition cleanup scope missing or ambiguous")
+stage_fixture = """        if std::env::var("MEDSCALE_MAC_E2E_FORCE_OFFLINE").as_deref() == Ok("1") {
+            let mut sentinel = std::fs::OpenOptions::new()
+                .write(true)
+                .create_new(true)
+                .open(root.join("ci-offline-unrelated-sentinel.txt"))
+                .map_err(|_| "Cannot create CI-only unrelated sentinel".to_owned())?;
+            std::io::Write::write_all(&mut sentinel, b"ci-only-preserve-me")
+                .map_err(|_| "Cannot write CI-only unrelated sentinel".to_owned())?;
+            std::fs::write(
+                work.join("ci-offline-partial-stage.bin"),
+                b"synthetic-nonmodel-payload",
+            )
+            .map_err(|_| "Cannot seed CI-only partial staging payload".to_owned())?;
+        }
+"""
 body = body.replace(anchor, fault + anchor, 1)
-source.write_text(body.replace(cache_anchor, cache_anchor + probe, 1))
-print("MAC_NATIVE_OFFLINE_FAULT_INSTRUMENTED: no HTTP, exact cache-root proof path in RUNNER_TEMP")
+body = body.replace(cache_anchor, cache_anchor + probe, 1)
+source.write_text(body.replace(run_anchor, run_anchor + stage_fixture, 1))
+print("MAC_NATIVE_OFFLINE_FAULT_INSTRUMENTED: no HTTP, synthetic partial stage, preserved unrelated sentinel, exact cache-root proof")
