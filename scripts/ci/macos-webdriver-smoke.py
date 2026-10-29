@@ -123,6 +123,22 @@ end tell
                 raise AssertionError("Unexpected macOS window/sheet count from System Events")
             return tuple(int(x.strip()) for x in parts)
 
+        def send_targeted_escape():
+            # Use the launched app PID, not whichever application happens to
+            # be frontmost on the disposable macOS runner.
+            escaped = subprocess.run(
+                ["osascript", "-e",
+                 f'''tell application "System Events"
+    set targetProcess to first application process whose unix id is {process.pid}
+    set frontmost of targetProcess to true
+    key code 53
+end tell'''],
+                capture_output=True, text=True, timeout=12,
+            )
+            if escaped.returncode != 0:
+                raise AssertionError("Native dialog cancellation requires macOS Accessibility approval: "
+                                     + escaped.stderr.strip()[:200])
+
         def field_value(selector):
             return http("POST", f"/session/{session}/execute/sync", {
                 "script": "return document.querySelector(arguments[0])?.value ?? null;",
@@ -154,18 +170,7 @@ end tell
             finally:
                 # Fail instead of claiming qualification if macOS denies
                 # automation's Escape key: no fake cancellation success.
-                escaped = subprocess.run(
-                    ["osascript", "-e",
-                     f'''tell application "System Events"
-    set targetProcess to first application process whose unix id is {process.pid}
-    set frontmost of targetProcess to true
-    key code 53
-end tell'''],
-                    capture_output=True, text=True, timeout=12,
-                )
-                if escaped.returncode != 0:
-                    raise AssertionError("Native dialog cancellation requires macOS Accessibility approval: "
-                                         + escaped.stderr.strip()[:200])
+                send_targeted_escape()
             if not observed:
                 raise AssertionError(f"No native file/folder dialog observed: {label}")
             # A successful Escape keystroke alone does not prove the native
@@ -173,15 +178,29 @@ end tell'''],
             # to disappear before asserting UI recovery or path retention.
             dismissed = False
             last_count = None
-            for _ in range(20):
-                current = picker_windows_and_sheets()
-                last_count = current
-                if current[0] <= baseline[0] and current[1] <= baseline[1]:
-                    dismissed = True
+            escape_attempts = 1
+            # Native folder panels can consume the first Escape inside a
+            # focused subcontrol without closing the enclosing AppKit sheet.
+            # Observe that explicitly and allow one more *real* OS Escape,
+            # never an injected JavaScript/mocked dialog cancellation.
+            for attempt in range(2):
+                for _ in range(8 if attempt == 0 else 20):
+                    current = picker_windows_and_sheets()
+                    last_count = current
+                    if current[0] <= baseline[0] and current[1] <= baseline[1]:
+                        dismissed = True
+                        break
+                    time.sleep(1)
+                if dismissed:
                     break
-                time.sleep(1)
+                if attempt == 0:
+                    print("MAC_NATIVE_PICKER_FIRST_ESCAPE_UNDISMISSED", label,
+                          f"baseline={baseline}", f"remaining={last_count}")
+                    send_targeted_escape()
+                    escape_attempts = 2
             if not dismissed:
-                raise AssertionError(f"Native file/folder dialog remained open after targeted Escape: {label}; baseline={baseline}, observed={current}, final={last_count}")
+                raise AssertionError(f"Native file/folder dialog remained open after {escape_attempts} targeted Escape key(s): {label}; baseline={baseline}, observed={current}, final={last_count}")
+            print("MAC_NATIVE_PICKER_ESCAPE_ATTEMPTS", label, escape_attempts)
             print("MAC_NATIVE_PICKER_OS_DIALOG_DISMISSED_PASS", label)
             recovered = False
             for _ in range(20):
