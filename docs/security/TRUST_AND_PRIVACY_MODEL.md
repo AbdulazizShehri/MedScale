@@ -1,15 +1,20 @@
 # MedScale trust and privacy model
 
-Date: 2026-09-09. Source baseline: `b49592c83d23542363f671afe6a9ae65fc65b276`.
-Scope: actual local product code and conditional future boundaries. Source-backed architecture
-review, not a penetration test or exhaustive vulnerability audit. No real PHI is authorized.
+Original review: 2026-09-09, source baseline `b49592c83d23542363f671afe6a9ae65fc65b276`.
+Current desktop boundary correction: 2026-10-29, source baseline `a3c6454a35f00c86dfa1e7e0f7213a5740bc7309`.
+The historical resource and threat-model rows below remain scoped to the original review unless
+explicitly updated here. This is source-backed architecture documentation, **not** a fresh
+penetration test, OS privacy audit, or authorization for real PHI.
 
 ## Overview
 
-The current CLI owns a transient in-process CoreFacade. Desktop is a non-WebView scaffold.
-The intended authenticated Core Host, isolated workers and native mobile apps are not yet
-established runtime boundaries. A separate fresh-context architecture review checked the
-source; material resource facts were checked again against their consumers.
+The CLI uses a local in-process Core facade. The current native Windows/macOS desktop is a
+**Tauri 2 WebView** with a Rust-owned local host and explicitly named commands; it is no
+longer the non-WebView scaffold described in the September baseline. The WebView invokes
+allowlisted local Tauri commands in the app process, **not** a remotely authenticated Core
+Host. The intended peer-authenticated Core Host, qualified OS-constrained workers and native
+mobile apps remain separate unqualified boundaries. Historical resource rows below are not
+a complete current desktop storage-path inventory.
 
 | Component | Placement | Source evidence |
 |---|---|---|
@@ -20,11 +25,14 @@ source; material resource facts were checked again against their consumers.
 | future native model/document processes | SANDBOXED_COMPONENT / BOUNDED_WORKER, not qualified | `crates/medscale-contracts/src/os_sandbox/mod.rs:121` |
 | network broker | Trusted policy boundary; fixture transport only | `crates/medscale-core/src/authority/facade.rs:651`, `crates/medscale-network/src/transport.rs:26` |
 | SMART/NPHIES/HF/MESC producer | EXTERNAL_SERVICE / artifact producer; live integration gated | `crates/medscale-core/src/authority/facade.rs:893` |
-| UI and future mobile | Untrusted client presentation; not clinical authority | `crates/medscale-desktop/src/main.rs:1`, `crates/medscale-contracts/src/mobile/mod.rs:49` |
+| Current Tauri desktop | WebView client is untrusted presentation; local Rust `host::Host` owns Core sessions, vault path and named command results | `apps/desktop-tauri/src-tauri/src/main.rs`, `apps/desktop-tauri/src-tauri/src/host.rs`, `apps/desktop-tauri/src-tauri/capabilities/default.json` |
+| Legacy desktop scaffold and future mobile | Non-authoritative presentation and proposed mobile contract; not the current Tauri runtime | `crates/medscale-desktop/src/main.rs`, `crates/medscale-contracts/src/mobile/mod.rs` |
 
 ```mermaid
 flowchart TD
-  UI[CLI / desktop client] --> AUTH[Rust authority facade]
+  UI[Tauri WebView client] -->|main-window named command allowlist| HOST[Local Rust desktop host]
+  HOST --> AUTH[Rust authority facade]
+  CLI[Local CLI] --> AUTH
   AUTH --> STORE[Canonical metadata and source custody]
   AUTH --> KEY[Vault key owner]
   STORE --> VIEW[Rebuildable projections]
@@ -38,7 +46,17 @@ flowchart TD
 ```
 
 Dashed paths describe intended, gated functionality. This diagram is not evidence of OS
-confinement. The current facade is an internal trusted-process API, not an authenticated IPC server.
+confinement. The desktop's **actual** WebView-to-Rust Tauri IPC is scoped by the configured
+main-window capabilities, navigation policy and CSP; this is not remote peer authentication
+or a guarantee against malicious host processes. `main.rs` configures an incognito WebView
+for ordinary builds, but the disposable Windows `e2e-webdriver` test build intentionally
+uses a different profile mode. Neither setting establishes end-to-end production privacy
+of WebView disk/cache, logs, crash dumps, memory, OS swap or snapshots. The Core facade
+remains an internal trusted-process API, not an authenticated remote IPC server.
+
+The Core's fixture transport and denied live partner integration do not mean every native
+network path is permanently offline: the separate allowlisted Whisper model download flow
+requires an explicit user opt-in (`apps/desktop-tauri/src-tauri/src/audio_model_manager.rs`).
 
 ### Effective resources
 
@@ -77,7 +95,9 @@ Current controls: distinct object types; scope-checked reads; explicit promotion
 input bounds; source hashing; sealed files; denied live integrations. Important limits:
 
 - `crates/medscale-core/src/authority/facade.rs:76–106` checks that a lease exists and that capability matches request type;
-  it does not authenticate a hostile client's identity. Never expose it directly as IPC.
+  it does not authenticate a hostile client's identity. The current Tauri app wraps local
+  Core sessions behind named native commands. Do not expose the facade directly to an
+  arbitrary IPC caller or misrepresent app-window command allowlisting as remote authentication.
 - `crates/medscale-storage/src/claim.rs:19` rejects parent traversal and known sync-name markers, but that does not
   establish filesystem ownership, canonical paths, reparse/symlink containment or ACLs.
 - `crates/medscale-storage/src/encrypted_vault.rs:209–223` writes plaintext working metadata. The marker-check helper
