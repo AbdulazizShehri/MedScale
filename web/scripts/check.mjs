@@ -57,10 +57,13 @@ for (const f of files) {
 }
 
 const home = read(path.join(out, "index.html"));
+const product = read(path.join(out, "product/index.html"));
 const dl = read(path.join(out, "download/index.html"));
 check(home.includes("synthetic workspaces + licensed nonpatient audio"), "home: accurate preview data scope missing");
 check(home.includes("real patient records, clinical decisions and production deployments are not authorized"), "home: patient/clinical restriction missing");
-check(!home.includes("synthetic data only"), "home: inaccurate synthetic-only claim reintroduced");
+check(product.includes("Synthetic workspaces and user-approved licensed nonpatient audio"), "product: supported nonpatient audio disclosure missing");
+check(product.includes("Real patient data and clinical decisions are not authorized"), "product: patient/clinical restriction missing");
+check(!/synthetic data only/i.test(home + product + dl), "site: inaccurate synthetic-only product claim reintroduced");
 check(home.includes("Real screenshot"), "home: screenshot provenance label missing");
 check(home.includes("Interactive example"), "home: interactive example label missing");
 check(dl.includes("There is no signed public installer yet"), "download: release status missing");
