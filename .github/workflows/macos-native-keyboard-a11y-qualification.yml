@@ -1,0 +1,62 @@
+# Source-bound, real OS Tab/Shift+Tab focus and label qualification.
+# Runs only on disposable macOS GitHub Actions; no audio, models or user data.
+name: macos-native-keyboard-a11y-qualification
+
+on:
+  pull_request:
+    paths:
+      - scripts/ci/macos-native-keyboard-a11y-smoke.py
+      - scripts/ci/macos-webdriver-instrument.py
+      - .github/workflows/macos-native-keyboard-a11y-qualification.yml
+
+permissions:
+  contents: read
+
+concurrency:
+  group: macos-native-keyboard-a11y-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  native-keyboard:
+    name: macOS WKWebView native Audio keyboard focus and labels
+    runs-on: macos-latest
+    timeout-minutes: 140
+    env:
+      CARGO_BUILD_JOBS: "2"
+      RUSTFLAGS: "-Dwarnings"
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: "24.19.0"
+          cache: npm
+          cache-dependency-path: apps/desktop-tauri/package-lock.json
+      - uses: dtolnay/rust-toolchain@d1031067263f94b142dd6c0ce24c5eb9d02d52a0
+        with:
+          toolchain: "1.97.1"
+          components: rustfmt
+      - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6
+        with:
+          workspaces: apps/desktop-tauri/src-tauri -> target
+          key: macos-native-keyboard-a11y-isolated
+      - name: Enable native keyboard UI traversal on disposable runner
+        run: |
+          set -euo pipefail
+          defaults write -g AppleKeyboardUIMode -int 3
+          python3 -m py_compile scripts/ci/macos-webdriver-instrument.py scripts/ci/macos-native-keyboard-a11y-smoke.py
+          python3 scripts/ci/macos-webdriver-instrument.py
+          cd apps/desktop-tauri
+          npm ci --ignore-scripts --no-audit --no-fund
+          npm test
+          npm run build
+      - name: Build unsigned ephemeral native WKWebView app
+        working-directory: apps/desktop-tauri
+        run: npm run tauri -- build --bundles app --no-sign --ci --features custom-protocol,macos-webdriver-ci
+      - name: Qualify real macOS Tab/Shift+Tab focus on Audio controls
+        timeout-minutes: 12
+        run: python3 -u scripts/ci/macos-native-keyboard-a11y-smoke.py
+      - name: Record narrowly evidenced scope
+        if: success()
+        run: |
+          echo 'Real macOS System Events Tab and Shift+Tab focus order from Audio WAV and Pack inputs, HTML labels and enabled browse controls: PASS.' >> "$GITHUB_STEP_SUMMARY"
+          echo 'Disposable unsigned WKWebView only; no VoiceOver screen-reader test, full WCAG audit, production TCC or signing qualification.' >> "$GITHUB_STEP_SUMMARY"
