@@ -16,6 +16,8 @@ jobs:
     timeout-minutes: 130
     env:
       CARGO_BUILD_JOBS: "2"
+      # Build-time opt-in: this E2E binary exposes WebView2 debug port; NEVER package it.
+      MEDSCALE_E2E_WEBDRIVER_CI: "1"
       # Dedicated opt-in real-data journey: the user-facing button performs
       # the actual bounded Hub download and Core signed-Pack installation.
       MEDSCALE_E2E_MODEL_GUI_DOWNLOAD: "1"
