@@ -43,7 +43,7 @@ probe = """    if std::env::var("MEDSCALE_MAC_E2E_FORCE_OFFLINE").as_deref() == 
 # the real acquire() cleanup scope. No model bytes, real recordings or HTTP.
 # The native GUI assertion must prove that only the exclusively created
 # download stage disappears while this independent cache file survives.
-run_anchor = "    let run = || -> Result<String, String> {\\n"
+run_anchor = "    let run = || -> Result<String, String> {\n"
 if body.count(run_anchor) != 1:
     raise SystemExit("Native acquisition cleanup scope missing or ambiguous")
 stage_fixture = """        if std::env::var("MEDSCALE_MAC_E2E_FORCE_OFFLINE").as_deref() == Ok("1") {
