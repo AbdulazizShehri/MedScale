@@ -154,6 +154,14 @@ try:
             raise AssertionError("Unverified model was published after offline failure")
         if any(p.name.startswith(".download-") for p in model_root.iterdir()):
             raise AssertionError("Offline failure left an app-owned temporary model stage")
+        # The disposable native worker deliberately seeded a non-model
+        # payload in its exclusive stage and a separate cache-root sentinel.
+        # A successful failure path must delete the populated stage but not
+        # modify an unrelated file outside it.
+        sentinel = model_root / "ci-offline-unrelated-sentinel.txt"
+        if not sentinel.is_file() or sentinel.read_bytes() != b"ci-only-preserve-me":
+            raise AssertionError("Offline cleanup removed or altered an unrelated cache file")
+        print("MAC_NATIVE_OFFLINE_POPULATED_STAGE_CLEANUP_PRESERVES_UNRELATED_PASS")
         print("MAC_NATIVE_OFFLINE_ERROR_AND_OWNED_STAGE_CLEANUP_PASS")
 
         if http("GET", f"/session/{session}/element/{install}/enabled") is not False:
