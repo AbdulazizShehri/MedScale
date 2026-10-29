@@ -18,7 +18,7 @@ concurrency:
 
 jobs:
   native-keyboard:
-    name: macOS WKWebView native Audio keyboard focus and labels
+    name: macOS WKWebView Audio keyboard focus and native picker
     runs-on: macos-latest
     timeout-minutes: 140
     env:
@@ -52,11 +52,11 @@ jobs:
       - name: Build unsigned ephemeral native WKWebView app
         working-directory: apps/desktop-tauri
         run: npm run tauri -- build --bundles app --no-sign --ci --features custom-protocol,macos-webdriver-ci
-      - name: Qualify real macOS Tab/Shift+Tab focus on Audio controls
+      - name: Qualify real Tab/Shift+Tab, Space picker and OS Escape recovery
         timeout-minutes: 12
         run: python3 -u scripts/ci/macos-native-keyboard-a11y-smoke.py
       - name: Record narrowly evidenced scope
         if: success()
         run: |
-          echo 'Real macOS System Events Tab and Shift+Tab focus order from Audio WAV and Pack inputs, HTML labels and enabled browse controls: PASS.' >> "$GITHUB_STEP_SUMMARY"
-          echo 'Disposable unsigned WKWebView only; no VoiceOver screen-reader test, full WCAG audit, production TCC or signing qualification.' >> "$GITHUB_STEP_SUMMARY"
+          echo 'Real macOS Tab/Shift+Tab focus and Space activation of WAV/Pack native AppKit pickers; OS Escape cancellation and unchanged input path: PASS.' >> "$GITHUB_STEP_SUMMARY"
+          echo 'Disposable unsigned WKWebView only; no file selection, downloads, VoiceOver, full keyboard/WCAG audit, production TCC or signing qualification.' >> "$GITHUB_STEP_SUMMARY"
