@@ -225,12 +225,53 @@ async function auditClientStorage(label) {
     `,
     args: [],
   });
-  // Deliberately persist only aggregate counts and booleans, never key/value data.
-  fs.writeFileSync(path.join(shots, `storage-audit-${label}.json`), JSON.stringify({ scope: "DOM storage only; synthetic fixtures", ...audit }, null, 2));
+  // Query only aggregate metadata for origin IndexedDB and CacheStorage.
+  // The E2E WebView disables InPrivate for WebDriver; this is not a
+  // production WebView disk, logs, crash or snapshot privacy qualification.
+  const originStores = await wd("POST", `/session/${sid}/execute/async`, {
+    script: `
+      const callback = arguments[arguments.length - 1];
+      (async () => {
+        if (typeof indexedDB === 'undefined' ||
+            typeof indexedDB.databases !== 'function' ||
+            typeof caches === 'undefined' ||
+            typeof caches.keys !== 'function') {
+          return { inspection_available: false, indexed_db_count: null, cache_storage_count: null };
+        }
+        // Do not open DBs, fetch caches or inspect private names/values.
+        const [databases, cacheNames] = await Promise.all([
+          indexedDB.databases(), caches.keys(),
+        ]);
+        return {
+          inspection_available: true,
+          indexed_db_count: databases.length,
+          cache_storage_count: cacheNames.length,
+        };
+      })().then(callback, () => callback({
+        inspection_available: false, indexed_db_count: null, cache_storage_count: null,
+      }));
+    `,
+    args: [],
+  });
+  // Persist aggregate counts and booleans only, never keys, names or content.
+  fs.writeFileSync(path.join(shots, `storage-audit-${label}.json`), JSON.stringify({
+    scope: "synthetic-only origin DOM storage plus IndexedDB/CacheStorage COUNTS; not WebView disk/privacy qualification",
+    ...audit,
+    origin_stores: originStores,
+  }, null, 2));
   if (audit.local.risky_entries || audit.session.risky_entries || audit.cookie_risky) {
     throw new Error(`WebView client-storage canary detected a sensitive key or synthetic patient marker (${label})`);
   }
+  if (!originStores?.inspection_available ||
+      !Number.isInteger(originStores.indexed_db_count) ||
+      !Number.isInteger(originStores.cache_storage_count)) {
+    throw new Error(`WebView IndexedDB/CacheStorage origin inspection unavailable (${label})`);
+  }
+  if (originStores.indexed_db_count !== 0 || originStores.cache_storage_count !== 0) {
+    throw new Error(`WebView unexpectedly stored synthetic journey data in IndexedDB or CacheStorage (${label})`);
+  }
 }
+
 async function waitForText(pattern, timeout = 60000) {
   const end = Date.now() + timeout;
   while (Date.now() < end) {
