@@ -35,6 +35,8 @@ jobs:
     timeout-minutes: 75
     env:
       CARGO_BUILD_JOBS: "2"
+      # Build-time opt-in: this E2E binary exposes WebView2 debug port; NEVER package it.
+      MEDSCALE_E2E_WEBDRIVER_CI: "1"
     steps:
       - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v4
         with:
