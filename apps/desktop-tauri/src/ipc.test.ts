@@ -44,19 +44,30 @@ test("every Tauri native handler has an exactly matching build manifest and main
   assert.ok(handlerBlock, "missing the production Tauri invoke handler");
   assert.ok(manifestBlock, "missing the constrained Tauri build manifest");
 
-  // Match every qualified native handler, including commands added under future
-  // Rust modules. A fixed list of current modules silently misses new ones.
-  const qualifiedCommand = /\b(?:[a-z_][a-z_0-9]*::)+([a-z_][a-z_0-9]*)\b/g;
+  // Parse each entire registry entry instead of harvesting only recognized
+  // paths. Otherwise a new unqualified handler, unknown syntax or module is
+  // silently invisible, leaving the allowlist equality check falsely green.
+  const splitEntries = (block: string): string[] =>
+    block.trim().replace(/,\s*$/, "").split(",").map((entry) => entry.trim());
+  const readNativeNames = (block: string): string[] =>
+    splitEntries(block).map((entry) => {
+      const match = entry.match(/^(?:[a-z_][a-z_0-9]*::)*([a-z_][a-z_0-9]*)$/);
+      assert.ok(match, `unrecognized Tauri native handler entry: ${entry}`);
+      return match[1]!;
+    });
+  const readBuildNames = (block: string): string[] =>
+    splitEntries(block).map((entry) => {
+      const match = entry.match(/^"([a-z_][a-z_0-9]*)"$/);
+      assert.ok(match, `unrecognized Tauri build manifest entry: ${entry}`);
+      return match[1]!;
+    });
   assert.deepEqual(
-    [..."cmd_core::status, future_module::not_granted, crate::nested::handler".matchAll(qualifiedCommand)]
-      .map((match) => match[1]!),
-    ["status", "not_granted", "handler"],
-    "registry reader must not ignore future modules or qualified paths",
+    readNativeNames("cmd_core::status, future_module::not_granted, crate::nested::handler, standalone,"),
+    ["status", "not_granted", "handler", "standalone"],
+    "registry parser must include future modules, nested paths and bare handlers",
   );
-  const invoked = [...handlerBlock.matchAll(qualifiedCommand)]
-    .map((match) => match[1]!);
-  const declared = [...manifestBlock.matchAll(/"([a-z_0-9]+)"/g)]
-    .map((match) => match[1]!);
+  const invoked = readNativeNames(handlerBlock);
+  const declared = readBuildNames(manifestBlock);
   const permissions: string[] = capability.permissions;
   const allowed = permissions.filter((name) => name.startsWith("allow-"))
     .map((name) => name.slice("allow-".length).replaceAll("-", "_"));
