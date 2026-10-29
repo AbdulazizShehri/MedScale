@@ -106,7 +106,7 @@ try:
         def picker_windows_and_sheets():
             apple = f"""
 tell application "System Events"
-    set targetProcess to first application process whose unix id is ${process.pid}
+    set targetProcess to first application process whose unix id is {process.pid}
     set windowCount to count of windows of targetProcess
     set sheetCount to 0
     if windowCount > 0 then set sheetCount to count of sheets of window 1 of targetProcess
