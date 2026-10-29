@@ -21,20 +21,19 @@ pub const STARTUP_FAILURE_EXIT_CODE: i32 = 2;
 pub const TITLE: &str = "MedScale could not start";
 
 /// User-facing text. `detail` is the runtime's own error, kept for support.
-pub fn message(detail: &str) -> String {
-    let detail = detail.trim();
-    let detail = if detail.is_empty() {
-        "no further detail"
-    } else {
-        detail
-    };
+pub fn message(_detail: &str) -> String {
+    // Startup failures can include absolute home paths, filenames and panic
+    // payloads from OS/WebView APIs. Both stderr and native error dialogs use
+    // this message, so never serialize the raw diagnostic at this boundary.
     format!(
         "MedScale could not open its window.\n\n\
          On Windows this usually means the Microsoft Edge WebView2 Runtime is missing \
          or damaged. Install or repair the WebView2 Evergreen Runtime from Microsoft, \
          then start MedScale again. MedScale does not download it for you.\n\n\
-         No workspace was opened and nothing was changed.\n\n\
-         Detail: {detail}"
+         No workspace was opened by this startup attempt. An application data \
+         directory may have been created.\n\n\
+         Diagnostic details withheld to protect local paths and data. \
+         Exit code: {STARTUP_FAILURE_EXIT_CODE}"
     )
 }
 
@@ -54,23 +53,10 @@ pub fn install_panic_hook() {
     let previous = std::panic::take_hook();
     std::panic::set_hook(Box::new(move |info| {
         if starting() {
-            report_and_exit(&panic_detail(info));
+            report_and_exit("startup panic");
         }
         previous(info);
     }));
-}
-
-fn panic_detail(info: &std::panic::PanicHookInfo<'_>) -> String {
-    let payload = info
-        .payload()
-        .downcast_ref::<&str>()
-        .map(ToString::to_string)
-        .or_else(|| info.payload().downcast_ref::<String>().cloned())
-        .unwrap_or_else(|| "startup panic".to_string());
-    match info.location() {
-        Some(at) => format!("{payload} ({}:{})", at.file(), at.line()),
-        None => payload,
-    }
 }
 
 /// Reports the failure to the user and exits.
@@ -148,13 +134,31 @@ mod tests {
         let m = message("WebView2 error 0x80070002");
         assert!(m.contains("WebView2 Evergreen Runtime"));
         assert!(m.contains("does not download"));
-        assert!(m.contains("nothing was changed"));
-        assert!(m.ends_with("Detail: WebView2 error 0x80070002"));
+        assert!(m.contains("An application data directory may have been created"));
+        assert!(m.contains("Diagnostic details withheld"));
+        assert!(m.ends_with("Exit code: 2"));
+        assert!(!m.contains("0x80070002"));
     }
 
     #[test]
     fn empty_detail_is_explicit() {
-        assert!(message("  ").ends_with("Detail: no further detail"));
+        assert!(message("  ").contains("Diagnostic details withheld"));
+    }
+
+    #[test]
+    fn startup_error_never_prints_private_path_or_secret() {
+        let raw = "panic at /Users/example/PrivateNotes/synthetic-secret-token";
+        let shown = message(raw);
+        assert_eq!(shown, message("some different OS error"));
+        for fragment in [
+            "/Users/",
+            "PrivateNotes",
+            "synthetic-secret-token",
+            "panic at",
+        ] {
+            assert!(!shown.contains(fragment));
+        }
+        assert!(shown.contains("WebView2 Evergreen Runtime"));
     }
 
     #[test]
