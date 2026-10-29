@@ -44,7 +44,16 @@ test("every Tauri native handler has an exactly matching build manifest and main
   assert.ok(handlerBlock, "missing the production Tauri invoke handler");
   assert.ok(manifestBlock, "missing the constrained Tauri build manifest");
 
-  const invoked = [...handlerBlock.matchAll(/\b(?:cmd_core|cmd_ops|cmd_research)::([a-z_0-9]+)/g)]
+  // Match every qualified native handler, including commands added under future
+  // Rust modules. A fixed list of current modules silently misses new ones.
+  const qualifiedCommand = /\b(?:[a-z_][a-z_0-9]*::)+([a-z_][a-z_0-9]*)\b/g;
+  assert.deepEqual(
+    [..."cmd_core::status, future_module::not_granted, crate::nested::handler".matchAll(qualifiedCommand)]
+      .map((match) => match[1]!),
+    ["status", "not_granted", "handler"],
+    "registry reader must not ignore future modules or qualified paths",
+  );
+  const invoked = [...handlerBlock.matchAll(qualifiedCommand)]
     .map((match) => match[1]!);
   const declared = [...manifestBlock.matchAll(/"([a-z_0-9]+)"/g)]
     .map((match) => match[1]!);
