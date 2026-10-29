@@ -74,6 +74,28 @@ test("the test-only e2e-webdriver build is never used for packaging or release",
   }
   assert.deepEqual(offenders, []);
   assert.doesNotMatch(JSON.stringify(conf), /e2e-webdriver/);
+  const guard = readFileSync(new URL("../src-tauri/build.rs", import.meta.url), "utf8");
+  const desktopE2e = readFileSync(new URL("desktop-e2e.yml", workflows), "utf8");
+  // Accidental release builds must not activate the exposed WebView2 debug port:
+  // the cargo build script requires both a specific opt-in and a Windows Actions runner.
+  assert.match(guard, /CARGO_FEATURE_E2E_WEBDRIVER/);
+  assert.match(guard, /MEDSCALE_E2E_WEBDRIVER_CI/);
+  assert.match(guard, /GITHUB_ACTIONS/);
+  assert.match(guard, /RUNNER_OS/);
+  // Cargo must rerun the build script if CI provenance changes in a reused target dir.
+  for (const variable of ["MEDSCALE_E2E_WEBDRIVER_CI", "GITHUB_ACTIONS", "RUNNER_OS"]) {
+    assert.ok(guard.includes(`cargo:rerun-if-env-changed=${variable}`));
+  }
+  assert.match(desktopE2e, /MEDSCALE_E2E_WEBDRIVER_CI: "1"/);
+  assert.match(realVoiceE2e, /MEDSCALE_E2E_WEBDRIVER_CI: "1"/);
+  for (const file of readdirSync(workflows)) {
+    if (file === "desktop-e2e.yml" || file === "audio-real-desktop-e2e.yml") continue;
+    assert.doesNotMatch(
+      readFileSync(new URL(file, workflows), "utf8"),
+      /MEDSCALE_E2E_WEBDRIVER_CI/,
+      "unrelated workflow " + file + " must never opt in to WebView2 debug builds",
+    );
+  }
   const cargo = readFileSync(new URL("../src-tauri/Cargo.toml", import.meta.url), "utf8");
   // Not a default feature: only an explicit `--features e2e-webdriver` turns it on.
   assert.doesNotMatch(cargo.match(/^default\s*=\s*\[[^\]]*\]/m)?.[0] ?? "", /e2e-webdriver/);
