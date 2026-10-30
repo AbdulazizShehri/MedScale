@@ -108,7 +108,17 @@ export function Palette({ onClose }: { onClose: () => void }) {
   const [sel, setSel] = useState(0);
   const input = useRef<HTMLInputElement>(null);
   const box = useRef<HTMLDivElement>(null);
-  useEffect(() => { input.current?.focus(); }, []);
+  useEffect(() => {
+    const previouslyFocused = document.activeElement;
+    input.current?.focus();
+    return () => {
+      // Restore keyboard focus to the opener, unless route or vault changes
+      // have removed it from the document.
+      if (previouslyFocused instanceof HTMLElement && previouslyFocused.isConnected) {
+        previouslyFocused.focus();
+      }
+    };
+  }, []);
 
   const commands = useMemo<Cmd[]>(() => {
     const go = (r: Route): Cmd => ({ id: `go-${r.id}`, label: r.label, hint: r.description, icon: r.icon as IconName, run: () => navigate(r.id) });
@@ -140,7 +150,7 @@ export function Palette({ onClose }: { onClose: () => void }) {
       <div ref={box} className="overlay palette anim" role="dialog" aria-modal="true" aria-label="Search or run" onKeyDown={onKey}>
         <div className="palette-in">
           <Icon name="search" size={16} />
-          <input ref={input} type="text" value={query} maxLength={128} placeholder="Go to a route or run a command" aria-label="Search or run" aria-controls="palette-list" aria-activedescendant={commands[sel] ? `pal-${commands[sel].id}` : undefined} onChange={(e) => { setQuery(e.target.value); setSel(0); }} />
+          <input ref={input} type="text" value={query} maxLength={128} placeholder="Go to a route or run a command" aria-label="Search or run" role="combobox" aria-expanded={true} aria-autocomplete="list" aria-controls="palette-list" aria-activedescendant={commands[sel] ? `pal-${commands[sel].id}` : undefined} onChange={(e) => { setQuery(e.target.value); setSel(0); }} />
           <span className="kbd">Esc</span>
         </div>
         <div id="palette-list" className="palette-list" role="listbox">
