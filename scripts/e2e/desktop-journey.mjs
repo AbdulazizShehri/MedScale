@@ -221,7 +221,8 @@ async function auditClientStorage(label) {
       const local = inspect(window.localStorage);
       const session = inspect(window.sessionStorage);
       const cookies = document.cookie || '';
-      return { local, session, cookie_risky: riskyKey.test(cookies) || syntheticMarker.test(cookies) };
+      return { local, session, project_pref_absent: window.localStorage.getItem("medscale.project") === null,
+        cookie_risky: riskyKey.test(cookies) || syntheticMarker.test(cookies) };
     `,
     args: [],
   });
@@ -259,6 +260,9 @@ async function auditClientStorage(label) {
     ...audit,
     origin_stores: originStores,
   }, null, 2));
+  if (!audit.project_pref_absent) {
+    throw new Error(`WebView last-project selection was persisted in localStorage (${label})`);
+  }
   if (audit.local.risky_entries || audit.session.risky_entries || audit.cookie_risky) {
     throw new Error(`WebView client-storage canary detected a sensitive key or synthetic patient marker (${label})`);
   }

@@ -47,7 +47,8 @@ export function useApp(): AppCtx {
   return ctx;
 }
 
-/** Per-viewer UI preferences only (theme, density, last project). Never data. */
+/** Persist only non-identifying viewer display preferences (theme and density).
+ *  Project selection belongs in workspace-scoped React memory, never here. */
 export function readPref(key: string): string | null {
   try { return window.localStorage.getItem(`medscale.${key}`); } catch { return null; }
 }
