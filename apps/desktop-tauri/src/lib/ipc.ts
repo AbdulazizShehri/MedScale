@@ -1,6 +1,7 @@
 import { invoke } from "@tauri-apps/api/core";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { visibleCommandState, type CommandLoadable, type KeyedLoadable } from "./command-state";
+import { createSingleFlightGate } from "./action-gate";
 
 /** Error classes rendered by the interface (board 25). Mirrors host.rs. */
 export type ErrorKind =
@@ -87,7 +88,13 @@ export function useCommand<T>(command: string | null, args?: Record<string, unkn
 /** Wraps a mutating command with pending state and a typed outcome. */
 export function useAction() {
   const [pending, setPending] = useState<string | null>(null);
+  const gate = useRef(createSingleFlightGate());
   const run = useCallback(async <T,>(label: string, command: string, args?: Record<string, unknown>): Promise<{ ok: true; data: T } | { ok: false; error: CmdError }> => {
+    // React state is asynchronous. Refuse a second mutation synchronously,
+    // rather than clearing pending while a previous Core action is still live.
+    if (!gate.current.tryEnter()) {
+      return { ok: false, error: { kind: "blocked", message: "Another action is still running" } };
+    }
     setPending(label);
     try {
       const data = await call<T>(command, args);
@@ -95,6 +102,7 @@ export function useAction() {
     } catch (error) {
       return { ok: false, error: error as CmdError };
     } finally {
+      gate.current.leave();
       setPending(null);
     }
   }, []);

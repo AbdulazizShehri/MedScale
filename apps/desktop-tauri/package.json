@@ -7,7 +7,7 @@
     "dev": "vite --host 127.0.0.1 --port 1420 --strictPort",
     "build": "tsc --noEmit && vite build",
     "test:first-run": "node qa/first-run-browser.mjs",
-    "test": "node --test --experimental-strip-types src/audio-picker.test.ts src/audio-draft.test.ts src/model-storage.test.ts src/model-consent.test.ts src/routes.test.ts src/ipc.test.ts src/lib/command-state.test.ts src/lib/ui-preferences.test.ts src/bundle-config.test.ts src/contrast.test.ts src/identity.test.ts",
+    "test": "node --test --experimental-strip-types src/audio-picker.test.ts src/audio-draft.test.ts src/model-storage.test.ts src/model-consent.test.ts src/routes.test.ts src/ipc.test.ts src/lib/command-state.test.ts src/lib/ui-preferences.test.ts src/lib/action-gate.test.ts src/bundle-config.test.ts src/contrast.test.ts src/identity.test.ts",
     "tauri": "tauri"
   },
   "dependencies": {
