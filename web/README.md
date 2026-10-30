@@ -35,21 +35,27 @@ npm run check      # verifies the export
 
 Both builds are verified by `npm run check`. Canonical links, Open Graph URLs, `sitemap.xml` and `robots.txt` follow `NEXT_PUBLIC_SITE_URL`.
 
-## Deploy
+## Build-only website qualification — no publication authorization
 
-`.github/workflows/website.yml` builds and checks every pull request that touches `web/`. On `main` it publishes `web/out` to GitHub Pages through the `github-pages` environment. The `preview/medscale-site-live` branch can publish a preview through the same environment. Update it only by merging, never by force-pushing.
+After protected PR #372, `.github/workflows/website.yml` runs tests and
+checks both static exports for matching pull requests and `main` pushes.
+It has **no Pages upload/deploy job and no Pages write permissions**.
+The `preview/medscale-site-live` branch is not a publishing trigger in this
+workflow. A successful build **does not** deploy a website.
 
-## medscale.si cutover — staged, not activated
+Existing public Pages content may remain online from earlier deployments;
+build-only CI does not take that content offline or prove which version a
+visitor receives. No new website deployment, domain cutover, or installer
+distribution is authorized. Restoring deployment requires a separate,
+explicit owner decision and a new protected, qualified PR.
 
-The live website currently runs at `https://abdulazizshehri.github.io/MedScale/`.
-The cutover PR changes the `main` Pages deployment to **publish the root-domain
-build last**, with `NEXT_PUBLIC_SITE_BASE_PATH=""` and
-`NEXT_PUBLIC_SITE_URL=https://medscale.si`. It keeps the /MedScale
-build-and-check gate as a regression test.
+## Historical medscale.si cutover plan — NOT AUTHORIZED
 
-**Do not merge the cutover PR until the actual domain switch is coordinated**:
-deploying a root build to the existing project URL before configuring the
-GitHub Pages custom domain can break navigation and assets.
+The following DNS and migration notes are historical planning material, not
+instructions to execute now. Do not change DNS, GitHub Pages settings,
+deployment workflows, or the published site based on this README.
+Verify the current domain and deployment state independently before any
+future authorized change.
 
 ### DNS to configure at the provider
 
@@ -73,7 +79,7 @@ apex A/AAAA or `www` A/AAAA records. Remove the existing parked apex
 MX, SPF, DKIM, DMARC, and unrelated TXT records (especially email).
 Do not change nameservers or use wildcard DNS records.
 
-### Coordinated cutover checklist
+### Historical coordinated cutover checklist (do not execute without authorization)
 
 1. Confirm ownership and access to the DNS panel, and coordinate the exact
    cutover window with the website maintainer. Leave the cutover PR as a draft
@@ -84,9 +90,10 @@ Do not change nameservers or use wildcard DNS records.
    the old site URL, so proceed directly to the next steps.
 3. Set the apex A records and `www` CNAME above at the DNS provider.
    Check authoritative DNS resolution and allow for propagation.
-4. After the GitHub Pages domain is registered and DNS is resolving to
-   GitHub, merge the cutover PR through the required branch-protection checks.
-   The main workflow then publishes the **root** build.
+4. Only after separate explicit owner authorization, verified DNS/domain
+   prerequisites, and a newly qualified protected PR that deliberately
+   restores deployment could a root build be published. The current workflow
+   remains build-only.
 5. Verify `https://medscale.si/`, `/product/`, `/models/`, `/download/`,
    `/docs/`, and `/community/`, along with JS chunks, fonts, image assets,
    `sitemap.xml`, `robots.txt`, the icon and social preview. Confirm no
