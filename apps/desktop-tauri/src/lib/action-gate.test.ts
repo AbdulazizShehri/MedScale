@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
 import test from "node:test";
 import { createSingleFlightGate } from "./action-gate.ts";
 
@@ -36,4 +37,11 @@ test("rejected second action never clears the active action", async () => {
   releaseFirst();
   await first;
   assert.equal(gate.tryEnter(), true);
+});
+
+test("the production hook acquires the gate before native invoke", () => {
+  const source = readFileSync(new URL("./ipc.ts", import.meta.url), "utf8");
+  assert.match(source, /const gate = useRef\(createSingleFlightGate\(\)\)/);
+  assert.match(source, /if \(!gate\.current\.tryEnter\(\)\)/);
+  assert.match(source, /gate\.current\.leave\(\)/);
 });
