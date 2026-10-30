@@ -1,6 +1,6 @@
 # MedScale desktop: user guide (engineering preview)
 
-MedScale is an engineering preview. It is for **synthetic data only**: it is not clinically validated, not a medical device, and real patient data is not authorized. Every model output is a **proposal**; nothing becomes a record until a person accepts it through review.
+MedScale is an engineering preview for **synthetic health workspaces** and optional, deliberately selected, licensed **nonpatient audio**. It is not clinically validated; real patient records, PHI and clinical decisions are not authorized. Every model output is a **proposal**; nothing becomes a record until a person accepts it through review. The [first-run guide](../BETA_FIRST_RUN.md) and [qualification record](../qualification/EXTERNAL_GATES.md) define the release and privacy boundaries.
 
 The desktop runs on **Windows and macOS**. A Linux desktop waits on an upstream Tauri change (`TAURI_LINUX_DESKTOP_GTK3`); the CLI runs on Linux.
 
@@ -54,17 +54,16 @@ Revoking an agent keeps its history. Runs, turns, agents and evidence resume aft
 
 ## 6. Audio (AudioFlow)
 
-1. **Admit an Audio Pack folder:** a signed Whisper Pack (Spec 106). This installs local speech recognition. Audio never leaves the device.
-2. **Import a synthetic WAV** (16 kHz, 16-bit, absolute path, at most 64 MiB), or the generated tone sample.
-3. Choose the route:
-   - *Local Whisper*: real recognition.
-   - *Fixture engine*: a labelled test double, not recognition.
-   - *Segmentation only*.
-4. Then choose **Transcribe**.
-5. **Correct** a segment with a reason. Each correction is a new revision.
-6. **Draft note from this revision:** an admitted NER Pack finds entities in each segment and groups them by label. Every item cites its segment and time span. The draft is a proposal.
+AudioFlow can process a **lawfully sourced nonpatient** recording locally. A model being listed in the catalog does not install it; Whisper weights are not bundled in the desktop installer.
 
-Transcripts are drafts. Medical accuracy is unmeasured. On synthetic speech, both pinned checkpoints missed "metformin".
+1. In **Audio → Audio Model Manager**, choose a pinned Whisper model appropriate for the recording. English-only checkpoints do **not** support Arabic; choose a multilingual checkpoint and the Arabic language setting for Arabic recordings.
+2. Select **Check disk budget**. Review the pinned model source, expected storage and available space. Check the explicit approval box and choose **Download, verify and install**. The optional model download is a consented network operation, not an automatic application update. You can also choose **Activate saved model** or **Browse folder… → Admit and install** for an already verified local Audio Pack.
+3. Under **Import a WAV recording**, use **Browse WAV…** or enter an absolute file path. The supported import is **16-kHz, 16-bit PCM WAV, up to 32 MiB** (approximately 17 minutes for mono audio). Cancelling a native picker keeps an existing manual path. Choose **Import**; an optional **Import synthetic tone sample** exercises the fixture route without human speech.
+4. Choose **Local Whisper (Audio Pack)** for actual speech recognition; **Fixture engine** is a test double and **Segmentation only** does not transcribe speech. Choose English or Arabic as appropriate, then **Transcribe** and inspect the draft.
+5. **Correct** a segment with a reason to record a new revision. **Draft note** uses an independently admitted, local NER Pack and remains a reviewable proposal, not a clinical result.
+6. Use **Stored data** to inspect a source's recording bytes, transcript revisions and evidence links before retention decisions. Confirmed removal is limited to eligible **unreferenced imported recordings in the active vault**; it does not erase backups, snapshots, linked transcripts or historical audit receipts. Never assume closing the app or uninstalling deletes recordings.
+
+Real English and Arabic read-speech results, actual Windows/macOS native GUI evidence, and remaining OS privacy, accessibility and signing gaps are described in the [qualification record](../qualification/EXTERNAL_GATES.md). Read-speech benchmarks are not medical-speech accuracy measurements.
 
 ## 7. Exports and the Audit Trail
 
@@ -77,7 +76,7 @@ Transcripts are drafts. Medical accuracy is unmeasured. On synthetic speech, bot
 
 ## 8. Limits that stay in force
 
-- Synthetic data only. No real PHI.
+- Synthetic health/FHIR data only; optional licensed nonpatient audio is permitted with explicit selection and model approval. No real PHI or clinical use.
 - The 1 GiB Pack artifact bound is unchanged, so large generative models do not run.
 - Packages are unsigned engineering builds, and release readiness stays false.
 - Model outputs, transcripts, drafts and comparisons are proposals. A person decides.
