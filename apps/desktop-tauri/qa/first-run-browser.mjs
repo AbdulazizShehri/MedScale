@@ -87,6 +87,25 @@ async function run() {
       assert.equal(cmds.includes("workspace_unlock"), false, "no passphrase on primary CTA");
       assert.equal(exceptions.length, 0, "no uncaught browser exceptions: " + exceptions.join("; "));
       assert.deepEqual(external, [], "no remote requests in UI smoke");
+      // Keyboard/screen-reader smoke on the built frontend (simulated IPC).
+      // This does not substitute for a full native VoiceOver/Narrator audit.
+      if (width === 1280) {
+        const opener = page.getByRole("button", { name: "Search or run" });
+        await opener.focus();
+        await opener.click();
+        const dialog = page.getByRole("dialog", { name: "Search or run" });
+        await dialog.waitFor();
+        const combobox = page.getByRole("combobox", { name: "Search or run" });
+        assert.equal(await combobox.evaluate((el) => document.activeElement === el), true, "palette focuses its search field");
+        assert.equal(await combobox.getAttribute("aria-expanded"), "true", "palette exposes expanded combobox");
+        assert.equal(await combobox.getAttribute("aria-controls"), "palette-list", "combobox owns its listbox");
+        await combobox.press("ArrowDown");
+        assert.equal(await combobox.getAttribute("aria-activedescendant") !== null, true, "keyboard selection remains exposed");
+        await combobox.press("Escape");
+        await dialog.waitFor({ state: "hidden" });
+        assert.equal(await opener.evaluate((el) => document.activeElement === el), true, "closing palette restores keyboard focus");
+        checks.push({ viewport: width, route: "palette combobox keyboard focus and Escape restore", passed: true });
+      }
       checks.push({ viewport: width, route: "welcome -> synthetic -> workspace", passed: true, commands: cmds });
       await page.close();
     }
