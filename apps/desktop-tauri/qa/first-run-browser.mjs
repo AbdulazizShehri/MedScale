@@ -82,14 +82,14 @@ async function run() {
       assert.equal(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1), true, "no horizontal overflow");
       await primary.click();
       await page.getByRole("heading", { name: "Workspace", exact: true }).waitFor({ timeout: 12000 });
+      assert.equal(await page.evaluate(() => localStorage.getItem("medscale.project")), null,
+        "legacy last-project ID is cleared from browser storage on startup");
       const cmds = await page.evaluate(() => window.__firstRunCommands);
       assert.equal(cmds.filter((cmd) => cmd === "workspace_open_synthetic").length, 1, "one-click synthetic open");
       assert.equal(cmds.includes("workspace_create_encrypted"), false, "no vault creation on primary CTA");
       assert.equal(cmds.includes("workspace_unlock"), false, "no passphrase on primary CTA");
       assert.equal(exceptions.length, 0, "no uncaught browser exceptions: " + exceptions.join("; "));
       assert.deepEqual(external, [], "no remote requests in UI smoke");
-      assert.equal(await page.evaluate(() => localStorage.getItem("medscale.project")), null,
-        "legacy last-project ID is cleared from browser storage on startup");
       checks.push({ viewport: width, route: "welcome -> synthetic -> workspace", passed: true, commands: cmds });
       await page.close();
     }
