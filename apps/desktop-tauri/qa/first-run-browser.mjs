@@ -90,7 +90,7 @@ async function run() {
       // Keyboard/screen-reader smoke on the built frontend (simulated IPC).
       // This does not substitute for a full native VoiceOver/Narrator audit.
       if (width === 1280) {
-        const opener = page.getByRole("button", { name: "Search or run" });
+        const opener = page.locator("button.sb-search");
         await opener.focus();
         await opener.click();
         const dialog = page.getByRole("dialog", { name: "Search or run" });
