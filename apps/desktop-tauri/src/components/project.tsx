@@ -1,4 +1,4 @@
-import { useEffect, type ReactNode } from "react";
+import { Fragment, useEffect, type ReactNode } from "react";
 import { useApp } from "../lib/app";
 import { useCommand } from "../lib/ipc";
 import { Empty, ErrorState, Skeleton } from "./ui";
@@ -47,7 +47,10 @@ export function ProjectScope({ title, sub, actions, children }: {
           {title} works inside a project, so Core can pin what it reads and writes. Create one first.
         </Empty>
       )}
-      {current && children(current.id, current)}
+      {/* Keep all project-local form, transcript, draft and pending-action state
+          scoped to a single project. A keyed boundary remounts its children
+          synchronously on a selection change, before effects can run. */}
+      {current && <Fragment key={current.id}>{children(current.id, current)}</Fragment>}
     </div>
   );
 }

@@ -87,3 +87,11 @@ test("every Tauri native handler has an exactly matching build manifest and main
     "native window may not silently acquire unrelated plugin privileges",
   );
 });
+
+test("project-scoped React subtree remounts when selected project changes", () => {
+  // A keyed fragment must wrap *all* project-local view state. Guard against
+  // a previous project's transcript/draft remaining visible under a new one.
+  const source = readFileSync(new URL("./components/project.tsx", import.meta.url), "utf8");
+  assert.match(source, /\{current\s*&&\s*<Fragment\s+key=\{current\.id\}>\{children\(current\.id,\s*current\)\}<\/Fragment>\}/);
+  assert.doesNotMatch(source, /\{current\s*&&\s*children\(current\.id,\s*current\)\}/);
+});
