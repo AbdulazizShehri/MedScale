@@ -3,6 +3,7 @@ import { open } from "@tauri-apps/plugin-dialog";
 import { selectedPathOrPrevious } from "../audio-picker";
 import { formatStorage } from "../model-storage";
 import { mayStartModelDownload } from "../model-consent";
+import { visibleRevisionDraft, type RevisionBoundDraft } from "../audio-draft";
 import { call, useAction, useCommand } from "../lib/ipc";
 import { ProjectScope } from "../components/project";
 import { Authority, Empty, ErrorState, Glyph, KV, Ledger, Notice, PageHead, Section, Skeleton, Stamp, Status, glyphFor, useOutcome, useToast, type GlyphKind } from "../components/ui";
@@ -183,6 +184,7 @@ const speakerLabel = (s: Segment["speaker"]) => (s?.kind === "anonymous" && s.in
 type Transcript = { revision_id: string; revision_no: number; state: string; segments: Segment[] };
 type AudioRetentionPreview = { project_id: string; source_id: string; source_kind: string; recording_bytes: number; revision_count: number; receipt_count: number; expected_digest: string; imported_file: boolean; has_transcript_revisions: boolean; has_audit_receipts: boolean; has_huddle_media_link: boolean; has_capture_reference: boolean; unreferenced_imported_file: boolean; delete_available: boolean; active_vault_only: boolean; older_backups_may_retain_recording: boolean; linked_evidence_requires_separate_retention_policy: boolean; message: string };
 type TranscribeResult = { decision: { outcome: string; reason?: string | null }; engine: { engine_id: string; is_fixture: boolean } | null; limitations: string[]; transcript: Transcript | null };
+type AudioDraftNote = { sections: Record<string, Array<{ text: string; segment_seq: number; start_ms: number; end_ms: number }>>; segments_evaluated: number; note: string };
 
 function AudioBody({ projectId }: { projectId: string }) {
   const o = useCommand<AudioVm>("audio_overview", { projectId });
@@ -207,13 +209,17 @@ function AudioBody({ projectId }: { projectId: string }) {
   useEffect(() => { setRetentionPreview(null); setRemovalConfirmation(""); }, [projectId]);
   const models = useCommand<Array<{ id: string; runnable: boolean; fixture: boolean }>>("medagent_models");
   const [notePack, setNotePack] = useState("");
-  const [draft, setDraft] = useState<{ sections: Record<string, Array<{ text: string; segment_seq: number; start_ms: number; end_ms: number }>>; segments_evaluated: number; note: string } | null>(null);
+  const [draft, setDraft] = useState<RevisionBoundDraft<AudioDraftNote> | null>(null);
+  const visibleDraft = visibleRevisionDraft(result?.transcript?.revision_id ?? null, draft);
   const runnable = models.state.status === "ready" ? models.state.data.filter((m) => m.runnable) : [];
   useEffect(() => { if (!notePack && runnable[0]) setNotePack(runnable[0].id); }, [runnable, notePack]);
   async function draftNote() {
     if (!result?.transcript || !notePack) return;
-    const r = await run<NonNullable<typeof draft>>("draft", "audio_draft_note", { revisionId: result.transcript.revision_id, packId: notePack });
-    if (outcome(r, "Draft note created · proposal")) setDraft(r.data);
+    const revisionId = result.transcript.revision_id;
+    setDraft(null);
+    const r = await run<AudioDraftNote>("draft", "audio_draft_note", { revisionId, packId: notePack });
+    // An older asynchronous response cannot be presented under a newer revision.
+    if (outcome(r, "Draft note created · proposal")) setDraft({ revisionId, value: r.data });
   }
   const { pending, run } = useAction();
   const outcome = useOutcome();
@@ -326,13 +332,13 @@ function AudioBody({ projectId }: { projectId: string }) {
   }
   async function transcribe(id: string) {
     const r = await run<TranscribeResult>(`t-${id}`, "audio_transcribe", { projectId, sourceId: id, route, language, diarize });
-    if (outcome(r, "Transcription recorded · draft")) { setResult(r.data); setEdit(null); setRetentionPreview(null); }
+    if (outcome(r, "Transcription recorded · draft")) { setResult(r.data); setEdit(null); setDraft(null); setRetentionPreview(null); }
   }
   async function correct(e: FormEvent) {
     e.preventDefault();
     if (!edit || !result?.transcript) return;
     const r = await run<Transcript>("correct", "audio_correct", { revisionId: result.transcript.revision_id, seq: edit.seq, text: edit.text, reason: edit.reason });
-    if (outcome(r, "Correction recorded as a new revision")) { setResult({ ...result, transcript: r.data }); setEdit(null); setRetentionPreview(null); }
+    if (outcome(r, "Correction recorded as a new revision")) { setResult({ ...result, transcript: r.data }); setEdit(null); setDraft(null); setRetentionPreview(null); }
   }
   if (o.state.status === "loading") return <Skeleton />;
   if (o.state.status === "error") return <ErrorState error={o.state.error} onRetry={o.reload} />;
@@ -482,10 +488,10 @@ function AudioBody({ projectId }: { projectId: string }) {
           <select aria-label="Pack for the draft note" value={notePack} onChange={(e) => setNotePack(e.target.value)}>{runnable.map((m) => <option key={m.id} value={m.id}>{m.id}</option>)}</select>
           <button type="button" className="btn btn-s" disabled={!notePack || !!pending} onClick={draftNote}>{pending === "draft" ? <Glyph kind="running" /> : null}Draft note from this revision</button>
         </div>}
-        {draft && <div style={{ border: "1px dashed var(--line-strong)", borderRadius: "var(--r-2)", padding: "12px 14px", marginTop: 12 }}>
+        {visibleDraft && <div style={{ border: "1px dashed var(--line-strong)", borderRadius: "var(--r-2)", padding: "12px 14px", marginTop: 12 }}>
           <Status kind="proposal" weight="strong">Draft note · proposal</Status>
-          <p className="t-sm i3" style={{ margin: "6px 0 10px" }}>{draft.note} Segments evaluated: {draft.segments_evaluated}.</p>
-          {Object.keys(draft.sections).length ? Object.entries(draft.sections).map(([label, items]) => (
+          <p className="t-sm i3" style={{ margin: "6px 0 10px" }}>{visibleDraft.note} Segments evaluated: {visibleDraft.segments_evaluated}.</p>
+          {Object.keys(visibleDraft.sections).length ? Object.entries(visibleDraft.sections).map(([label, items]) => (
             <div key={label} style={{ marginBottom: 8 }}>
               <div className="lbl">{label}</div>
               {items.map((i, k) => <div key={k} className="row-gap t-sm" style={{ gap: 8 }}><span>{i.text}</span><span className="mono t-mono-sm i3">segment {i.segment_seq} · {i.start_ms}–{i.end_ms} ms</span></div>)}
