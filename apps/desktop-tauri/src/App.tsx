@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
 import { call } from "./lib/ipc";
+import { parseDensity, parseTheme } from "./lib/ui-preferences";
 import { App as AppContext, readPref, writePref, type AppCtx, type Density, type Nav, type Theme, type WorkspaceStatus } from "./lib/app";
 import { isRouteId, routes, type RouteId } from "./routes";
 import { Header, Palette, Sidebar } from "./components/shell";
@@ -21,7 +22,7 @@ const hashRoute = hash.get("route");
 const startNav: Nav = { route: hashRoute && isRouteId(hashRoute) ? hashRoute : "Home", subject: hash.get("subject") ?? undefined };
 
 const initialTheme = (): Theme =>
-  (hash.get("theme") === "light" || hash.get("theme") === "dark" ? hash.get("theme") as Theme : null) ?? (readPref("theme") as Theme | null) ?? (window.matchMedia?.("(prefers-color-scheme: light)").matches ? "light" : "dark");
+  parseTheme(hash.get("theme")) ?? parseTheme(readPref("theme")) ?? (window.matchMedia?.("(prefers-color-scheme: light)").matches ? "light" : "dark");
 
 const PAGES: Record<RouteId, () => ReactNode> = {
   Home: () => <Home />,
@@ -58,7 +59,7 @@ export function App() {
   const [nav, setNav] = useState<Nav>(startNav);
   const [project, setProjectState] = useState<string | null>(readPref("project"));
   const [theme, setThemeState] = useState<Theme>(initialTheme);
-  const [density, setDensityState] = useState<Density>((hash.get("density") === "compact" ? "compact" : null) ?? (readPref("density") as Density | null) ?? "standard");
+  const [density, setDensityState] = useState<Density>(parseDensity(hash.get("density")) ?? parseDensity(readPref("density")) ?? "standard");
   const [palette, setPalette] = useState(false);
 
   const refreshWorkspace = useCallback(async () => {
