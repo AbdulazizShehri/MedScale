@@ -81,6 +81,13 @@ jobs:
           } finally {
             Stop-Process -Id $wd.Id -Force -ErrorAction SilentlyContinue
           }
+      - name: Synthetic-only WebView disk profile audit (aggregate; not clearance)
+        if: success()
+        env:
+          MEDSCALE_CI_WEBVIEW_AUDIT: "1"
+        run: |
+          node --test scripts/e2e/webview-disk-audit.test.mjs
+          node scripts/e2e/webview-disk-audit.mjs
       - name: Desktop state on failure
         if: failure()
         shell: pwsh
