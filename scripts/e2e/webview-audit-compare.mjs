@@ -14,6 +14,45 @@ const categories = ["local_storage", "indexed_db", "cache", "crash_or_log", "oth
 const counters = ["files", "key_marker_files", "synthetic_subject_marker_files"];
 const labels = ["tauri_identifier_profile", "legacy_medscale_profile"];
 
+const scopeLabels = ["webview2_runtime", "synthetic_workspace", "other_app_data"];
+const scopeCounters = ["files_examined", "key_marker_files", "synthetic_subject_marker_files"];
+
+function appDataScopeCounts(report, label) {
+  const profile = report.profiles.find((p) => p.label === label);
+  const groups = profile.app_data_scopes;
+  // Older audit artifacts have no origin scopes; do not silently report zeros.
+  if (groups === undefined) return null;
+  if (!groups || typeof groups !== "object" || Array.isArray(groups) ||
+      Object.keys(groups).some((key) => !scopeLabels.includes(key))) {
+    throw new Error("Unrecognized synthetic app-data scope");
+  }
+  const counts = Object.fromEntries(scopeLabels.map((scope) => {
+    const raw = groups[scope] ?? {};
+    if (!raw || typeof raw !== "object" || Array.isArray(raw) ||
+        Object.keys(raw).some((key) => !scopeCounters.includes(key))) {
+      throw new Error("Invalid app-data scope counters");
+    }
+    const values = Object.fromEntries(scopeCounters.map((key) => {
+      const n = raw[key] ?? 0;
+      if (!Number.isSafeInteger(n) || n < 0) {
+        throw new Error("Invalid app-data scope counts");
+      }
+      return [key, n];
+    }));
+    return [scope, values];
+  }));
+  const sums = Object.fromEntries(scopeCounters.map((key) =>
+    [key, Object.values(counts).reduce((total, c) => total + c[key], 0)]));
+  const categoryTotal = (key) => Object.values(profile.categories ?? {})
+    .reduce((total, c) => total + (c[key] ?? 0), 0);
+  if (sums.files_examined !== profile.files_examined ||
+      sums.key_marker_files !== categoryTotal("key_marker_files") ||
+      sums.synthetic_subject_marker_files !== categoryTotal("synthetic_subject_marker_files")) {
+    throw new Error("App-data scope counters do not reconcile");
+  }
+  return counts;
+}
+
 const hintLabels = ["session_state", "service_worker_state", "blob_or_file_state",
   "leveldb_like", "sqlite_like", "profile_root_or_default", "unclassified_other"];
 
@@ -77,6 +116,18 @@ export function compareSyntheticProfilePhases(before, after) {
       });
     }
   }
+  const app_data_scope_comparison = labels.map((label) => {
+    const beforeScopes = appDataScopeCounts(before, label);
+    const afterScopes = appDataScopeCounts(after, label);
+    return {
+      profile: label,
+      before: beforeScopes,
+      after: afterScopes,
+      delta: beforeScopes && afterScopes ? Object.fromEntries(scopeLabels.map((scope) =>
+        [scope, Object.fromEntries(scopeCounters.map((key) =>
+          [key, afterScopes[scope][key] - beforeScopes[scope][key]]))])) : null,
+    };
+  });
   const other_marker_storage_hints = labels.map((label) => {
     const b = storageHintCounts(before, label);
     const a = storageHintCounts(after, label);
@@ -100,6 +151,7 @@ export function compareSyntheticProfilePhases(before, after) {
       "NO_SYNTHETIC_MARKERS_IN_SCANNED_PHASES",
     rows,
     other_marker_storage_hints,
+    app_data_scope_comparison,
   };
 }
 
@@ -125,6 +177,9 @@ async function main() {
       .map((r) => ({ profile: r.profile, category: r.category,
         before: r.before.synthetic_subject_marker_files,
         after: r.after.synthetic_subject_marker_files })),
+    app_data_scopes_by_phase: result.app_data_scope_comparison.filter((r) => r.before && r.after &&
+      (Object.values(r.before).some((x) => x.synthetic_subject_marker_files) ||
+       Object.values(r.after).some((x) => x.synthetic_subject_marker_files))),
     storage_hints_by_phase: result.other_marker_storage_hints.filter((r) => r.before && r.after &&
       (Object.values(r.before).some(Boolean) || Object.values(r.after).some(Boolean))),
   }));
