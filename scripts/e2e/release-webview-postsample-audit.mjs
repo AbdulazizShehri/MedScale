@@ -32,8 +32,11 @@ export async function auditNormalSyntheticSample(appDataRoot) {
   // canary remains in an unaccounted directory. No file paths are exported.
   const appData = await auditReleaseWebviewWelcomeRoot(appDataRoot);
   const knownManifestCanary = await manifestMarkerExists(path.join(appDataRoot, MANIFEST_NAME));
-  const syntheticSampleObserved = workspace.coverage_complete &&
-    (workspace.synthetic_marker_files > 0 || knownManifestCanary);
+  // A seed manifest alone does not prove the sample workspace was populated;
+  // an isolated workspace marker without a seed manifest is also incomplete.
+  // Require BOTH independent expected app-owned synthetic artifacts.
+  const syntheticSampleObserved = workspace.coverage_complete && workspace.runtime_observed &&
+    workspace.synthetic_marker_files > 0 && knownManifestCanary;
   const unattributedMarkerFiles = appData.synthetic_marker_files -
     browser.synthetic_marker_files - workspace.synthetic_marker_files -
     Number(knownManifestCanary);
