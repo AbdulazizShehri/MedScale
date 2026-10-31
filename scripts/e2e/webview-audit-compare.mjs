@@ -128,6 +128,19 @@ export function compareSyntheticProfilePhases(before, after) {
           [key, afterScopes[scope][key] - beforeScopes[scope][key]]))])) : null,
     };
   });
+  // A zero in a scope never implies no browser residue if EBWebView files were
+  // absent or not observed in either phase. Report a separate explicit guard.
+  const appOrigin = app_data_scope_comparison.find((r) =>
+    r.profile === "tauri_identifier_profile");
+  const webview2_runtime_observed = !!(
+    appOrigin?.before?.webview2_runtime.files_examined > 0 &&
+    appOrigin?.after?.webview2_runtime.files_examined > 0
+  );
+  const webview2_runtime_marker_assessment = !webview2_runtime_observed ?
+    "INCONCLUSIVE_WEBVIEW2_RUNTIME_NOT_OBSERVED" :
+    appOrigin.after.webview2_runtime.synthetic_subject_marker_files > 0 ?
+      "SYNTHETIC_MARKERS_IN_SCANNED_WEBVIEW2_RUNTIME" :
+      "NO_SYNTHETIC_MARKERS_IN_SCANNED_WEBVIEW2_RUNTIME";
   const other_marker_storage_hints = labels.map((label) => {
     const b = storageHintCounts(before, label);
     const a = storageHintCounts(after, label);
@@ -152,6 +165,8 @@ export function compareSyntheticProfilePhases(before, after) {
     rows,
     other_marker_storage_hints,
     app_data_scope_comparison,
+    webview2_runtime_observed,
+    webview2_runtime_marker_assessment,
   };
 }
 
@@ -171,6 +186,8 @@ async function main() {
   console.log("WEBVIEW_SYNTHETIC_PHASE_DELTA=" + JSON.stringify({
     qualified_coverage: result.qualified_coverage,
     interpretation: result.interpretation,
+    webview2_runtime_observed: result.webview2_runtime_observed,
+    webview2_runtime_marker_assessment: result.webview2_runtime_marker_assessment,
     synthetic_counts_by_phase: result.rows
       .filter((r) => r.before.synthetic_subject_marker_files ||
                     r.after.synthetic_subject_marker_files)
