@@ -126,10 +126,11 @@ function phaseFixture(markerFiles = 0) {
     { label: "tauri_identifier_profile", exists: true, bytes_examined: 100,
       bounded: false, unreadable_entries: 0, skipped_large_files: 0, skipped_symlinks: 0,
       categories: { other: { files: 3, key_marker_files: 0,
-        synthetic_subject_marker_files: markerFiles } } },
+        synthetic_subject_marker_files: markerFiles } },
+      other_marker_storage_hints: markerFiles ? { unclassified_other: markerFiles } : {} },
     { label: "legacy_medscale_profile", exists: false, bytes_examined: 0,
       bounded: false, unreadable_entries: 0, skipped_large_files: 0, skipped_symlinks: 0,
-      categories: {} },
+      categories: {}, other_marker_storage_hints: {} },
   ] };
 }
 
@@ -188,4 +189,32 @@ test("other-category synthetic markers expose only fixed storage-type hints", as
   } finally {
     await rm(root, { recursive: true, force: true });
   }
+});
+
+
+test("phase delta safely reports fixed storage hints and rejects forged totals", () => {
+  const before = phaseFixture(0);
+  const after = phaseFixture(3);
+  after.profiles[0].other_marker_storage_hints = { session_state: 2, sqlite_like: 1 };
+  const report = compareSyntheticProfilePhases(before, after);
+  const app = report.other_marker_storage_hints.find((entry) =>
+    entry.profile === "tauri_identifier_profile");
+  assert.equal(app.before.session_state, 0);
+  assert.equal(app.after.session_state, 2);
+  assert.equal(app.delta.sqlite_like, 1);
+  assert.equal(JSON.stringify(report).includes("secret-file-to-hide"), false);
+
+  const missing = structuredClone(after);
+  delete missing.profiles[0].other_marker_storage_hints;
+  assert.equal(compareSyntheticProfilePhases(before, missing)
+    .other_marker_storage_hints[0].delta, null, "missing hints must not look like zeros");
+
+  const forged = structuredClone(after);
+  forged.profiles[0].other_marker_storage_hints = { session_state: 4 };
+  assert.throws(() => compareSyntheticProfilePhases(before, forged),
+    /do not reconcile/);
+
+  forged.profiles[0].other_marker_storage_hints = { user_private_path: 3 };
+  assert.throws(() => compareSyntheticProfilePhases(before, forged),
+    /Unrecognized synthetic storage hint category/);
 });
