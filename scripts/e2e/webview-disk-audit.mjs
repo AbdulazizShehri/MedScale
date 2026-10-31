@@ -95,6 +95,11 @@ export async function auditProfiles(roots, limits = defaults) {
   return report;
 }
 
+/** A successful scan with zero readable app-profile bytes is not evidence. */
+export function hasObservedProfileBytes(report) {
+  return report.profiles.some(({ exists, bytes_examined }) => exists && bytes_examined > 0);
+}
+
 async function main() {
   // Guard against accidental use on the owner's workstation or a live profile.
   if (process.env.GITHUB_ACTIONS !== "true" || process.env.MEDSCALE_CI_WEBVIEW_AUDIT !== "1" ||
@@ -113,6 +118,10 @@ async function main() {
     profiles: report.profiles.map(({ label, exists, files_examined, bytes_examined, bounded, unreadable_entries }) =>
       ({ label, exists, files_examined, bytes_examined, bounded, unreadable_entries })),
   }));
+  if (!hasObservedProfileBytes(report)) {
+    // Fail closed without exposing profile paths, file names or content.
+    throw new Error("No readable app-owned WebView profile bytes observed");
+  }
 }
 
 if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
