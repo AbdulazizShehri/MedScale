@@ -6,7 +6,7 @@
  * subject identifiers. It cannot prove privacy after workspace interaction,
  * PHI absence, crash/swap safety or InPrivate enforcement by itself.
  */
-import { mkdir, writeFile } from "node:fs/promises";
+import { lstat, readdir, mkdir, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { auditProfiles, hasCompleteAuditCoverage, hasObservedProfileBytes } from "./webview-disk-audit.mjs";
@@ -20,11 +20,48 @@ export function isAuthorizedNativeRunner(env, platform) {
     Boolean(env.RUNNER_TEMP) && Boolean(env.LOCALAPPDATA);
 }
 
+// Independent metadata inventory: the current main scanner predates the
+// pending last-file truncation fix, so an exhausted final byte budget may
+// otherwise be misreported as complete. Never return names or paths.
+async function inventoryRuntimeBytes(root) {
+  const top = await lstat(root);
+  if (!top.isDirectory() || top.isSymbolicLink()) throw new Error("Invalid runtime root");
+  const pending = [root];
+  let files = 0;
+  let bytes = 0;
+  while (pending.length) {
+    const current = pending.pop();
+    for (const ent of await readdir(current, { withFileTypes: true })) {
+      if (ent.isSymbolicLink()) throw new Error("Symlink in runtime profile");
+      const absolute = path.join(current, ent.name);
+      if (ent.isDirectory()) { pending.push(absolute); continue; }
+      if (!ent.isFile()) throw new Error("Unsupported runtime entry");
+      const st = await lstat(absolute);
+      if (!st.isFile() || st.isSymbolicLink()) throw new Error("Runtime entry changed");
+      files++;
+      bytes += st.size;
+      if (!Number.isSafeInteger(bytes)) throw new Error("Unbounded profile metadata");
+    }
+  }
+  return { files, bytes };
+}
+
 export async function auditReleaseWebviewWelcomeRoot(root, limits) {
   const profileReport = await auditProfiles([{ label: LABEL, root }], limits);
   const p = profileReport.profiles[0];
+  // Fail closed on any unexpected metadata, incomplete last-file read or
+  // change during the read-only scan, even before the parent #383 fix merges.
+  let inventoryMatches = false;
+  if (p.exists) {
+    try {
+      const inventory = await inventoryRuntimeBytes(root);
+      inventoryMatches = inventory.files === p.files_examined &&
+        inventory.bytes === p.bytes_examined;
+    } catch { inventoryMatches = false; }
+  }
   const coverageComplete = hasCompleteAuditCoverage(profileReport) &&
-    hasObservedProfileBytes(profileReport) && p.exists && p.files_examined > 0;
+    hasObservedProfileBytes(profileReport) && p.exists && p.files_examined > 0 &&
+    inventoryMatches;
   const counters = Object.values(p.categories);
   const syntheticMarkerFiles = counters.reduce((n, c) => n + c.synthetic_subject_marker_files, 0);
   const projectKeyMarkerFiles = counters.reduce((n, c) => n + c.key_marker_files, 0);
