@@ -22,6 +22,22 @@ function classify(parts) {
   return "other";
 }
 
+
+// Coarse fixed labels only. File and directory names are NEVER exported.
+// These labels are heuristics for synthetic runner triage, not proof of origin.
+function otherStorageHint(parts, filename) {
+  const names = parts.map((name) => name.toLowerCase());
+  if (names.some((name) => /^(session storage|sessions)$/.test(name))) return "session_state";
+  if (names.includes("service worker")) return "service_worker_state";
+  if (names.some((name) => /^(blob_storage|blob storage|file system|webstorage)$/.test(name))) {
+    return "blob_or_file_state";
+  }
+  if (names.includes("leveldb") || /\.(ldb|sst)$/i.test(filename)) return "leveldb_like";
+  if (/\.(sqlite3?|db)$/i.test(filename)) return "sqlite_like";
+  if (parts.length <= 1) return "profile_root_or_default";
+  return "unclassified_other";
+}
+
 async function scanNeedles(file, remaining, found) {
   let scanned = 0;
   let tail = Buffer.alloc(0);
@@ -46,6 +62,7 @@ export async function auditProfiles(roots, limits = defaults) {
     const info = {
       label, exists: false, files_examined: 0, bytes_examined: 0, skipped_symlinks: 0,
       skipped_large_files: 0, unreadable_entries: 0, bounded: false, categories: {},
+      other_marker_storage_hints: {},
     };
     report.profiles.push(info);
     let stat;
@@ -91,7 +108,14 @@ export async function auditProfiles(roots, limits = defaults) {
           // size during inspection instead of claiming complete coverage.
           if (n !== metadata.size) info.bounded = true;
           if (found[0]) bucket.key_marker_files++;
-          if (found[1]) bucket.synthetic_subject_marker_files++;
+          if (found[1]) {
+            bucket.synthetic_subject_marker_files++;
+            if (category === "other") {
+              const hint = otherStorageHint(parts, ent.name);
+              info.other_marker_storage_hints[hint] =
+                (info.other_marker_storage_hints[hint] ?? 0) + 1;
+            }
+          }
         } catch { info.unreadable_entries++; }
       }
     }
