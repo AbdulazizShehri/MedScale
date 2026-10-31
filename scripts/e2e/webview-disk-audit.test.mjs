@@ -263,7 +263,11 @@ test("app-data ownership scope comparison separates WebView2 from intended synth
   };
   before.profiles[1].app_data_scopes = {};
   after.profiles[1].app_data_scopes = {};
-  const delta = compareSyntheticProfilePhases(before, after).app_data_scope_comparison[0];
+  const compared = compareSyntheticProfilePhases(before, after);
+  assert.equal(compared.webview2_runtime_observed, true);
+  assert.equal(compared.webview2_runtime_marker_assessment,
+    "NO_SYNTHETIC_MARKERS_IN_SCANNED_WEBVIEW2_RUNTIME");
+  const delta = compared.app_data_scope_comparison[0];
   assert.equal(delta.after.webview2_runtime.synthetic_subject_marker_files, 0);
   assert.equal(delta.before.synthetic_workspace.synthetic_subject_marker_files, 0);
   assert.equal(delta.after.synthetic_workspace.synthetic_subject_marker_files, 3);
@@ -280,7 +284,16 @@ test("app-data ownership scope comparison separates WebView2 from intended synth
 
   const old = structuredClone(before);
   delete old.profiles[0].app_data_scopes;
-  assert.equal(compareSyntheticProfilePhases(old, after)
-    .app_data_scope_comparison[0].delta, null,
+  const noScope = compareSyntheticProfilePhases(old, after);
+  assert.equal(noScope.app_data_scope_comparison[0].delta, null,
     "legacy artifacts without app-data scopes must not be interpreted as zero");
+  assert.equal(noScope.webview2_runtime_observed, false);
+  assert.equal(noScope.webview2_runtime_marker_assessment,
+    "INCONCLUSIVE_WEBVIEW2_RUNTIME_NOT_OBSERVED");
+
+  const browserMarker = structuredClone(after);
+  browserMarker.profiles[0].app_data_scopes.webview2_runtime.synthetic_subject_marker_files = 1;
+  browserMarker.profiles[0].app_data_scopes.synthetic_workspace.synthetic_subject_marker_files = 2;
+  assert.equal(compareSyntheticProfilePhases(before, browserMarker).webview2_runtime_marker_assessment,
+    "SYNTHETIC_MARKERS_IN_SCANNED_WEBVIEW2_RUNTIME");
 });
