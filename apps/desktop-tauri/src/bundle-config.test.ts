@@ -123,3 +123,22 @@ test("ordinary packaged WebView keeps InPrivate; remote debugging remains test-o
   assert.match(guard, /MEDSCALE_E2E_WEBDRIVER_CI/);
   assert.match(guard, /GITHUB_ACTIONS/);
 });
+
+test("normal-release native browser audits share exact unsigned source pin and require pre-restart seed proof", () => {
+  const root = new URL("../../../", import.meta.url);
+  const workflows = new URL(".github/workflows/", root);
+  const welcome = readFileSync(new URL("release-webview-native-welcome.yml", workflows), "utf8");
+  const sample = readFileSync(new URL("release-webview-native-postsample.yml", workflows), "utf8");
+  const pins = [welcome, sample].map((yaml) => {
+    const run = yaml.match(/^\s+SOURCE_RUN: "(\d+)"$/m)?.[1];
+    const sha = yaml.match(/^\s+SOURCE_SHA: "([0-9a-f]{40})"$/m)?.[1];
+    assert.ok(run && sha, "native QA workflows must pin a concrete source run and full SHA");
+    assert.match(yaml, /\$raw\.source_sha -ne \$env:SOURCE_SHA/);
+    assert.match(yaml, /\$run\.head_sha -ne \$env:SOURCE_SHA/);
+    return { run, sha };
+  });
+  assert.deepEqual(pins[0], pins[1]);
+  assert.match(sample, /synthetic_seed_file_observed_before_restart/);
+  assert.match(sample, /synthetic_seed_wait_seconds/);
+  assert.match(sample, /Normal-release synthetic seed was not observed before restart/);
+});

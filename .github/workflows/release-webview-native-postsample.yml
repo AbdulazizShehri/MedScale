@@ -58,6 +58,19 @@ jobs:
           if ($q.INSTALL -ne 'PASS' -or $q.LAUNCH -ne 'PASS' -or $q.UNINSTALL -ne 'PASS' -or $q.SIGNING -ne 'NOT_GRANTED' -or $q.synthetic_sample_keypress -ne 'ENTER_SENT_TO_CI_RELEASE_WINDOW' -or -not $q.synthetic_sample_restart.launched -or -not $q.synthetic_sample_restart.webview_runtime_observed -or -not $q.synthetic_sample_restart.medscale_window_seen) {
             throw "Normal-mode installer/launch/removal did not qualify"
           }
+          # The GUI Enter alone is not evidence that the async Core seed finished
+          # before the process was stopped. Emit ONLY a fixed boolean/seconds,
+          # and fail closed on missing first-run completion.
+          if ($null -eq $q.synthetic_seed_file_observed_before_restart -or
+              $null -eq $q.synthetic_seed_wait_seconds) {
+            throw "Normal-release synthetic first-run completion evidence missing"
+          }
+          Write-Output "RELEASE_WEBVIEW_NATIVE_SEED_OBSERVED_BEFORE_RESTART=$($q.synthetic_seed_file_observed_before_restart)"
+          Write-Output "RELEASE_WEBVIEW_NATIVE_SEED_WAIT_SECONDS=$($q.synthetic_seed_wait_seconds)"
+          if ($q.synthetic_seed_file_observed_before_restart -ne $true -or
+              $q.synthetic_seed_wait_seconds -gt 30) {
+            throw "Normal-release synthetic seed was not observed before restart"
+          }
           Write-Output "RELEASE_WEBVIEW_NATIVE_SYNTHETIC_ACTION=ENTER_SENT_DISPOSABLE_CI"
       - name: Bounded post-sample residual separation of EBWebView and synthetic workspace
         shell: pwsh
