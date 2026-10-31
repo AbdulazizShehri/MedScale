@@ -129,6 +129,34 @@ test("seed JSON with mismatched subject and source references remains inconclusi
   });
 });
 
+test("a seed with source reference but missing Rust SeededSource fields remains inconclusive", async () => {
+  await fixture(async root => {
+    await writeFile(path.join(root, "synthetic-workspace", "record"), "synthetic-subject-ada");
+    await writeFile(path.join(root, "synthetic-workspace.desktop-seed.json"),
+      JSON.stringify({ subjects: ["synthetic-subject-ada"],
+        sources: [{ subject_ref: "synthetic-subject-ada" }] }));
+    const report = await auditNormalSyntheticSample(root);
+    assert.equal(report.app_seed_manifest_marker_present, false);
+    assert.equal(report.synthetic_sample_observed, false);
+    assert.equal(report.interpretation, "INCONCLUSIVE_NO_SYNTHETIC_WORKSPACE_MARKERS");
+  });
+});
+
+test("a seed with blank resource kind remains inconclusive instead of pretending to be app-authored", async () => {
+  await fixture(async root => {
+    await writeFile(path.join(root, "synthetic-workspace", "record"), "synthetic-subject-ada");
+    await writeFile(path.join(root, "synthetic-workspace.desktop-seed.json"),
+      JSON.stringify({ subjects: ["synthetic-subject-ada"], sources: [{
+        source_id: "synthetic-source", fixture: "patient-golden.json",
+        resource_type: "", claim_kind: "patient", subject_ref: "synthetic-subject-ada",
+      }] }));
+    const report = await auditNormalSyntheticSample(root);
+    assert.equal(report.app_seed_manifest_marker_present, false);
+    assert.equal(report.synthetic_sample_observed, false);
+    assert.equal(report.interpretation, "INCONCLUSIVE_NO_SYNTHETIC_WORKSPACE_MARKERS");
+  });
+});
+
 test("unattributed app-local synthetic marker fails closed instead of claiming browser privacy", async () => {
   await fixture(async root => {
     await writeFile(path.join(root, "synthetic-workspace", "private-vault-file"), "synthetic-subject-workspace");

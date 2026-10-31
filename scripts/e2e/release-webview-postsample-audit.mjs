@@ -28,7 +28,8 @@ async function manifestMarkerExists(filename) {
       typeof subject === "string" && subject.startsWith("synthetic-subject-"));
     return subjects.length > 0 && manifest.sources.some((source) =>
       source && typeof source === "object" &&
-      typeof source.subject_ref === "string" &&
+      ["source_id", "fixture", "resource_type", "claim_kind", "subject_ref"]
+        .every((field) => typeof source[field] === "string" && source[field].trim().length > 0) &&
       subjects.includes(source.subject_ref));
   } catch { return false; }
 }
