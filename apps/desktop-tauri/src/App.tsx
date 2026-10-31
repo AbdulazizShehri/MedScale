@@ -18,8 +18,23 @@ import { About, AuditTrail, Exports, Integrations, Privacy, Settings } from "./p
 /** Optional start state from the URL hash (route, subject, theme, density); used for
  *  deep links and visual QA. Unknown values are ignored. */
 const hash = new URLSearchParams(window.location.hash.slice(1));
+const startSubject = hash.get("subject") ?? undefined;
+// A deep-linked patient reference is needed only for initial in-memory navigation.
+// Remove every subject parameter from the visible WebView URL/history entry
+// before rendering. This is not secure erasure of already-written browser/OS bytes.
+if (hash.has("subject")) {
+  hash.delete("subject");
+  const remaining = hash.toString();
+  try {
+    window.history.replaceState(
+      window.history.state,
+      "",
+      window.location.pathname + window.location.search + (remaining ? `#${remaining}` : ""),
+    );
+  } catch { /* A restricted custom-protocol history must not block local startup. */ }
+}
 const hashRoute = hash.get("route");
-const startNav: Nav = { route: hashRoute && isRouteId(hashRoute) ? hashRoute : "Home", subject: hash.get("subject") ?? undefined };
+const startNav: Nav = { route: hashRoute && isRouteId(hashRoute) ? hashRoute : "Home", subject: startSubject };
 
 const initialTheme = (): Theme =>
   parseTheme(hash.get("theme")) ?? parseTheme(readPref("theme")) ?? (window.matchMedia?.("(prefers-color-scheme: light)").matches ? "light" : "dark");
