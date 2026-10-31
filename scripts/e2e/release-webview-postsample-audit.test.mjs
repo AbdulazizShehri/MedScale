@@ -89,3 +89,19 @@ test("project-key marker in app-local data refuses release privacy pass even if 
     assert.equal(JSON.stringify(report).includes("private-app-reference"), false);
   });
 });
+
+test("project key marker in a directory name outside browser and vault rejects normal-mode privacy pass", async () => {
+  await fixture(async root => {
+    await writeFile(path.join(root, "synthetic-workspace", "synthetic-data"), "synthetic-subject-fixture");
+    const privateFolder = "medscale.project-confidential-folder";
+    await mkdir(path.join(root, privateFolder));
+    await writeFile(path.join(root, privateFolder, "ordinary-file"), "ordinary contents");
+    const report = await auditNormalSyntheticSample(root);
+    assert.equal(report.app_data_coverage_complete, true);
+    assert.equal(report.app_data_project_key_marker_files, 0);
+    assert.equal(report.app_data_project_name_marker_entries, 1);
+    assert.equal(report.interpretation, "MARKER_IN_SCANNED_APP_DATA_ENTRY_NAME");
+    assert.equal(JSON.stringify(report).includes(privateFolder), false);
+    assert.equal(JSON.stringify(report).includes(root), false);
+  });
+});

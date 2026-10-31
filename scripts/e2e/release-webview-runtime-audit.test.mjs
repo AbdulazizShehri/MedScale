@@ -86,3 +86,40 @@ test("a byte-bounded final runtime file is inconclusive rather than clean", asyn
     await rm(home, { recursive: true, force: true });
   }
 });
+
+test("subject marker in an otherwise clean runtime filename fails closed without logging names", async () => {
+  const home = await mkdtemp(path.join(os.tmpdir(), "medscale-release-name-fixture-"));
+  try {
+    const root = path.join(home, "EBWebView");
+    await mkdir(root);
+    const privateFilename = "synthetic-subject-file-name-must-not-escape";
+    await writeFile(path.join(root, privateFilename), "clean file contents");
+    const report = await auditReleaseWebviewWelcomeRoot(root);
+    assert.equal(report.coverage_complete, true);
+    assert.equal(report.synthetic_marker_files, 0);
+    assert.equal(report.subject_name_marker_entries, 1);
+    assert.equal(report.conclusion, "MARKER_IN_RELEASE_RUNTIME_ENTRY_NAME");
+    assert.equal(JSON.stringify(report).includes(privateFilename), false);
+    assert.equal(JSON.stringify(report).includes(home), false);
+  } finally {
+    await rm(home, { recursive: true, force: true });
+  }
+});
+
+test("project key in a directory name fails closed even if content has no marker", async () => {
+  const home = await mkdtemp(path.join(os.tmpdir(), "medscale-release-directory-fixture-"));
+  try {
+    const root = path.join(home, "EBWebView");
+    const privateDirectory = "medscale.project-private-profile";
+    await mkdir(path.join(root, privateDirectory), { recursive: true });
+    await writeFile(path.join(root, privateDirectory, "regular-file"), "regular contents");
+    const report = await auditReleaseWebviewWelcomeRoot(root);
+    assert.equal(report.coverage_complete, true);
+    assert.equal(report.project_key_marker_files, 0);
+    assert.equal(report.project_name_marker_entries, 1);
+    assert.equal(report.conclusion, "MARKER_IN_RELEASE_RUNTIME_ENTRY_NAME");
+    assert.equal(JSON.stringify(report).includes(privateDirectory), false);
+  } finally {
+    await rm(home, { recursive: true, force: true });
+  }
+});

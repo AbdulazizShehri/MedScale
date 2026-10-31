@@ -29,9 +29,16 @@ async function inventoryRuntimeBytes(root) {
   const pending = [root];
   let files = 0;
   let bytes = 0;
+  let subject_name_marker_entries = 0;
+  let project_name_marker_entries = 0;
   while (pending.length) {
     const current = pending.pop();
     for (const ent of await readdir(current, { withFileTypes: true })) {
+      // Names may themselves contain a synthetic subject or project key even
+      // when every file's contents are clean. Report only fixed counters.
+      const entryName = ent.name.toLowerCase();
+      if (entryName.includes("synthetic-subject-")) subject_name_marker_entries++;
+      if (entryName.includes("medscale.project")) project_name_marker_entries++;
       if (ent.isSymbolicLink()) throw new Error("Symlink in runtime profile");
       const absolute = path.join(current, ent.name);
       if (ent.isDirectory()) { pending.push(absolute); continue; }
@@ -43,7 +50,7 @@ async function inventoryRuntimeBytes(root) {
       if (!Number.isSafeInteger(bytes)) throw new Error("Unbounded profile metadata");
     }
   }
-  return { files, bytes };
+  return { files, bytes, subject_name_marker_entries, project_name_marker_entries };
 }
 
 export async function auditReleaseWebviewWelcomeRoot(root, limits) {
@@ -52,11 +59,15 @@ export async function auditReleaseWebviewWelcomeRoot(root, limits) {
   // Fail closed on any unexpected metadata, incomplete last-file read or
   // change during the read-only scan, even before the parent #383 fix merges.
   let inventoryMatches = false;
+  let subjectNameMarkers = 0;
+  let projectNameMarkers = 0;
   if (p.exists) {
     try {
       const inventory = await inventoryRuntimeBytes(root);
       inventoryMatches = inventory.files === p.files_examined &&
         inventory.bytes === p.bytes_examined;
+      subjectNameMarkers = inventory.subject_name_marker_entries;
+      projectNameMarkers = inventory.project_name_marker_entries;
     } catch { inventoryMatches = false; }
   }
   const coverageComplete = hasCompleteAuditCoverage(profileReport) &&
@@ -67,6 +78,8 @@ export async function auditReleaseWebviewWelcomeRoot(root, limits) {
   const projectKeyMarkerFiles = counters.reduce((n, c) => n + c.key_marker_files, 0);
   const conclusion = !p.exists ? "INCONCLUSIVE_MISSING_WEBVIEW2_RUNTIME" :
     !coverageComplete ? "INCONCLUSIVE_UNREADABLE_OR_BOUNDED_RUNTIME" :
+    subjectNameMarkers > 0 || projectNameMarkers > 0 ? "MARKER_IN_RELEASE_RUNTIME_ENTRY_NAME" :
+    projectKeyMarkerFiles > 0 ? "PROJECT_KEY_MARKER_IN_SCANNED_RELEASE_RUNTIME" :
     syntheticMarkerFiles > 0 ? "SYNTHETIC_MARKERS_OBSERVED_IN_RELEASE_WELCOME_RUNTIME" :
     "NO_SYNTHETIC_MARKERS_IN_SCANNED_RELEASE_WELCOME_RUNTIME";
   return {
@@ -77,6 +90,8 @@ export async function auditReleaseWebviewWelcomeRoot(root, limits) {
     bytes_examined: p.bytes_examined,
     synthetic_marker_files: syntheticMarkerFiles,
     project_key_marker_files: projectKeyMarkerFiles,
+    subject_name_marker_entries: subjectNameMarkers,
+    project_name_marker_entries: projectNameMarkers,
     conclusion,
   };
 }
@@ -91,7 +106,7 @@ async function main() {
   await mkdir(path.dirname(file), { recursive: true });
   await writeFile(file, JSON.stringify(result, null, 2) + "\n");
   console.log("RELEASE_WEBVIEW_WELCOME_AUDIT=" + JSON.stringify(result));
-  if (!result.coverage_complete || result.synthetic_marker_files > 0) {
+  if (result.conclusion !== "NO_SYNTHETIC_MARKERS_IN_SCANNED_RELEASE_WELCOME_RUNTIME") {
     throw new Error("Native release welcome-screen WebView2 evidence is not qualified");
   }
 }
