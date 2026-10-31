@@ -161,3 +161,31 @@ test("missing or bounded baseline bytes are inconclusive, not privacy clearance"
   assert.throws(() => compareSyntheticProfilePhases(unexpected, phaseFixture(0)),
     /Unknown or missing synthetic audit profile\/category/);
 });
+
+
+test("other-category synthetic markers expose only fixed storage-type hints", async () => {
+  const root = await mkdtemp(path.join(os.tmpdir(), "medscale-webview-audit-"));
+  try {
+    const session = path.join(root, "Session Storage");
+    const worker = path.join(root, "Service Worker");
+    await mkdir(session);
+    await mkdir(worker);
+    const marker = "synthetic-subject-unit-only-sensitive-canary";
+    await writeFile(path.join(session, "secret-file-to-hide.log"), marker);
+    await writeFile(path.join(worker, "secret-worker-file"), marker);
+    await writeFile(path.join(root, "secret-file-to-hide.sqlite"), marker);
+    const report = await auditProfiles([{ label: "synthetic_fixture", root }]);
+    assert.equal(hasCompleteAuditCoverage(report), true);
+    assert.equal(report.profiles[0].categories.other.synthetic_subject_marker_files, 3);
+    assert.deepEqual(report.profiles[0].other_marker_storage_hints, {
+      sqlite_like: 1, session_state: 1, service_worker_state: 1,
+    });
+    const exported = JSON.stringify(report);
+    assert.equal(exported.includes("secret-file-to-hide"), false);
+    assert.equal(exported.includes("secret-worker-file"), false);
+    assert.equal(exported.includes("unit-only-sensitive-canary"), false);
+    assert.equal(exported.includes(root), false);
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});
