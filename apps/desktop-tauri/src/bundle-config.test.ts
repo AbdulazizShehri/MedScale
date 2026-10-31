@@ -100,3 +100,26 @@ test("the test-only e2e-webdriver build is never used for packaging or release",
   // Not a default feature: only an explicit `--features e2e-webdriver` turns it on.
   assert.doesNotMatch(cargo.match(/^default\s*=\s*\[[^\]]*\]/m)?.[0] ?? "", /e2e-webdriver/);
 });
+
+
+test("ordinary packaged WebView keeps InPrivate; remote debugging remains test-only", () => {
+  const native = readFileSync(new URL("../src-tauri/src/main.rs", import.meta.url), "utf8");
+  const cargo = readFileSync(new URL("../src-tauri/Cargo.toml", import.meta.url), "utf8");
+  const guard = readFileSync(new URL("../src-tauri/build.rs", import.meta.url), "utf8");
+
+  // A future WebView2 builder refactor must fail packaging tests if it silently
+  // drops InPrivate or enables it only in the WebDriver automation binary.
+  assert.match(native,
+    /\.incognito\(\s*!cfg!\(\s*feature\s*=\s*"e2e-webdriver"\s*\)\s*\)\s*\.build\(\)\?/);
+  assert.match(native,
+    /#\[cfg\(all\(windows,\s*feature\s*=\s*"e2e-webdriver"\)\)\]\s*let builder = builder\.additional_browser_args\(/);
+  assert.match(native, /--remote-debugging-port=39517/);
+
+  // Neither default Cargo features nor the app bundle config may activate the
+  // test-only debugger. Even a passing static test is NOT disk privacy proof.
+  assert.doesNotMatch(cargo.match(/^default\s*=\s*\[[^\]]*\]/m)?.[0] ?? "",
+    /e2e-webdriver/);
+  assert.doesNotMatch(JSON.stringify(conf), /remote-debugging-port|e2e-webdriver/);
+  assert.match(guard, /MEDSCALE_E2E_WEBDRIVER_CI/);
+  assert.match(guard, /GITHUB_ACTIONS/);
+});
