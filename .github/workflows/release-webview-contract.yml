@@ -15,6 +15,8 @@ on:
       - apps/desktop-tauri/src-tauri/tauri.conf.json
       - scripts/e2e/release-webview-runtime-audit.mjs
       - scripts/e2e/release-webview-runtime-audit.test.mjs
+      - scripts/e2e/release-webview-postsample-audit.mjs
+      - scripts/e2e/release-webview-postsample-audit.test.mjs
       - .github/workflows/release-webview-contract.yml
 
 permissions:
@@ -35,3 +37,5 @@ jobs:
         run: node --experimental-strip-types --test apps/desktop-tauri/src/bundle-config.test.ts
       - name: Verify read-only release WebView2 probe and privacy guards
         run: node --test scripts/e2e/release-webview-runtime-audit.test.mjs
+      - name: Verify synthetic sample post-exit browser vs app vault aggregation
+        run: node --test scripts/e2e/release-webview-postsample-audit.test.mjs
