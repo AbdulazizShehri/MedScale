@@ -14,6 +14,34 @@ const categories = ["local_storage", "indexed_db", "cache", "crash_or_log", "oth
 const counters = ["files", "key_marker_files", "synthetic_subject_marker_files"];
 const labels = ["tauri_identifier_profile", "legacy_medscale_profile"];
 
+const hintLabels = ["session_state", "service_worker_state", "blob_or_file_state",
+  "leveldb_like", "sqlite_like", "profile_root_or_default", "unclassified_other"];
+
+function storageHintCounts(report, label) {
+  const profile = report.profiles.find((p) => p.label === label);
+  const values = profile?.other_marker_storage_hints;
+  // Older report versions did not record hints: missing evidence is not zero.
+  if (values === undefined) return null;
+  if (!values || typeof values !== "object" || Array.isArray(values) ||
+      Object.keys(values).some((key) => !hintLabels.includes(key))) {
+    throw new Error("Unrecognized synthetic storage hint category");
+  }
+  const numbers = Object.fromEntries(hintLabels.map((key) => {
+    const count = values[key] ?? 0;
+    if (!Number.isSafeInteger(count) || count < 0) {
+      throw new Error("Invalid synthetic storage hint count");
+    }
+    return [key, count];
+  }));
+  const total = Object.values(numbers).reduce((a, b) => a + b, 0);
+  const otherMarkers = profile.categories?.other?.synthetic_subject_marker_files ?? 0;
+  if (total !== otherMarkers) {
+    throw new Error("Synthetic storage hint counters do not reconcile");
+  }
+  return numbers;
+}
+
+
 function counts(report, label, category) {
   const root = report.profiles.find((p) => p.label === label);
   const values = root?.categories?.[category] ?? {};
@@ -49,6 +77,16 @@ export function compareSyntheticProfilePhases(before, after) {
       });
     }
   }
+  const other_marker_storage_hints = labels.map((label) => {
+    const b = storageHintCounts(before, label);
+    const a = storageHintCounts(after, label);
+    return {
+      profile: label,
+      before: b,
+      after: a,
+      delta: b && a ? Object.fromEntries(hintLabels.map((key) => [key, a[key] - b[key]])) : null,
+    };
+  });
   const baselineMarkers = rows.reduce((s, row) => s + row.before.synthetic_subject_marker_files, 0);
   const newMarkerCount = rows.reduce((s, row) => s +
     Math.max(0, row.delta.synthetic_subject_marker_files), 0);
@@ -61,6 +99,7 @@ export function compareSyntheticProfilePhases(before, after) {
       baselineMarkers > 0 ? "MARKERS_ALREADY_IN_BASELINE_COUNTS_UNATTRIBUTED" :
       "NO_SYNTHETIC_MARKERS_IN_SCANNED_PHASES",
     rows,
+    other_marker_storage_hints,
   };
 }
 
@@ -86,6 +125,8 @@ async function main() {
       .map((r) => ({ profile: r.profile, category: r.category,
         before: r.before.synthetic_subject_marker_files,
         after: r.after.synthetic_subject_marker_files })),
+    storage_hints_by_phase: result.other_marker_storage_hints.filter((r) => r.before && r.after &&
+      (Object.values(r.before).some(Boolean) || Object.values(r.after).some(Boolean))),
   }));
   if (!result.qualified_coverage) throw new Error("Incomplete baseline or post-journey scan");
 }
