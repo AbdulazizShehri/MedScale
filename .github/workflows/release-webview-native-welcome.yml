@@ -1,0 +1,72 @@
+# Synthetic-only native normal-build WebView2 welcome-screen evidence.
+# Reuse unsigned engineering installer already qualified from PR #385:
+# never rebuild Rust or handle real patient data or publish a release.
+name: release-webview-native-welcome
+
+on:
+  push:
+    branches:
+      - "test/release-webview-inprivate-contract-*"
+
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  release-mode-welcome:
+    runs-on: windows-latest
+    timeout-minutes: 25
+    env:
+      SOURCE_RUN: "41214618664"
+      SOURCE_SHA: "15be6252a78783aa26d629f1246e47748a2efaaa"
+      MEDSCALE_RELEASE_WEBVIEW_PROBE: "1"
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v4
+        with:
+          ref: \${{ github.sha }}
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: "24.19.0"
+      - name: Verify source-bound normal-mode engineering installer provenance
+        shell: pwsh
+        env:
+          GH_TOKEN: \${{ github.token }}
+        run: |
+          if ($env:GITHUB_ACTIONS -ne 'true' -or $env:RUNNER_ENVIRONMENT -ne 'github-hosted' -or $env:RUNNER_OS -ne 'Windows') {
+            throw "Disposable GitHub-hosted Windows runner required"
+          }
+          $run = gh api "repos/AbdulazizShehri/MedScale/actions/runs/$env:SOURCE_RUN" | ConvertFrom-Json
+          if ($LASTEXITCODE -ne 0 -or $run.head_sha -ne $env:SOURCE_SHA -or $run.conclusion -ne 'success') {
+            throw "Unsigned engineering package provenance is not qualified"
+          }
+          New-Item -ItemType Directory -Force target/normal-release-archive | Out-Null
+          gh run download $env:SOURCE_RUN --repo AbdulazizShehri/MedScale --name tauri-installer-windows-latest --dir target/normal-release-archive
+          if ($LASTEXITCODE -ne 0) { throw "Failed to retrieve exact-source installer artifact" }
+          $manifest = @(Get-ChildItem -LiteralPath target/normal-release-archive -Filter package-manifest.json -Recurse -File)
+          if ($manifest.Count -ne 1) { throw "Expected exactly one verified Windows release manifest" }
+          $raw = Get-Content -LiteralPath $manifest[0].FullName -Raw | ConvertFrom-Json
+          if ($raw.source_sha -ne $env:SOURCE_SHA) { throw "Package manifest source mismatch" }
+          $manifest[0].Directory.FullName | Set-Content target/normal-release-root.txt
+      - name: Qualify native normal-release installer launch and removal
+        shell: pwsh
+        run: |
+          $root = (Get-Content target/normal-release-root.txt -Raw).Trim()
+          & pwsh -NoProfile -File scripts/qualify-tauri-installer-windows.ps1 -ReleaseRoot $root -ReportPath target/normal-release-qualification.json | Out-Null
+          if ($LASTEXITCODE -ne 0) { throw "Normal-mode installer launch qualification failed" }
+          $q = Get-Content target/normal-release-qualification.json -Raw | ConvertFrom-Json
+          if ($q.INSTALL -ne 'PASS' -or $q.LAUNCH -ne 'PASS' -or $q.UNINSTALL -ne 'PASS' -or $q.SIGNING -ne 'NOT_GRANTED') {
+            throw "Normal-mode installer/launch/removal did not qualify"
+          }
+          Write-Output "RELEASE_WEBVIEW_NATIVE_LAUNCH=PASS_UNSIGNED_TEST_BUILD"
+      - name: Read-only bounded EBWebView audit after welcome-screen exit
+        shell: pwsh
+        run: |
+          node scripts/e2e/release-webview-runtime-audit.mjs
+          if ($LASTEXITCODE -ne 0) { throw "Release-mode welcome-screen browser audit unqualified" }
+      - uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v4.6.2
+        if: \${{ !cancelled() }}
+        with:
+          name: release-webview-welcome-sanitized-counters
+          path: target/e2e-shots/release-webview-runtime-welcome-audit.json
+          if-no-files-found: warn
+          retention-days: 7
