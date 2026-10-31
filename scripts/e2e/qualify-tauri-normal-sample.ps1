@@ -170,6 +170,25 @@ if (-not $shell.AppActivate(__PID__)) { throw "Cannot focus normal release deskt
         if ($d2.alive -and ($d2.child_processes_seen -contains 'msedgewebview2.exe') -and ($d2.window_titles -contains 'MedScale')) { $result.LAUNCH = 'PASS' }
         Stop-Tree $proc.Id
         $d2.terminated = -not [bool](Get-Process -Id $proc.Id -ErrorAction SilentlyContinue)
+        # Restart the same ordinary InPrivate build after actual synthetic
+        # workspace interaction. Do not write into or remove the app-owned
+        # persisted workspace; the scanner checks browser and vault separately.
+        if ($result.LAUNCH -eq 'PASS') {
+            $restart = Start-Process -FilePath $exe.FullName -WorkingDirectory $installDir -PassThru
+            $probe = Watch-Launch $restart.Id ([IntPtr]::Zero) ([IntPtr]::Zero)
+            $probe.mechanism = 'normal_release_after_synthetic_restart'
+            $result.synthetic_sample_restart = [ordered]@{
+                launched = $probe.alive
+                webview_runtime_observed = ($probe.child_processes_seen -contains 'msedgewebview2.exe')
+                medscale_window_seen = ($probe.window_titles -contains 'MedScale')
+            }
+            Stop-Tree $restart.Id
+            if (-not $result.synthetic_sample_restart.launched -or
+                -not $result.synthetic_sample_restart.webview_runtime_observed -or
+                -not $result.synthetic_sample_restart.medscale_window_seen) {
+                throw 'Normal release synthetic sample restart native WebView2 qualification failed'
+            }
+        }
     }
 }
 
