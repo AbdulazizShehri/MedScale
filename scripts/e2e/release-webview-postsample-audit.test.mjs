@@ -56,3 +56,21 @@ test("no synthetic workspace after a welcome button action must remain inconclus
     assert.equal(r.interpretation, "INCONCLUSIVE_INCOMPLETE_NATIVE_PROFILE_OR_SYNTHETIC_WORKSPACE");
   });
 });
+
+test("unattributed app-local synthetic marker fails closed instead of claiming browser privacy", async () => {
+  await fixture(async root => {
+    await writeFile(path.join(root, "synthetic-workspace", "private-vault-file"), "synthetic-subject-workspace");
+    await writeFile(path.join(root, "private-unclassified-app-data"), "synthetic-subject-unattributed");
+    const report = await auditNormalSyntheticSample(root);
+    assert.equal(report.app_data_coverage_complete, true);
+    assert.equal(report.app_data_synthetic_marker_files, 2);
+    assert.equal(report.browser_synthetic_marker_files, 0);
+    assert.equal(report.synthetic_workspace_marker_files, 1);
+    assert.equal(report.unattributed_app_data_marker_files, 1);
+    assert.equal(report.interpretation, "INCONCLUSIVE_UNATTRIBUTED_APP_DATA_MARKERS");
+    const serialized = JSON.stringify(report);
+    for (const privateValue of ["private-unclassified-app-data", "synthetic-subject-unattributed", root]) {
+      assert.equal(serialized.includes(privateValue), false);
+    }
+  });
+});

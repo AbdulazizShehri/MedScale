@@ -27,16 +27,29 @@ async function manifestMarkerExists(filename) {
 export async function auditNormalSyntheticSample(appDataRoot) {
   const browser = await auditReleaseWebviewWelcomeRoot(path.join(appDataRoot, "EBWebView"));
   const workspace = await auditReleaseWebviewWelcomeRoot(path.join(appDataRoot, "synthetic-workspace"));
+  // The exact Tauri app-local root includes browser and synthetic vault, but
+  // may contain OTHER app-owned files. Audit it independently to ensure no
+  // canary remains in an unaccounted directory. No file paths are exported.
+  const appData = await auditReleaseWebviewWelcomeRoot(appDataRoot);
   const knownManifestCanary = await manifestMarkerExists(path.join(appDataRoot, MANIFEST_NAME));
   const syntheticSampleObserved = workspace.coverage_complete &&
     (workspace.synthetic_marker_files > 0 || knownManifestCanary);
-  const interpretation = !browser.coverage_complete || !workspace.coverage_complete ?
+  const unattributedMarkerFiles = appData.synthetic_marker_files -
+    browser.synthetic_marker_files - workspace.synthetic_marker_files -
+    Number(knownManifestCanary);
+  const interpretation = !browser.coverage_complete || !workspace.coverage_complete ||
+      !appData.coverage_complete ?
     "INCONCLUSIVE_INCOMPLETE_NATIVE_PROFILE_OR_SYNTHETIC_WORKSPACE" :
     !syntheticSampleObserved ? "INCONCLUSIVE_NO_SYNTHETIC_WORKSPACE_MARKERS" :
     browser.synthetic_marker_files > 0 ? "SYNTHETIC_MARKERS_IN_NORMAL_RELEASE_WEBVIEW2_RUNTIME" :
+    unattributedMarkerFiles !== 0 ? "INCONCLUSIVE_UNATTRIBUTED_APP_DATA_MARKERS" :
     "NO_SYNTHETIC_MARKERS_IN_SCANNED_NORMAL_RELEASE_POSTSAMPLE_RUNTIME";
   return {
     scope: "normal-release-InPrivate-synthetic-sample-after-exit; not PHI, OS, crash or backup clearance",
+    app_data_coverage_complete: appData.coverage_complete,
+    app_data_files_examined: appData.files_examined,
+    app_data_synthetic_marker_files: appData.synthetic_marker_files,
+    unattributed_app_data_marker_files: unattributedMarkerFiles,
     browser_runtime_observed: browser.runtime_observed,
     browser_coverage_complete: browser.coverage_complete,
     browser_files_examined: browser.files_examined,
