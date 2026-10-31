@@ -86,6 +86,10 @@ export async function auditProfiles(roots, limits = defaults) {
           const n = await scanNeedles(file, limits.maxBytes - info.bytes_examined, found);
           info.bytes_examined += n;
           info.files_examined++;
+          // The final file can exhaust the byte budget without another loop
+          // iteration to set bounded. Reject partial reads and files changing
+          // size during inspection instead of claiming complete coverage.
+          if (n !== metadata.size) info.bounded = true;
           if (found[0]) bucket.key_marker_files++;
           if (found[1]) bucket.synthetic_subject_marker_files++;
         } catch { info.unreadable_entries++; }
