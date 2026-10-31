@@ -247,3 +247,40 @@ test("app data scopes distinguish WebView2 runtime from persisted synthetic work
     await rm(root, { recursive: true, force: true });
   }
 });
+
+
+test("app-data ownership scope comparison separates WebView2 from intended synthetic vault", () => {
+  const before = phaseFixture(0);
+  const after = phaseFixture(3);
+  before.profiles[0].app_data_scopes = {
+    webview2_runtime: { files_examined: 70, key_marker_files: 0, synthetic_subject_marker_files: 0 },
+    other_app_data: { files_examined: 30, key_marker_files: 0, synthetic_subject_marker_files: 0 },
+  };
+  after.profiles[0].app_data_scopes = {
+    webview2_runtime: { files_examined: 70, key_marker_files: 0, synthetic_subject_marker_files: 0 },
+    synthetic_workspace: { files_examined: 3, key_marker_files: 0, synthetic_subject_marker_files: 3 },
+    other_app_data: { files_examined: 27, key_marker_files: 0, synthetic_subject_marker_files: 0 },
+  };
+  before.profiles[1].app_data_scopes = {};
+  after.profiles[1].app_data_scopes = {};
+  const delta = compareSyntheticProfilePhases(before, after).app_data_scope_comparison[0];
+  assert.equal(delta.after.webview2_runtime.synthetic_subject_marker_files, 0);
+  assert.equal(delta.before.synthetic_workspace.synthetic_subject_marker_files, 0);
+  assert.equal(delta.after.synthetic_workspace.synthetic_subject_marker_files, 3);
+  assert.equal(delta.delta.synthetic_workspace.synthetic_subject_marker_files, 3);
+
+  const forged = structuredClone(after);
+  forged.profiles[0].app_data_scopes.synthetic_workspace.synthetic_subject_marker_files = 4;
+  assert.throws(() => compareSyntheticProfilePhases(before, forged), /do not reconcile/);
+
+  const unknown = structuredClone(after);
+  unknown.profiles[0].app_data_scopes.private_path = { files_examined: 1 };
+  assert.throws(() => compareSyntheticProfilePhases(before, unknown),
+    /Unrecognized synthetic app-data scope/);
+
+  const old = structuredClone(before);
+  delete old.profiles[0].app_data_scopes;
+  assert.equal(compareSyntheticProfilePhases(old, after)
+    .app_data_scope_comparison[0].delta, null,
+    "legacy artifacts without app-data scopes must not be interpreted as zero");
+});
