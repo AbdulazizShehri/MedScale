@@ -70,6 +70,7 @@ async function run() {
       page.on("pageerror", (err) => exceptions.push(err.message));
       page.on("request", (r) => { if (!r.url().startsWith(origin)) external.push(r.url()); });
       await page.addInitScript(model);
+      await page.addInitScript(() => window.localStorage.setItem("medscale.project", "synthetic-legacy-project-marker"));
       const res = await page.goto(origin, { waitUntil: "networkidle" });
       assert.equal(res.status(), 200, "served desktop bundle");
       await page.getByRole("heading", { name: /your local ai workspace/i }).waitFor();
@@ -81,6 +82,8 @@ async function run() {
       assert.equal(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1), true, "no horizontal overflow");
       await primary.click();
       await page.getByRole("heading", { name: "Workspace", exact: true }).waitFor({ timeout: 12000 });
+      assert.equal(await page.evaluate(() => localStorage.getItem("medscale.project")), null,
+        "legacy last-project ID is cleared from browser storage on startup");
       const cmds = await page.evaluate(() => window.__firstRunCommands);
       assert.equal(cmds.filter((cmd) => cmd === "workspace_open_synthetic").length, 1, "one-click synthetic open");
       assert.equal(cmds.includes("workspace_create_encrypted"), false, "no vault creation on primary CTA");

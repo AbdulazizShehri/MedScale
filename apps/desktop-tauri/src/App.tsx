@@ -57,14 +57,17 @@ export function App() {
   const [wsError, setWsError] = useState<string | null>(null);
   const [gate, setGate] = useState<"welcome" | "access">(hash.get("gate") === "access" ? "access" : "welcome");
   const [nav, setNav] = useState<Nav>(startNav);
-  const [project, setProjectState] = useState<string | null>(readPref("project"));
+  // Project selection belongs only to the currently unlocked workspace. Never persist its ID in WebView storage.
+  const [project, setProjectState] = useState<string | null>(null);
   const [theme, setThemeState] = useState<Theme>(initialTheme);
   const [density, setDensityState] = useState<Density>(parseDensity(hash.get("density")) ?? parseDensity(readPref("density")) ?? "standard");
   const [palette, setPalette] = useState(false);
 
   const refreshWorkspace = useCallback(async () => {
     try {
-      setWs(await call<WorkspaceStatus>("workspace_status"));
+      const status = await call<WorkspaceStatus>("workspace_status");
+      setWs(status);
+      if (!status.open) setProjectState(null);
       setWsError(null);
     } catch (e) {
       setWsError((e as { message?: string }).message ?? "Local runtime disconnected");
@@ -72,14 +75,18 @@ export function App() {
   }, []);
 
   useEffect(() => { void refreshWorkspace(); }, [refreshWorkspace]);
+  // Remove the legacy identifier preference on startup. Storage engines may retain physical pages,
+  // so this is logical minimization, not a secure erasure or full OS privacy claim.
+  useEffect(() => { writePref("project", null); }, []);
   useEffect(() => { document.documentElement.dataset.theme = theme; }, [theme]);
 
   const setTheme = useCallback((t: Theme) => { setThemeState(t); writePref("theme", t); }, []);
   const setDensity = useCallback((d: Density) => { setDensityState(d); writePref("density", d); }, []);
-  const setProject = useCallback((id: string | null) => { setProjectState(id); writePref("project", id); }, []);
+  const setProject = useCallback((id: string | null) => { setProjectState(id); }, []);
   const navigate = useCallback((route: RouteId, subject?: string) => { setNav({ route, subject }); setPalette(false); }, []);
   const lock = useCallback(async () => {
     try { await call("workspace_lock"); } finally {
+      setProjectState(null);
       setGate("access");
       setNav({ route: "Home" });
       await refreshWorkspace();
