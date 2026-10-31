@@ -1,0 +1,86 @@
+# Synthetic-only normal Windows release GUI sample interaction and WebView2 after-exit residue.
+# Reuse unsigned engineering installer already qualified from PR #385:
+# never rebuild Rust or handle real patient data or publish a release.
+name: release-webview-native-postsample
+
+on:
+  push:
+    branches:
+      - "test/release-webview-inprivate-contract-*"
+
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  release-mode-postsample:
+    runs-on: windows-latest
+    timeout-minutes: 25
+    env:
+      SOURCE_RUN: "41236416069"
+      SOURCE_SHA: "079543e76aaf9233475c64af506becb81b77001d"
+      MEDSCALE_RELEASE_WEBVIEW_PROBE: "1"
+      MEDSCALE_NORMAL_SAMPLE_PROBE: "1"
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v4
+        with:
+          ref: ${{ github.sha }}
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: "24.19.0"
+      - name: Verify source-bound normal-mode engineering installer provenance
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          if ($env:GITHUB_ACTIONS -ne 'true' -or $env:RUNNER_ENVIRONMENT -ne 'github-hosted' -or $env:RUNNER_OS -ne 'Windows') {
+            throw "Disposable GitHub-hosted Windows runner required"
+          }
+          $run = gh api "repos/AbdulazizShehri/MedScale/actions/runs/$env:SOURCE_RUN" | ConvertFrom-Json
+          if ($LASTEXITCODE -ne 0 -or $run.head_sha -ne $env:SOURCE_SHA -or $run.conclusion -ne 'success') {
+            throw "Unsigned engineering package provenance is not qualified"
+          }
+          New-Item -ItemType Directory -Force target/normal-release-archive | Out-Null
+          gh run download $env:SOURCE_RUN --repo AbdulazizShehri/MedScale --name tauri-installer-windows-latest --dir target/normal-release-archive
+          if ($LASTEXITCODE -ne 0) { throw "Failed to retrieve exact-source installer artifact" }
+          $manifest = @(Get-ChildItem -LiteralPath target/normal-release-archive -Filter package-manifest.json -Recurse -File)
+          if ($manifest.Count -ne 1) { throw "Expected exactly one verified Windows release manifest" }
+          $raw = Get-Content -LiteralPath $manifest[0].FullName -Raw | ConvertFrom-Json
+          if ($raw.source_sha -ne $env:SOURCE_SHA) { throw "Package manifest source mismatch" }
+          $manifest[0].Directory.FullName | Set-Content target/normal-release-root.txt
+      - name: Exercise auto-focused fictional-sample button in normal-release app, then uninstall
+        shell: pwsh
+        run: |
+          $root = (Get-Content target/normal-release-root.txt -Raw).Trim()
+          & pwsh -NoProfile -File scripts/e2e/qualify-tauri-normal-sample.ps1 -ReleaseRoot $root -ReportPath target/normal-release-qualification.json | Out-Null
+          if ($LASTEXITCODE -ne 0) { throw "Normal-mode installer launch qualification failed" }
+          $q = Get-Content target/normal-release-qualification.json -Raw | ConvertFrom-Json
+          if ($q.INSTALL -ne 'PASS' -or $q.LAUNCH -ne 'PASS' -or $q.UNINSTALL -ne 'PASS' -or $q.SIGNING -ne 'NOT_GRANTED' -or $q.synthetic_sample_keypress -ne 'ENTER_SENT_TO_CI_RELEASE_WINDOW' -or -not $q.synthetic_sample_restart.launched -or -not $q.synthetic_sample_restart.webview_runtime_observed -or -not $q.synthetic_sample_restart.medscale_window_seen) {
+            throw "Normal-mode installer/launch/removal did not qualify"
+          }
+          # The GUI Enter alone is not evidence that the async Core seed finished
+          # before the process was stopped. Emit ONLY a fixed boolean/seconds,
+          # and fail closed on missing first-run completion.
+          if ($null -eq $q.synthetic_seed_file_observed_before_restart -or
+              $null -eq $q.synthetic_seed_wait_seconds) {
+            throw "Normal-release synthetic first-run completion evidence missing"
+          }
+          Write-Output "RELEASE_WEBVIEW_NATIVE_SEED_OBSERVED_BEFORE_RESTART=$($q.synthetic_seed_file_observed_before_restart)"
+          Write-Output "RELEASE_WEBVIEW_NATIVE_SEED_WAIT_SECONDS=$($q.synthetic_seed_wait_seconds)"
+          if ($q.synthetic_seed_file_observed_before_restart -ne $true -or
+              $q.synthetic_seed_wait_seconds -gt 30) {
+            throw "Normal-release synthetic seed was not observed before restart"
+          }
+          Write-Output "RELEASE_WEBVIEW_NATIVE_SYNTHETIC_ACTION=ENTER_SENT_DISPOSABLE_CI"
+      - name: Bounded post-sample residual separation of EBWebView and synthetic workspace
+        shell: pwsh
+        run: |
+          node scripts/e2e/release-webview-postsample-audit.mjs
+          if ($LASTEXITCODE -ne 0) { throw "Normal-release post-sample browser residual is not qualified" }
+      - uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v4.6.2
+        if: ${{ !cancelled() }}
+        with:
+          name: release-webview-postsample-sanitized-counters
+          path: target/e2e-shots/release-webview-normal-postsample-audit.json
+          if-no-files-found: warn
+          retention-days: 7
