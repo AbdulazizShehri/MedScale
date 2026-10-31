@@ -1,6 +1,8 @@
 /**
- * Read-only, bounded synthetic WebView profile inspection on a disposable GitHub
- * Windows runner. This is NOT a PHI/OS privacy attestation: content is not
+ * Read-only, bounded synthetic Tauri APP-LOCAL DATA inspection on a disposable
+ * GitHub Windows runner. This root INCLUDES the WebView2 EBWebView subdirectory
+ * AND the app's synthetic workspace/vault. It is NOT limited to browser cache.
+ * This is NOT a PHI/OS privacy attestation: content is not
  * printed, uploaded, or copied, and the scan excludes OS swap, crash and backups.
  */
 import { createReadStream } from "node:fs";
@@ -22,6 +24,35 @@ function classify(parts) {
   return "other";
 }
 
+
+// Coarse fixed labels only. File and directory names are NEVER exported.
+// These labels are heuristics for synthetic runner triage, not proof of origin.
+function otherStorageHint(parts, filename) {
+  const names = parts.map((name) => name.toLowerCase());
+  if (names.some((name) => /^(session storage|sessions)$/.test(name))) return "session_state";
+  if (names.includes("service worker")) return "service_worker_state";
+  if (names.some((name) => /^(blob_storage|blob storage|file system|webstorage)$/.test(name))) {
+    return "blob_or_file_state";
+  }
+  if (names.includes("leveldb") || /\.(ldb|sst)$/i.test(filename)) return "leveldb_like";
+  if (/\.(sqlite3?|db)$/i.test(filename)) return "sqlite_like";
+  if (parts.length <= 1) return "profile_root_or_default";
+  return "unclassified_other";
+}
+
+// The scan root is the WHOLE Tauri app-local data directory, not just EBWebView.
+// Scope names are fixed: never export user paths, filenames or marker bytes.
+function appDataScope(parts, filename) {
+  const first = parts[0]?.toLowerCase();
+  if (first === "ebwebview") return "webview2_runtime";
+  if (first === "synthetic-workspace" || first === "fixture-staging" ||
+      (parts.length === 0 &&
+       /^synthetic-workspace\.desktop-(?:seed|packs|asr)\.json$/i.test(filename))) {
+    return "synthetic_workspace";
+  }
+  return "other_app_data";
+}
+
 async function scanNeedles(file, remaining, found) {
   let scanned = 0;
   let tail = Buffer.alloc(0);
@@ -41,11 +72,12 @@ async function scanNeedles(file, remaining, found) {
 }
 
 export async function auditProfiles(roots, limits = defaults) {
-  const report = { scope: "synthetic-only-ci-app-profile-byte-presence; not a privacy clearance", profiles: [] };
+  const report = { scope: "synthetic-only-ci-tauri-app-local-data-including-webview2; not a privacy clearance", profiles: [] };
   for (const { label, root } of roots) {
     const info = {
       label, exists: false, files_examined: 0, bytes_examined: 0, skipped_symlinks: 0,
       skipped_large_files: 0, unreadable_entries: 0, bounded: false, categories: {},
+      other_marker_storage_hints: {}, app_data_scopes: {},
     };
     report.profiles.push(info);
     let stat;
@@ -86,8 +118,26 @@ export async function auditProfiles(roots, limits = defaults) {
           const n = await scanNeedles(file, limits.maxBytes - info.bytes_examined, found);
           info.bytes_examined += n;
           info.files_examined++;
+          const scope = appDataScope(parts, ent.name);
+          const scopeCounts = info.app_data_scopes[scope] ??= {
+            files_examined: 0, key_marker_files: 0, synthetic_subject_marker_files: 0,
+          };
+          scopeCounts.files_examined++;
+          if (found[0]) scopeCounts.key_marker_files++;
+          if (found[1]) scopeCounts.synthetic_subject_marker_files++;
+          // The final file can exhaust the byte budget without another loop
+          // iteration to set bounded. Reject partial reads and files changing
+          // size during inspection instead of claiming complete coverage.
+          if (n !== metadata.size) info.bounded = true;
           if (found[0]) bucket.key_marker_files++;
-          if (found[1]) bucket.synthetic_subject_marker_files++;
+          if (found[1]) {
+            bucket.synthetic_subject_marker_files++;
+            if (category === "other") {
+              const hint = otherStorageHint(parts, ent.name);
+              info.other_marker_storage_hints[hint] =
+                (info.other_marker_storage_hints[hint] ?? 0) + 1;
+            }
+          }
         } catch { info.unreadable_entries++; }
       }
     }
