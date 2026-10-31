@@ -218,3 +218,32 @@ test("phase delta safely reports fixed storage hints and rejects forged totals",
   assert.throws(() => compareSyntheticProfilePhases(before, forged),
     /Unrecognized synthetic storage hint category/);
 });
+
+
+test("app data scopes distinguish WebView2 runtime from persisted synthetic workspace without file details", async () => {
+  const root = await mkdtemp(path.join(os.tmpdir(), "medscale-app-scope-"));
+  const marker = "synthetic-subject-unit-private-only";
+  try {
+    await mkdir(path.join(root, "EBWebView", "Default"), { recursive: true });
+    await mkdir(path.join(root, "synthetic-workspace"));
+    await writeFile(path.join(root, "EBWebView", "Default", "private-webview-cache"), marker);
+    await writeFile(path.join(root, "synthetic-workspace", "private-vault.sqlite"), marker);
+    await writeFile(path.join(root, "synthetic-workspace.desktop-seed.json"), marker);
+    await writeFile(path.join(root, "private-other-app-file"), marker);
+    const report = await auditProfiles([{ label: "synthetic_fixture", root }]);
+    assert.equal(hasCompleteAuditCoverage(report), true);
+    const scoped = report.profiles[0].app_data_scopes;
+    assert.equal(scoped.webview2_runtime.synthetic_subject_marker_files, 1);
+    assert.equal(scoped.synthetic_workspace.synthetic_subject_marker_files, 2);
+    assert.equal(scoped.other_app_data.synthetic_subject_marker_files, 1);
+    assert.equal(Object.values(scoped).reduce((n, x) => n + x.files_examined, 0),
+      report.profiles[0].files_examined);
+    const serialized = JSON.stringify(report);
+    for (const sensitive of [marker, "private-webview-cache", "private-vault.sqlite",
+      "private-other-app-file", "synthetic-workspace.desktop-seed.json", root]) {
+      assert.equal(serialized.includes(sensitive), false, "raw runtime file details must not escape");
+    }
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});
