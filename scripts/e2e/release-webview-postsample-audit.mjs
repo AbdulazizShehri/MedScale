@@ -35,14 +35,26 @@ async function inspectSeedManifest(filename) {
   const subjects = manifest.subjects.filter((subject) =>
     typeof subject === "string" && subject.startsWith("synthetic-subject-"));
   if (subjects.length === 0) return { valid: false, status: "NO_SYNTHETIC_SUBJECT" };
+  // A mixture of invented and non-synthetic subjects, or duplicate subjects,
+  // must not provide affirmative proof that the native seed finished.
+  if (subjects.length !== manifest.subjects.length ||
+      new Set(subjects).size !== subjects.length) {
+    return { valid: false, status: "INVALID_SCHEMA" };
+  }
   if (manifest.sources.length === 0) return { valid: false, status: "NO_SEEDED_SOURCES" };
-  const hasCompleteLinkedSource = manifest.sources.some((source) =>
+  // Requiring just ONE valid source would silently accept partially written
+  // source lists. Every stored source must have the Rust SeededSource fields
+  // and link to a listed invented subject; all subjects need a source.
+  const allSourcesLinked = manifest.sources.every((source) =>
     source && typeof source === "object" &&
     ["source_id", "fixture", "resource_type", "claim_kind", "subject_ref"]
       .every((field) => typeof source[field] === "string" && source[field].trim().length > 0) &&
     subjects.includes(source.subject_ref));
-  return { valid: hasCompleteLinkedSource,
-    status: hasCompleteLinkedSource ? "VERIFIED" : "INCOMPLETE_OR_UNLINKED_SOURCE" };
+  const everySubjectSeeded = subjects.every((subject) =>
+    manifest.sources.some((source) => source.subject_ref === subject));
+  const complete = allSourcesLinked && everySubjectSeeded;
+  return { valid: complete,
+    status: complete ? "VERIFIED" : "INCOMPLETE_OR_UNLINKED_SOURCE" };
 }
 
 export async function auditNormalSyntheticSample(appDataRoot) {
