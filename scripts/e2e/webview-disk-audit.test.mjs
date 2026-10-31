@@ -4,6 +4,7 @@ import { mkdtemp, mkdir, writeFile, rm } from "node:fs/promises";
 import path from "node:path";
 import os from "node:os";
 import { auditProfiles, hasObservedProfileBytes, hasCompleteAuditCoverage } from "./webview-disk-audit.mjs";
+import { compareSyntheticProfilePhases } from "./webview-audit-compare.mjs";
 
 test("bounded scanner emits counts and marker booleans only, no paths or contents", async () => {
   const root = await mkdtemp(path.join(os.tmpdir(), "medscale-webview-audit-"));
@@ -118,4 +119,45 @@ test("a single final file truncated at the byte budget is not complete evidence"
       "a completely scanned file exactly at the budget is not partial");
     assert.equal(hasCompleteAuditCoverage(exact), true);
   } finally { await rm(root, { recursive: true, force: true }); }
+});
+
+function phaseFixture(markerFiles = 0) {
+  return { profiles: [
+    { label: "tauri_identifier_profile", exists: true, bytes_examined: 100,
+      bounded: false, unreadable_entries: 0, skipped_large_files: 0, skipped_symlinks: 0,
+      categories: { other: { files: 3, key_marker_files: 0,
+        synthetic_subject_marker_files: markerFiles } } },
+    { label: "legacy_medscale_profile", exists: false, bytes_examined: 0,
+      bounded: false, unreadable_entries: 0, skipped_large_files: 0, skipped_symlinks: 0,
+      categories: {} },
+  ] };
+}
+
+test("synthetic phase comparison reports three baseline markers without claiming file identity", () => {
+  const report = compareSyntheticProfilePhases(phaseFixture(3), phaseFixture(3));
+  assert.equal(report.qualified_coverage, true);
+  assert.equal(report.interpretation, "MARKERS_ALREADY_IN_BASELINE_COUNTS_UNATTRIBUTED");
+  assert.equal(report.rows.find((r) => r.category === "other").delta.synthetic_subject_marker_files, 0);
+  assert.equal(JSON.stringify(report).includes("synthetic-subject-test-only"), false);
+});
+
+test("new synthetic marker counts after journeys require investigation", () => {
+  const report = compareSyntheticProfilePhases(phaseFixture(0), phaseFixture(3));
+  assert.equal(report.qualified_coverage, true);
+  assert.equal(report.interpretation, "INCREASED_SYNTHETIC_MARKER_COUNTS");
+  assert.equal(report.rows.find((r) => r.category === "other").delta.synthetic_subject_marker_files, 3);
+});
+
+test("missing or bounded baseline bytes are inconclusive, not privacy clearance", () => {
+  const incomplete = phaseFixture(0);
+  incomplete.profiles[0].bounded = true;
+  assert.equal(compareSyntheticProfilePhases(incomplete, phaseFixture(0)).qualified_coverage, false);
+  assert.equal(compareSyntheticProfilePhases(incomplete, phaseFixture(0)).interpretation, "INCONCLUSIVE_COVERAGE");
+  const empty = phaseFixture(0);
+  empty.profiles[0].bytes_examined = 0;
+  assert.equal(compareSyntheticProfilePhases(empty, phaseFixture(3)).qualified_coverage, false);
+  const unexpected = phaseFixture(0);
+  unexpected.profiles[0].categories.private_location = { files: 1 };
+  assert.throws(() => compareSyntheticProfilePhases(unexpected, phaseFixture(0)),
+    /Unknown or missing synthetic audit profile\/category/);
 });
