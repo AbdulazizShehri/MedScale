@@ -1,6 +1,8 @@
 /**
- * Read-only, bounded synthetic WebView profile inspection on a disposable GitHub
- * Windows runner. This is NOT a PHI/OS privacy attestation: content is not
+ * Read-only, bounded synthetic Tauri APP-LOCAL DATA inspection on a disposable
+ * GitHub Windows runner. This root INCLUDES the WebView2 EBWebView subdirectory
+ * AND the app's synthetic workspace/vault. It is NOT limited to browser cache.
+ * This is NOT a PHI/OS privacy attestation: content is not
  * printed, uploaded, or copied, and the scan excludes OS swap, crash and backups.
  */
 import { createReadStream } from "node:fs";
@@ -70,7 +72,7 @@ async function scanNeedles(file, remaining, found) {
 }
 
 export async function auditProfiles(roots, limits = defaults) {
-  const report = { scope: "synthetic-only-ci-app-profile-byte-presence; not a privacy clearance", profiles: [] };
+  const report = { scope: "synthetic-only-ci-tauri-app-local-data-including-webview2; not a privacy clearance", profiles: [] };
   for (const { label, root } of roots) {
     const info = {
       label, exists: false, files_examined: 0, bytes_examined: 0, skipped_symlinks: 0,
