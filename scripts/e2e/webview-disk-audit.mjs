@@ -38,6 +38,19 @@ function otherStorageHint(parts, filename) {
   return "unclassified_other";
 }
 
+// The scan root is the WHOLE Tauri app-local data directory, not just EBWebView.
+// Scope names are fixed: never export user paths, filenames or marker bytes.
+function appDataScope(parts, filename) {
+  const first = parts[0]?.toLowerCase();
+  if (first === "ebwebview") return "webview2_runtime";
+  if (first === "synthetic-workspace" || first === "fixture-staging" ||
+      (parts.length === 0 &&
+       /^synthetic-workspace\.desktop-(?:seed|packs|asr)\.json$/i.test(filename))) {
+    return "synthetic_workspace";
+  }
+  return "other_app_data";
+}
+
 async function scanNeedles(file, remaining, found) {
   let scanned = 0;
   let tail = Buffer.alloc(0);
@@ -62,7 +75,7 @@ export async function auditProfiles(roots, limits = defaults) {
     const info = {
       label, exists: false, files_examined: 0, bytes_examined: 0, skipped_symlinks: 0,
       skipped_large_files: 0, unreadable_entries: 0, bounded: false, categories: {},
-      other_marker_storage_hints: {},
+      other_marker_storage_hints: {}, app_data_scopes: {},
     };
     report.profiles.push(info);
     let stat;
@@ -103,6 +116,13 @@ export async function auditProfiles(roots, limits = defaults) {
           const n = await scanNeedles(file, limits.maxBytes - info.bytes_examined, found);
           info.bytes_examined += n;
           info.files_examined++;
+          const scope = appDataScope(parts, ent.name);
+          const scopeCounts = info.app_data_scopes[scope] ??= {
+            files_examined: 0, key_marker_files: 0, synthetic_subject_marker_files: 0,
+          };
+          scopeCounts.files_examined++;
+          if (found[0]) scopeCounts.key_marker_files++;
+          if (found[1]) scopeCounts.synthetic_subject_marker_files++;
           // The final file can exhaust the byte budget without another loop
           // iteration to set bounded. Reject partial reads and files changing
           // size during inspection instead of claiming complete coverage.
