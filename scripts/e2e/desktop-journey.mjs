@@ -11,6 +11,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import { execFileSync, spawn } from "node:child_process";
+import { auditProfiles, hasObservedProfileBytes, hasCompleteAuditCoverage } from "./webview-disk-audit.mjs";
 
 const [app, shots = "target/e2e-shots"] = process.argv.slice(2);
 if (!app) throw new Error("usage: desktop-journey.mjs <app> [shots]");
@@ -319,6 +320,39 @@ async function journey(name, fn, { screenshot = true } = {}) {
 
 try {
   await launch();
+  if (process.env.MEDSCALE_CI_WEBVIEW_BASELINE === "1") {
+    // Synthetic disposable Windows CI runner only; never scan a user workstation.
+    // Run a pristine welcome-screen boot with no workspace opened, close the
+    // WebView2 process, and take an aggregate baseline *before* any journey.
+    if (process.env.GITHUB_ACTIONS !== "true" || process.platform !== "win32" ||
+        !process.env.RUNNER_TEMP || !process.env.LOCALAPPDATA) {
+      throw new Error("WebView profile baseline requires disposable Windows GitHub Actions");
+    }
+    await quit();
+    const baseline = await auditProfiles([
+      { label: "tauri_identifier_profile", root: path.join(process.env.LOCALAPPDATA, "org.medscale.desktop.preview") },
+      { label: "legacy_medscale_profile", root: path.join(process.env.LOCALAPPDATA, "MedScale") },
+    ]);
+    // No private paths, file names, values, audio or synthetic subject IDs:
+    // save the same category counters as the post-journey scanner only.
+    fs.writeFileSync(path.join(shots, "webview-disk-profile-before-workspace.json"),
+      JSON.stringify({
+        phase: "before_synthetic_workspace",
+        observed_app_profile_bytes: hasObservedProfileBytes(baseline),
+        complete_coverage: hasCompleteAuditCoverage(baseline),
+        ...baseline,
+      }, null, 2) + "\n", "utf8");
+    console.log("WEBVIEW_SYNTHETIC_BASELINE=" + JSON.stringify({
+      observed_bytes: hasObservedProfileBytes(baseline),
+      coverage_complete: hasCompleteAuditCoverage(baseline),
+      profiles: baseline.profiles.map(({ label, exists, files_examined, bytes_examined,
+        bounded, unreadable_entries, skipped_large_files, skipped_symlinks }) =>
+        ({ label, exists, files_examined, bytes_examined, bounded, unreadable_entries,
+          skipped_large_files, skipped_symlinks })),
+    }));
+    // Reopen the very same app/profile; existing 26 journeys stay unchanged.
+    await launch();
+  }
   await journey("launch-and-open-synthetic-workspace", async () => {
     await click(`//button[${text("Try MedScale with sample data")}]`, 60000);
     await find(`//button[contains(@class,'nav') and ${text("Patients")}]`, 60000);
