@@ -3,7 +3,7 @@ import { test } from "node:test";
 import { mkdtemp, mkdir, writeFile, rm } from "node:fs/promises";
 import path from "node:path";
 import os from "node:os";
-import { auditProfiles } from "./webview-disk-audit.mjs";
+import { auditProfiles, hasObservedProfileBytes } from "./webview-disk-audit.mjs";
 
 test("bounded scanner emits counts and marker booleans only, no paths or contents", async () => {
   const root = await mkdtemp(path.join(os.tmpdir(), "medscale-webview-audit-"));
@@ -21,6 +21,7 @@ test("bounded scanner emits counts and marker booleans only, no paths or content
     const result = await auditProfiles([{ label: "synthetic_fixture", root }]);
     const info = result.profiles[0];
     assert.equal(info.exists, true);
+    assert.equal(hasObservedProfileBytes(result), true);
     assert.equal(info.files_examined, 2);
     assert.equal(info.categories.local_storage.key_marker_files, 1);
     assert.equal(info.categories.local_storage.synthetic_subject_marker_files, 1);
@@ -43,5 +44,22 @@ test("the scan is bounded and missing roots are reported, never guessed clear", 
     assert.equal(report.profiles[0].files_examined, 1);
     assert.equal(report.profiles[1].exists, false);
     assert.equal(report.profiles[1].files_examined, 0);
+  } finally { await rm(root, { recursive: true, force: true }); }
+});
+
+test("empty and missing app profiles cannot yield a passing audit", async () => {
+  const root = await mkdtemp(path.join(os.tmpdir(), "medscale-webview-audit-"));
+  try {
+    const empty = path.join(root, "empty");
+    await mkdir(empty);
+    const roots = [
+      { label: "missing", root: path.join(root, "absent") },
+      { label: "empty", root: empty },
+    ];
+    assert.equal(hasObservedProfileBytes(await auditProfiles(roots)), false);
+    await writeFile(path.join(empty, "zero-byte"), "");
+    assert.equal(hasObservedProfileBytes(await auditProfiles(roots)), false);
+    await writeFile(path.join(empty, "synthetic-only"), "synthetic-only-fixture");
+    assert.equal(hasObservedProfileBytes(await auditProfiles(roots)), true);
   } finally { await rm(root, { recursive: true, force: true }); }
 });
