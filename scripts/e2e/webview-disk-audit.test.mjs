@@ -123,12 +123,12 @@ test("a single final file truncated at the byte budget is not complete evidence"
 
 function phaseFixture(markerFiles = 0) {
   return { profiles: [
-    { label: "tauri_identifier_profile", exists: true, bytes_examined: 100,
+    { label: "tauri_identifier_profile", exists: true, files_examined: 100, bytes_examined: 100,
       bounded: false, unreadable_entries: 0, skipped_large_files: 0, skipped_symlinks: 0,
       categories: { other: { files: 3, key_marker_files: 0,
         synthetic_subject_marker_files: markerFiles } },
       other_marker_storage_hints: markerFiles ? { unclassified_other: markerFiles } : {} },
-    { label: "legacy_medscale_profile", exists: false, bytes_examined: 0,
+    { label: "legacy_medscale_profile", exists: false, files_examined: 0, bytes_examined: 0,
       bounded: false, unreadable_entries: 0, skipped_large_files: 0, skipped_symlinks: 0,
       categories: {}, other_marker_storage_hints: {} },
   ] };
