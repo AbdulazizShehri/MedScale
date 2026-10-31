@@ -85,16 +85,19 @@ jobs:
           } finally {
             Stop-Process -Id $wd.Id -Force -ErrorAction SilentlyContinue
           }
-      - name: Synthetic-only WebView disk profile audit (aggregate; not clearance)
+      - name: Synthetic-only Tauri app-data audit (aggregate; not clearance)
         if: success()
+        shell: pwsh
         env:
           MEDSCALE_CI_WEBVIEW_AUDIT: "1"
         run: |
           node --test scripts/e2e/webview-disk-audit.test.mjs
+          if ($LASTEXITCODE -ne 0) { throw "Synthetic audit regression tests failed" }
           node scripts/e2e/webview-disk-audit.mjs
-          # Aggregate before-workspace vs post-journey differences; no paths,
-          # content, speaker IDs or arbitrary hashes in public output.
+          if ($LASTEXITCODE -ne 0) { throw "Incomplete app-local data inspection" }
+          # Compare fixed app-data origin scopes without printing paths or values.
           node scripts/e2e/webview-audit-compare.mjs
+          if ($LASTEXITCODE -ne 0) { throw "Synthetic phase comparison failed" }
       - name: Desktop state on failure
         if: failure()
         shell: pwsh
