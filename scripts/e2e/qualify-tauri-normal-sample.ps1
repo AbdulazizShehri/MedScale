@@ -168,6 +168,22 @@ if (-not $shell.AppActivate(__PID__)) { throw "Cannot focus normal release deskt
         $d2.acceptance = 'alive >= LaunchSeconds AND msedgewebview2.exe child AND window title MedScale'
         $result.launch_detail = $d2
         if ($d2.alive -and ($d2.child_processes_seen -contains 'msedgewebview2.exe') -and ($d2.window_titles -contains 'MedScale')) { $result.LAUNCH = 'PASS' }
+        # Do not declare the synthetic interaction complete merely because
+        # SendKeys returned: the Core FHIR fixture seed may still be writing.
+        # Observe only the fixed app-owned manifest's existence, never its
+        # content or the user's files. The later bounded read-only Node audit
+        # still independently validates the full manifest and privacy result.
+        $seedManifest = Join-Path $appData 'synthetic-workspace.desktop-seed.json'
+        $seedFileObserved = Test-Path -LiteralPath $seedManifest -PathType Leaf
+        $seedWaitSeconds = 0
+        while (-not $seedFileObserved -and $seedWaitSeconds -lt 30 -and
+            (Get-Process -Id $proc.Id -ErrorAction SilentlyContinue)) {
+            Start-Sleep -Seconds 2
+            $seedWaitSeconds += 2
+            $seedFileObserved = Test-Path -LiteralPath $seedManifest -PathType Leaf
+        }
+        $result.synthetic_seed_file_observed_before_restart = [bool]$seedFileObserved
+        $result.synthetic_seed_wait_seconds = $seedWaitSeconds
         Stop-Tree $proc.Id
         $d2.terminated = -not [bool](Get-Process -Id $proc.Id -ErrorAction SilentlyContinue)
         # Restart the same ordinary InPrivate build after actual synthetic
