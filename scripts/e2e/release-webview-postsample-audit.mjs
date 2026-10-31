@@ -41,6 +41,7 @@ export async function auditNormalSyntheticSample(appDataRoot) {
       !appData.coverage_complete ?
     "INCONCLUSIVE_INCOMPLETE_NATIVE_PROFILE_OR_SYNTHETIC_WORKSPACE" :
     !syntheticSampleObserved ? "INCONCLUSIVE_NO_SYNTHETIC_WORKSPACE_MARKERS" :
+    appData.project_key_marker_files > 0 ? "PROJECT_KEY_MARKER_IN_SCANNED_APP_DATA" :
     browser.synthetic_marker_files > 0 ? "SYNTHETIC_MARKERS_IN_NORMAL_RELEASE_WEBVIEW2_RUNTIME" :
     unattributedMarkerFiles !== 0 ? "INCONCLUSIVE_UNATTRIBUTED_APP_DATA_MARKERS" :
     "NO_SYNTHETIC_MARKERS_IN_SCANNED_NORMAL_RELEASE_POSTSAMPLE_RUNTIME";
@@ -49,12 +50,14 @@ export async function auditNormalSyntheticSample(appDataRoot) {
     app_data_coverage_complete: appData.coverage_complete,
     app_data_files_examined: appData.files_examined,
     app_data_synthetic_marker_files: appData.synthetic_marker_files,
+    app_data_project_key_marker_files: appData.project_key_marker_files,
     unattributed_app_data_marker_files: unattributedMarkerFiles,
     browser_runtime_observed: browser.runtime_observed,
     browser_coverage_complete: browser.coverage_complete,
     browser_files_examined: browser.files_examined,
     browser_bytes_examined: browser.bytes_examined,
     browser_synthetic_marker_files: browser.synthetic_marker_files,
+    browser_project_key_marker_files: browser.project_key_marker_files,
     synthetic_workspace_observed: workspace.runtime_observed,
     synthetic_workspace_coverage_complete: workspace.coverage_complete,
     synthetic_workspace_marker_files: workspace.synthetic_marker_files,

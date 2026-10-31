@@ -74,3 +74,18 @@ test("unattributed app-local synthetic marker fails closed instead of claiming b
     }
   });
 });
+
+test("project-key marker in app-local data refuses release privacy pass even if subject markers are attributed", async () => {
+  await fixture(async root => {
+    await writeFile(path.join(root, "synthetic-workspace", "sample-data"), "synthetic-subject-accepted-canary");
+    await writeFile(path.join(root, "EBWebView", "Default", "private-app-reference"), "medscale.project");
+    const report = await auditNormalSyntheticSample(root);
+    assert.equal(report.synthetic_sample_observed, true);
+    assert.equal(report.app_data_project_key_marker_files, 1);
+    assert.equal(report.browser_project_key_marker_files, 1);
+    assert.equal(report.browser_synthetic_marker_files, 0);
+    assert.equal(report.unattributed_app_data_marker_files, 0);
+    assert.equal(report.interpretation, "PROJECT_KEY_MARKER_IN_SCANNED_APP_DATA");
+    assert.equal(JSON.stringify(report).includes("private-app-reference"), false);
+  });
+});
