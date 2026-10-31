@@ -14,24 +14,35 @@ import { auditReleaseWebviewWelcomeRoot, isAuthorizedNativeRunner } from "./rele
 const ROOT_NAME = "org.medscale.desktop.preview";
 const MANIFEST_NAME = "synthetic-workspace.desktop-seed.json";
 
-async function manifestMarkerExists(filename) {
-  try {
-    const st = await lstat(filename);
-    if (!st.isFile() || st.isSymbolicLink() || st.size > 1024 * 1024 || st.size === 0) return false;
-    const bytes = await readFile(filename);
-    // The Rust host stores a UTF-8 JSON SeedManifest: subjects + sources.
-    // A raw canary substring alone is not evidence of a valid seeded workspace.
-    const manifest = JSON.parse(bytes.toString("utf8"));
-    if (!manifest || typeof manifest !== "object" ||
-        !Array.isArray(manifest.subjects) || !Array.isArray(manifest.sources)) return false;
-    const subjects = manifest.subjects.filter((subject) =>
-      typeof subject === "string" && subject.startsWith("synthetic-subject-"));
-    return subjects.length > 0 && manifest.sources.some((source) =>
-      source && typeof source === "object" &&
-      ["source_id", "fixture", "resource_type", "claim_kind", "subject_ref"]
-        .every((field) => typeof source[field] === "string" && source[field].trim().length > 0) &&
-      subjects.includes(source.subject_ref));
-  } catch { return false; }
+// Fixed-status read-only diagnostics: never include a file name, subject or
+// source value in the result, even when the runner encounters malformed data.
+async function inspectSeedManifest(filename) {
+  let st;
+  try { st = await lstat(filename); }
+  catch (error) {
+    return { valid: false, status: error?.code === "ENOENT" ? "MISSING" : "UNREADABLE" };
+  }
+  if (!st.isFile() || st.isSymbolicLink() || st.size > 1024 * 1024 || st.size === 0) {
+    return { valid: false, status: "INVALID_OR_BOUNDED_ENTRY" };
+  }
+  let manifest;
+  try { manifest = JSON.parse((await readFile(filename)).toString("utf8")); }
+  catch { return { valid: false, status: "INVALID_JSON_OR_UNREADABLE" }; }
+  if (!manifest || typeof manifest !== "object" ||
+      !Array.isArray(manifest.subjects) || !Array.isArray(manifest.sources)) {
+    return { valid: false, status: "INVALID_SCHEMA" };
+  }
+  const subjects = manifest.subjects.filter((subject) =>
+    typeof subject === "string" && subject.startsWith("synthetic-subject-"));
+  if (subjects.length === 0) return { valid: false, status: "NO_SYNTHETIC_SUBJECT" };
+  if (manifest.sources.length === 0) return { valid: false, status: "NO_SEEDED_SOURCES" };
+  const hasCompleteLinkedSource = manifest.sources.some((source) =>
+    source && typeof source === "object" &&
+    ["source_id", "fixture", "resource_type", "claim_kind", "subject_ref"]
+      .every((field) => typeof source[field] === "string" && source[field].trim().length > 0) &&
+    subjects.includes(source.subject_ref));
+  return { valid: hasCompleteLinkedSource,
+    status: hasCompleteLinkedSource ? "VERIFIED" : "INCOMPLETE_OR_UNLINKED_SOURCE" };
 }
 
 export async function auditNormalSyntheticSample(appDataRoot) {
@@ -41,7 +52,8 @@ export async function auditNormalSyntheticSample(appDataRoot) {
   // may contain OTHER app-owned files. Audit it independently to ensure no
   // canary remains in an unaccounted directory. No file paths are exported.
   const appData = await auditReleaseWebviewWelcomeRoot(appDataRoot);
-  const knownManifestCanary = await manifestMarkerExists(path.join(appDataRoot, MANIFEST_NAME));
+  const manifestEvidence = await inspectSeedManifest(path.join(appDataRoot, MANIFEST_NAME));
+  const knownManifestCanary = manifestEvidence.valid;
   // A seed manifest alone does not prove the sample workspace was populated;
   // an isolated workspace marker without a seed manifest is also incomplete.
   // Require BOTH independent expected app-owned synthetic artifacts.
@@ -81,6 +93,7 @@ export async function auditNormalSyntheticSample(appDataRoot) {
     synthetic_workspace_coverage_complete: workspace.coverage_complete,
     synthetic_workspace_marker_files: workspace.synthetic_marker_files,
     app_seed_manifest_marker_present: knownManifestCanary,
+    app_seed_manifest_probe_status: manifestEvidence.status,
     synthetic_sample_observed: syntheticSampleObserved,
     interpretation,
   };

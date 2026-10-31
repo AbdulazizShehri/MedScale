@@ -39,6 +39,7 @@ test("normal-mode synthetic sample separates persisted workspace from browser an
     assert.equal(r.browser_synthetic_marker_files, 0);
     assert.equal(r.synthetic_workspace_marker_files, 1);
     assert.equal(r.app_seed_manifest_marker_present, true);
+    assert.equal(r.app_seed_manifest_probe_status, "VERIFIED");
     assert.equal(r.synthetic_sample_observed, true);
     assert.equal(r.interpretation, "NO_SYNTHETIC_MARKERS_IN_SCANNED_NORMAL_RELEASE_POSTSAMPLE_RUNTIME");
     const json = JSON.stringify(r);
@@ -76,6 +77,7 @@ test("workspace canary without seed manifest is INCONCLUSIVE, not a release priv
     const report = await auditNormalSyntheticSample(root);
     assert.equal(report.synthetic_workspace_marker_files, 1);
     assert.equal(report.app_seed_manifest_marker_present, false);
+    assert.equal(report.app_seed_manifest_probe_status, "MISSING");
     assert.equal(report.synthetic_sample_observed, false);
     assert.equal(report.interpretation, "INCONCLUSIVE_NO_SYNTHETIC_WORKSPACE_MARKERS");
   });
@@ -99,6 +101,7 @@ test("malformed seed JSON containing a canary cannot prove synthetic sampling", 
     await writeFile(path.join(root, "synthetic-workspace.desktop-seed.json"), "synthetic-subject-ada");
     const report = await auditNormalSyntheticSample(root);
     assert.equal(report.app_seed_manifest_marker_present, false);
+    assert.equal(report.app_seed_manifest_probe_status, "INVALID_JSON_OR_UNREADABLE");
     assert.equal(report.synthetic_sample_observed, false);
     assert.equal(report.interpretation, "INCONCLUSIVE_NO_SYNTHETIC_WORKSPACE_MARKERS");
   });
@@ -111,6 +114,7 @@ test("seed JSON with no source references remains inconclusive", async () => {
       JSON.stringify({ subjects: ["synthetic-subject-ada"], sources: [] }));
     const report = await auditNormalSyntheticSample(root);
     assert.equal(report.app_seed_manifest_marker_present, false);
+    assert.equal(report.app_seed_manifest_probe_status, "NO_SEEDED_SOURCES");
     assert.equal(report.synthetic_sample_observed, false);
     assert.equal(report.interpretation, "INCONCLUSIVE_NO_SYNTHETIC_WORKSPACE_MARKERS");
   });
@@ -124,6 +128,7 @@ test("seed JSON with mismatched subject and source references remains inconclusi
         sources: [{ source_id: "fixture", subject_ref: "synthetic-subject-mismatch" }] }));
     const report = await auditNormalSyntheticSample(root);
     assert.equal(report.app_seed_manifest_marker_present, false);
+    assert.equal(report.app_seed_manifest_probe_status, "INCOMPLETE_OR_UNLINKED_SOURCE");
     assert.equal(report.synthetic_sample_observed, false);
     assert.equal(report.interpretation, "INCONCLUSIVE_NO_SYNTHETIC_WORKSPACE_MARKERS");
   });
@@ -137,6 +142,7 @@ test("a seed with source reference but missing Rust SeededSource fields remains 
         sources: [{ subject_ref: "synthetic-subject-ada" }] }));
     const report = await auditNormalSyntheticSample(root);
     assert.equal(report.app_seed_manifest_marker_present, false);
+    assert.equal(report.app_seed_manifest_probe_status, "INCOMPLETE_OR_UNLINKED_SOURCE");
     assert.equal(report.synthetic_sample_observed, false);
     assert.equal(report.interpretation, "INCONCLUSIVE_NO_SYNTHETIC_WORKSPACE_MARKERS");
   });
@@ -152,6 +158,7 @@ test("a seed with blank resource kind remains inconclusive instead of pretending
       }] }));
     const report = await auditNormalSyntheticSample(root);
     assert.equal(report.app_seed_manifest_marker_present, false);
+    assert.equal(report.app_seed_manifest_probe_status, "INCOMPLETE_OR_UNLINKED_SOURCE");
     assert.equal(report.synthetic_sample_observed, false);
     assert.equal(report.interpretation, "INCONCLUSIVE_NO_SYNTHETIC_WORKSPACE_MARKERS");
   });
