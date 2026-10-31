@@ -70,6 +70,10 @@ jobs:
           Set-ItemProperty -Path 'HKLM:\SOFTWARE\Policies\Microsoft\Edge' -Name RemoteDebuggingAllowed -Value 1 -Type DWord
       - name: Run the journeys
         shell: pwsh
+        env:
+          # Disposable hosted runner: compare welcome-screen profile with
+          # post-journey counters; never run a real-user profile scan.
+          MEDSCALE_CI_WEBVIEW_BASELINE: "1"
         run: |
           $driver = Join-Path $env:EDGEWEBDRIVER 'msedgedriver.exe'
           & $driver --version
