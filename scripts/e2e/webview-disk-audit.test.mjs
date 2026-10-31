@@ -96,3 +96,26 @@ test("unreadable and symlink-skipped entries cannot be mistaken for complete sca
     }
   } finally { await rm(root, { recursive: true, force: true }); }
 });
+
+test("a single final file truncated at the byte budget is not complete evidence", async () => {
+  const root = await mkdtemp(path.join(os.tmpdir(), "medscale-webview-audit-"));
+  try {
+    await writeFile(path.join(root, "only-profile-file"), "synthetic-subject-end-marker");
+    const limited = await auditProfiles([{ label: "app", root }],
+      { maxFiles: 10, maxBytes: 8, maxFileBytes: 4096 });
+    assert.equal(limited.profiles[0].files_examined, 1);
+    assert.equal(limited.profiles[0].bytes_examined, 8);
+    assert.equal(hasObservedProfileBytes(limited), true);
+    assert.equal(limited.profiles[0].bounded, true,
+      "exhausting the budget in the last file must be reported");
+    assert.equal(hasCompleteAuditCoverage(limited), false);
+
+    await writeFile(path.join(root, "only-profile-file"), "12345678");
+    const exact = await auditProfiles([{ label: "app", root }],
+      { maxFiles: 10, maxBytes: 8, maxFileBytes: 4096 });
+    assert.equal(exact.profiles[0].bytes_examined, 8);
+    assert.equal(exact.profiles[0].bounded, false,
+      "a completely scanned file exactly at the budget is not partial");
+    assert.equal(hasCompleteAuditCoverage(exact), true);
+  } finally { await rm(root, { recursive: true, force: true }); }
+});
