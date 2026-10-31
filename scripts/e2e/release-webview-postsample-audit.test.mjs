@@ -5,6 +5,17 @@ import path from "node:path";
 import os from "node:os";
 import { auditNormalSyntheticSample } from "./release-webview-postsample-audit.mjs";
 
+function seedManifest(subject = "synthetic-subject-seed-canary") {
+  // A bounded fixture matching host.rs SeedManifest + SeededSource.
+  return JSON.stringify({
+    subjects: [subject],
+    sources: [{
+      source_id: "synthetic-source", fixture: "patient-golden.json",
+      resource_type: "Patient", claim_kind: "patient", subject_ref: subject,
+    }],
+  });
+}
+
 async function fixture(run) {
   const root = await mkdtemp(path.join(os.tmpdir(), "medscale-normal-sample-"));
   try {
@@ -21,7 +32,7 @@ test("normal-mode synthetic sample separates persisted workspace from browser an
   await fixture(async root => {
     const syntheticMarker = "synthetic-subject-private-canary-must-stay-hidden";
     await writeFile(path.join(root, "synthetic-workspace", "private-vault-file.sqlite"), syntheticMarker);
-    await writeFile(path.join(root, "synthetic-workspace.desktop-seed.json"), syntheticMarker);
+    await writeFile(path.join(root, "synthetic-workspace.desktop-seed.json"), seedManifest(syntheticMarker));
     const r = await auditNormalSyntheticSample(root);
     assert.equal(r.browser_coverage_complete, true);
     assert.equal(r.synthetic_workspace_coverage_complete, true);
@@ -41,7 +52,7 @@ test("test fixture detects synthetic marker written to the normal-mode WebView2 
   await fixture(async root => {
     await writeFile(path.join(root, "EBWebView", "Default", "private-browser-file"), "synthetic-subject-browser-canary");
     await writeFile(path.join(root, "synthetic-workspace", "private-vault-file"), "synthetic-subject-workspace-canary");
-    await writeFile(path.join(root, "synthetic-workspace.desktop-seed.json"), "synthetic-subject-seed-canary");
+    await writeFile(path.join(root, "synthetic-workspace.desktop-seed.json"), seedManifest());
     const r = await auditNormalSyntheticSample(root);
     assert.equal(r.synthetic_sample_observed, true);
     assert.equal(r.browser_synthetic_marker_files, 1);
@@ -73,7 +84,7 @@ test("workspace canary without seed manifest is INCONCLUSIVE, not a release priv
 test("seed manifest without populated synthetic workspace is INCONCLUSIVE", async () => {
   await fixture(async root => {
     await writeFile(path.join(root, "synthetic-workspace", "empty-workspace"), "non-sensitive fixture");
-    await writeFile(path.join(root, "synthetic-workspace.desktop-seed.json"), "synthetic-subject-seed-only");
+    await writeFile(path.join(root, "synthetic-workspace.desktop-seed.json"), seedManifest());
     const report = await auditNormalSyntheticSample(root);
     assert.equal(report.synthetic_workspace_marker_files, 0);
     assert.equal(report.app_seed_manifest_marker_present, true);
@@ -82,10 +93,46 @@ test("seed manifest without populated synthetic workspace is INCONCLUSIVE", asyn
   });
 });
 
+test("malformed seed JSON containing a canary cannot prove synthetic sampling", async () => {
+  await fixture(async root => {
+    await writeFile(path.join(root, "synthetic-workspace", "record"), "synthetic-subject-ada");
+    await writeFile(path.join(root, "synthetic-workspace.desktop-seed.json"), "synthetic-subject-ada");
+    const report = await auditNormalSyntheticSample(root);
+    assert.equal(report.app_seed_manifest_marker_present, false);
+    assert.equal(report.synthetic_sample_observed, false);
+    assert.equal(report.interpretation, "INCONCLUSIVE_NO_SYNTHETIC_WORKSPACE_MARKERS");
+  });
+});
+
+test("seed JSON with no source references remains inconclusive", async () => {
+  await fixture(async root => {
+    await writeFile(path.join(root, "synthetic-workspace", "record"), "synthetic-subject-ada");
+    await writeFile(path.join(root, "synthetic-workspace.desktop-seed.json"),
+      JSON.stringify({ subjects: ["synthetic-subject-ada"], sources: [] }));
+    const report = await auditNormalSyntheticSample(root);
+    assert.equal(report.app_seed_manifest_marker_present, false);
+    assert.equal(report.synthetic_sample_observed, false);
+    assert.equal(report.interpretation, "INCONCLUSIVE_NO_SYNTHETIC_WORKSPACE_MARKERS");
+  });
+});
+
+test("seed JSON with mismatched subject and source references remains inconclusive", async () => {
+  await fixture(async root => {
+    await writeFile(path.join(root, "synthetic-workspace", "record"), "synthetic-subject-ada");
+    await writeFile(path.join(root, "synthetic-workspace.desktop-seed.json"),
+      JSON.stringify({ subjects: ["synthetic-subject-ada"],
+        sources: [{ source_id: "fixture", subject_ref: "synthetic-subject-mismatch" }] }));
+    const report = await auditNormalSyntheticSample(root);
+    assert.equal(report.app_seed_manifest_marker_present, false);
+    assert.equal(report.synthetic_sample_observed, false);
+    assert.equal(report.interpretation, "INCONCLUSIVE_NO_SYNTHETIC_WORKSPACE_MARKERS");
+  });
+});
+
 test("unattributed app-local synthetic marker fails closed instead of claiming browser privacy", async () => {
   await fixture(async root => {
     await writeFile(path.join(root, "synthetic-workspace", "private-vault-file"), "synthetic-subject-workspace");
-    await writeFile(path.join(root, "synthetic-workspace.desktop-seed.json"), "synthetic-subject-seed");
+    await writeFile(path.join(root, "synthetic-workspace.desktop-seed.json"), seedManifest());
     await writeFile(path.join(root, "private-unclassified-app-data"), "synthetic-subject-unattributed");
     const report = await auditNormalSyntheticSample(root);
     assert.equal(report.app_data_coverage_complete, true);
@@ -104,7 +151,7 @@ test("unattributed app-local synthetic marker fails closed instead of claiming b
 test("project-key marker in app-local data refuses release privacy pass even if subject markers are attributed", async () => {
   await fixture(async root => {
     await writeFile(path.join(root, "synthetic-workspace", "sample-data"), "synthetic-subject-accepted-canary");
-    await writeFile(path.join(root, "synthetic-workspace.desktop-seed.json"), "synthetic-subject-seed-canary");
+    await writeFile(path.join(root, "synthetic-workspace.desktop-seed.json"), seedManifest());
     await writeFile(path.join(root, "EBWebView", "Default", "private-app-reference"), "medscale.project");
     const report = await auditNormalSyntheticSample(root);
     assert.equal(report.synthetic_sample_observed, true);
@@ -120,7 +167,7 @@ test("project-key marker in app-local data refuses release privacy pass even if 
 test("project key marker in a directory name outside browser and vault rejects normal-mode privacy pass", async () => {
   await fixture(async root => {
     await writeFile(path.join(root, "synthetic-workspace", "synthetic-data"), "synthetic-subject-fixture");
-    await writeFile(path.join(root, "synthetic-workspace.desktop-seed.json"), "synthetic-subject-seed-canary");
+    await writeFile(path.join(root, "synthetic-workspace.desktop-seed.json"), seedManifest());
     const privateFolder = "medscale.project-confidential-folder";
     await mkdir(path.join(root, privateFolder));
     await writeFile(path.join(root, privateFolder, "ordinary-file"), "ordinary contents");

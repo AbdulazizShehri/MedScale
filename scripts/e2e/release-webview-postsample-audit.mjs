@@ -11,7 +11,6 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { auditReleaseWebviewWelcomeRoot, isAuthorizedNativeRunner } from "./release-webview-runtime-audit.mjs";
 
-const MARK = Buffer.from("synthetic-subject-");
 const ROOT_NAME = "org.medscale.desktop.preview";
 const MANIFEST_NAME = "synthetic-workspace.desktop-seed.json";
 
@@ -20,7 +19,17 @@ async function manifestMarkerExists(filename) {
     const st = await lstat(filename);
     if (!st.isFile() || st.isSymbolicLink() || st.size > 1024 * 1024 || st.size === 0) return false;
     const bytes = await readFile(filename);
-    return bytes.includes(MARK) || bytes.includes(Buffer.from("synthetic-subject-", "utf16le"));
+    // The Rust host stores a UTF-8 JSON SeedManifest: subjects + sources.
+    // A raw canary substring alone is not evidence of a valid seeded workspace.
+    const manifest = JSON.parse(bytes.toString("utf8"));
+    if (!manifest || typeof manifest !== "object" ||
+        !Array.isArray(manifest.subjects) || !Array.isArray(manifest.sources)) return false;
+    const subjects = manifest.subjects.filter((subject) =>
+      typeof subject === "string" && subject.startsWith("synthetic-subject-"));
+    return subjects.length > 0 && manifest.sources.some((source) =>
+      source && typeof source === "object" &&
+      typeof source.subject_ref === "string" &&
+      subjects.includes(source.subject_ref));
   } catch { return false; }
 }
 
