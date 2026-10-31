@@ -112,6 +112,23 @@ async function run() {
       checks.push({ viewport: width, route: "welcome -> synthetic -> workspace", passed: true, commands: cmds });
       await page.close();
     }
+    // Deep links may select a synthetic subject on first navigation, but must not
+    // retain that identifier in the browser address/history entry after startup.
+    const deepLink = await browser.newPage({ viewport: { width: 1280, height: 820 } });
+    await deepLink.addInitScript(model);
+    await deepLink.goto(origin + "/#route=Patients&subject=synthetic-subject-ada&theme=light", { waitUntil: "networkidle" });
+    await deepLink.getByRole("heading", { name: /your local ai workspace/i }).waitFor();
+    assert.equal(new URL(deepLink.url()).hash, "#route=Patients&theme=light",
+      "startup strips the subject from the current URL entry, preserving non-sensitive route/theme");
+    await deepLink.getByRole("button", { name: "Try MedScale with sample data" }).click();
+    const crumbs = deepLink.locator("header.hd .crumb b");
+    await crumbs.waitFor({ timeout: 12000 });
+    assert.equal((await crumbs.textContent())?.trim(), "synthetic-subject-ada",
+      "initial in-memory patient navigation still resolves after the URL is cleaned");
+    assert.equal(new URL(deepLink.url()).hash, "#route=Patients&theme=light",
+      "unlock/open does not restore a patient identifier into the URL");
+    checks.push({ viewport: 1280, route: "sensitive patient deep link scrub and initial navigation", passed: true });
+    await deepLink.close();
     const advanced = await browser.newPage({ viewport: { width: 1280, height: 820 } });
     await advanced.addInitScript(model);
     await advanced.goto(origin, { waitUntil: "networkidle" });
