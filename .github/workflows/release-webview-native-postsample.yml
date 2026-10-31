@@ -55,7 +55,7 @@ jobs:
           & pwsh -NoProfile -File scripts/e2e/qualify-tauri-normal-sample.ps1 -ReleaseRoot $root -ReportPath target/normal-release-qualification.json | Out-Null
           if ($LASTEXITCODE -ne 0) { throw "Normal-mode installer launch qualification failed" }
           $q = Get-Content target/normal-release-qualification.json -Raw | ConvertFrom-Json
-          if ($q.INSTALL -ne 'PASS' -or $q.LAUNCH -ne 'PASS' -or $q.UNINSTALL -ne 'PASS' -or $q.SIGNING -ne 'NOT_GRANTED' -or $q.synthetic_sample_keypress -ne 'ENTER_SENT_TO_CI_RELEASE_WINDOW') {
+          if ($q.INSTALL -ne 'PASS' -or $q.LAUNCH -ne 'PASS' -or $q.UNINSTALL -ne 'PASS' -or $q.SIGNING -ne 'NOT_GRANTED' -or $q.synthetic_sample_keypress -ne 'ENTER_SENT_TO_CI_RELEASE_WINDOW' -or -not $q.synthetic_sample_restart.launched -or -not $q.synthetic_sample_restart.webview_runtime_observed -or -not $q.synthetic_sample_restart.medscale_window_seen) {
             throw "Normal-mode installer/launch/removal did not qualify"
           }
           Write-Output "RELEASE_WEBVIEW_NATIVE_SYNTHETIC_ACTION=ENTER_SENT_DISPOSABLE_CI"
