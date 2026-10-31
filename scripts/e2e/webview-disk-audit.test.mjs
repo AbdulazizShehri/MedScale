@@ -3,7 +3,7 @@ import { test } from "node:test";
 import { mkdtemp, mkdir, writeFile, rm } from "node:fs/promises";
 import path from "node:path";
 import os from "node:os";
-import { auditProfiles, hasObservedProfileBytes } from "./webview-disk-audit.mjs";
+import { auditProfiles, hasObservedProfileBytes, hasCompleteAuditCoverage } from "./webview-disk-audit.mjs";
 
 test("bounded scanner emits counts and marker booleans only, no paths or contents", async () => {
   const root = await mkdtemp(path.join(os.tmpdir(), "medscale-webview-audit-"));
@@ -22,6 +22,7 @@ test("bounded scanner emits counts and marker booleans only, no paths or content
     const info = result.profiles[0];
     assert.equal(info.exists, true);
     assert.equal(hasObservedProfileBytes(result), true);
+    assert.equal(hasCompleteAuditCoverage(result), true);
     assert.equal(info.files_examined, 2);
     assert.equal(info.categories.local_storage.key_marker_files, 1);
     assert.equal(info.categories.local_storage.synthetic_subject_marker_files, 1);
@@ -42,6 +43,8 @@ test("the scan is bounded and missing roots are reported, never guessed clear", 
     ], { maxFiles: 1, maxBytes: 4096, maxFileBytes: 4096 });
     assert.equal(report.profiles[0].bounded, true);
     assert.equal(report.profiles[0].files_examined, 1);
+    assert.equal(hasObservedProfileBytes(report), true, "some bytes were scanned");
+    assert.equal(hasCompleteAuditCoverage(report), false, "bounded partial scans fail closed");
     assert.equal(report.profiles[1].exists, false);
     assert.equal(report.profiles[1].files_examined, 0);
   } finally { await rm(root, { recursive: true, force: true }); }
@@ -60,6 +63,36 @@ test("empty and missing app profiles cannot yield a passing audit", async () => 
     await writeFile(path.join(empty, "zero-byte"), "");
     assert.equal(hasObservedProfileBytes(await auditProfiles(roots)), false);
     await writeFile(path.join(empty, "synthetic-only"), "synthetic-only-fixture");
-    assert.equal(hasObservedProfileBytes(await auditProfiles(roots)), true);
+    const complete = await auditProfiles(roots);
+    assert.equal(hasObservedProfileBytes(complete), true);
+    assert.equal(hasCompleteAuditCoverage(complete), true, "missing optional legacy root is allowed");
+  } finally { await rm(root, { recursive: true, force: true }); }
+});
+
+test("a readable marker cannot hide skipped oversized files", async () => {
+  const root = await mkdtemp(path.join(os.tmpdir(), "medscale-webview-audit-"));
+  try {
+    await writeFile(path.join(root, "small"), "synthetic-subject-visible");
+    await writeFile(path.join(root, "oversized"), "a".repeat(128));
+    const report = await auditProfiles([{ label: "partial", root }],
+      { maxFiles: 20, maxBytes: 4096, maxFileBytes: 64 });
+    assert.equal(report.profiles[0].files_examined, 1);
+    assert.equal(report.profiles[0].skipped_large_files, 1);
+    assert.equal(hasObservedProfileBytes(report), true);
+    assert.equal(hasCompleteAuditCoverage(report), false);
+  } finally { await rm(root, { recursive: true, force: true }); }
+});
+
+test("unreadable and symlink-skipped entries cannot be mistaken for complete scans", async () => {
+  const root = await mkdtemp(path.join(os.tmpdir(), "medscale-webview-audit-"));
+  try {
+    await writeFile(path.join(root, "synthetic-fixture"), "medscale.project");
+    const complete = await auditProfiles([{ label: "app", root }]);
+    assert.equal(hasCompleteAuditCoverage(complete), true);
+    for (const field of ["unreadable_entries", "skipped_symlinks", "skipped_large_files"]) {
+      const report = structuredClone(complete);
+      report.profiles[0][field] = 1;
+      assert.equal(hasCompleteAuditCoverage(report), false, field + " should disqualify coverage");
+    }
   } finally { await rm(root, { recursive: true, force: true }); }
 });

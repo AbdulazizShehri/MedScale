@@ -100,6 +100,13 @@ export function hasObservedProfileBytes(report) {
   return report.profiles.some(({ exists, bytes_examined }) => exists && bytes_examined > 0);
 }
 
+/** Even after reading bytes, a bounded or partially skipped scan cannot pass
+ * the CI evidence gate. Missing optional legacy roots are not errors. */
+export function hasCompleteAuditCoverage(report) {
+  return report.profiles.every(({ bounded, unreadable_entries, skipped_large_files, skipped_symlinks }) =>
+    !bounded && unreadable_entries === 0 && skipped_large_files === 0 && skipped_symlinks === 0);
+}
+
 async function main() {
   // Guard against accidental use on the owner's workstation or a live profile.
   if (process.env.GITHUB_ACTIONS !== "true" || process.env.MEDSCALE_CI_WEBVIEW_AUDIT !== "1" ||
@@ -115,12 +122,16 @@ async function main() {
   await writeFile(output, JSON.stringify(report, null, 2) + "\n", "utf8");
   console.log("WEBVIEW_SYNTHETIC_DISK_AUDIT=" + JSON.stringify({
     scope: report.scope,
-    profiles: report.profiles.map(({ label, exists, files_examined, bytes_examined, bounded, unreadable_entries }) =>
-      ({ label, exists, files_examined, bytes_examined, bounded, unreadable_entries })),
+    profiles: report.profiles.map(({ label, exists, files_examined, bytes_examined, bounded, unreadable_entries, skipped_large_files, skipped_symlinks }) =>
+      ({ label, exists, files_examined, bytes_examined, bounded, unreadable_entries, skipped_large_files, skipped_symlinks })),
   }));
   if (!hasObservedProfileBytes(report)) {
     // Fail closed without exposing profile paths, file names or content.
     throw new Error("No readable app-owned WebView profile bytes observed");
+  }
+  if (!hasCompleteAuditCoverage(report)) {
+    // A truncated, inaccessible or skipped profile is not full scan evidence.
+    throw new Error("Incomplete app-owned WebView profile inspection");
   }
 }
 
