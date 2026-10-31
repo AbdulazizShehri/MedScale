@@ -92,6 +92,9 @@ jobs:
         run: |
           node --test scripts/e2e/webview-disk-audit.test.mjs
           node scripts/e2e/webview-disk-audit.mjs
+          # Aggregate before-workspace vs post-journey differences; no paths,
+          # content, speaker IDs or arbitrary hashes in public output.
+          node scripts/e2e/webview-audit-compare.mjs
       - name: Desktop state on failure
         if: failure()
         shell: pwsh
