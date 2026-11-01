@@ -338,9 +338,7 @@ fn complete_synthetic_core(vault_root: &Path, seed: &SeedManifest) -> bool {
     use rusqlite::{Connection, OpenFlags};
 
     let file = vault_root.join("meta.sqlite3");
-    if !std::fs::symlink_metadata(&file)
-        .is_ok_and(|m| m.is_file() && !m.file_type().is_symlink())
-    {
+    if !std::fs::symlink_metadata(&file).is_ok_and(|m| m.is_file() && !m.file_type().is_symlink()) {
         return false;
     }
     let Ok(db) = Connection::open_with_flags(&file, OpenFlags::SQLITE_OPEN_READ_ONLY) else {
@@ -349,9 +347,8 @@ fn complete_synthetic_core(vault_root: &Path, seed: &SeedManifest) -> bool {
     let Ok(mut stmt) = db.prepare("SELECT object_class, body_json FROM authority_objects") else {
         return false;
     };
-    let Ok(rows) = stmt.query_map([], |r| {
-        Ok((r.get::<_, String>(0)?, r.get::<_, String>(1)?))
-    }) else {
+    let Ok(rows) = stmt.query_map([], |r| Ok((r.get::<_, String>(0)?, r.get::<_, String>(1)?)))
+    else {
         return false;
     };
     let mut proposals = Vec::<Proposal>::new();
@@ -392,7 +389,9 @@ fn complete_synthetic_core(vault_root: &Path, seed: &SeedManifest) -> bool {
             let matches: Vec<_> = proposals
                 .iter()
                 .filter(|p| {
-                    p.subject_ref.as_ref().is_some_and(|s| s.as_str() == subject)
+                    p.subject_ref
+                        .as_ref()
+                        .is_some_and(|s| s.as_str() == subject)
                         && p.claim_kind == fixture.claim_kind
                         && p.payload == payload
                         && p.evidence_refs
@@ -998,7 +997,9 @@ mod tests {
             let rows = db.list_authority_objects().unwrap();
             (
                 rows.iter().filter(|r| r.object_class == "proposal").count(),
-                rows.iter().filter(|r| r.object_class == "assertion").count(),
+                rows.iter()
+                    .filter(|r| r.object_class == "assertion")
+                    .count(),
             )
         };
         let before = read_counts();
@@ -1009,7 +1010,11 @@ mod tests {
             ..State::default()
         };
         open_synthetic(&mut second).expect("complete real Core must reopen");
-        assert_eq!(read_counts(), before, "no extra fixture promotions on reopen");
+        assert_eq!(
+            read_counts(),
+            before,
+            "no extra fixture promotions on reopen"
+        );
         drop(second);
         std::fs::remove_dir_all(&dir).unwrap();
     }
