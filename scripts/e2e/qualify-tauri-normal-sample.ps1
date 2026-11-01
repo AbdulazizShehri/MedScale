@@ -152,12 +152,41 @@ if ($result.INSTALL -eq 'PASS') {
         $winPs = Join-Path $env:WINDIR 'System32/WindowsPowerShell/v1.0/powershell.exe'
         $script = @'
 Add-Type -AssemblyName System.Windows.Forms
+Add-Type -TypeDefinition @"
+using System;
+using System.Runtime.InteropServices;
+public static class MedScaleCiForeground {
+    [DllImport("user32.dll")] public static extern IntPtr GetForegroundWindow();
+    [DllImport("user32.dll")] public static extern uint GetWindowThreadProcessId(IntPtr hwnd, out uint pid);
+}
+"@
 $shell = New-Object -ComObject WScript.Shell
-if (-not $shell.AppActivate(__PID__)) { throw "Cannot focus normal release desktop" }
+# AppActivate alone is not evidence that the intended GUI owns keyboard focus.
+# Verify the actual foreground window's owner PID before sending any keys.
+$verifiedForeground = $false
+for ($attempt = 0; $attempt -lt 20; $attempt++) {
+    if ($shell.AppActivate(__PID__)) {
+        Start-Sleep -Milliseconds 250
+        $foreground = [MedScaleCiForeground]::GetForegroundWindow()
+        [uint32]$foregroundPid = 0
+        if ($foreground -ne [IntPtr]::Zero) {
+            [void][MedScaleCiForeground]::GetWindowThreadProcessId($foreground, [ref]$foregroundPid)
+        }
+        if ($foregroundPid -eq [uint32]__PID__) {
+            $verifiedForeground = $true
+            break
+        }
+    } else {
+        Start-Sleep -Milliseconds 250
+    }
+}
+if (-not $verifiedForeground) { throw "Normal release app never owned foreground input" }
 [System.Windows.Forms.SendKeys]::SendWait("{ENTER}")
 '@.Replace('__PID__', [string]$proc.Id)
         & $winPs -NoProfile -NonInteractive -STA -Command $script
         if ($LASTEXITCODE -ne 0) { throw 'Synthetic sample welcome keyboard invocation failed' }
+        # Child process sends ENTER only after verifying MedScale owns the foreground.
+        $result.synthetic_foreground_verified = $true
         $result.synthetic_sample_keypress = 'ENTER_SENT_TO_CI_RELEASE_WINDOW'
         Start-Sleep -Seconds 11
         $d2 = Watch-Launch $proc.Id ([IntPtr]::Zero) ([IntPtr]::Zero)
