@@ -29,3 +29,17 @@ export function transcriptPlainText(
     });
   return [header, "", ...lines].join("\n") + "\n";
 }
+
+/** One explicit, write-only clipboard effect. The caller owns the user gesture.
+ * No read, retry, silent fallback, or OS clipboard-clearance claim is made. */
+export type TranscriptClipboardWriter = { writeText(text: string): Promise<void> };
+
+export async function copyTranscriptDraft(
+  revision: Parameters<typeof transcriptPlainText>[0],
+  writer: TranscriptClipboardWriter | undefined,
+): Promise<void> {
+  if (!writer || typeof writer.writeText !== "function") {
+    throw new Error("Clipboard write unavailable");
+  }
+  await writer.writeText(transcriptPlainText(revision));
+}
