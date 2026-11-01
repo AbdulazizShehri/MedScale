@@ -5,14 +5,31 @@ import path from "node:path";
 import os from "node:os";
 import { auditNormalSyntheticSample } from "./release-webview-postsample-audit.mjs";
 
-function seedManifest(subject = "synthetic-subject-seed-canary") {
-  // A bounded fixture matching host.rs SeedManifest + SeededSource.
+function seedManifest() {
+  // Independent complete fixture from the 2-subject/12-source Rust seed plan.
+  const rows = [
+    ["synthetic-subject-ada", [
+      ["patient-golden.json", "Patient", "patient"],
+      ["observation-hr.json", "Observation", "observation"],
+      ["observation-weight.json", "Observation", "observation"],
+      ["observation-temp-c.json", "Observation", "observation"],
+      ["condition-uri.json", "Condition", "condition"],
+      ["unsupported-medicationrequest.json", "MedicationRequest", "medication"],
+    ]],
+    ["synthetic-subject-coverage", [
+      ["patient-absence.json", "Patient", "patient"],
+      ["condition-uri.json", "Condition", "condition"],
+      ["condition-conflict-b.json", "Condition", "condition"],
+      ["observation-weight.json", "Observation", "observation"],
+      ["observation-weight-conflict-unit.json", "Observation", "observation"],
+      ["observation-unrecognized-unit.json", "Observation", "observation"],
+    ]],
+  ];
   return JSON.stringify({
-    subjects: [subject],
-    sources: [{
-      source_id: "synthetic-source", fixture: "patient-golden.json",
-      resource_type: "Patient", claim_kind: "patient", subject_ref: subject,
-    }],
+    subjects: rows.map(([subject]) => subject),
+    sources: rows.flatMap(([subject, fixtures]) => fixtures.map(([fixture, resource_type, claim_kind], i) => ({
+      source_id: `synthetic-source-${subject}-${i}`, fixture, resource_type, claim_kind, subject_ref: subject,
+    }))),
   });
 }
 
@@ -32,7 +49,7 @@ test("normal-mode synthetic sample separates persisted workspace from browser an
   await fixture(async root => {
     const syntheticMarker = "synthetic-subject-private-canary-must-stay-hidden";
     await writeFile(path.join(root, "synthetic-workspace", "private-vault-file.sqlite"), syntheticMarker);
-    await writeFile(path.join(root, "synthetic-workspace.desktop-seed.json"), seedManifest(syntheticMarker));
+    await writeFile(path.join(root, "synthetic-workspace.desktop-seed.json"), seedManifest());
     const r = await auditNormalSyntheticSample(root);
     assert.equal(r.browser_coverage_complete, true);
     assert.equal(r.synthetic_workspace_coverage_complete, true);
@@ -264,5 +281,43 @@ test("project key marker in a directory name outside browser and vault rejects n
     assert.equal(report.interpretation, "MARKER_IN_SCANNED_APP_DATA_ENTRY_NAME");
     assert.equal(JSON.stringify(report).includes(privateFolder), false);
     assert.equal(JSON.stringify(report).includes(root), false);
+  });
+});
+
+test("one complete source per subject still fails the full native seed plan", async () => {
+  await fixture(async root => {
+    await writeFile(path.join(root, "synthetic-workspace", "record"), "synthetic-subject-ada");
+    const partial = JSON.parse(seedManifest());
+    partial.sources = [partial.sources[0], partial.sources[6]];
+    await writeFile(path.join(root, "synthetic-workspace.desktop-seed.json"), JSON.stringify(partial));
+    const report = await auditNormalSyntheticSample(root);
+    assert.equal(report.app_seed_manifest_probe_status, "INCOMPLETE_OR_UNLINKED_SOURCE");
+    assert.equal(report.app_seed_manifest_marker_present, false);
+    assert.equal(report.synthetic_sample_observed, false);
+    assert.equal(report.interpretation, "INCONCLUSIVE_NO_SYNTHETIC_WORKSPACE_MARKERS");
+  });
+});
+
+test("twelve source rows with a duplicate fixture cannot masquerade as complete seed", async () => {
+  await fixture(async root => {
+    await writeFile(path.join(root, "synthetic-workspace", "record"), "synthetic-subject-ada");
+    const duplicate = JSON.parse(seedManifest());
+    duplicate.sources[11] = { ...duplicate.sources[10] };
+    await writeFile(path.join(root, "synthetic-workspace.desktop-seed.json"), JSON.stringify(duplicate));
+    const report = await auditNormalSyntheticSample(root);
+    assert.equal(report.app_seed_manifest_probe_status, "INCOMPLETE_OR_UNLINKED_SOURCE");
+    assert.equal(report.synthetic_sample_observed, false);
+  });
+});
+
+test("unknown fixture in twelve source rows fails source-bound native seed contract", async () => {
+  await fixture(async root => {
+    await writeFile(path.join(root, "synthetic-workspace", "record"), "synthetic-subject-ada");
+    const changed = JSON.parse(seedManifest());
+    changed.sources[0].fixture = "unknown-fhir-fixture.json";
+    await writeFile(path.join(root, "synthetic-workspace.desktop-seed.json"), JSON.stringify(changed));
+    const report = await auditNormalSyntheticSample(root);
+    assert.equal(report.app_seed_manifest_probe_status, "INCOMPLETE_OR_UNLINKED_SOURCE");
+    assert.equal(report.synthetic_sample_observed, false);
   });
 });

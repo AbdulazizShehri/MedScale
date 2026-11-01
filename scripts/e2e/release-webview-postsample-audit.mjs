@@ -14,8 +14,33 @@ import { auditReleaseWebviewWelcomeRoot, isAuthorizedNativeRunner } from "./rele
 const ROOT_NAME = "org.medscale.desktop.preview";
 const MANIFEST_NAME = "synthetic-workspace.desktop-seed.json";
 
-// Fixed-status read-only diagnostics: never include a file name, subject or
-// source value in the result, even when the runner encounters malformed data.
+// Freeze the full Rust host.rs seed_plan() contract: two subjects, six
+// fixture assertions each. A well-formed *partial* manifest is not a completed
+// native GUI sample. Changes to the Rust seed plan must update this QA gate.
+const EXPECTED_SEED_FIXTURES = Object.freeze({
+  "synthetic-subject-ada": Object.freeze({
+    "patient-golden.json": ["Patient", "patient"],
+    "observation-hr.json": ["Observation", "observation"],
+    "observation-weight.json": ["Observation", "observation"],
+    "observation-temp-c.json": ["Observation", "observation"],
+    "condition-uri.json": ["Condition", "condition"],
+    "unsupported-medicationrequest.json": ["MedicationRequest", "medication"],
+  }),
+  "synthetic-subject-coverage": Object.freeze({
+    "patient-absence.json": ["Patient", "patient"],
+    "condition-uri.json": ["Condition", "condition"],
+    "condition-conflict-b.json": ["Condition", "condition"],
+    "observation-weight.json": ["Observation", "observation"],
+    "observation-weight-conflict-unit.json": ["Observation", "observation"],
+    "observation-unrecognized-unit.json": ["Observation", "observation"],
+  }),
+});
+const EXPECTED_SEED_SUBJECTS = Object.keys(EXPECTED_SEED_FIXTURES);
+const EXPECTED_SEED_SOURCE_COUNT = Object.values(EXPECTED_SEED_FIXTURES)
+  .reduce((sum, fixtures) => sum + Object.keys(fixtures).length, 0);
+
+// Fixed-status read-only diagnostics: never return any file name, subject ID,
+// source ID or other parsed manifest value.
 async function inspectSeedManifest(filename) {
   let st;
   try { st = await lstat(filename); }
@@ -32,27 +57,38 @@ async function inspectSeedManifest(filename) {
       !Array.isArray(manifest.subjects) || !Array.isArray(manifest.sources)) {
     return { valid: false, status: "INVALID_SCHEMA" };
   }
-  const subjects = manifest.subjects.filter((subject) =>
-    typeof subject === "string" && subject.startsWith("synthetic-subject-"));
+  const subjects = manifest.subjects;
   if (subjects.length === 0) return { valid: false, status: "NO_SYNTHETIC_SUBJECT" };
-  // A mixture of invented and non-synthetic subjects, or duplicate subjects,
-  // must not provide affirmative proof that the native seed finished.
-  if (subjects.length !== manifest.subjects.length ||
-      new Set(subjects).size !== subjects.length) {
+  if (new Set(subjects).size !== subjects.length ||
+      !subjects.every((subject) => typeof subject === "string" &&
+        Object.hasOwn(EXPECTED_SEED_FIXTURES, subject))) {
     return { valid: false, status: "INVALID_SCHEMA" };
   }
   if (manifest.sources.length === 0) return { valid: false, status: "NO_SEEDED_SOURCES" };
-  // Requiring just ONE valid source would silently accept partially written
-  // source lists. Every stored source must have the Rust SeededSource fields
-  // and link to a listed invented subject; all subjects need a source.
-  const allSourcesLinked = manifest.sources.every((source) =>
-    source && typeof source === "object" &&
-    ["source_id", "fixture", "resource_type", "claim_kind", "subject_ref"]
-      .every((field) => typeof source[field] === "string" && source[field].trim().length > 0) &&
-    subjects.includes(source.subject_ref));
-  const everySubjectSeeded = subjects.every((subject) =>
-    manifest.sources.some((source) => source.subject_ref === subject));
-  const complete = allSourcesLinked && everySubjectSeeded;
+  // Reject truncation, duplicate fixture rows, unknown fixtures and mismatched
+  // Rust resource/claim types. Core may deduplicate ingest IDs; don't assume
+  // each source_id is globally unique.
+  const seen = new Set();
+  let complete = subjects.length === EXPECTED_SEED_SUBJECTS.length &&
+    manifest.sources.length === EXPECTED_SEED_SOURCE_COUNT;
+  for (const source of manifest.sources) {
+    if (!source || typeof source !== "object" ||
+        !["source_id", "fixture", "resource_type", "claim_kind", "subject_ref"]
+          .every((field) => typeof source[field] === "string" && source[field].trim().length > 0) ||
+        !Object.hasOwn(EXPECTED_SEED_FIXTURES, source.subject_ref)) {
+      complete = false;
+      continue;
+    }
+    const expected = EXPECTED_SEED_FIXTURES[source.subject_ref][source.fixture];
+    const key = JSON.stringify([source.subject_ref, source.fixture]);
+    if (!expected || source.resource_type !== expected[0] ||
+        source.claim_kind !== expected[1] || seen.has(key)) {
+      complete = false;
+      continue;
+    }
+    seen.add(key);
+  }
+  complete = complete && seen.size === EXPECTED_SEED_SOURCE_COUNT;
   return { valid: complete,
     status: complete ? "VERIFIED" : "INCOMPLETE_OR_UNLINKED_SOURCE" };
 }
