@@ -9,6 +9,17 @@ export type TranscriptTextSegment = {
   speaker?: { kind: string; index?: number };
 };
 
+/** Clipboard-only escaping: make control and bidirectional formatting visible
+ * rather than letting untrusted ASR text spoof timestamps or provenance.
+ * This does not modify the stored transcript or establish OS clipboard privacy. */
+function neutralizeClipboardText(value: string): string {
+  return value
+    .replace(/\r\n|\r|\n|\u000B|\u000C|\u0085|\u2028|\u2029/g, "\n")
+    .replace(/[\u0000-\u0008\u000E-\u001F\u007F-\u0084\u0086-\u009F\u061C\u200E\u200F\u202A-\u202E\u2066-\u206F]/g, (control) =>
+      `[U+${control.charCodeAt(0).toString(16).toUpperCase().padStart(4, "0")}]`,
+    );
+}
+
 function clock(ms: number): string {
   const total = Math.max(0, Math.floor(ms / 1000));
   const m = Math.floor(total / 60);
@@ -19,7 +30,7 @@ function clock(ms: number): string {
 export function transcriptPlainText(
   revision: { revision_no: number; state: string; segments: readonly TranscriptTextSegment[] },
 ): string {
-  const header = `MedScale draft transcript · revision ${revision.revision_no} · ${revision.state} · not clinically verified`;
+  const header = `MedScale draft transcript · revision ${revision.revision_no} · ${neutralizeClipboardText(revision.state).replace(/\n/g, " ")} · not clinically verified`;
   const lines = [...revision.segments]
     .sort((a, b) => a.seq - b.seq)
     .map((s) => {
@@ -27,7 +38,7 @@ export function transcriptPlainText(
       const body = s.text?.trim() ? s.text.trim() : "(untranscribed)";
       // Keep ASR/correction line breaks but indent continuations so untrusted
       // speech text cannot visually impersonate a new timed segment or header.
-      const boundedLines = body.replace(/\r\n|\r|\n|\u2028|\u2029/g, "\n    ");
+      const boundedLines = neutralizeClipboardText(body).replace(/\n/g, "\n    ");
       return `[${clock(s.start_ms)}–${clock(s.end_ms)}${speaker}] ${boundedLines}`;
     });
   return [header, "", ...lines].join("\n") + "\n";
