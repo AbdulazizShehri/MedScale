@@ -1264,7 +1264,10 @@ mod tests {
             claim_kind: "patient".to_owned(),
             subject_ref: manifest.subjects[0].clone(),
         });
-        assert!(complete_synthetic_seed(&manifest), "the 12 seed fixtures remain valid");
+        assert!(
+            complete_synthetic_seed(&manifest),
+            "the 12 seed fixtures remain valid"
+        );
         assert!(
             !complete_synthetic_core(&vault_root, &manifest),
             "a fabricated imported FHIR roster row has no matching Core promotion"
@@ -1297,12 +1300,8 @@ mod tests {
         let file = data_dir.join("unique-fictional-patient.json");
         std::fs::write(&file, serde_json::to_vec(&resource).expect("JSON"))
             .expect("write disposable fictional import");
-        let imported = import_fhir(
-            state.workspace.as_mut().expect("workspace"),
-            &file,
-            subject,
-        )
-        .expect("valid novel FHIR import through real Core");
+        let imported = import_fhir(state.workspace.as_mut().expect("workspace"), &file, subject)
+            .expect("valid novel FHIR import through real Core");
         assert_eq!(imported.fixture, "imported:unique-fictional-patient.json");
         let manifest = state.workspace.as_ref().expect("workspace").seed.clone();
         assert!(complete_synthetic_core(&vault_root, &manifest));
