@@ -4,6 +4,7 @@ import { selectedPathOrPrevious } from "../audio-picker";
 import { formatStorage } from "../model-storage";
 import { mayStartModelDownload } from "../model-consent";
 import { visibleRevisionDraft, type RevisionBoundDraft } from "../audio-draft";
+import { transcriptPlainText } from "../transcript-text";
 import { call, useAction, useCommand } from "../lib/ipc";
 import { ProjectScope } from "../components/project";
 import { Authority, Empty, ErrorState, Glyph, KV, Ledger, Notice, PageHead, Section, Skeleton, Stamp, Status, glyphFor, useOutcome, useToast, type GlyphKind } from "../components/ui";
@@ -298,6 +299,17 @@ function AudioBody({ projectId }: { projectId: string }) {
       toast({ kind: "blocked", title: "Cannot open folder chooser", detail: "You can still enter an absolute Audio Pack path." });
     } finally { setChoosing(null); }
   }
+  async function copyTranscript() {
+    if (!result?.transcript) return;
+    try {
+      // Write-only Web Clipboard API on an explicit click; no clipboard read permission.
+      await navigator.clipboard.writeText(transcriptPlainText(result.transcript));
+      toast({ kind: "completed", title: "Transcript copied", detail: "Draft text only · not clinically verified." });
+    } catch {
+      toast({ kind: "blocked", title: "Cannot copy transcript", detail: "Select the segment text and copy it manually." });
+    }
+  }
+
   const local = asr.state.status === "ready" ? asr.state.data.routes.find((r) => r.route === "local_asr_pack") : undefined;
   const selectedModel = availableModels.state.status === "ready"
     ? availableModels.state.data.find((m) => m.id === chosenModel) : undefined;
@@ -485,6 +497,7 @@ function AudioBody({ projectId }: { projectId: string }) {
           </div>
         ))}
         {result.transcript && <div className="row-gap" style={{ gap: 8, marginTop: 12 }}>
+          <button type="button" className="btn btn-g" onClick={copyTranscript} disabled={!result.transcript.segments.length}>Copy transcript</button>
           <select aria-label="Pack for the draft note" value={notePack} onChange={(e) => setNotePack(e.target.value)}>{runnable.map((m) => <option key={m.id} value={m.id}>{m.id}</option>)}</select>
           <button type="button" className="btn btn-s" disabled={!notePack || !!pending} onClick={draftNote}>{pending === "draft" ? <Glyph kind="running" /> : null}Draft note from this revision</button>
         </div>}
