@@ -589,10 +589,49 @@ fn preflight_synthetic_seed(vault_root: &Path) -> CmdResult<SeedManifest> {
     }
 }
 
+/// Replace `path` with `bytes` so a crash leaves either the old file or the
+/// new one, never a truncated file. Spec 108 (M3): a torn seed manifest is
+/// reported as corrupt and blocks reopening a workspace that may hold user
+/// imports, so sidecar records must not be written in place.
+fn write_atomic(path: &Path, bytes: &[u8]) -> std::io::Result<()> {
+    use std::io::Write;
+    let mut tmp_name = path
+        .file_name()
+        .map(|n| n.to_os_string())
+        .unwrap_or_default();
+    tmp_name.push(".tmp");
+    let tmp = path.with_file_name(tmp_name);
+    {
+        let mut file = std::fs::File::create(&tmp)?;
+        file.write_all(bytes)?;
+        file.sync_all()?;
+    }
+    if let Err(error) = std::fs::rename(&tmp, path) {
+        let _ = std::fs::remove_file(&tmp);
+        return Err(error);
+    }
+    sync_parent_dir(path)
+}
+
+/// Persist the rename itself on Unix. Windows has no directory handle sync
+/// in std; NTFS journals the rename metadata.
+#[cfg(unix)]
+fn sync_parent_dir(path: &Path) -> std::io::Result<()> {
+    match path.parent() {
+        Some(dir) => std::fs::File::open(dir)?.sync_all(),
+        None => Ok(()),
+    }
+}
+
+#[cfg(not(unix))]
+fn sync_parent_dir(_path: &Path) -> std::io::Result<()> {
+    Ok(())
+}
+
 fn save_manifest(vault_root: &Path, manifest: &SeedManifest) -> CmdResult<()> {
     let bytes = serde_json::to_vec_pretty(manifest)
         .map_err(|_| CmdError::new("internal", "Internal: seed manifest"))?;
-    std::fs::write(manifest_path(vault_root), bytes)
+    write_atomic(&manifest_path(vault_root), &bytes)
         .map_err(|_| CmdError::unavailable("Unavailable: seed manifest not writable"))
 }
 
@@ -620,7 +659,7 @@ pub fn save_pack_dirs(
 ) -> CmdResult<()> {
     let bytes = serde_json::to_vec_pretty(dirs)
         .map_err(|_| CmdError::new("internal", "Internal: pack folders"))?;
-    std::fs::write(pack_dirs_path(vault_root), bytes)
+    write_atomic(&pack_dirs_path(vault_root), &bytes)
         .map_err(|_| CmdError::unavailable("Unavailable: pack folders not writable"))
 }
 
@@ -644,7 +683,7 @@ pub fn load_asr_pack(vault_root: &Path) -> Option<String> {
 pub fn save_asr_pack(vault_root: &Path, dir: &str) -> CmdResult<()> {
     let bytes = serde_json::to_vec_pretty(&serde_json::json!({ "dir": dir }))
         .map_err(|_| CmdError::new("internal", "Internal: audio pack record"))?;
-    std::fs::write(asr_pack_path(vault_root), bytes)
+    write_atomic(&asr_pack_path(vault_root), &bytes)
         .map_err(|_| CmdError::unavailable("Unavailable: audio pack record not writable"))
 }
 
@@ -921,6 +960,40 @@ pub fn bounded_text(raw: &str, max: usize) -> CmdResult<String> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn sidecar_records_are_replaced_atomically_without_leftover_temp() {
+        let dir = std::env::temp_dir().join(format!(
+            "medscale-atomic-sidecar-{}-{}",
+            std::process::id(),
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .expect("clock")
+                .as_nanos()
+        ));
+        let vault_root = dir.join("synthetic-workspace");
+        std::fs::create_dir_all(&vault_root).expect("synthetic test dir");
+        let mut manifest = full_seed_manifest_for_test();
+        save_manifest(&vault_root, &manifest).expect("first manifest");
+        manifest.sources.truncate(1);
+        save_manifest(&vault_root, &manifest).expect("replacing manifest");
+        let reread: SeedManifest =
+            serde_json::from_slice(&std::fs::read(manifest_path(&vault_root)).expect("read"))
+                .expect("manifest stays valid JSON after replacement");
+        assert_eq!(reread.sources.len(), 1);
+        save_asr_pack(&vault_root, "synthetic-pack-dir").expect("asr record");
+        assert_eq!(
+            load_asr_pack(&vault_root).as_deref(),
+            Some("synthetic-pack-dir")
+        );
+        let leftovers = std::fs::read_dir(&dir)
+            .expect("list")
+            .filter_map(Result::ok)
+            .filter(|e| e.file_name().to_string_lossy().ends_with(".tmp"))
+            .count();
+        assert_eq!(leftovers, 0, "no temporary sidecar files remain");
+        std::fs::remove_dir_all(&dir).expect("synthetic-only cleanup");
+    }
 
     fn full_seed_manifest_for_test() -> SeedManifest {
         let mut manifest = SeedManifest::default();
