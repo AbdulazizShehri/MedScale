@@ -1,4 +1,6 @@
 import { useMemo, useState, type FormEvent } from "react";
+import { open } from "@tauri-apps/plugin-dialog";
+import { selectedPathOrPrevious } from "../audio-picker";
 import { useApp } from "../lib/app";
 import { call, useCommand, type CmdError } from "../lib/ipc";
 import { Authority, Empty, ErrorState, Glyph, KV, Ledger, Notice, PageHead, Section, Skeleton, Stamp, Status, glyphFor } from "../components/ui";
@@ -16,6 +18,18 @@ export function Documents() {
   const cur = rows[sel] ?? rows[0];
   const [imp, setImp] = useState<{ path: string; subject: string } | null>(null);
   const [impState, setImpState] = useState<{ pending: boolean; error: string | null; done: string | null }>({ pending: false, error: null, done: null });
+  const [choosingFhir, setChoosingFhir] = useState(false);
+  async function browseFhir() {
+    if (!imp) return;
+    setChoosingFhir(true);
+    try {
+      const selected = await open({ multiple: false, directory: false, title: "Choose a FHIR R4 JSON file", filters: [{ name: "FHIR R4 JSON", extensions: ["json"] }] });
+      // Cancel is not an error and never overwrites a previously entered path.
+      setImp((cur) => (cur ? { ...cur, path: selectedPathOrPrevious(cur.path, selected) } : cur));
+    } catch {
+      setImpState({ pending: false, error: "The file chooser could not open. You can still enter the file's absolute path.", done: null });
+    } finally { setChoosingFhir(false); }
+  }
   async function importFhir(e: FormEvent) {
     e.preventDefault();
     if (!imp) return;
@@ -37,8 +51,12 @@ export function Documents() {
           <button type="button" className="btn btn-s" onClick={() => setImp(imp ? null : { path: "", subject: "synthetic-subject-ada" })}>Import synthetic FHIR</button>
         </PageHead>
         {imp && <form onSubmit={importFhir} className="stack" style={{ gap: 8, maxWidth: 640, marginBottom: 14 }}>
-          <label className="lbl" htmlFor="ip">FHIR R4 JSON file (absolute path, at most 1 MiB, synthetic only)</label>
-          <input id="ip" value={imp.path} maxLength={1024} onChange={(e) => setImp({ ...imp, path: e.target.value })} />
+          <label className="lbl" htmlFor="ip">FHIR R4 JSON file (at most 1 MiB, synthetic only)</label>
+          <div className="row-gap" style={{ gap: 8 }}>
+            <input id="ip" value={imp.path} maxLength={1024} placeholder="Choose a file or paste its absolute path" style={{ flex: 1, minWidth: 0 }} onChange={(e) => setImp({ ...imp, path: e.target.value })} />
+            <button type="button" className="btn btn-g" onClick={browseFhir} disabled={choosingFhir || impState.pending}>Browse JSON…</button>
+          </div>
+          <p className="t-sm i3" style={{ margin: 0 }}>MedScale reads the file once and never modifies or moves it. The original stays where it is.</p>
           <label className="lbl" htmlFor="is">Subject</label>
           <input id="is" value={imp.subject} maxLength={128} onChange={(e) => setImp({ ...imp, subject: e.target.value })} />
           <div><button type="submit" className="btn btn-p" disabled={!imp.path.trim() || !imp.subject.trim() || impState.pending}>{impState.pending ? <Glyph kind="running" /> : null}Ingest through Core</button></div>
