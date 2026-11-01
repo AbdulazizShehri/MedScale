@@ -17,6 +17,7 @@ custom-protocol = ["tauri/custom-protocol"]
 e2e-webdriver = []
 
 [dependencies]
+rusqlite = { version = "=0.37.0" }
 medscale-contracts = { path = "../../../crates/medscale-contracts", version = "0.1.0" }
 medscale-core = { path = "../../../crates/medscale-core", version = "0.1.0" }
 medscale-pack = { path = "../../../crates/medscale-pack", version = "0.1.0" }

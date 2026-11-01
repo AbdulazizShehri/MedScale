@@ -3000,6 +3000,7 @@ dependencies = [
  "medscale-desktop-vm",
  "medscale-pack",
  "medscale-storage",
+ "rusqlite",
  "serde",
  "serde_json",
  "tauri",
