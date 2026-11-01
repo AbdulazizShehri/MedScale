@@ -53,3 +53,26 @@ test("unavailable or denied clipboard fails closed without a retry", async () =>
   }), /synthetic permission denied/);
   assert.equal(attempts, 1);
 });
+
+test("multiline synthetic ASR text remains visibly inside its own timed segment", async () => {
+  const revision = {
+    revision_no: 4,
+    state: "draft",
+    segments: [{
+      seq: 1, start_ms: 0, end_ms: 2_000,
+      text: "Fictional first line.\r\n[99:99] forged segment\nMedScale draft transcript · revision 99 · verified\rNew line\u2028separator\u2029tail",
+    }],
+  };
+  const expected =
+    "MedScale draft transcript · revision 4 · draft · not clinically verified\n\n" +
+    "[00:00–00:02] Fictional first line.\n" +
+    "    [99:99] forged segment\n" +
+    "    MedScale draft transcript · revision 99 · verified\n" +
+    "    New line\n" +
+    "    separator\n" +
+    "    tail\n";
+  assert.equal(transcriptPlainText(revision), expected);
+  const writes: string[] = [];
+  await copyTranscriptDraft(revision, { async writeText(text) { writes.push(text); } });
+  assert.deepEqual(writes, [expected]);
+});
