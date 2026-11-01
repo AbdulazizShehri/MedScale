@@ -4,7 +4,7 @@ _Verified against public provider rules, 2 Nov 2026. Draft planning only; no gra
 
 ## Maintainer-provided context (keep privately in forms)
 
-The maintainer reports an active University of Melbourne student-domain email and membership/association with the University, and the project has an official website (https://medscale.si/) and a public Apache-2.0 repository. **Do not publish the personal university email in this repository.** A functioning student-domain email is not, by itself, evidence of *current enrollment*, an official *research appointment*, authority to represent the university, university sponsorship, or permission to charge university compute resources for an independently owned project. Verify exact current status with the University before using any institutional checkbox or letterhead.
+The maintainer has explicitly confirmed being a **University of Melbourne graduate, no longer enrolled**, with a student-domain email that still works. MedScale has an official website (https://medscale.si/) and a public Apache-2.0 repository. **Do not publish the personal university email in this repository.** Active email access is not evidence of current enrollment, a research appointment, authority to represent the University, university sponsorship or entitlement to research computing. Keep academic programmes in the [complete opportunity matrix](COMPLETE_OPPORTUNITY_MATRIX.md) for future opportunities and collaboration, not as currently eligible student grants.
 
 ## Opportunity 1: University of Melbourne Research Computing Services (RCS)
 
@@ -23,14 +23,14 @@ Subject: Research computing eligibility for independent open-source health AI pr
 
 Hello Research Computing Services team,
 
-I am connected with the University of Melbourne and would like to verify my current eligibility and the permitted use of University research compute resources for a nonclinical, openly published software research project.
+I am a University of Melbourne MPH graduate and am not currently enrolled. My student email remains active, but I understand this does not establish eligibility for University research computing. I would like to ask whether a formal research collaboration with an eligible current University investigator might be possible for an independent open-source, nonclinical project.
 
 MedScale is an Apache-2.0 local-first health intelligence project focused on verifiable provenance, constrained FHIR interoperability, and reproducible evaluation of local AI using synthetic health records and licensed nonpatient datasets. Project website: https://medscale.si/ . Source: https://github.com/AbdulazizShehri/MedScale .
 
 The proposed research would evaluate evidence attribution, abstention under missing/conflicting data, and multilingual nonpatient audio model quality. No real patient records or confidential health data would be uploaded.
 
 Could you advise:
-1. Whether my current University affiliation and research status entitle me to RCS/Research Server or Nectar access, or whether I need a supervising investigator and University research project allocation;
+1. Whether an active University investigator could sponsor a legitimate collaboration and research allocation, rather than relying on alumni email access;
 2. Whether compute may be used for independently maintained Apache-2.0 research code, where all output and test fixtures remain public;
 3. The access prerequisites, project approval workflow, GPU quotas, scheduling limits and conditions for off-campus access?
 
@@ -50,32 +50,32 @@ Any researcher can apply for up to USD 50,000 in **Claude credits** per project,
 
 https://modal.com/academics and https://modal.com/pricing
 
-States up to USD 10,000 in compute credits for qualifying graduate students, labs and academic researchers; the page includes a grant interest/application route. The maintainer's current academic eligibility must be verified. Apply for a bounded benchmark plan and avoid claiming acceptance.
+States up to USD 10,000 in compute credits for qualifying graduate students, labs and academic researchers; the page includes a grant interest/application route. The maintainer is a graduate, not a currently enrolled student. **Do not claim academic-grant eligibility** unless Modal confirms an independent-researcher track or the maintainer establishes a qualifying appointment.
 
 ## Opportunity 4: Nebius Research Grants
 
 https://nebius.com/nebius-research-grants
 
-Postgraduate students undertaking academic research, PhD/postdoctoral researchers, faculty and accredited-institution research staff are target participants. The amount of GPU and token credits is determined individually; requires transparent GPU usage and a public-science-oriented project. University email on its own does not verify an eligible appointment.
+Postgraduate students undertaking academic research, PhD/postdoctoral researchers, faculty and accredited-institution research staff are target participants. The amount of GPU and token credits is determined individually; requires transparent GPU usage and a public-science-oriented project. University email on its own does not verify an eligible appointment. With the maintainer now confirmed graduated and independent, **keep this as future conditional** until a genuine academic role or eligible collaboration exists.
 
 ## Opportunity 5: AWS Cloud Credits for Research
 
 https://aws.amazon.com/government-education/research-and-technical-computing/cloud-credit-for-research/faqs/
 
-Official FAQ: eligible enrolled graduate/postgraduate/PhD students or full-time research staff, with institutional email and AWS account. Student requests capped at USD 5,000. **Recent graduates no longer enrolled are not automatically eligible**, though open-source AWS credits offer a separate nonacademic route.
+Official FAQ: eligible enrolled graduate/postgraduate/PhD students or full-time research staff, with institutional email and AWS account. Student requests capped at USD 5,000. **The maintainer is no longer enrolled, so do not apply through the student route without a new qualifying status**, though open-source AWS credits offer a separate nonacademic route.
 
 ## Opportunity 6: Google Cloud Research Credits — do not prematurely apply
 
 https://support.google.com/google-cloud-higher-ed/answer/10324705
 
-Google's current research-credits eligibility covers faculty, PhD students and postdoctoral researchers; **non-PhD graduate students are not eligible**. Australia appears in the geographic list but Saudi Arabia does not. A current University of Melbourne faculty/PhD/postdoc role could open the Australian route only after verifying the application residence and affiliation requirements. A completed MPH is not sufficient.
+Google's current research-credits eligibility covers faculty, PhD students and postdoctoral researchers; **non-PhD graduate students are not eligible**. Australia appears in the geographic list but Saudi Arabia does not. A current University of Melbourne faculty/PhD/postdoc role could open the Australian route only after verifying the application residence and affiliation requirements. A completed MPH is not sufficient. The current independent graduate profile is not eligible on the basis of the past MPH alone.
 
 ## Opportunity 7: GitHub Education / Azure for Students
 
 - https://docs.github.com/en/education/about-github-education/github-education-for-students/apply-to-github-education-as-a-student
 - https://azure.microsoft.com/en-us/pricing/offers/ms-azr-0170p
 
-Both require currently enrolled/verified students (Azure states full-time enrollment). A working student email alone is insufficient. The University of Melbourne states student email access can persist during a twelve-month after-completion grace period and warns against using it for long-term third-party authentication:
+Both require currently enrolled/verified students (Azure states full-time enrollment). The maintainer is now an alumnus, and a still-active email alone is insufficient. **Keep these programmes in the watchlist; do not apply as a current student unless the status legitimately changes.** The University of Melbourne states student email access can persist during a twelve-month after-completion grace period and warns against using it for long-term third-party authentication:
 https://studentit.unimelb.edu.au/student-offboarding/initial-offboarding/unlink-email
 
 ## Responsible application strategy
