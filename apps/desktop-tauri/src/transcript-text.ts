@@ -25,7 +25,10 @@ export function transcriptPlainText(
     .map((s) => {
       const speaker = s.speaker?.kind === "anonymous" && s.speaker.index !== undefined ? ` speaker ${s.speaker.index}` : "";
       const body = s.text?.trim() ? s.text.trim() : "(untranscribed)";
-      return `[${clock(s.start_ms)}–${clock(s.end_ms)}${speaker}] ${body}`;
+      // Keep ASR/correction line breaks but indent continuations so untrusted
+      // speech text cannot visually impersonate a new timed segment or header.
+      const boundedLines = body.replace(/\r\n|\r|\n|\u2028|\u2029/g, "\n    ");
+      return `[${clock(s.start_ms)}–${clock(s.end_ms)}${speaker}] ${boundedLines}`;
     });
   return [header, "", ...lines].join("\n") + "\n";
 }
