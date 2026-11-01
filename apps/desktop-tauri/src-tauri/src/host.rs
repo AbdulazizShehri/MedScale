@@ -308,7 +308,10 @@ fn complete_synthetic_seed(seed: &SeedManifest) -> bool {
             let Ok(resource) = serde_json::from_slice::<serde_json::Value>(fixture.bytes) else {
                 return false;
             };
-            let Some(expected_type) = resource.get("resourceType").and_then(|value| value.as_str()) else {
+            let Some(expected_type) = resource
+                .get("resourceType")
+                .and_then(|value| value.as_str())
+            else {
                 return false;
             };
             let matching: Vec<_> = seed
@@ -358,9 +361,7 @@ fn preflight_synthetic_seed(vault_root: &Path) -> CmdResult<SeedManifest> {
             }
             Ok(seed)
         }
-        Err(error)
-            if error.kind() == std::io::ErrorKind::NotFound && !vault_has_entries =>
-        {
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound && !vault_has_entries => {
             Ok(SeedManifest::default())
         }
         Err(error) if error.kind() == std::io::ErrorKind::NotFound => Err(CmdError::new(
@@ -749,13 +750,17 @@ mod tests {
         assert!(preflight_synthetic_seed(&root).is_err());
 
         std::fs::write(manifest_path(&root), serde_json::to_vec(&complete).unwrap()).unwrap();
-        assert!(complete_synthetic_seed(&preflight_synthetic_seed(&root).unwrap()));
+        assert!(complete_synthetic_seed(
+            &preflight_synthetic_seed(&root).unwrap()
+        ));
 
         let mut duplicate = complete.clone();
         duplicate.sources.push(complete.sources[0].clone());
         assert!(!complete_synthetic_seed(&duplicate));
         let mut imported = complete;
-        imported.subjects.push("synthetic-subject-imported".to_owned());
+        imported
+            .subjects
+            .push("synthetic-subject-imported".to_owned());
         imported.sources.push(SeededSource {
             source_id: "synthetic-import".to_owned(),
             fixture: "imported:synthetic-fhir.json".to_owned(),
