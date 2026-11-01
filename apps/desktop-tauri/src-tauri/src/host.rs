@@ -773,6 +773,95 @@ mod tests {
     }
 
     #[test]
+    fn interrupted_core_promotion_must_not_replay_or_duplicate_on_synthetic_restart() {
+        use medscale_storage::SqliteMetaStore;
+
+        fn counts(root: &Path) -> (usize, usize) {
+            let store = SqliteMetaStore::open(root).expect("synthetic-only metadata");
+            let rows = store
+                .list_authority_objects()
+                .expect("durable authority objects");
+            (
+                rows.iter().filter(|r| r.object_class == "proposal").count(),
+                rows.iter().filter(|r| r.object_class == "assertion").count(),
+            )
+        }
+
+        let data_dir = std::env::temp_dir().join(format!(
+            "medscale-synthetic-interruption-{}-{}",
+            std::process::id(),
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .expect("clock")
+                .as_nanos()
+        ));
+        std::fs::create_dir_all(&data_dir).expect("synthetic-only data root");
+        let vault_root = data_dir.join("synthetic-workspace");
+
+        // Exercise real Core ingest/promotion, not a placeholder in the vault.
+        // A crash can occur after a durable proposal/assertion but before the
+        // sibling desktop-seed.json is written by seed_synthetic.
+        let (subject, fixtures) = seed_plan().into_iter().next().expect("seed plan");
+        let fixture = fixtures.into_iter().next().expect("first synthetic fixture");
+        let resource: serde_json::Value =
+            serde_json::from_slice(fixture.bytes).expect("bundled FHIR fixture");
+        let resource_type = resource["resourceType"]
+            .as_str()
+            .expect("FHIR resourceType")
+            .to_owned();
+        let mut session = CliSession::connect("desktop-synthetic").expect("Core session");
+        session.use_offline_browse_fixture();
+        session.use_fixture_asr();
+        session.use_in_memory_privacy_keys();
+        session
+            .open_synthetic_vault(&vault_root.display().to_string())
+            .expect("Core opens synthetic vault");
+        let source_id = session
+            .ingest_fhir_bytes(fixture.bytes.to_vec())
+            .expect("Core ingest");
+        session
+            .promote_fixture_as_assertion(
+                source_id.clone(),
+                subject,
+                fixture.claim_kind,
+                resource,
+            )
+            .expect("Core persisted one synthetic proposal/assertion");
+        drop(session);
+
+        let before = counts(&vault_root);
+        assert_eq!(before, (1, 1), "actual durable proposal/assertion proof");
+
+        // No sibling manifest: reopening must refuse before starting Core.
+        let mut restarted = State {
+            data_dir: Some(data_dir.clone()),
+            ..State::default()
+        };
+        let missing = open_synthetic(&mut restarted).expect_err("missing seed must fail closed");
+        assert_eq!(missing.kind, "corrupt");
+        assert!(restarted.workspace.is_none());
+        assert_eq!(counts(&vault_root), before, "no replay after missing manifest");
+
+        // A parseable one-fixture manifest cannot authorize replay either.
+        let partial = SeedManifest {
+            subjects: vec![subject.to_owned()],
+            sources: vec![SeededSource {
+                source_id: source_id.as_str().to_owned(),
+                fixture: fixture.file.to_owned(),
+                resource_type,
+                claim_kind: fixture.claim_kind.to_owned(),
+                subject_ref: subject.to_owned(),
+            }],
+        };
+        save_manifest(&vault_root, &partial).expect("write deliberately partial fixture roster");
+        let invalid = open_synthetic(&mut restarted).expect_err("partial seed must fail closed");
+        assert_eq!(invalid.kind, "corrupt");
+        assert!(restarted.workspace.is_none());
+        assert_eq!(counts(&vault_root), before, "no duplicate proposals or assertions");
+        std::fs::remove_dir_all(&data_dir).expect("cleanup synthetic test files");
+    }
+
+    #[test]
     fn invalid_arguments_carry_cores_reason() {
         let err = CmdError::from(AuthorityError::InvalidArgument {
             message: "bindings are alias=snapshot_id pairs".to_owned(),

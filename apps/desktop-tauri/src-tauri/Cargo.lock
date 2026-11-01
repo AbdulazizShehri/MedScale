@@ -2999,6 +2999,7 @@ dependencies = [
  "medscale-core",
  "medscale-desktop-vm",
  "medscale-pack",
+ "medscale-storage",
  "serde",
  "serde_json",
  "tauri",
