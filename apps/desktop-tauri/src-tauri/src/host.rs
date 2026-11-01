@@ -444,6 +444,88 @@ fn complete_synthetic_core(vault_root: &Path, seed: &SeedManifest) -> bool {
             }
         }
     }
+
+    // A complete bundled seed is not enough to trust arbitrary user-import
+    // rows in the sibling roster. Every explicit imported row must have its
+    // own durable, promoted Core proposal, even when content deduplication
+    // reused an existing source ID. Count by the four stable Core dimensions;
+    // filenames are UI labels, never evidence of a persisted promotion.
+    let mut import_counts =
+        std::collections::BTreeMap::<(String, String, String, String), usize>::new();
+    for row in &seed.sources {
+        if !row.fixture.starts_with("imported:") {
+            continue;
+        }
+        if row.source_id.trim().is_empty()
+            || row.subject_ref.trim().is_empty()
+            || row.claim_kind.trim().is_empty()
+            || row.resource_type.trim().is_empty()
+            || !seed.subjects.iter().any(|s| s == &row.subject_ref)
+        {
+            return false;
+        }
+        let key = (
+            row.source_id.clone(),
+            row.subject_ref.clone(),
+            row.claim_kind.clone(),
+            row.resource_type.clone(),
+        );
+        let Some(next) = import_counts.get(&key).copied().unwrap_or(0).checked_add(1) else {
+            return false;
+        };
+        import_counts.insert(key, next);
+    }
+    for ((source_id, subject, claim_kind, resource_type), imported_count) in import_counts {
+        // Bundled seed sources are independently verified by the fixture loop
+        // above. A valid user import may deduplicate to the same source ID.
+        let seeded_count = seed
+            .sources
+            .iter()
+            .filter(|s| {
+                !s.fixture.starts_with("imported:")
+                    && s.source_id == source_id
+                    && s.subject_ref == subject
+                    && s.claim_kind == claim_kind
+                    && s.resource_type == resource_type
+            })
+            .count();
+        let Some(expected) = imported_count.checked_add(seeded_count) else {
+            return false;
+        };
+        let matches: Vec<_> = proposals
+            .iter()
+            .filter(|p| {
+                p.subject_ref
+                    .as_ref()
+                    .is_some_and(|s| s.as_str() == subject)
+                    && p.claim_kind == claim_kind
+                    && p.evidence_refs.iter().any(|e| e.as_str() == source_id)
+                    && p.payload
+                        .get("resource")
+                        .and_then(|r| r.get("resourceType"))
+                        .and_then(serde_json::Value::as_str)
+                        == Some(resource_type.as_str())
+            })
+            .collect();
+        if matches.len() != expected {
+            return false;
+        }
+        for p in matches {
+            if assertions
+                .iter()
+                .filter(|a| {
+                    a.promoted_from_proposal_id.as_ref() == Some(&p.header.id)
+                        && a.subject_ref.as_str() == subject
+                        && a.claim_kind == claim_kind
+                        && a.payload == p.payload
+                })
+                .count()
+                != 1
+            {
+                return false;
+            }
+        }
+    }
     true
 }
 
