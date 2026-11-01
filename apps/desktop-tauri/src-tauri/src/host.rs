@@ -300,6 +300,20 @@ fn complete_synthetic_seed(seed: &SeedManifest) -> bool {
     if distinct_subjects.len() != seed.subjects.len() {
         return false;
     }
+    let bundled: std::collections::HashSet<_> = seed_plan()
+        .into_iter()
+        .flat_map(|(subject, fixtures)| {
+            fixtures
+                .into_iter()
+                .map(move |fixture| (subject, fixture.file))
+        })
+        .collect();
+    if seed.sources.iter().any(|source| {
+        !source.fixture.starts_with("imported:")
+            && !bundled.contains(&(source.subject_ref.as_str(), source.fixture.as_str()))
+    }) {
+        return false;
+    }
     for (subject, fixtures) in seed_plan() {
         if !seed.subjects.iter().any(|existing| existing == subject) {
             return false;
@@ -958,6 +972,18 @@ mod tests {
         let mut duplicate = complete.clone();
         duplicate.sources.push(complete.sources[0].clone());
         assert!(!complete_synthetic_seed(&duplicate));
+        let mut nonbundled = complete.clone();
+        nonbundled.sources.push(SeededSource {
+            source_id: "fictional-unbundled-source".to_owned(),
+            fixture: "unknown-extra-fixture.json".to_owned(),
+            resource_type: "Patient".to_owned(),
+            claim_kind: "patient".to_owned(),
+            subject_ref: complete.subjects[0].clone(),
+        });
+        assert!(
+            !complete_synthetic_seed(&nonbundled),
+            "a non-imported extra manifest row is never a bundled fixture"
+        );
         let mut imported = complete;
         imported
             .subjects
