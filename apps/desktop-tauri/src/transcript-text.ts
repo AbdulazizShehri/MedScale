@@ -25,7 +25,24 @@ export function transcriptPlainText(
     .map((s) => {
       const speaker = s.speaker?.kind === "anonymous" && s.speaker.index !== undefined ? ` speaker ${s.speaker.index}` : "";
       const body = s.text?.trim() ? s.text.trim() : "(untranscribed)";
-      return `[${clock(s.start_ms)}–${clock(s.end_ms)}${speaker}] ${body}`;
+      // Keep ASR/correction line breaks but indent continuations so untrusted
+      // speech text cannot visually impersonate a new timed segment or header.
+      const boundedLines = body.replace(/\r\n|\r|\n|\u2028|\u2029/g, "\n    ");
+      return `[${clock(s.start_ms)}–${clock(s.end_ms)}${speaker}] ${boundedLines}`;
     });
   return [header, "", ...lines].join("\n") + "\n";
+}
+
+/** One explicit, write-only clipboard effect. The caller owns the user gesture.
+ * No read, retry, silent fallback, or OS clipboard-clearance claim is made. */
+export type TranscriptClipboardWriter = { writeText(text: string): Promise<void> };
+
+export async function copyTranscriptDraft(
+  revision: Parameters<typeof transcriptPlainText>[0],
+  writer: TranscriptClipboardWriter | undefined,
+): Promise<void> {
+  if (!writer || typeof writer.writeText !== "function") {
+    throw new Error("Clipboard write unavailable");
+  }
+  await writer.writeText(transcriptPlainText(revision));
 }
