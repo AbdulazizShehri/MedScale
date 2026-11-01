@@ -4,7 +4,7 @@ import { selectedPathOrPrevious } from "../audio-picker";
 import { formatStorage } from "../model-storage";
 import { mayStartModelDownload } from "../model-consent";
 import { visibleRevisionDraft, type RevisionBoundDraft } from "../audio-draft";
-import { transcriptPlainText } from "../transcript-text";
+import { copyTranscriptDraft } from "../transcript-text";
 import { call, useAction, useCommand } from "../lib/ipc";
 import { ProjectScope } from "../components/project";
 import { Authority, Empty, ErrorState, Glyph, KV, Ledger, Notice, PageHead, Section, Skeleton, Stamp, Status, glyphFor, useOutcome, useToast, type GlyphKind } from "../components/ui";
@@ -303,7 +303,7 @@ function AudioBody({ projectId }: { projectId: string }) {
     if (!result?.transcript) return;
     try {
       // Write-only Web Clipboard API on an explicit click; no clipboard read permission.
-      await navigator.clipboard.writeText(transcriptPlainText(result.transcript));
+      await copyTranscriptDraft(result.transcript, navigator.clipboard);
       toast({ kind: "completed", title: "Transcript copied", detail: "Draft text only · not clinically verified." });
     } catch {
       toast({ kind: "blocked", title: "Cannot copy transcript", detail: "Select the segment text and copy it manually." });
