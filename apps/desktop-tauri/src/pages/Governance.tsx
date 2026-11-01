@@ -5,6 +5,7 @@ import { ProjectScope } from "../components/project";
 import { MOD } from "../components/shell";
 import { Mark, Wordmark } from "../components/brand";
 import { Authority, Empty, ErrorState, Glyph, KV, Ledger, Notice, PageHead, Section, Skeleton, Status, glyphFor, useOutcome } from "../components/ui";
+import { SUPPORT_DATA_RULE, SUPPORT_ISSUES_URL, supportDiagnostics } from "../support";
 
 type Row = { label: string; value: string; detail: string; status: string };
 type Gov = {
@@ -234,7 +235,41 @@ export function About() {
           <Section n="04" title="Provenance"><KV keyWidth={110} rows={[["dependencies", "cargo-deny policy and supply-chain audits"], ["signing", <Status kind="pending">Not claimed</Status>], ["clinical use", <Status kind="blocked">Not authorized · synthetic only</Status>]]} /></Section>
         </div>
         <Notice kind="synthetic" title="Synthetic fixtures.">Patients, evidence and model packs in the synthetic workspace come from the repository's synthetic fixtures. They are not real records.</Notice>
+        <ReportProblem about={a} />
       </div>
     </div>
+  );
+}
+
+/** Spec 107 D2: copy-only defect reporting. MedScale does not open the
+ * browser itself; no opener, shell or navigation capability is added. */
+function ReportProblem({ about }: { about: AboutVm }) {
+  const [copied, setCopied] = useState<"link" | "diagnostics" | "failed" | null>(null);
+  const diagnostics = supportDiagnostics(about);
+  async function copy(kind: "link" | "diagnostics", text: string) {
+    try {
+      await navigator.clipboard.writeText(text);
+      setCopied(kind);
+    } catch {
+      setCopied("failed");
+    }
+  }
+  return (
+    <Section n="05" title="Report a problem">
+      <p className="t-sm i2" style={{ margin: "0 0 10px" }}>Open this address in your web browser and choose the bug-report template. MedScale does not open the browser for you.</p>
+      <div className="row-gap" style={{ gap: 8, marginBottom: 12 }}>
+        <code className="mono t-mono-sm" style={{ userSelect: "all", overflowWrap: "anywhere" }} aria-label="Support address">{SUPPORT_ISSUES_URL}</code>
+        <button type="button" className="btn btn-g" onClick={() => copy("link", SUPPORT_ISSUES_URL)}>Copy link</button>
+      </div>
+      <div className="lbl" id="support-diag-label">Diagnostics to paste into the report</div>
+      <pre className="pre" aria-labelledby="support-diag-label" style={{ margin: "6px 0 8px" }}>{diagnostics}</pre>
+      <div className="row-gap" style={{ gap: 8, marginBottom: 10 }}>
+        <button type="button" className="btn btn-g" onClick={() => copy("diagnostics", diagnostics)}>Copy diagnostics</button>
+        <span className="t-sm i3" role="status" aria-live="polite">
+          {copied === "link" ? "Link copied." : copied === "diagnostics" ? "Diagnostics copied." : copied === "failed" ? "Copy failed. Select the text above and copy it manually." : ""}
+        </span>
+      </div>
+      <Notice kind="blocked" title="Synthetic examples only.">{SUPPORT_DATA_RULE}</Notice>
+    </Section>
   );
 }
