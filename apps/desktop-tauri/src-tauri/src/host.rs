@@ -293,6 +293,206 @@ fn load_manifest(vault_root: &Path) -> SeedManifest {
         .unwrap_or_default()
 }
 
+/// A persisted synthetic seed is complete only when every bundled fixture
+/// was promoted exactly once. Imported FHIR rows may be present in addition.
+fn complete_synthetic_seed(seed: &SeedManifest) -> bool {
+    let distinct_subjects: std::collections::HashSet<_> = seed.subjects.iter().collect();
+    if distinct_subjects.len() != seed.subjects.len() {
+        return false;
+    }
+    for (subject, fixtures) in seed_plan() {
+        if !seed.subjects.iter().any(|existing| existing == subject) {
+            return false;
+        }
+        for fixture in fixtures {
+            let Ok(resource) = serde_json::from_slice::<serde_json::Value>(fixture.bytes) else {
+                return false;
+            };
+            let Some(expected_type) = resource
+                .get("resourceType")
+                .and_then(|value| value.as_str())
+            else {
+                return false;
+            };
+            let matching: Vec<_> = seed
+                .sources
+                .iter()
+                .filter(|source| source.subject_ref == subject && source.fixture == fixture.file)
+                .collect();
+            if matching.len() != 1
+                || matching[0].source_id.trim().is_empty()
+                || matching[0].resource_type != expected_type
+                || matching[0].claim_kind != fixture.claim_kind
+            {
+                return false;
+            }
+        }
+    }
+    true
+}
+
+/// Check the actual persisted Core ledger before trusting a complete sibling
+/// seed roster. Read-only: never migrate/rewrite existing patient or Core data.
+fn complete_synthetic_core(vault_root: &Path, seed: &SeedManifest) -> bool {
+    use medscale_contracts::objects::{ClinicalAssertion, Proposal};
+    use rusqlite::{Connection, OpenFlags};
+
+    let file = vault_root.join("meta.sqlite3");
+    if !std::fs::symlink_metadata(&file).is_ok_and(|m| m.is_file() && !m.file_type().is_symlink()) {
+        return false;
+    }
+    let Ok(db) = Connection::open_with_flags(&file, OpenFlags::SQLITE_OPEN_READ_ONLY) else {
+        return false;
+    };
+    let Ok(mut stmt) = db.prepare("SELECT object_class, body_json FROM authority_objects") else {
+        return false;
+    };
+    let Ok(rows) = stmt.query_map([], |r| Ok((r.get::<_, String>(0)?, r.get::<_, String>(1)?)))
+    else {
+        return false;
+    };
+    let mut proposals = Vec::<Proposal>::new();
+    let mut assertions = Vec::<ClinicalAssertion>::new();
+    for row in rows {
+        let Ok((kind, body)) = row else {
+            return false;
+        };
+        match kind.as_str() {
+            "proposal" => {
+                let Ok(p) = serde_json::from_str(&body) else {
+                    return false;
+                };
+                proposals.push(p);
+            }
+            "assertion" => {
+                let Ok(a) = serde_json::from_str(&body) else {
+                    return false;
+                };
+                assertions.push(a);
+            }
+            _ => {}
+        }
+    }
+    for (subject, fixtures) in seed_plan() {
+        for fixture in fixtures {
+            let Some(source) = seed
+                .sources
+                .iter()
+                .find(|s| s.subject_ref == subject && s.fixture == fixture.file)
+            else {
+                return false;
+            };
+            let Ok(resource) = serde_json::from_slice::<serde_json::Value>(fixture.bytes) else {
+                return false;
+            };
+            let Some(resource_type) = resource
+                .get("resourceType")
+                .and_then(serde_json::Value::as_str)
+                .map(str::to_owned)
+            else {
+                return false;
+            };
+            let payload = serde_json::json!({ "resource": resource });
+            // Core deliberately deduplicates identical FHIR source bytes.
+            // An explicitly recorded user import can promote those same
+            // bytes again for this subject without replaying the seed.
+            let imported_count = seed
+                .sources
+                .iter()
+                .filter(|s| {
+                    s.fixture.starts_with("imported:")
+                        && s.subject_ref == subject
+                        && s.source_id == source.source_id
+                        && s.resource_type == resource_type
+                        && s.claim_kind == fixture.claim_kind
+                })
+                .count();
+            let Some(expected_promotions) = imported_count.checked_add(1) else {
+                return false;
+            };
+            let matches: Vec<_> = proposals
+                .iter()
+                .filter(|p| {
+                    p.subject_ref
+                        .as_ref()
+                        .is_some_and(|s| s.as_str() == subject)
+                        && p.claim_kind == fixture.claim_kind
+                        && p.payload == payload
+                        && p.evidence_refs
+                            .iter()
+                            .any(|e| e.as_str() == source.source_id.as_str())
+                })
+                .collect();
+            if matches.len() != expected_promotions {
+                return false;
+            }
+            for matched in matches {
+                let proposal_id = &matched.header.id;
+                if assertions
+                    .iter()
+                    .filter(|a| {
+                        a.promoted_from_proposal_id.as_ref() == Some(proposal_id)
+                            && a.subject_ref.as_str() == subject
+                            && a.claim_kind == fixture.claim_kind
+                            && a.payload == payload
+                    })
+                    .count()
+                    != 1
+                {
+                    return false;
+                }
+            }
+        }
+    }
+    true
+}
+
+/// Fail closed before Core opens an existing synthetic vault. A missing,
+/// truncated or partial manifest after a prior Core write is NOT a license
+/// to replay fixture promotions: Core proposal creation is not idempotent.
+fn preflight_synthetic_seed(vault_root: &Path) -> CmdResult<SeedManifest> {
+    let vault_has_entries = match std::fs::read_dir(vault_root) {
+        Ok(mut entries) => entries
+            .next()
+            .transpose()
+            .map_err(|_| CmdError::unavailable("Unavailable: synthetic vault inspection failed"))?
+            .is_some(),
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound => false,
+        Err(_) => {
+            return Err(CmdError::unavailable(
+                "Unavailable: synthetic vault inspection failed",
+            ));
+        }
+    };
+    match std::fs::read(manifest_path(vault_root)) {
+        Ok(bytes) => {
+            let seed: SeedManifest = serde_json::from_slice(&bytes).map_err(|_| {
+                CmdError::new("corrupt", "Corrupt: synthetic seed manifest is invalid")
+            })?;
+            if !vault_has_entries
+                || !complete_synthetic_seed(&seed)
+                || !complete_synthetic_core(vault_root, &seed)
+            {
+                return Err(CmdError::new(
+                    "corrupt",
+                    "Corrupt: synthetic seed state is incomplete; refusing replay",
+                ));
+            }
+            Ok(seed)
+        }
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound && !vault_has_entries => {
+            Ok(SeedManifest::default())
+        }
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound => Err(CmdError::new(
+            "corrupt",
+            "Corrupt: synthetic seed manifest missing; refusing replay",
+        )),
+        Err(_) => Err(CmdError::unavailable(
+            "Unavailable: synthetic seed manifest cannot be inspected",
+        )),
+    }
+}
+
 fn save_manifest(vault_root: &Path, manifest: &SeedManifest) -> CmdResult<()> {
     let bytes = serde_json::to_vec_pretty(manifest)
         .map_err(|_| CmdError::new("internal", "Internal: seed manifest"))?;
@@ -369,7 +569,13 @@ fn restore_asr(workspace: &mut Workspace) {
 
 /// Ingests and promotes the synthetic fixtures through Core, once per vault.
 pub fn seed_synthetic(workspace: &mut Workspace, data_dir: &Path) -> CmdResult<()> {
-    if !workspace.seed.subjects.is_empty() {
+    if !workspace.seed.subjects.is_empty() || !workspace.seed.sources.is_empty() {
+        if !complete_synthetic_seed(&workspace.seed) {
+            return Err(CmdError::new(
+                "corrupt",
+                "Corrupt: synthetic seed state is incomplete; refusing replay",
+            ));
+        }
         return Ok(());
     }
     let staging = data_dir.join("fixture-staging");
@@ -500,6 +706,7 @@ pub fn import_fhir(
 pub fn open_synthetic(state: &mut State) -> CmdResult<()> {
     let data_dir = state.data_dir()?.to_path_buf();
     let vault_root = data_dir.join("synthetic-workspace");
+    let seed = preflight_synthetic_seed(&vault_root)?;
     std::fs::create_dir_all(&vault_root)
         .map_err(|_| CmdError::unavailable("Unavailable: vault folder not writable"))?;
     let mut session = CliSession::connect("desktop-synthetic")?;
@@ -509,7 +716,6 @@ pub fn open_synthetic(state: &mut State) -> CmdResult<()> {
     session.use_fixture_asr();
     session.use_in_memory_privacy_keys();
     session.open_synthetic_vault(&vault_root.display().to_string())?;
-    let seed = load_manifest(&vault_root);
     let mut workspace = Workspace {
         session,
         kind: VaultKind::Synthetic,
@@ -619,6 +825,311 @@ pub fn bounded_text(raw: &str, max: usize) -> CmdResult<String> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    fn full_seed_manifest_for_test() -> SeedManifest {
+        let mut manifest = SeedManifest::default();
+        for (subject, fixtures) in seed_plan() {
+            manifest.subjects.push(subject.to_owned());
+            for fixture in fixtures {
+                let resource: serde_json::Value = serde_json::from_slice(fixture.bytes).unwrap();
+                manifest.sources.push(SeededSource {
+                    source_id: "synthetic-test-source".to_owned(),
+                    fixture: fixture.file.to_owned(),
+                    resource_type: resource["resourceType"].as_str().unwrap().to_owned(),
+                    claim_kind: fixture.claim_kind.to_owned(),
+                    subject_ref: subject.to_owned(),
+                });
+            }
+        }
+        manifest
+    }
+
+    #[test]
+    fn synthetic_seed_preflight_rejects_partial_or_missing_manifest_without_replay() {
+        let root = std::env::temp_dir().join(format!(
+            "medscale-seed-preflight-{}-{}",
+            std::process::id(),
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .unwrap()
+                .as_nanos()
+        ));
+        assert!(preflight_synthetic_seed(&root).unwrap().subjects.is_empty());
+        std::fs::create_dir_all(&root).unwrap();
+        std::fs::write(root.join("synthetic-core-placeholder"), b"synthetic-only").unwrap();
+        assert!(preflight_synthetic_seed(&root).is_err());
+
+        let complete = full_seed_manifest_for_test();
+        let mut partial = complete.clone();
+        partial.sources.pop();
+        std::fs::write(manifest_path(&root), serde_json::to_vec(&partial).unwrap()).unwrap();
+        assert!(preflight_synthetic_seed(&root).is_err());
+
+        std::fs::write(manifest_path(&root), b"{invalid-json").unwrap();
+        assert!(preflight_synthetic_seed(&root).is_err());
+
+        std::fs::write(manifest_path(&root), serde_json::to_vec(&complete).unwrap()).unwrap();
+        assert!(complete_synthetic_seed(&complete));
+        // A forged complete roster cannot substitute for actual persisted Core rows.
+        assert!(preflight_synthetic_seed(&root).is_err());
+
+        let mut duplicate = complete.clone();
+        duplicate.sources.push(complete.sources[0].clone());
+        assert!(!complete_synthetic_seed(&duplicate));
+        let mut imported = complete;
+        imported
+            .subjects
+            .push("synthetic-subject-imported".to_owned());
+        imported.sources.push(SeededSource {
+            source_id: "synthetic-import".to_owned(),
+            fixture: "imported:synthetic-fhir.json".to_owned(),
+            resource_type: "Patient".to_owned(),
+            claim_kind: "patient".to_owned(),
+            subject_ref: "synthetic-subject-imported".to_owned(),
+        });
+        assert!(complete_synthetic_seed(&imported));
+        std::fs::remove_dir_all(&root).unwrap();
+    }
+
+    #[test]
+    fn interrupted_core_promotion_must_not_replay_or_duplicate_on_synthetic_restart() {
+        use medscale_storage::SqliteMetaStore;
+
+        fn counts(root: &Path) -> (usize, usize) {
+            let store = SqliteMetaStore::open(root).expect("synthetic-only metadata");
+            let rows = store
+                .list_authority_objects()
+                .expect("durable authority objects");
+            (
+                rows.iter().filter(|r| r.object_class == "proposal").count(),
+                rows.iter()
+                    .filter(|r| r.object_class == "assertion")
+                    .count(),
+            )
+        }
+
+        let data_dir = std::env::temp_dir().join(format!(
+            "medscale-synthetic-interruption-{}-{}",
+            std::process::id(),
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .expect("clock")
+                .as_nanos()
+        ));
+        std::fs::create_dir_all(&data_dir).expect("synthetic-only data root");
+        let vault_root = data_dir.join("synthetic-workspace");
+
+        // Exercise real Core ingest/promotion, not a placeholder in the vault.
+        // A crash can occur after a durable proposal/assertion but before the
+        // sibling desktop-seed.json is written by seed_synthetic.
+        let (subject, fixtures) = seed_plan().into_iter().next().expect("seed plan");
+        let fixture = fixtures
+            .into_iter()
+            .next()
+            .expect("first synthetic fixture");
+        let resource: serde_json::Value =
+            serde_json::from_slice(fixture.bytes).expect("bundled FHIR fixture");
+        let resource_type = resource["resourceType"]
+            .as_str()
+            .expect("FHIR resourceType")
+            .to_owned();
+        let mut session = CliSession::connect("desktop-synthetic").expect("Core session");
+        session.use_offline_browse_fixture();
+        session.use_fixture_asr();
+        session.use_in_memory_privacy_keys();
+        session
+            .open_synthetic_vault(&vault_root.display().to_string())
+            .expect("Core opens synthetic vault");
+        let source_id = session
+            .ingest_fhir_bytes(fixture.bytes.to_vec())
+            .expect("Core ingest");
+        session
+            .promote_fixture_as_assertion(source_id.clone(), subject, fixture.claim_kind, resource)
+            .expect("Core persisted one synthetic proposal/assertion");
+        drop(session);
+
+        let before = counts(&vault_root);
+        assert_eq!(before, (1, 1), "actual durable proposal/assertion proof");
+
+        // No sibling manifest: reopening must refuse before starting Core.
+        let mut restarted = State {
+            data_dir: Some(data_dir.clone()),
+            ..State::default()
+        };
+        let missing = open_synthetic(&mut restarted).expect_err("missing seed must fail closed");
+        assert_eq!(missing.kind, "corrupt");
+        assert!(restarted.workspace.is_none());
+        assert_eq!(
+            counts(&vault_root),
+            before,
+            "no replay after missing manifest"
+        );
+
+        // A parseable one-fixture manifest cannot authorize replay either.
+        let partial = SeedManifest {
+            subjects: vec![subject.to_owned()],
+            sources: vec![SeededSource {
+                source_id: source_id.as_str().to_owned(),
+                fixture: fixture.file.to_owned(),
+                resource_type,
+                claim_kind: fixture.claim_kind.to_owned(),
+                subject_ref: subject.to_owned(),
+            }],
+        };
+        save_manifest(&vault_root, &partial).expect("write deliberately partial fixture roster");
+        let invalid = open_synthetic(&mut restarted).expect_err("partial seed must fail closed");
+        assert_eq!(invalid.kind, "corrupt");
+        assert!(restarted.workspace.is_none());
+        assert_eq!(
+            counts(&vault_root),
+            before,
+            "no duplicate proposals or assertions"
+        );
+        save_manifest(&vault_root, &full_seed_manifest_for_test())
+            .expect("write forged but structurally complete roster");
+        let forged = open_synthetic(&mut restarted)
+            .expect_err("complete JSON without complete Core must be refused");
+        assert_eq!(forged.kind, "corrupt");
+        assert_eq!(
+            counts(&vault_root),
+            before,
+            "forged roster must not replay or change durable Core rows"
+        );
+        std::fs::remove_dir_all(&data_dir).expect("cleanup synthetic test files");
+    }
+
+    #[test]
+    fn complete_core_seed_reopens_with_unchanged_durable_counts() {
+        use medscale_storage::SqliteMetaStore;
+        let dir = std::env::temp_dir().join(format!(
+            "medscale-full-core-seed-{}-{}",
+            std::process::id(),
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .unwrap()
+                .as_nanos()
+        ));
+        let root = dir.join("synthetic-workspace");
+        let mut state = State {
+            data_dir: Some(dir.clone()),
+            ..State::default()
+        };
+        open_synthetic(&mut state).expect("real Core synthetic seeding");
+        let manifest = state.workspace.as_ref().unwrap().seed.clone();
+        assert!(complete_synthetic_seed(&manifest));
+        drop(state);
+        let read_counts = || {
+            let db = SqliteMetaStore::open(&root).expect("Core synthetic metadata");
+            let rows = db.list_authority_objects().unwrap();
+            (
+                rows.iter().filter(|r| r.object_class == "proposal").count(),
+                rows.iter()
+                    .filter(|r| r.object_class == "assertion")
+                    .count(),
+            )
+        };
+        let before = read_counts();
+        assert_eq!(before, (12, 12));
+        assert!(complete_synthetic_core(&root, &manifest));
+        let mut second = State {
+            data_dir: Some(dir.clone()),
+            ..State::default()
+        };
+        open_synthetic(&mut second).expect("complete real Core must reopen");
+        assert_eq!(
+            read_counts(),
+            before,
+            "no extra fixture promotions on reopen"
+        );
+        drop(second);
+        std::fs::remove_dir_all(&dir).unwrap();
+    }
+
+    #[test]
+    fn same_fixture_reimport_must_not_make_complete_synthetic_core_unopenable() {
+        use medscale_storage::SqliteMetaStore;
+
+        let dir = std::env::temp_dir().join(format!(
+            "medscale-reimport-synthetic-{}-{}",
+            std::process::id(),
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .expect("clock")
+                .as_nanos()
+        ));
+        let vault_root = dir.join("synthetic-workspace");
+        let mut state = State {
+            data_dir: Some(dir.clone()),
+            ..State::default()
+        };
+        open_synthetic(&mut state).expect("real Core seed");
+        let (subject, fixture) = seed_plan()
+            .into_iter()
+            .next()
+            .and_then(|(subject, fixtures)| {
+                fixtures
+                    .into_iter()
+                    .next()
+                    .map(|fixture| (subject, fixture))
+            })
+            .expect("bundled fictional FHIR");
+        let seeded_source_id = state
+            .workspace
+            .as_ref()
+            .expect("synthetic Core")
+            .seed
+            .sources
+            .iter()
+            .find(|src| src.subject_ref == subject && src.fixture == fixture.file)
+            .expect("seeded row")
+            .source_id
+            .clone();
+        let file = dir.join("same-content-user-import.json");
+        std::fs::write(&file, fixture.bytes).expect("write synthetic duplicate");
+        let imported = import_fhir(
+            state.workspace.as_mut().expect("synthetic workspace"),
+            &file,
+            subject,
+        )
+        .expect("same-content import must remain allowed");
+        assert_eq!(
+            imported.source_id, seeded_source_id,
+            "Core content digest deduplicates the original source id"
+        );
+        assert!(
+            state
+                .workspace
+                .as_ref()
+                .expect("workspace")
+                .seed
+                .sources
+                .iter()
+                .any(|row| row.fixture == "imported:same-content-user-import.json")
+        );
+        drop(state);
+
+        let counts = || {
+            let db = SqliteMetaStore::open(&vault_root).expect("synthetic Core metadata");
+            let rows = db.list_authority_objects().expect("durable rows");
+            (
+                rows.iter().filter(|r| r.object_class == "proposal").count(),
+                rows.iter()
+                    .filter(|r| r.object_class == "assertion")
+                    .count(),
+            )
+        };
+        let before = counts();
+        assert_eq!(before, (13, 13), "12 seeds + one legitimate reimport");
+        let mut reopened = State {
+            data_dir: Some(dir.clone()),
+            ..State::default()
+        };
+        open_synthetic(&mut reopened)
+            .expect("the actual seed plus an imported duplicate must not be mistaken for replay");
+        assert_eq!(counts(), before, "reopen must not duplicate anything");
+        drop(reopened);
+        std::fs::remove_dir_all(&dir).expect("clean synthetic test data");
+    }
 
     #[test]
     fn invalid_arguments_carry_cores_reason() {

@@ -17,6 +17,7 @@ custom-protocol = ["tauri/custom-protocol"]
 e2e-webdriver = []
 
 [dependencies]
+rusqlite = { version = "=0.37.0" }
 medscale-contracts = { path = "../../../crates/medscale-contracts", version = "0.1.0" }
 medscale-core = { path = "../../../crates/medscale-core", version = "0.1.0" }
 medscale-pack = { path = "../../../crates/medscale-pack", version = "0.1.0" }
@@ -34,6 +35,7 @@ tauri-build = { version = "=2.7.0" }
 
 [dev-dependencies]
 medscale-pack = { path = "../../../crates/medscale-pack", version = "0.1.0", features = ["synthetic-fixtures"] }
+medscale-storage = { path = "../../../crates/medscale-storage", version = "0.1.0" }
 tauri = { version = "=2.12.0", default-features = false, features = ["test"] }
 
 [lints.rust]
