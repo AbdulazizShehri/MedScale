@@ -1132,6 +1132,83 @@ mod tests {
     }
 
     #[test]
+    fn forged_imported_manifest_row_without_core_promotion_is_rejected() {
+        let data_dir = std::env::temp_dir().join(format!(
+            "medscale-forged-import-{}-{}",
+            std::process::id(),
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .expect("clock")
+                .as_nanos()
+        ));
+        let vault_root = data_dir.join("synthetic-workspace");
+        let mut state = State {
+            data_dir: Some(data_dir.clone()),
+            ..State::default()
+        };
+        open_synthetic(&mut state).expect("real 12/12 synthetic Core");
+        let mut manifest = state.workspace.as_ref().expect("workspace").seed.clone();
+        assert!(complete_synthetic_core(&vault_root, &manifest));
+        manifest.sources.push(SeededSource {
+            source_id: "forged-import-with-no-core-source".to_owned(),
+            fixture: "imported:fake-patient.json".to_owned(),
+            resource_type: "Patient".to_owned(),
+            claim_kind: "patient".to_owned(),
+            subject_ref: manifest.subjects[0].clone(),
+        });
+        assert!(complete_synthetic_seed(&manifest), "the 12 seed fixtures remain valid");
+        assert!(
+            !complete_synthetic_core(&vault_root, &manifest),
+            "a fabricated imported FHIR roster row has no matching Core promotion"
+        );
+        drop(state);
+        std::fs::remove_dir_all(&data_dir).expect("synthetic-only cleanup");
+    }
+
+    #[test]
+    fn novel_imported_fhir_has_attested_core_promotion_after_restart() {
+        let data_dir = std::env::temp_dir().join(format!(
+            "medscale-novel-import-{}-{}",
+            std::process::id(),
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .expect("clock")
+                .as_nanos()
+        ));
+        let vault_root = data_dir.join("synthetic-workspace");
+        let mut state = State {
+            data_dir: Some(data_dir.clone()),
+            ..State::default()
+        };
+        open_synthetic(&mut state).expect("real Core synthetic seed");
+        let (subject, fixtures) = seed_plan().into_iter().next().expect("fixtures");
+        let original = fixtures.into_iter().next().expect("bundled patient");
+        let mut resource: serde_json::Value =
+            serde_json::from_slice(original.bytes).expect("fictional FHIR JSON");
+        resource["id"] = serde_json::json!("synthetic-novel-import");
+        let file = data_dir.join("unique-fictional-patient.json");
+        std::fs::write(&file, serde_json::to_vec(&resource).expect("JSON"))
+            .expect("write disposable fictional import");
+        let imported = import_fhir(
+            state.workspace.as_mut().expect("workspace"),
+            &file,
+            subject,
+        )
+        .expect("valid novel FHIR import through real Core");
+        assert_eq!(imported.fixture, "imported:unique-fictional-patient.json");
+        let manifest = state.workspace.as_ref().expect("workspace").seed.clone();
+        assert!(complete_synthetic_core(&vault_root, &manifest));
+        drop(state);
+        let mut reopened = State {
+            data_dir: Some(data_dir.clone()),
+            ..State::default()
+        };
+        open_synthetic(&mut reopened).expect("novel fictional import survives reopen");
+        drop(reopened);
+        std::fs::remove_dir_all(&data_dir).expect("synthetic-only cleanup");
+    }
+
+    #[test]
     fn invalid_arguments_carry_cores_reason() {
         let err = CmdError::from(AuthorityError::InvalidArgument {
             message: "bindings are alias=snapshot_id pairs".to_owned(),
