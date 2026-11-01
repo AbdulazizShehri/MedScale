@@ -385,7 +385,31 @@ fn complete_synthetic_core(vault_root: &Path, seed: &SeedManifest) -> bool {
             let Ok(resource) = serde_json::from_slice::<serde_json::Value>(fixture.bytes) else {
                 return false;
             };
+            let Some(resource_type) = resource
+                .get("resourceType")
+                .and_then(serde_json::Value::as_str)
+                .map(str::to_owned)
+            else {
+                return false;
+            };
             let payload = serde_json::json!({ "resource": resource });
+            // Core deliberately deduplicates identical FHIR source bytes.
+            // An explicitly recorded user import can promote those same
+            // bytes again for this subject without replaying the seed.
+            let imported_count = seed
+                .sources
+                .iter()
+                .filter(|s| {
+                    s.fixture.starts_with("imported:")
+                        && s.subject_ref == subject
+                        && s.source_id == source.source_id
+                        && s.resource_type == resource_type
+                        && s.claim_kind == fixture.claim_kind
+                })
+                .count();
+            let Some(expected_promotions) = imported_count.checked_add(1) else {
+                return false;
+            };
             let matches: Vec<_> = proposals
                 .iter()
                 .filter(|p| {
@@ -399,22 +423,24 @@ fn complete_synthetic_core(vault_root: &Path, seed: &SeedManifest) -> bool {
                             .any(|e| e.as_str() == source.source_id.as_str())
                 })
                 .collect();
-            if matches.len() != 1 {
+            if matches.len() != expected_promotions {
                 return false;
             }
-            let proposal_id = &matches[0].header.id;
-            if assertions
-                .iter()
-                .filter(|a| {
-                    a.promoted_from_proposal_id.as_ref() == Some(proposal_id)
-                        && a.subject_ref.as_str() == subject
-                        && a.claim_kind == fixture.claim_kind
-                        && a.payload == payload
-                })
-                .count()
-                != 1
-            {
-                return false;
+            for matched in matches {
+                let proposal_id = &matched.header.id;
+                if assertions
+                    .iter()
+                    .filter(|a| {
+                        a.promoted_from_proposal_id.as_ref() == Some(proposal_id)
+                            && a.subject_ref.as_str() == subject
+                            && a.claim_kind == fixture.claim_kind
+                            && a.payload == payload
+                    })
+                    .count()
+                    != 1
+                {
+                    return false;
+                }
             }
         }
     }
