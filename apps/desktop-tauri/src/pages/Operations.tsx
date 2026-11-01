@@ -2,7 +2,7 @@ import { useEffect, useRef, useState, type FormEvent } from "react";
 import { open } from "@tauri-apps/plugin-dialog";
 import { selectedPathOrPrevious } from "../audio-picker";
 import { formatStorage } from "../model-storage";
-import { mayStartModelDownload } from "../model-consent";
+import { mayStartModelDownload, modelOptionLabel } from "../model-consent";
 import { visibleRevisionDraft, type RevisionBoundDraft } from "../audio-draft";
 import { transcriptPlainText } from "../transcript-text";
 import { call, useAction, useCommand } from "../lib/ipc";
@@ -368,7 +368,7 @@ function AudioBody({ projectId }: { projectId: string }) {
               onChange={(e) => { setChosenModel(e.target.value); setStorageCheck(null); setDownloadApproved(false); }}
               disabled={availableModels.state.status !== "ready" || !!pending}>
               {(availableModels.state.status === "ready" ? availableModels.state.data : []).map((m) => (
-                <option key={m.id} value={m.id}>{m.name} · {m.languages}</option>
+                <option key={m.id} value={m.id}>{modelOptionLabel(m.name, m.languages)}</option>
               ))}
             </select>
             {availableModels.state.status === "ready" && (() => {
@@ -390,10 +390,10 @@ function AudioBody({ projectId }: { projectId: string }) {
                   ? "A saved model Pack is already on this device. Choose Activate saved model to verify it and enable local recognition without downloading again."
                   : "An incomplete local model directory already exists. MedScale will not overwrite it. Inspect the app-owned audio-models folder before attempting another download."}
               </p>}
-            <label className="row-gap t-sm" style={{ gap: 8 }}>
-              <input type="checkbox" aria-label="Approve Whisper model download"
+            <label className="t-sm" style={{ display: "flex", gap: 8, alignItems: "flex-start", cursor: "pointer" }}>
+              <input type="checkbox" aria-label="Approve Whisper model download" style={{ marginTop: 3, flex: "none" }}
                 checked={downloadApproved} onChange={(e) => setDownloadApproved(e.target.checked)} />
-              I approve downloading the selected Apache-2.0 Whisper model from the displayed pinned Hugging Face source to this device, using the stated disk budget.
+              <span style={{ flex: "1 1 0", minWidth: 0 }}>I approve downloading the selected Apache-2.0 Whisper model from the displayed pinned Hugging Face source to this device, using the stated disk budget.</span>
             </label>
             <div className="row-gap" style={{ gap: 8 }}>
               <button type="button" className="btn btn-s" onClick={startModelDownload}

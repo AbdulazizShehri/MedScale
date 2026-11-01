@@ -11,3 +11,13 @@ test("invalid disk metrics are never displayed as capacity", () => {
   assert.equal(formatStorage(Number.NaN), "Unknown");
   assert.equal(formatStorage(1.2), "Unknown");
 });
+
+test("catalog decimal megabytes switch to GB at 1000 MB and reject invalid sizes", async () => {
+  const { formatDecimalMegabytes } = await import("./model-storage.ts");
+  assert.equal(formatDecimalMegabytes(11_444), "11.4 GB");
+  assert.equal(formatDecimalMegabytes(999.6), "1000 MB");
+  assert.equal(formatDecimalMegabytes(151), "151 MB");
+  assert.equal(formatDecimalMegabytes(null), "—");
+  assert.equal(formatDecimalMegabytes(-1), "—");
+  assert.equal(formatDecimalMegabytes(Number.NaN), "—");
+});
