@@ -783,7 +783,9 @@ mod tests {
                 .expect("durable authority objects");
             (
                 rows.iter().filter(|r| r.object_class == "proposal").count(),
-                rows.iter().filter(|r| r.object_class == "assertion").count(),
+                rows.iter()
+                    .filter(|r| r.object_class == "assertion")
+                    .count(),
             )
         }
 
@@ -802,7 +804,10 @@ mod tests {
         // A crash can occur after a durable proposal/assertion but before the
         // sibling desktop-seed.json is written by seed_synthetic.
         let (subject, fixtures) = seed_plan().into_iter().next().expect("seed plan");
-        let fixture = fixtures.into_iter().next().expect("first synthetic fixture");
+        let fixture = fixtures
+            .into_iter()
+            .next()
+            .expect("first synthetic fixture");
         let resource: serde_json::Value =
             serde_json::from_slice(fixture.bytes).expect("bundled FHIR fixture");
         let resource_type = resource["resourceType"]
@@ -820,12 +825,7 @@ mod tests {
             .ingest_fhir_bytes(fixture.bytes.to_vec())
             .expect("Core ingest");
         session
-            .promote_fixture_as_assertion(
-                source_id.clone(),
-                subject,
-                fixture.claim_kind,
-                resource,
-            )
+            .promote_fixture_as_assertion(source_id.clone(), subject, fixture.claim_kind, resource)
             .expect("Core persisted one synthetic proposal/assertion");
         drop(session);
 
@@ -840,7 +840,11 @@ mod tests {
         let missing = open_synthetic(&mut restarted).expect_err("missing seed must fail closed");
         assert_eq!(missing.kind, "corrupt");
         assert!(restarted.workspace.is_none());
-        assert_eq!(counts(&vault_root), before, "no replay after missing manifest");
+        assert_eq!(
+            counts(&vault_root),
+            before,
+            "no replay after missing manifest"
+        );
 
         // A parseable one-fixture manifest cannot authorize replay either.
         let partial = SeedManifest {
@@ -857,7 +861,11 @@ mod tests {
         let invalid = open_synthetic(&mut restarted).expect_err("partial seed must fail closed");
         assert_eq!(invalid.kind, "corrupt");
         assert!(restarted.workspace.is_none());
-        assert_eq!(counts(&vault_root), before, "no duplicate proposals or assertions");
+        assert_eq!(
+            counts(&vault_root),
+            before,
+            "no duplicate proposals or assertions"
+        );
         std::fs::remove_dir_all(&data_dir).expect("cleanup synthetic test files");
     }
 
