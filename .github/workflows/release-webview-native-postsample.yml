@@ -1,5 +1,5 @@
 # Synthetic-only normal Windows release GUI sample interaction and WebView2 after-exit residue.
-# Reuse unsigned engineering installer already qualified from PR #385:
+# Reuse unsigned engineering installer from the exact source-bound PR #394 after Tauri run SUCCESS:
 # never rebuild Rust or handle real patient data or publish a release.
 name: release-webview-native-postsample
 
@@ -17,8 +17,8 @@ jobs:
     runs-on: windows-latest
     timeout-minutes: 25
     env:
-      SOURCE_RUN: "41236416069"
-      SOURCE_SHA: "079543e76aaf9233475c64af506becb81b77001d"
+      SOURCE_RUN: "41296924701"
+      SOURCE_SHA: "f67889847368ac86c3c8c9e3ad97484a9836e4ac"
       MEDSCALE_RELEASE_WEBVIEW_PROBE: "1"
       MEDSCALE_NORMAL_SAMPLE_PROBE: "1"
     steps:
