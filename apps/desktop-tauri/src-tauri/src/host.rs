@@ -1020,6 +1020,90 @@ mod tests {
     }
 
     #[test]
+    fn same_fixture_reimport_must_not_make_complete_synthetic_core_unopenable() {
+        use medscale_storage::SqliteMetaStore;
+
+        let dir = std::env::temp_dir().join(format!(
+            "medscale-reimport-synthetic-{}-{}",
+            std::process::id(),
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .expect("clock")
+                .as_nanos()
+        ));
+        let vault_root = dir.join("synthetic-workspace");
+        let mut state = State {
+            data_dir: Some(dir.clone()),
+            ..State::default()
+        };
+        open_synthetic(&mut state).expect("real Core seed");
+        let (subject, fixture) = seed_plan()
+            .into_iter()
+            .next()
+            .and_then(|(subject, fixtures)| {
+                fixtures.into_iter().next().map(|fixture| (subject, fixture))
+            })
+            .expect("bundled fictional FHIR");
+        let seeded_source_id = state
+            .workspace
+            .as_ref()
+            .expect("synthetic Core")
+            .seed
+            .sources
+            .iter()
+            .find(|src| src.subject_ref == subject && src.fixture == fixture.file)
+            .expect("seeded row")
+            .source_id
+            .clone();
+        let file = dir.join("same-content-user-import.json");
+        std::fs::write(&file, fixture.bytes).expect("write synthetic duplicate");
+        let imported = import_fhir(
+            state.workspace.as_mut().expect("synthetic workspace"),
+            &file,
+            subject,
+        )
+        .expect("same-content import must remain allowed");
+        assert_eq!(
+            imported.source_id, seeded_source_id,
+            "Core content digest deduplicates the original source id"
+        );
+        assert!(
+            state
+                .workspace
+                .as_ref()
+                .expect("workspace")
+                .seed
+                .sources
+                .iter()
+                .any(|row| row.fixture == "imported:same-content-user-import.json")
+        );
+        drop(state);
+
+        let counts = || {
+            let db = SqliteMetaStore::open(&vault_root).expect("synthetic Core metadata");
+            let rows = db.list_authority_objects().expect("durable rows");
+            (
+                rows.iter().filter(|r| r.object_class == "proposal").count(),
+                rows.iter()
+                    .filter(|r| r.object_class == "assertion")
+                    .count(),
+            )
+        };
+        let before = counts();
+        assert_eq!(before, (13, 13), "12 seeds + one legitimate reimport");
+        let mut reopened = State {
+            data_dir: Some(dir.clone()),
+            ..State::default()
+        };
+        open_synthetic(&mut reopened).expect(
+            "the actual seed plus an imported duplicate must not be mistaken for replay",
+        );
+        assert_eq!(counts(), before, "reopen must not duplicate anything");
+        drop(reopened);
+        std::fs::remove_dir_all(&dir).expect("clean synthetic test data");
+    }
+
+    #[test]
     fn invalid_arguments_carry_cores_reason() {
         let err = CmdError::from(AuthorityError::InvalidArgument {
             message: "bindings are alias=snapshot_id pairs".to_owned(),
