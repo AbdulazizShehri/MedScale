@@ -497,10 +497,11 @@ function AudioBody({ projectId }: { projectId: string }) {
           </div>
         ))}
         {result.transcript && <div className="row-gap" style={{ gap: 8, marginTop: 12 }}>
-          <button type="button" className="btn btn-g" onClick={copyTranscript} disabled={!result.transcript.segments.length}>Copy transcript</button>
+          <button type="button" className="btn btn-g" onClick={copyTranscript} aria-describedby="transcript-clipboard-warning" disabled={!result.transcript.segments.length}>Copy transcript</button>
           <select aria-label="Pack for the draft note" value={notePack} onChange={(e) => setNotePack(e.target.value)}>{runnable.map((m) => <option key={m.id} value={m.id}>{m.id}</option>)}</select>
           <button type="button" className="btn btn-s" disabled={!notePack || !!pending} onClick={draftNote}>{pending === "draft" ? <Glyph kind="running" /> : null}Draft note from this revision</button>
         </div>}
+        {result.transcript && <p id="transcript-clipboard-warning" className="t-sm i3" role="note" style={{ marginTop: 8 }}>Copying puts draft text on the operating system clipboard outside the MedScale vault. Other apps or clipboard history may retain it. Consider clearing the clipboard and its history when finished. Synthetic-only Beta: do not copy patient data.</p>}
         {visibleDraft && <div style={{ border: "1px dashed var(--line-strong)", borderRadius: "var(--r-2)", padding: "12px 14px", marginTop: 12 }}>
           <Status kind="proposal" weight="strong">Draft note · proposal</Status>
           <p className="t-sm i3" style={{ margin: "6px 0 10px" }}>{visibleDraft.note} Segments evaluated: {visibleDraft.segments_evaluated}.</p>
