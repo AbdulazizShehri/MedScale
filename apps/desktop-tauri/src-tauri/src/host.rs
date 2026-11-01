@@ -1067,7 +1067,10 @@ mod tests {
             .into_iter()
             .next()
             .and_then(|(subject, fixtures)| {
-                fixtures.into_iter().next().map(|fixture| (subject, fixture))
+                fixtures
+                    .into_iter()
+                    .next()
+                    .map(|fixture| (subject, fixture))
             })
             .expect("bundled fictional FHIR");
         let seeded_source_id = state
@@ -1121,9 +1124,8 @@ mod tests {
             data_dir: Some(dir.clone()),
             ..State::default()
         };
-        open_synthetic(&mut reopened).expect(
-            "the actual seed plus an imported duplicate must not be mistaken for replay",
-        );
+        open_synthetic(&mut reopened)
+            .expect("the actual seed plus an imported duplicate must not be mistaken for replay");
         assert_eq!(counts(), before, "reopen must not duplicate anything");
         drop(reopened);
         std::fs::remove_dir_all(&dir).expect("clean synthetic test data");
