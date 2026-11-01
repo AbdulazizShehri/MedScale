@@ -300,6 +300,20 @@ fn complete_synthetic_seed(seed: &SeedManifest) -> bool {
     if distinct_subjects.len() != seed.subjects.len() {
         return false;
     }
+    let bundled: std::collections::HashSet<_> = seed_plan()
+        .into_iter()
+        .flat_map(|(subject, fixtures)| {
+            fixtures
+                .into_iter()
+                .map(move |fixture| (subject, fixture.file))
+        })
+        .collect();
+    if seed.sources.iter().any(|source| {
+        !source.fixture.starts_with("imported:")
+            && !bundled.contains(&(source.subject_ref.as_str(), source.fixture.as_str()))
+    }) {
+        return false;
+    }
     for (subject, fixtures) in seed_plan() {
         if !seed.subjects.iter().any(|existing| existing == subject) {
             return false;
@@ -441,6 +455,88 @@ fn complete_synthetic_core(vault_root: &Path, seed: &SeedManifest) -> bool {
                 {
                     return false;
                 }
+            }
+        }
+    }
+
+    // A complete bundled seed is not enough to trust arbitrary user-import
+    // rows in the sibling roster. Every explicit imported row must have its
+    // own durable, promoted Core proposal, even when content deduplication
+    // reused an existing source ID. Count by the four stable Core dimensions;
+    // filenames are UI labels, never evidence of a persisted promotion.
+    let mut import_counts =
+        std::collections::BTreeMap::<(String, String, String, String), usize>::new();
+    for row in &seed.sources {
+        if !row.fixture.starts_with("imported:") {
+            continue;
+        }
+        if row.source_id.trim().is_empty()
+            || row.subject_ref.trim().is_empty()
+            || row.claim_kind.trim().is_empty()
+            || row.resource_type.trim().is_empty()
+            || !seed.subjects.iter().any(|s| s == &row.subject_ref)
+        {
+            return false;
+        }
+        let key = (
+            row.source_id.clone(),
+            row.subject_ref.clone(),
+            row.claim_kind.clone(),
+            row.resource_type.clone(),
+        );
+        let Some(next) = import_counts.get(&key).copied().unwrap_or(0).checked_add(1) else {
+            return false;
+        };
+        import_counts.insert(key, next);
+    }
+    for ((source_id, subject, claim_kind, resource_type), imported_count) in import_counts {
+        // Bundled seed sources are independently verified by the fixture loop
+        // above. A valid user import may deduplicate to the same source ID.
+        let seeded_count = seed
+            .sources
+            .iter()
+            .filter(|s| {
+                !s.fixture.starts_with("imported:")
+                    && s.source_id == source_id
+                    && s.subject_ref == subject
+                    && s.claim_kind == claim_kind
+                    && s.resource_type == resource_type
+            })
+            .count();
+        let Some(expected) = imported_count.checked_add(seeded_count) else {
+            return false;
+        };
+        let matches: Vec<_> = proposals
+            .iter()
+            .filter(|p| {
+                p.subject_ref
+                    .as_ref()
+                    .is_some_and(|s| s.as_str() == subject)
+                    && p.claim_kind == claim_kind
+                    && p.evidence_refs.iter().any(|e| e.as_str() == source_id)
+                    && p.payload
+                        .get("resource")
+                        .and_then(|r| r.get("resourceType"))
+                        .and_then(serde_json::Value::as_str)
+                        == Some(resource_type.as_str())
+            })
+            .collect();
+        if matches.len() != expected {
+            return false;
+        }
+        for p in matches {
+            if assertions
+                .iter()
+                .filter(|a| {
+                    a.promoted_from_proposal_id.as_ref() == Some(&p.header.id)
+                        && a.subject_ref.as_str() == subject
+                        && a.claim_kind == claim_kind
+                        && a.payload == p.payload
+                })
+                .count()
+                != 1
+            {
+                return false;
             }
         }
     }
@@ -876,6 +972,18 @@ mod tests {
         let mut duplicate = complete.clone();
         duplicate.sources.push(complete.sources[0].clone());
         assert!(!complete_synthetic_seed(&duplicate));
+        let mut nonbundled = complete.clone();
+        nonbundled.sources.push(SeededSource {
+            source_id: "fictional-unbundled-source".to_owned(),
+            fixture: "unknown-extra-fixture.json".to_owned(),
+            resource_type: "Patient".to_owned(),
+            claim_kind: "patient".to_owned(),
+            subject_ref: complete.subjects[0].clone(),
+        });
+        assert!(
+            !complete_synthetic_seed(&nonbundled),
+            "a non-imported extra manifest row is never a bundled fixture"
+        );
         let mut imported = complete;
         imported
             .subjects
@@ -1129,6 +1237,82 @@ mod tests {
         assert_eq!(counts(), before, "reopen must not duplicate anything");
         drop(reopened);
         std::fs::remove_dir_all(&dir).expect("clean synthetic test data");
+    }
+
+    #[test]
+    fn forged_imported_manifest_row_without_core_promotion_is_rejected() {
+        let data_dir = std::env::temp_dir().join(format!(
+            "medscale-forged-import-{}-{}",
+            std::process::id(),
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .expect("clock")
+                .as_nanos()
+        ));
+        let vault_root = data_dir.join("synthetic-workspace");
+        let mut state = State {
+            data_dir: Some(data_dir.clone()),
+            ..State::default()
+        };
+        open_synthetic(&mut state).expect("real 12/12 synthetic Core");
+        let mut manifest = state.workspace.as_ref().expect("workspace").seed.clone();
+        assert!(complete_synthetic_core(&vault_root, &manifest));
+        manifest.sources.push(SeededSource {
+            source_id: "forged-import-with-no-core-source".to_owned(),
+            fixture: "imported:fake-patient.json".to_owned(),
+            resource_type: "Patient".to_owned(),
+            claim_kind: "patient".to_owned(),
+            subject_ref: manifest.subjects[0].clone(),
+        });
+        assert!(
+            complete_synthetic_seed(&manifest),
+            "the 12 seed fixtures remain valid"
+        );
+        assert!(
+            !complete_synthetic_core(&vault_root, &manifest),
+            "a fabricated imported FHIR roster row has no matching Core promotion"
+        );
+        drop(state);
+        std::fs::remove_dir_all(&data_dir).expect("synthetic-only cleanup");
+    }
+
+    #[test]
+    fn novel_imported_fhir_has_attested_core_promotion_after_restart() {
+        let data_dir = std::env::temp_dir().join(format!(
+            "medscale-novel-import-{}-{}",
+            std::process::id(),
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .expect("clock")
+                .as_nanos()
+        ));
+        let vault_root = data_dir.join("synthetic-workspace");
+        let mut state = State {
+            data_dir: Some(data_dir.clone()),
+            ..State::default()
+        };
+        open_synthetic(&mut state).expect("real Core synthetic seed");
+        let (subject, fixtures) = seed_plan().into_iter().next().expect("fixtures");
+        let original = fixtures.into_iter().next().expect("bundled patient");
+        let mut resource: serde_json::Value =
+            serde_json::from_slice(original.bytes).expect("fictional FHIR JSON");
+        resource["id"] = serde_json::json!("synthetic-novel-import");
+        let file = data_dir.join("unique-fictional-patient.json");
+        std::fs::write(&file, serde_json::to_vec(&resource).expect("JSON"))
+            .expect("write disposable fictional import");
+        let imported = import_fhir(state.workspace.as_mut().expect("workspace"), &file, subject)
+            .expect("valid novel FHIR import through real Core");
+        assert_eq!(imported.fixture, "imported:unique-fictional-patient.json");
+        let manifest = state.workspace.as_ref().expect("workspace").seed.clone();
+        assert!(complete_synthetic_core(&vault_root, &manifest));
+        drop(state);
+        let mut reopened = State {
+            data_dir: Some(data_dir.clone()),
+            ..State::default()
+        };
+        open_synthetic(&mut reopened).expect("novel fictional import survives reopen");
+        drop(reopened);
+        std::fs::remove_dir_all(&data_dir).expect("synthetic-only cleanup");
     }
 
     #[test]
