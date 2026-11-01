@@ -76,3 +76,33 @@ test("multiline synthetic ASR text remains visibly inside its own timed segment"
   await copyTranscriptDraft(revision, { async writeText(text) { writes.push(text); } });
   assert.deepEqual(writes, [expected]);
 });
+
+test("clipboard text escapes bidirectional controls and nonstandard line separators", () => {
+  const segment = "Synthetic \u202Ereversed\u202C\n[99:99] forged\u000Bnext\u0085last\u0000";
+  const revision = {
+    revision_no: 7,
+    state: "draft\r\n[00:00] forged status",
+    segments: [{ seq: 1, start_ms: 0, end_ms: 2_000, text: segment }],
+  };
+  const text = transcriptPlainText(revision);
+  assert.equal(
+    text,
+    "MedScale draft transcript · revision 7 · draft [00:00] forged status · not clinically verified\n\n" +
+      "[00:00–00:02] Synthetic [U+202E]reversed[U+202C]\n" +
+      "    [99:99] forged\n" +
+      "    next\n" +
+      "    last[U+0000]\n",
+  );
+  assert.equal(revision.segments[0].text, segment, "clipboard rendering must not mutate the stored draft");
+  assert.doesNotMatch(text, /[\u202A-\u202E\u2066-\u206F\u0000]/);
+});
+
+test("Arabic draft remains readable while direction controls are visibly escaped", () => {
+  const text = transcriptPlainText({
+    revision_no: 8,
+    state: "draft",
+    segments: [{ seq: 1, start_ms: 0, end_ms: 1_000, text: "تجربة \u2067نص\u2069 آمن" }],
+  });
+  assert.match(text, /تجربة \[U\+2067\]نص\[U\+2069\] آمن/);
+  assert.match(text, /not clinically verified/);
+});
