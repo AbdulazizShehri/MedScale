@@ -33,14 +33,19 @@ MedScale is an Apache-2.0, free, local-first, open-source health intelligence de
 - **FLOSS/fund:** currently declines new/minimal-adoption projects. Revisit only with independent usage signals: https://floss.fund/faq/ .
 - **Crusoe:** no confirmed public automatic Saudi independent-OSS GPU grant. Direct outreach would require a specific relationship and acceptance process.
 
+## Complete opportunities, including student benefits
+
+The [complete opportunity matrix](COMPLETE_OPPORTUNITY_MATRIX.md) includes **every tracked cash, compute, OSS, startup, academic, and student offer** even when the current self-funded graduate is not eligible. Opportunities are labelled APPLY_NOW, VERIFY_FIRST, FUTURE_CONDITIONAL, NOT_NOW or FOUNDER_WRITES. The student email is still active following graduation but does not prove current enrollment or current University affiliation. Retaining an offer in the matrix does **not** authorize an inaccurate application.
+
 ## How to use the package
 
-1. See [HACKER_APPLICATION_FORM.md](HACKER_APPLICATION_FORM.md) for field-by-field text and the required *private* applicant steps for the Nov 9 grant.
-2. See [GITHUB_SPONSORS_PROFILE.md](GITHUB_SPONSORS_PROFILE.md) for planned recurring-funding tiers and payout onboarding; no live sponsor URL is assumed.
-3. See [PROPOSALS.md](PROPOSALS.md) for separately tailored, **draft** narrative and research plans.
-4. See [BUDGET.csv](BUDGET.csv) for an **illustrative** expense-based cash-grant budget; no vendor quotes or purchases were obtained.
-5. See [TRACKER.csv](TRACKER.csv) for statuses and exact outstanding submission dependencies.
-6. See [OUTREACH.md](OUTREACH.md) for drafts addressed only to verified official programme contacts.
+1. Start with the [complete programme and eligibility matrix](COMPLETE_OPPORTUNITY_MATRIX.md), including university/student/startup opportunities.
+2. See [HACKER_APPLICATION_FORM.md](HACKER_APPLICATION_FORM.md) for field-by-field text and the required *private* applicant steps for the Nov 9 grant.
+3. See [GITHUB_SPONSORS_PROFILE.md](GITHUB_SPONSORS_PROFILE.md) for planned recurring-funding tiers and payout onboarding; no live sponsor URL is assumed.
+4. See [PROPOSALS.md](PROPOSALS.md) for separately tailored, **draft** narrative and research plans.
+5. See [BUDGET.csv](BUDGET.csv) for an **illustrative** expense-based cash-grant budget; no vendor quotes or purchases were obtained.
+6. See [TRACKER.csv](TRACKER.csv) for statuses and exact outstanding submission dependencies.
+7. See [OUTREACH.md](OUTREACH.md) for drafts addressed only to verified official programme contacts.
 
 ## Submission integrity
 
