@@ -293,6 +293,86 @@ fn load_manifest(vault_root: &Path) -> SeedManifest {
         .unwrap_or_default()
 }
 
+/// A persisted synthetic seed is complete only when every bundled fixture
+/// was promoted exactly once. Imported FHIR rows may be present in addition.
+fn complete_synthetic_seed(seed: &SeedManifest) -> bool {
+    let distinct_subjects: std::collections::HashSet<_> = seed.subjects.iter().collect();
+    if distinct_subjects.len() != seed.subjects.len() {
+        return false;
+    }
+    for (subject, fixtures) in seed_plan() {
+        if !seed.subjects.iter().any(|existing| existing == subject) {
+            return false;
+        }
+        for fixture in fixtures {
+            let Ok(resource) = serde_json::from_slice::<serde_json::Value>(fixture.bytes) else {
+                return false;
+            };
+            let Some(expected_type) = resource.get("resourceType").and_then(|value| value.as_str()) else {
+                return false;
+            };
+            let matching: Vec<_> = seed
+                .sources
+                .iter()
+                .filter(|source| source.subject_ref == subject && source.fixture == fixture.file)
+                .collect();
+            if matching.len() != 1
+                || matching[0].source_id.trim().is_empty()
+                || matching[0].resource_type != expected_type
+                || matching[0].claim_kind != fixture.claim_kind
+            {
+                return false;
+            }
+        }
+    }
+    true
+}
+
+/// Fail closed before Core opens an existing synthetic vault. A missing,
+/// truncated or partial manifest after a prior Core write is NOT a license
+/// to replay fixture promotions: Core proposal creation is not idempotent.
+fn preflight_synthetic_seed(vault_root: &Path) -> CmdResult<SeedManifest> {
+    let vault_has_entries = match std::fs::read_dir(vault_root) {
+        Ok(mut entries) => entries
+            .next()
+            .transpose()
+            .map_err(|_| CmdError::unavailable("Unavailable: synthetic vault inspection failed"))?
+            .is_some(),
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound => false,
+        Err(_) => {
+            return Err(CmdError::unavailable(
+                "Unavailable: synthetic vault inspection failed",
+            ));
+        }
+    };
+    match std::fs::read(manifest_path(vault_root)) {
+        Ok(bytes) => {
+            let seed: SeedManifest = serde_json::from_slice(&bytes).map_err(|_| {
+                CmdError::new("corrupt", "Corrupt: synthetic seed manifest is invalid")
+            })?;
+            if !vault_has_entries || !complete_synthetic_seed(&seed) {
+                return Err(CmdError::new(
+                    "corrupt",
+                    "Corrupt: synthetic seed state is incomplete; refusing replay",
+                ));
+            }
+            Ok(seed)
+        }
+        Err(error)
+            if error.kind() == std::io::ErrorKind::NotFound && !vault_has_entries =>
+        {
+            Ok(SeedManifest::default())
+        }
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound => Err(CmdError::new(
+            "corrupt",
+            "Corrupt: synthetic seed manifest missing; refusing replay",
+        )),
+        Err(_) => Err(CmdError::unavailable(
+            "Unavailable: synthetic seed manifest cannot be inspected",
+        )),
+    }
+}
+
 fn save_manifest(vault_root: &Path, manifest: &SeedManifest) -> CmdResult<()> {
     let bytes = serde_json::to_vec_pretty(manifest)
         .map_err(|_| CmdError::new("internal", "Internal: seed manifest"))?;
@@ -369,7 +449,13 @@ fn restore_asr(workspace: &mut Workspace) {
 
 /// Ingests and promotes the synthetic fixtures through Core, once per vault.
 pub fn seed_synthetic(workspace: &mut Workspace, data_dir: &Path) -> CmdResult<()> {
-    if !workspace.seed.subjects.is_empty() {
+    if !workspace.seed.subjects.is_empty() || !workspace.seed.sources.is_empty() {
+        if !complete_synthetic_seed(&workspace.seed) {
+            return Err(CmdError::new(
+                "corrupt",
+                "Corrupt: synthetic seed state is incomplete; refusing replay",
+            ));
+        }
         return Ok(());
     }
     let staging = data_dir.join("fixture-staging");
@@ -500,6 +586,7 @@ pub fn import_fhir(
 pub fn open_synthetic(state: &mut State) -> CmdResult<()> {
     let data_dir = state.data_dir()?.to_path_buf();
     let vault_root = data_dir.join("synthetic-workspace");
+    let seed = preflight_synthetic_seed(&vault_root)?;
     std::fs::create_dir_all(&vault_root)
         .map_err(|_| CmdError::unavailable("Unavailable: vault folder not writable"))?;
     let mut session = CliSession::connect("desktop-synthetic")?;
@@ -509,7 +596,6 @@ pub fn open_synthetic(state: &mut State) -> CmdResult<()> {
     session.use_fixture_asr();
     session.use_in_memory_privacy_keys();
     session.open_synthetic_vault(&vault_root.display().to_string())?;
-    let seed = load_manifest(&vault_root);
     let mut workspace = Workspace {
         session,
         kind: VaultKind::Synthetic,
@@ -619,6 +705,67 @@ pub fn bounded_text(raw: &str, max: usize) -> CmdResult<String> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    fn full_seed_manifest_for_test() -> SeedManifest {
+        let mut manifest = SeedManifest::default();
+        for (subject, fixtures) in seed_plan() {
+            manifest.subjects.push(subject.to_owned());
+            for fixture in fixtures {
+                let resource: serde_json::Value = serde_json::from_slice(fixture.bytes).unwrap();
+                manifest.sources.push(SeededSource {
+                    source_id: "synthetic-test-source".to_owned(),
+                    fixture: fixture.file.to_owned(),
+                    resource_type: resource["resourceType"].as_str().unwrap().to_owned(),
+                    claim_kind: fixture.claim_kind.to_owned(),
+                    subject_ref: subject.to_owned(),
+                });
+            }
+        }
+        manifest
+    }
+
+    #[test]
+    fn synthetic_seed_preflight_rejects_partial_or_missing_manifest_without_replay() {
+        let root = std::env::temp_dir().join(format!(
+            "medscale-seed-preflight-{}-{}",
+            std::process::id(),
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .unwrap()
+                .as_nanos()
+        ));
+        assert!(preflight_synthetic_seed(&root).unwrap().subjects.is_empty());
+        std::fs::create_dir_all(&root).unwrap();
+        std::fs::write(root.join("synthetic-core-placeholder"), b"synthetic-only").unwrap();
+        assert!(preflight_synthetic_seed(&root).is_err());
+
+        let complete = full_seed_manifest_for_test();
+        let mut partial = complete.clone();
+        partial.sources.pop();
+        std::fs::write(manifest_path(&root), serde_json::to_vec(&partial).unwrap()).unwrap();
+        assert!(preflight_synthetic_seed(&root).is_err());
+
+        std::fs::write(manifest_path(&root), b"{invalid-json").unwrap();
+        assert!(preflight_synthetic_seed(&root).is_err());
+
+        std::fs::write(manifest_path(&root), serde_json::to_vec(&complete).unwrap()).unwrap();
+        assert!(complete_synthetic_seed(&preflight_synthetic_seed(&root).unwrap()));
+
+        let mut duplicate = complete.clone();
+        duplicate.sources.push(complete.sources[0].clone());
+        assert!(!complete_synthetic_seed(&duplicate));
+        let mut imported = complete;
+        imported.subjects.push("synthetic-subject-imported".to_owned());
+        imported.sources.push(SeededSource {
+            source_id: "synthetic-import".to_owned(),
+            fixture: "imported:synthetic-fhir.json".to_owned(),
+            resource_type: "Patient".to_owned(),
+            claim_kind: "patient".to_owned(),
+            subject_ref: "synthetic-subject-imported".to_owned(),
+        });
+        assert!(complete_synthetic_seed(&imported));
+        std::fs::remove_dir_all(&root).unwrap();
+    }
 
     #[test]
     fn invalid_arguments_carry_cores_reason() {
