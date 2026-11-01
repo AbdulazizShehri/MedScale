@@ -35,10 +35,12 @@ MedScale is an Apache-2.0, free, local-first, open-source health intelligence de
 
 ## How to use the package
 
-1. See [PROPOSALS.md](PROPOSALS.md) for separately tailored, **draft** narrative and research plans.
-2. See [BUDGET.csv](BUDGET.csv) for an **illustrative** expense-based cash-grant budget; no vendor quotes or purchases were obtained.
-3. See [TRACKER.csv](TRACKER.csv) for statuses and exact outstanding submission dependencies.
-4. See [OUTREACH.md](OUTREACH.md) for drafts addressed only to verified official programme contacts.
+1. See [HACKER_APPLICATION_FORM.md](HACKER_APPLICATION_FORM.md) for field-by-field text and the required *private* applicant steps for the Nov 9 grant.
+2. See [GITHUB_SPONSORS_PROFILE.md](GITHUB_SPONSORS_PROFILE.md) for planned recurring-funding tiers and payout onboarding; no live sponsor URL is assumed.
+3. See [PROPOSALS.md](PROPOSALS.md) for separately tailored, **draft** narrative and research plans.
+4. See [BUDGET.csv](BUDGET.csv) for an **illustrative** expense-based cash-grant budget; no vendor quotes or purchases were obtained.
+5. See [TRACKER.csv](TRACKER.csv) for statuses and exact outstanding submission dependencies.
+6. See [OUTREACH.md](OUTREACH.md) for drafts addressed only to verified official programme contacts.
 
 ## Submission integrity
 
