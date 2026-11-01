@@ -3,8 +3,9 @@
 Traceability for [#302](https://github.com/AbdulazizShehri/MedScale/issues/302):
 `journey → implementation → automated/integration test → native E2E → platform → status → evidence`.
 
-Reconciled 2026-11-01 against protected `main@967c0f0936159d1f7b347dcfd47a433a684271a7`
-(PR #394) plus open PR #398 head `58ed7ac3fce5a1ca1c5f7f92028a7c1bbdc25091`.
+Reconciled 2026-11-01 against protected `main@604de0d9d717681d9b544ad9fbf402f6a2619156`
+(protected squash of PR #398, exact head `58ed7ac3fce5a1ca1c5f7f92028a7c1bbdc25091`, which
+passed 6/6 required CI, Tauri 3/3, Windows desktop E2E, first-run and pinned InPrivate QA).
 Statuses follow the classification below. A unit test alone never qualifies a
 user journey, and synthetic data never qualifies real-model accuracy.
 
