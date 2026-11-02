@@ -96,6 +96,10 @@ fn generic_privilege_and_plugin_commands_are_refused() {
         "plugin:shell|execute",
         "plugin:http|fetch",
         "plugin:clipboard-manager|read_text",
+        // Spec 107 D2: support reporting is copy-only; no URL or path launcher.
+        "plugin:opener|open_url",
+        "plugin:opener|open_path",
+        "plugin:shell|open",
     ] {
         assert!(get_ipc_response(&window, request(command, local_origin())).is_err());
     }

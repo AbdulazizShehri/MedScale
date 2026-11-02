@@ -664,6 +664,12 @@ try {
     await nav("About");
     await see("Tauri 2", 60000);
     await see("Apache-2.0");
+    // Spec 107 D2: copy-only support path with a fixed URL and the SUPPORT.md
+    // data rule. Clipboard contents are never read back.
+    await find("//code[@aria-label='Support address' and normalize-space(.)='https://github.com/AbdulazizShehri/MedScale/issues/new/choose']");
+    await find(`//button[${text("Copy diagnostics")}]`);
+    await click(`//button[${text("Copy link")}]`);
+    await see("Never upload real patient records");
     const handles = await wd("GET", `/session/${sid}/window/handles`);
     if (handles.length !== 1) throw new Error(`About unexpectedly opened ${handles.length} WebView windows`);
   });
