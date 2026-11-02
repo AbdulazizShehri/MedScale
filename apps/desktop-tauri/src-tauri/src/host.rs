@@ -1870,9 +1870,13 @@ mod tests {
         db.execute(sql, []).expect("edited column");
     }
 
+    // Keep the table-driven fixture mutations explicit without tripping Clippy's
+    // type_complexity lint on each fixed-size case array.
+    type SeedOnlyMutationCase = (&'static str, fn(&Path));
+
     #[test]
     fn seed_only_each_exact_shape_check_is_load_bearing() {
-        let cases: [(&str, fn(&Path)); 9] = [
+        let cases: [SeedOnlyMutationCase; 9] = [
             ("proposal-extra-field", |v| {
                 edit_object_row(v, "proposal", "%", |b| {
                     b["unexpected"] = serde_json::json!(1)
@@ -1961,7 +1965,7 @@ mod tests {
 
     #[test]
     fn seed_only_rejects_crafted_rows_and_files() {
-        let cases: [(&str, fn(&Path)); 7] = [
+        let cases: [SeedOnlyMutationCase; 7] = [
             ("unknown-class", |v| {
                 let db = rusqlite::Connection::open(v.join("meta.sqlite3")).expect("db");
                 db.execute(
