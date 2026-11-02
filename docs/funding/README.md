@@ -39,13 +39,15 @@ The [complete opportunity matrix](COMPLETE_OPPORTUNITY_MATRIX.md) includes **eve
 
 ## Confirmed November 2 submissions and follow-ups
 
+- **Hacker Initiative 2026 Signal/Noise:** **SUBMITTED and Google Forms confirmation verified on November 2, 2026** ("Thank you! We have received your grant application."); **USD 25,000 requested, including USD 15,000 project-specific hardware**. No award, selection, payment, or equipment approval is implied. Private mailing/contact/payee information was entered into the funder's form and is not published in this repository.
+- **Lambda Research Grant:** **SUBMITTED with official Typeform completion and program acknowledgment email**; 1,500 H100 GPU-hours requested, up to USD 5,000 credits dependent on selection; no award yet.
 - **Sentient Foundation Open Source AGI Grant:** **SUBMITTED and Typeform thank-you confirmed**; **USD 25,000 requested** for the proposed public-good programme, including the user's USD 15,000 computer/test-hardware objective. See [submitted proposal and evidence](SENTIENT_GRANT_20261102.md). **No grant awarded.**
 - **Sequoia OSS Fellowship:** **SUBMITTED and official Typeform thank-you confirmed**, potential 6–12 months maintainer living expenses if selected; no award.
 - **fal Research Grants:** **official grant request sent via email**, awaiting decision.
 - **Star Labs:** hardware inquiry acknowledged as support ticket **77988**, not a donation.
 - **Anthropic AI for Science:** independent researcher eligibility inquiry sent to official support, but **application not submitted** due to PI/organization/Claude Organization ID requirements.
 - **Harper maintainer credits:** submit action attempted, **no verified confirmation**; do not label submitted.
-- **Lambda, Codex Open Source Fund, GitHub Sponsors, Hacker Initiative, AWS OSS, Cloudflare Alexandria:** not submitted/activated; see [Tracker](TRACKER.csv) for specific requirements. Hacker Initiative's deadline **November 9, 2026** is urgent.
+- **Codex Open Source Fund, GitHub Sponsors, AWS OSS, Cloudflare Alexandria:** not submitted/activated; see [Tracker](TRACKER.csv) for exact requirements. Hacker Initiative's **November 9, 2026 application deadline was met**; the selection decision remains pending.
 
 This folder is a public planning record. An outbound message or a form-filling attempt must not be presented as an awarded grant; only actual thank-you pages justify SUBMITTED status, and receipt of cash or equipment requires separate provider confirmation.
 
