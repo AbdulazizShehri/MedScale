@@ -1,0 +1,52 @@
+# MedScale — US, EU and Global Big-Tech Funding Opportunities (November 2, 2026)
+
+**Scope:** Newly verified opportunities outside the 2026-11-02 base funding matrix. Public programme links were checked on November 2, 2026. **Listings are not applications or awards.** Priority is independent Saudi-based maintainer, Apache-2.0 Rust/Tauri OSS project with no incorporated entity, no current university appointment and no verified real-world clinical users. **No Saudi hardware-manufacturer outreach.**
+
+## A. Cash and development hardware — act first
+
+| Provider | Support | Window verified | Fit and required next step | Provider |
+|---|---|---|---|---|
+| Mozilla Foundation Human-Scale AI Incubator | USD 300,000 for selected first-year projects; up to USD 200,000 further performance-based funding over 3 years | Open; **November 20, 2026** initial-proposal deadline | Local/private small AI is aligned but **working technology and early user/community deployment evidence required**. Do not fabricate pilot or traction. Authentic project and community narrative needed; heavily AI-generated submissions receive special scrutiny. | https://www.mozillafoundation.org/en/what-we-do/grantmaking/incubator/human-scale-ai/ |
+| Mozilla Foundation Independent Fellowship 2027–28 | **USD 125,000** for independent individual (USD 100,000 stipend + USD 25,000 project budget) | **December 17, 2026** Letter of Intent deadline | Strong fit for a solo independent local-first builder if personal US charity grant-receipt eligibility and authentic community value are established. This is an individual fellowship, not immediate one-time laptop funding. | https://www.mozillafoundation.org/en/what-we-do/grantmaking/fellowship/2027-call-for-applications/ |
+| FUTO OSS Microgrants | One-time **USD 1,000–5,000** | Applications stated open | **Application email SENT 2026-11-02 to grantapps@futo.org** requesting USD 5,000 and asking about international individual hardware eligibility. Not awarded. Larger FUTO grants usually favor proven and established entities; do not claim eligibility for that tier. | https://futo.tech/grants |
+| AMD Lemonade Developer Challenge | Chance to receive an **HP Ryzen AI Max+ 395 Strix Halo laptop** (AMD events page calls it **128 GB**) | Listed as ongoing as of Nov 2; prizes **while supplies last** | Need AMD AI Developer Program registration, a real open-source Lemonade integration/benchmark/demo, and entry through developer member site + community. **Physical device not guaranteed, shipping to Saudi Arabia and remaining stock unverified.** | https://www.amd.com/en/developer/resources/technical-articles/2026/join-the-lemonade-developer-challenge.html |
+| Framework open-source hardware sponsorship/seeding | Hardware and/or monetary collaboration | Ongoing partnerships; **no public guaranteed general OSS laptop application** | Primarily maintains Linux distros, drivers and infrastructure affecting Framework hardware; MedScale would need a credible compatible testing/upstream deliverable. Direct outreach may request guidance but is not programme acceptance. | https://frame.work/linux |
+| Alpha-Omega OSS security grants (OpenSSF/LF) | Grants for measurable security improvements to critical OSS | Q4 2026 intake ended Oct 31; **next Jan 1–31, 2027** | Open source projects with OSI licenses may apply in scheduled quarter; must demonstrate broad direct security impact and need not misrepresent current adoption. Relevant if MedScale provides reused security-oriented core components. | https://alpha-omega.dev/grants/how-to-apply/ |
+| Open Technology Fund Internet Freedom Fund | **USD 10,000–900,000**, typical ideal USD 50k–200k, two-stage | Rolling initial concept notes | Globally available to individuals but **real anti-censorship, surveillance and online freedom impact** is central. MedScale general health AI **does not presently show a verified mission fit**; do not artificially rebrand the project to qualify. | https://www.opentech.fund/funds/internet-freedom-fund/ |
+| Sovereign Tech Fund (Germany, global) | >**EUR 50,000** scope for open digital base technologies | Official portal accepts applications | Strong if a genuinely **widely depended-on** reusable provenance/FHIR infrastructure library can be isolated from MedScale and has transparent adoption/security evidence. Existing user-facing desktop app alone is weak fit. Do not submit €50k+ invented work to chase money. | https://www.sovereign.tech/programs/fund |
+| Sovereign Tech Fellowship | Paid freelance open-source infrastructure maintenance, depending on contract | **Closed Apr 6, 2026**; monitor future cohort | Individual maintainers can freelance globally; official maintainer track generally requires contribution to **3 FOSS projects** with maintainer status on at least one; fund focuses dependencies, not user-facing applications. | https://www.sovereign.tech/programs/fellowship |
+
+## B. Compute, AI tools and developer programmes — not cash for a computer
+
+| Provider | Support | Status / prerequisites | Provider |
+|---|---|---|---|
+| Google TPU Research Cloud | Free Cloud TPU quota to approved international researchers | **Rolling expression of interest.** May incur separate costs for non-TPU Google Cloud services; requires public research outputs and terms acceptance. | https://sites.research.google/trc/ |
+| Swiss AI Compute Grants (ETH/EPFL) | Small research compute projects up to **32,000 GPU-hours** | **Rolling review**, researchers from Europe and beyond; inspect linked project instructions for applicant institution/account rules before submission. | https://www.swiss-ai.org/compute-grants |
+| AMD AI Developer Program / AMD Developer Cloud | **USD 100** promotional GPU cloud credits for approved developer member; time-limited, **not money or a laptop** | Independent OSS developer is explicitly a target; requires AMD account, membership, verification and redemption within limits. | https://developer.amd.com/ai-developer-program/ |
+| Hugging Face Community GPU Grants | GPU resources for a suitable **public Space** | Need a real, appropriate demonstrable Hugging Face Space; application from Space hardware settings. Not directly for private desktop training or physical computer. | https://huggingface.co/docs/hub/spaces-gpus |
+| Docker-Sponsored Open Source Program | Free Docker Team, verified images, no rate limits and security scanning | Eligible if a **noncommercial, OSI-licensed** project is actively maintained through public **Docker Hub images**; a public GitHub repository alone does not meet the programme's Docker Hub activity requirement. | https://www.docker.com/community/open-source/application/ |
+| GitLab for Open Source | GitLab Ultimate feature access including **50,000 compute minutes** | Requires GitLab public namespace with all relevant projects OSI licensed, public and noncommercial. Not a cash or automatic GitHub Actions grant. | https://about.gitlab.com/solutions/open-source/join/ |
+| JetBrains OSS support | Free IDEs for individual noncommercial OSS contributors, and All Products Pack applications for impactful established OSS projects | No approval needed for eligible free individual noncommercial IDE use. Broader package needs maintainer review and demonstrable ecosystem impact. | https://www.jetbrains.com/community/opensource/ |
+| Convex for Open Source | Free Convex Pro tier for qualifying OSS projects | Only sensible if actual or near-term Convex integration serves developer ecosystem; do not add infrastructure solely to qualify. | https://www.convex.dev/open-source-program |
+
+## C. Major companies / programmes to watch, **not open self-service cash grants today**
+
+| Provider | Why not apply as-is | Provider |
+|---|---|---|
+| Meta Llama Impact Grants | Meta has funded international health/social-impact projects, but current page describes award recipients and prior programmes. **A live November 2026 intake has not been verified**. Genuine Llama use needed. | https://ai.meta.com/llama/llama-impact-grants |
+| NVIDIA Academic Grants | NVIDIA explicitly states **not accepting new applications** and requires **full-time faculty at a qualifying degree-granting institution**. A recently graduated MPH does not qualify without a new faculty position. | https://www.nvidia.com/en-us/industries/higher-education-research/academic-grant-program/ |
+| Wellcome Research Funding | Important UK health-research funder, but most schemes require a valid administering research organisation, career-stage qualifications, permitted geography, and often established research support. Do not claim academic host. | https://wellcome.org/research-funding/schemes |
+| Sovereign Tech Standards | €4,800–€5,200/month for active maintainers with IETF/W3C/ISO work; **2026 pilot started June**, so no verified current intake. | https://www.sovereign.tech/programs/standards |
+| RISC-V DevBoard programme | Real hardware boards can be seeded to established contributors but specific RISC-V upstream impact is required; unsuitable for current Windows/Mac desktop AI tests. | https://riscv.org/developers/boards/ |
+
+## Application integrity / next priorities
+
+1. **Mozilla Independent Fellowship (Dec 17):** write an individual-specific, authentic first-person Letter of Intent backed by public commits, product evidence and true community interactions. Do not claim clinical adoption.
+2. **Mozilla Incubator (Nov 20):** assess actual pilot users, independent users/contributors and small-model privacy benefits. If pilot evidence is missing, do not manufacture traction.
+3. **AMD physical laptop challenge:** verify laptop stock and Saudi delivery eligibility; implement and publicly demonstrate a legitimate Lemonade integration before applying.
+4. **FUTO:** grant application was emailed; wait for reply before any follow-up; do not imply approved funding.
+5. **Google TRC and Swiss AI:** pursue genuine open synthetic evaluation workloads, not as replacement for a funded physical machine.
+6. **Alpha-Omega January 2027:** document MedScale's independently reusable supply-chain/provenance component impact before the next intake; unrelated medical app testing is not enough.
+7. Keep the existing [funding tracker](TRACKER.csv) truthful about **Submitted** versus **Sent** versus **Potential** and avoid double claiming costs if grants overlap.
+
+No personal postal addresses, phone numbers, tax or payment details, private account identifiers or API secrets are placed in this document.
