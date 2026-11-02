@@ -40,9 +40,9 @@ The draft proposed one manual "set aside and rebuild" command that renamed the `
 ## Ordered plan
 
 1. **Atomic sidecar writes — implemented with this spec.**
-   - `write_atomic` writes `<file>.tmp`, calls `sync_all`, renames it over the target and, on Unix, syncs the directory.
+   - `write_atomic` creates a unique `<file>.<pid>.<counter>.tmp` with exclusive `create_new`, calls `sync_all`, renames it over the target and, on Unix, syncs the directory. This prevents temporary-file clobbering but is **not** a replacement for the single-writer guard in step 3.
    - `save_manifest`, `save_pack_dirs` and `save_asr_pack` all use it.
-   - Test: `sidecar_records_are_replaced_atomically_without_leftover_temp`.
+   - Tests: `sidecar_records_are_replaced_atomically_without_leftover_temp`, `atomic_write_does_not_clobber_an_existing_legacy_temp_file`, and `failed_atomic_replace_preserves_destination_and_removes_its_temp` (directory target forces a failed rename; the existing sentinel survives and the newly created temporary file is cleaned).
    - This removes the M3 source of state 2.
 2. **Reason codes, and read failure ≠ corrupt — implemented in PR #404 after two Goldfish code reviews.**
    - `synthetic_core_ledger` returns `LedgerCheck`: `Complete | Incomplete | Busy | Unreadable | Interrupted | Corrupt`.
@@ -78,7 +78,7 @@ The draft proposed one manual "set aside and rebuild" command that renamed the `
 
 ## Risks
 
-- **Stale `.tmp` files.** A crash between the temp write and the rename leaves a stale `.tmp`. Readers ignore it, and the next successful write replaces it.
+- **Stale `.tmp` files.** A crash between the temp write and the rename leaves a stale uniquely named `.tmp`. Readers ignore it; a later write uses a different exclusive filename rather than overwriting the stale file. Cleanup/audit handling remains an open qualification gap.
 - **Synthetic markers in `.tmp` files.** A stale manifest `.tmp` holds synthetic markers that the post-sample auditor would not attribute. This only happens after a crash during the write itself.
 
 ## Rollback
