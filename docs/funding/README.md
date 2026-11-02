@@ -37,6 +37,18 @@ MedScale is an Apache-2.0, free, local-first, open-source health intelligence de
 
 The [complete opportunity matrix](COMPLETE_OPPORTUNITY_MATRIX.md) includes **every tracked cash, compute, OSS, startup, academic, and student offer** even when the current self-funded graduate is not eligible. Opportunities are labelled APPLY_NOW, VERIFY_FIRST, FUTURE_CONDITIONAL, NOT_NOW or FOUNDER_WRITES. The student email is still active following graduation but does not prove current enrollment or current University affiliation. Retaining an offer in the matrix does **not** authorize an inaccurate application.
 
+## Confirmed November 2 submissions and follow-ups
+
+- **Sentient Foundation Open Source AGI Grant:** **SUBMITTED and Typeform thank-you confirmed**; **USD 25,000 requested** for the proposed public-good programme, including the user's USD 15,000 computer/test-hardware objective. See [submitted proposal and evidence](SENTIENT_GRANT_20261102.md). **No grant awarded.**
+- **Sequoia OSS Fellowship:** **SUBMITTED and official Typeform thank-you confirmed**, potential 6–12 months maintainer living expenses if selected; no award.
+- **fal Research Grants:** **official grant request sent via email**, awaiting decision.
+- **Star Labs:** hardware inquiry acknowledged as support ticket **77988**, not a donation.
+- **Anthropic AI for Science:** independent researcher eligibility inquiry sent to official support, but **application not submitted** due to PI/organization/Claude Organization ID requirements.
+- **Harper maintainer credits:** submit action attempted, **no verified confirmation**; do not label submitted.
+- **Lambda, Codex Open Source Fund, GitHub Sponsors, Hacker Initiative, AWS OSS, Cloudflare Alexandria:** not submitted/activated; see [Tracker](TRACKER.csv) for specific requirements. Hacker Initiative's deadline **November 9, 2026** is urgent.
+
+This folder is a public planning record. An outbound message or a form-filling attempt must not be presented as an awarded grant; only actual thank-you pages justify SUBMITTED status, and receipt of cash or equipment requires separate provider confirmation.
+
 ## How to use the package
 
 1. Start with the [complete programme and eligibility matrix](COMPLETE_OPPORTUNITY_MATRIX.md), including university/student/startup opportunities.
