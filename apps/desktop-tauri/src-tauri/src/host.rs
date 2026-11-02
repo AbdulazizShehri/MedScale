@@ -832,6 +832,21 @@ pub(crate) fn seed_only_vault(vault_root: &Path) -> SeedOnlyCheck {
         rows.collect::<Result<Vec<_>, _>>().ok()
     };
 
+    // A view or trigger stores persistent SQL text in sqlite_master even
+    // when every user-facing table is empty. That SQL is not part of Core's
+    // fixture seed and must never be silently classified as disposable.
+    // Core migrations create tables and indexes, not views or triggers.
+    let Ok(unaccounted_schema) = db.query_row(
+        "SELECT COUNT(*) FROM sqlite_master WHERE type IN ('view', 'trigger')",
+        [],
+        |row| row.get::<_, i64>(0),
+    ) else {
+        return SeedOnlyCheck::Unproven;
+    };
+    if unaccounted_schema != 0 {
+        return SeedOnlyCheck::NotFixtureOnly;
+    }
+
     // 1. Only the seed's tables may hold rows.
     let Some(tables) = query_strings("SELECT name FROM sqlite_master WHERE type = 'table'") else {
         return SeedOnlyCheck::Unproven;
@@ -1813,6 +1828,35 @@ mod tests {
         drop(state);
         assert_eq!(seed_only_vault(&vault_root), SeedOnlyCheck::FixtureOnly);
         (data_dir, vault_root)
+    }
+
+    #[test]
+    fn seed_only_rejects_persistent_unaccounted_sqlite_schema() {
+        // Views and triggers can contain user-authored SQL text without
+        // inserting a row in any application table. Never delete such a vault.
+        let cases = [
+            (
+                "extra-view",
+                "CREATE VIEW user_note_view AS SELECT 'not a seed fixture' AS note",
+            ),
+            (
+                "extra-trigger",
+                "CREATE TRIGGER user_note_trigger AFTER INSERT ON sources \\
+                 BEGIN SELECT 'not a seed fixture'; END",
+            ),
+        ];
+        for (tag, sql) in cases {
+            let (data_dir, vault_root) = seeded_scratch(tag);
+            let db = rusqlite::Connection::open(vault_root.join("meta.sqlite3")).expect("db");
+            db.execute_batch(sql).expect("crafted schema object");
+            drop(db);
+            assert_eq!(
+                seed_only_vault(&vault_root),
+                SeedOnlyCheck::NotFixtureOnly,
+                "{tag}"
+            );
+            std::fs::remove_dir_all(&data_dir).expect("synthetic-only cleanup");
+        }
     }
 
     #[test]
