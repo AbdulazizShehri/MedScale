@@ -107,3 +107,21 @@ test("unrelated code system cannot trigger screening", () => {
   const b=fresh();get(b,"Observation","screen-001").code.coding[0].system="http://example.invalid/clinical";
   assert.notEqual(evaluateCareLoop(b).status,"closed");
 });
+
+test("unrelated cross-patient observation contaminates bundle and blocks closure", () => {
+  const b=fresh();
+  b.entry.push({resource:{resourceType:"Observation",id:"unrelated-001",status:"final",
+    subject:{reference:"Patient/not-this-person"},code:{coding:[{system:DEMO_SYSTEM,code:"other"}]}}});
+  assert.equal(evaluateCareLoop(b).status,"blocked");
+});
+test("multiple patients cannot share an appointment under synthetic demo scope", () => {
+  const b=fresh();get(b,"Appointment","appointment-001").participant.push({
+    actor:{reference:"Patient/not-this-person"},status:"accepted"
+  });
+  assert.equal(evaluateCareLoop(b).status,"blocked");
+});
+test("direct identifiers are disallowed even when synthetic flag is supplied", () => {
+  const b=fresh();get(b,"Patient","demo-001").name=[{text:"Do Not Include Personal Identifiers"}];
+  const r=evaluateCareLoop(b);
+  assert.equal(r.status,"blocked");assert.equal(r.canClose,false);
+});
