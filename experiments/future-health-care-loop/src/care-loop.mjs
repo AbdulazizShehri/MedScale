@@ -36,6 +36,26 @@ export function evaluateCareLoop(bundle, {now = "2026-11-03T00:00:00Z"} = {}) {
   if (patients.length !== 1 || !patients[0].meta?.tag?.some(x => x.code === "synthetic"))
     return block("Exactly one explicitly synthetic patient required");
   const patient = ref(patients[0]);
+  // Privacy boundary for this demonstrator, not a full PHI detector.
+  if (["name", "telecom", "address", "identifier", "birthDate", "photo"].some(
+    key => Object.hasOwn(patients[0], key))) {
+    return block("Direct patient identifiers are not permitted in this synthetic demo");
+  }
+  // Fail closed for unrelated records, not merely the selected referral chain.
+  for (const record of records) {
+    if (["Observation", "ServiceRequest", "Encounter"].includes(record.resourceType)
+      && record.subject?.reference && record.subject.reference !== patient) {
+      return block("Bundle contains cross-patient clinical-style resource");
+    }
+    if (record.resourceType === "Task" && record.for?.reference
+      && record.for.reference !== patient) {
+      return block("Bundle contains task for another patient");
+    }
+    if (record.resourceType === "Appointment" && record.participant?.some(p =>
+      p.actor?.reference?.startsWith("Patient/") && p.actor.reference !== patient)) {
+      return block("Appointment contains another patient");
+    }
+  }
   const hasProof = (r) => get("Provenance").some(p =>
     linked(p.target, ref(r)) && Number.isFinite(Date.parse(p.recorded ?? ""))
     && p.agent?.some(a => a?.who?.reference?.startsWith("Practitioner/synthetic-")));
