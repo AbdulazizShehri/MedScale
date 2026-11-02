@@ -9,7 +9,7 @@
   - one compile blocker, now fixed;
   - no Core write path that a single-process user action can push through as `FixtureOnly`.
 
-- **Increment 2: implemented** (M1 snapshot read, M2 typed exact shapes, M3 real-Core and crafted rejections). Remaining before wiring: the caller-held writer lock across classification and rename (increment 3); the hot-journal private-copy rollback (v3 M5); blob content hashing.
+- **Increment 2: PR #410, pending CI.** It covers M2 (typed exact shapes), M3 (real-Core rejections, crafted rejections, and one in-place edit test per exact-shape check so each check is proven on its own) and M1 for the SQL reads only. The file check still runs before the transaction, so files and database form one snapshot only once increment 3's writer lock is in place. Vaults that Core reconstructed (`reconstructed-from-sources:` provenance) are classified `NotFixtureOnly`. That fails safe: the user is routed to manual recovery. Remaining before wiring: the caller-held writer lock across classification and rename (increment 3); the hot-journal private-copy rollback (v3 M5); blob content hashing.
 
 ### Gates before `seed_only_vault` may authorise deletion (increment 2)
 

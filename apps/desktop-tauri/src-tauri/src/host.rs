@@ -916,6 +916,7 @@ pub(crate) fn seed_only_vault(vault_root: &Path) -> SeedOnlyCheck {
     let class = |c: &str| by_class.get(c).unwrap_or(&empty);
     let header_ok = |h: &ObjectHeader, id: &str| {
         h.id.as_str() == id
+            && h.schema_version == medscale_contracts::AUTHORITY_SCHEMA_VERSION
             && h.realm_id == RealmId::new(SEED_REALM)
             && h.authority_scope_id == AuthorityScopeId::new(SEED_SCOPE)
     };
@@ -959,7 +960,9 @@ pub(crate) fn seed_only_vault(vault_root: &Path) -> SeedOnlyCheck {
             return SeedOnlyCheck::NotFixtureOnly;
         };
         let evidence_is_golden = ident.evidence_refs.len() == 1
-            && source_digest.get(ident.evidence_refs[0].as_str()) == golden_hex.as_ref();
+            && golden_hex
+                .as_ref()
+                .is_some_and(|g| source_digest.get(ident.evidence_refs[0].as_str()) == Some(g));
         if !header_ok(&ident.header, id)
             || ident.subject_id.as_str() != "subject:http://hospital.example/mrn:P-004"
             || ident.identifier_system != "http://hospital.example/mrn"
@@ -1828,6 +1831,100 @@ mod tests {
         drop(state);
         assert_eq!(seed_only_vault(&vault_root), SeedOnlyCheck::NotFixtureOnly);
         std::fs::remove_dir_all(&data_dir).expect("cleanup");
+    }
+
+    /// Edit the first matching authority row in place (no duplicate row), so
+    /// each exact-shape check is proven on its own.
+    fn edit_object_row(
+        vault_root: &Path,
+        class: &str,
+        like: &str,
+        edit: impl Fn(&mut serde_json::Value),
+    ) {
+        let db = rusqlite::Connection::open(vault_root.join("meta.sqlite3")).expect("db");
+        let (id, body): (String, String) = db
+            .query_row(
+                "SELECT object_id, body_json FROM authority_objects \
+                 WHERE object_class = ?1 AND body_json LIKE ?2 LIMIT 1",
+                [class, like],
+                |r| Ok((r.get(0)?, r.get(1)?)),
+            )
+            .expect("existing row");
+        let mut value: serde_json::Value = serde_json::from_str(&body).expect("json");
+        edit(&mut value);
+        db.execute(
+            "UPDATE authority_objects SET body_json = ?1 WHERE object_id = ?2",
+            rusqlite::params![value.to_string(), id],
+        )
+        .expect("edited row");
+    }
+
+    fn edit_sql(vault_root: &Path, sql: &str) {
+        let db = rusqlite::Connection::open(vault_root.join("meta.sqlite3")).expect("db");
+        db.execute(sql, []).expect("edited column");
+    }
+
+    #[test]
+    fn seed_only_each_exact_shape_check_is_load_bearing() {
+        let cases: [(&str, fn(&Path)); 9] = [
+            ("proposal-extra-field", |v| {
+                edit_object_row(v, "proposal", "%", |b| {
+                    b["unexpected"] = serde_json::json!(1)
+                })
+            }),
+            ("source-bytes", |v| {
+                edit_object_row(v, "source", "%", |b| b["bytes"] = serde_json::json!([1]))
+            }),
+            ("ingest-audit-digest", |v| {
+                edit_object_row(v, "audit", "%ingest_fhir_synthetic%", |b| {
+                    b["payload_digest"] = serde_json::Value::Null
+                })
+            }),
+            ("assertion-authorized-by", |v| {
+                edit_object_row(v, "assertion", "%", |b| {
+                    b["authorized_by"] = serde_json::json!("someone-else")
+                })
+            }),
+            ("identity-subject", |v| {
+                edit_object_row(v, "identity", "%", |b| {
+                    b["subject_id"] = serde_json::json!("subject:other")
+                })
+            }),
+            ("header-realm", |v| {
+                edit_object_row(v, "proposal", "%", |b| {
+                    b["header"]["realm_id"] = serde_json::json!("other-realm")
+                })
+            }),
+            ("header-schema-version", |v| {
+                edit_object_row(v, "assertion", "%", |b| {
+                    b["header"]["schema_version"] = serde_json::json!(9999)
+                })
+            }),
+            ("object-realm-column", |v| {
+                edit_sql(
+                    v,
+                    "UPDATE authority_objects SET realm_id = 'other-realm' WHERE object_id = \
+                     (SELECT object_id FROM authority_objects LIMIT 1)",
+                )
+            }),
+            ("sources-realm-column", |v| {
+                edit_sql(
+                    v,
+                    "UPDATE sources SET realm_id = 'other-realm' WHERE source_id = \
+                     (SELECT source_id FROM sources LIMIT 1)",
+                )
+            }),
+        ];
+        for (tag, craft) in cases {
+            let (data_dir, vault_root) = seeded_scratch(tag);
+            craft(&vault_root);
+            assert_eq!(
+                seed_only_vault(&vault_root),
+                SeedOnlyCheck::NotFixtureOnly,
+                "{tag}"
+            );
+            std::fs::remove_dir_all(&data_dir).expect("cleanup");
+        }
     }
 
     #[test]
