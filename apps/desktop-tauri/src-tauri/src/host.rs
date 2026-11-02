@@ -1002,10 +1002,10 @@ mod tests {
         let destination = dir.join("fictional-sidecar.json");
         let legacy_temp = dir.join("fictional-sidecar.json.tmp");
         std::fs::write(&legacy_temp, b"untouched legacy sentinel").expect("legacy temp");
-        write_atomic(&destination, b"{\\"synthetic\\":true}").expect("atomic replace");
+        write_atomic(&destination, b"{\"synthetic\":true}").expect("atomic replace");
         assert_eq!(
             std::fs::read(&destination).expect("read destination"),
-            b"{\\"synthetic\\":true}"
+            b"{\"synthetic\":true}"
         );
         assert_eq!(
             std::fs::read(&legacy_temp).expect("read legacy temp"),
