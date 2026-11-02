@@ -1,7 +1,8 @@
-/** Spec 108 step 2: user guidance for synthetic workspace failures, keyed on
- * the stable reason codes from host.rs `seed_reason`. A busy or unreadable
- * workspace is never described as damaged, and no text includes paths or
- * identifiers. */
+/** Spec 108 step 2: user guidance for workspace failures, keyed on the stable
+ * reason codes in host.rs `seed_reason`. A busy or unreadable workspace is
+ * never described as damaged, and no text includes paths or identifiers.
+ * "Nothing has been changed or deleted" appears only for reasons produced by
+ * the read-only preflight, before Core opens or writes anything. */
 export const SEED_REASONS = [
   "seed_manifest_missing",
   "seed_manifest_invalid",
@@ -10,7 +11,10 @@ export const SEED_REASONS = [
   "workspace_io_failure",
   "workspace_busy",
   "writer_active",
-  "core_corrupt",
+  "seed_vault_missing",
+  "seed_ledger_undecodable",
+  "seed_ledger_interrupted",
+  "core_integrity_error",
 ] as const;
 
 export type SeedReason = (typeof SEED_REASONS)[number];
@@ -22,12 +26,15 @@ export function parseSeedReason(raw: unknown): SeedReason | undefined {
 }
 
 export type SeedGuidance = {
-  /** "retry": nothing is wrong with the data; try again later.
-   *  "incomplete": the sample was not fully set up and MedScale refuses to replay it. */
-  category: "retry" | "incomplete";
+  /** retry: nothing is wrong with the data; try again.
+   *  incomplete: the sample was not fully set up; MedScale refuses to reuse it.
+   *  stopped: Core refused to continue; no claim about earlier writes. */
+  category: "retry" | "incomplete" | "stopped";
   title: string;
   detail: string;
 };
+
+const UNCHANGED = "Nothing has been changed or deleted.";
 
 export function seedFailureGuidance(reason: SeedReason | undefined): SeedGuidance | null {
   switch (reason) {
@@ -36,30 +43,46 @@ export function seedFailureGuidance(reason: SeedReason | undefined): SeedGuidanc
       return {
         category: "retry",
         title: "This workspace is in use.",
-        detail: "Another MedScale window or process is using it. Close other MedScale windows, then try again. Nothing was changed.",
+        detail: "Another MedScale window or process is using it. Close other MedScale windows, then try again.",
       };
     case "workspace_io_failure":
       return {
         category: "retry",
         title: "This workspace could not be read.",
-        detail: "MedScale could not read its own data folder, for example because of file permissions or security software. Nothing was changed; try again.",
+        detail: `MedScale could not read its own data folder, for example because of file permissions or security software. Try again. ${UNCHANGED}`,
       };
     case "seed_manifest_missing":
-    case "seed_manifest_invalid":
     case "seed_manifest_incomplete":
-    case "core_corrupt":
-      // Also produced for encrypted vaults (Core Corrupt/DigestMismatch), so
-      // the text must not assume the sample workspace.
-      return {
-        category: "incomplete",
-        title: "This workspace's stored data could not be decoded.",
-        detail: "MedScale refuses to use it so that no records are damaged or duplicated; nothing has been changed or deleted.",
-      };
+    case "seed_vault_missing":
     case "core_ledger_incomplete":
       return {
         category: "incomplete",
         title: "The sample workspace was not finished setting up.",
-        detail: "This can happen if MedScale closed while preparing the sample. To avoid duplicating records, MedScale will not reuse it, and nothing has been changed or deleted.",
+        detail: `MedScale may have closed while preparing it, or another MedScale window may still be preparing it. To avoid duplicating records, MedScale will not reuse it. ${UNCHANGED}`,
+      };
+    case "seed_manifest_invalid":
+      return {
+        category: "incomplete",
+        title: "The sample workspace's setup record could not be read.",
+        detail: `It may have been cut off when MedScale closed. To avoid duplicating records, MedScale will not reuse the sample. ${UNCHANGED}`,
+      };
+    case "seed_ledger_undecodable":
+      return {
+        category: "incomplete",
+        title: "The sample workspace's stored data could not be decoded.",
+        detail: `To avoid damaging or duplicating records, MedScale will not reuse it. ${UNCHANGED}`,
+      };
+    case "seed_ledger_interrupted":
+      return {
+        category: "incomplete",
+        title: "The sample workspace was interrupted while saving.",
+        detail: `MedScale does not repair this automatically yet. To avoid duplicating records, it will not reuse the sample. ${UNCHANGED}`,
+      };
+    case "core_integrity_error":
+      return {
+        category: "stopped",
+        title: "MedScale stopped because stored data failed an integrity check.",
+        detail: "It did not continue, to protect your records. Please report this from About → Report a problem, using synthetic examples only.",
       };
     default:
       return null;

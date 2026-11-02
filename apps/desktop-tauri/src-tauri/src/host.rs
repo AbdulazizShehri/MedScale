@@ -34,7 +34,16 @@ pub mod seed_reason {
     pub const IO_FAILURE: &str = "workspace_io_failure";
     pub const BUSY: &str = "workspace_busy";
     pub const WRITER_ACTIVE: &str = "writer_active";
-    pub const CORE_CORRUPT: &str = "core_corrupt";
+    /// Preflight only: the vault folder is missing, empty or not a folder.
+    pub const VAULT_MISSING: &str = "seed_vault_missing";
+    /// Preflight only: the ledger file exists but cannot be decoded.
+    pub const LEDGER_UNDECODABLE: &str = "seed_ledger_undecodable";
+    /// Preflight only: Core was interrupted mid-save (hot rollback journal);
+    /// a read-only check cannot roll it back.
+    pub const LEDGER_INTERRUPTED: &str = "seed_ledger_interrupted";
+    /// Any Core-originated integrity failure. Makes no claim about whether
+    /// anything was written before the failure.
+    pub const CORE_INTEGRITY: &str = "core_integrity_error";
 }
 
 impl CmdError {
@@ -107,8 +116,11 @@ impl From<AuthorityError> for CmdError {
                 Self::unavailable("Unavailable: another MedScale process is using this workspace")
                     .with_reason(seed_reason::WRITER_ACTIVE)
             }
+            AuthorityError::LeaseHeld { .. } | AuthorityError::AlreadyHeld { .. } => {
+                Self::new(kind, message).with_reason(seed_reason::WRITER_ACTIVE)
+            }
             AuthorityError::Corrupt { .. } | AuthorityError::DigestMismatch => {
-                Self::new(kind, message).with_reason(seed_reason::CORE_CORRUPT)
+                Self::new(kind, message).with_reason(seed_reason::CORE_INTEGRITY)
             }
             _ => Self::new(kind, message),
         }
@@ -387,25 +399,38 @@ fn complete_synthetic_seed(seed: &SeedManifest) -> bool {
 enum LedgerCheck {
     Complete,
     Incomplete,
-    Unreadable(&'static str),
+    /// Another connection holds a lock beyond SQLite's default busy wait.
+    Busy,
+    /// Real I/O or permission failure; the data itself was not judged.
+    Unreadable,
+    /// Hot rollback journal from an interrupted Core write.
+    Interrupted,
     Corrupt,
 }
 
 /// Classify a SQLite failure while reading the ledger read-only.
 fn classify_ledger_error(error: &rusqlite::Error) -> LedgerCheck {
     use rusqlite::ErrorCode;
+    // Missing table or column: Core never finished creating its schema.
+    // With modern_sqlite, prepare errors may carry an offset and arrive as
+    // SqlInputError rather than SqliteFailure.
+    // Display covers both variants without depending on that feature.
+    let text = error.to_string();
+    if text.contains("no such table") || text.contains("no such column") {
+        return LedgerCheck::Incomplete;
+    }
+    match error {
+        // Row shape errors: the data is present but not what Core writes.
+        rusqlite::Error::InvalidColumnType(..)
+        | rusqlite::Error::FromSqlConversionFailure(..)
+        | rusqlite::Error::Utf8Error(..) => return LedgerCheck::Corrupt,
+        _ => {}
+    }
     match error.sqlite_error_code() {
-        Some(ErrorCode::DatabaseBusy | ErrorCode::DatabaseLocked) => {
-            LedgerCheck::Unreadable(seed_reason::BUSY)
-        }
+        Some(ErrorCode::DatabaseBusy | ErrorCode::DatabaseLocked) => LedgerCheck::Busy,
         Some(ErrorCode::DatabaseCorrupt | ErrorCode::NotADatabase) => LedgerCheck::Corrupt,
-        _ => match error {
-            // Missing table or column: Core never finished creating its schema.
-            rusqlite::Error::SqliteFailure(_, Some(m)) if m.starts_with("no such") => {
-                LedgerCheck::Incomplete
-            }
-            _ => LedgerCheck::Unreadable(seed_reason::IO_FAILURE),
-        },
+        Some(ErrorCode::ReadOnly) => LedgerCheck::Interrupted,
+        _ => LedgerCheck::Unreadable,
     }
 }
 
@@ -424,16 +449,16 @@ fn synthetic_core_ledger(vault_root: &Path, seed: &SeedManifest) -> LedgerCheck 
     let file = vault_root.join("meta.sqlite3");
     match std::fs::symlink_metadata(&file) {
         Ok(m) if m.is_file() && !m.file_type().is_symlink() => {}
-        Ok(_) => return LedgerCheck::Corrupt,
+        // A directory or symlink is not a ledger Core wrote: not proven.
+        Ok(_) => return LedgerCheck::Incomplete,
         Err(e) if e.kind() == std::io::ErrorKind::NotFound => return LedgerCheck::Incomplete,
-        Err(_) => return LedgerCheck::Unreadable(seed_reason::IO_FAILURE),
+        Err(_) => return LedgerCheck::Unreadable,
     }
     let db = match Connection::open_with_flags(&file, OpenFlags::SQLITE_OPEN_READ_ONLY) {
         Ok(db) => db,
         Err(e) => return classify_ledger_error(&e),
     };
-    // Wait briefly for a writer instead of reporting a transient lock.
-    let _ = db.busy_timeout(std::time::Duration::from_millis(500));
+    // rusqlite's default 5 s busy timeout already absorbs short writer locks.
     let mut stmt = match db.prepare("SELECT object_class, body_json FROM authority_objects") {
         Ok(stmt) => stmt,
         Err(e) => return classify_ledger_error(&e),
@@ -643,6 +668,10 @@ fn preflight_synthetic_seed(vault_root: &Path) -> CmdResult<SeedManifest> {
             .map_err(|_| inspection_failed())?
             .is_some(),
         Err(error) if error.kind() == std::io::ErrorKind::NotFound => false,
+        // The vault path exists but is not a folder: never a vault Core made.
+        Err(error) if error.kind() == std::io::ErrorKind::NotADirectory => {
+            return Err(incomplete(seed_reason::VAULT_MISSING));
+        }
         Err(_) => return Err(inspection_failed()),
     };
     match std::fs::read(manifest_path(vault_root)) {
@@ -651,7 +680,10 @@ fn preflight_synthetic_seed(vault_root: &Path) -> CmdResult<SeedManifest> {
                 CmdError::new("corrupt", "Corrupt: synthetic seed manifest is invalid")
                     .with_reason(seed_reason::MANIFEST_INVALID)
             })?;
-            if !vault_has_entries || !complete_synthetic_seed(&seed) {
+            if !vault_has_entries {
+                return Err(incomplete(seed_reason::VAULT_MISSING));
+            }
+            if !complete_synthetic_seed(&seed) {
                 return Err(incomplete(seed_reason::MANIFEST_INCOMPLETE));
             }
             match synthetic_core_ledger(vault_root, &seed) {
@@ -661,17 +693,16 @@ fn preflight_synthetic_seed(vault_root: &Path) -> CmdResult<SeedManifest> {
                     "corrupt",
                     "Corrupt: synthetic workspace data cannot be decoded; refusing replay",
                 )
-                .with_reason(seed_reason::CORE_CORRUPT)),
-                LedgerCheck::Unreadable(reason) if reason == seed_reason::BUSY => {
-                    Err(CmdError::unavailable(
-                        "Unavailable: the synthetic workspace is busy; close other MedScale windows and try again",
-                    )
-                    .with_reason(reason))
-                }
-                LedgerCheck::Unreadable(reason) => Err(CmdError::unavailable(
+                .with_reason(seed_reason::LEDGER_UNDECODABLE)),
+                LedgerCheck::Interrupted => Err(incomplete(seed_reason::LEDGER_INTERRUPTED)),
+                LedgerCheck::Busy => Err(CmdError::unavailable(
+                    "Unavailable: the synthetic workspace is busy; close other MedScale windows and try again",
+                )
+                .with_reason(seed_reason::BUSY)),
+                LedgerCheck::Unreadable => Err(CmdError::unavailable(
                     "Unavailable: the synthetic workspace could not be read",
                 )
-                .with_reason(reason)),
+                .with_reason(seed_reason::IO_FAILURE)),
             }
         }
         Err(error) if error.kind() == std::io::ErrorKind::NotFound && !vault_has_entries => {
@@ -1075,36 +1106,36 @@ mod tests {
     #[test]
     fn ledger_read_failures_are_not_reported_as_corruption() {
         use rusqlite::ErrorCode;
-        assert_eq!(
-            classify_ledger_error(&sqlite_failure(ErrorCode::DatabaseBusy, None)),
-            LedgerCheck::Unreadable(seed_reason::BUSY)
-        );
-        assert_eq!(
-            classify_ledger_error(&sqlite_failure(ErrorCode::DatabaseLocked, None)),
-            LedgerCheck::Unreadable(seed_reason::BUSY)
-        );
-        assert_eq!(
-            classify_ledger_error(&sqlite_failure(ErrorCode::CannotOpen, None)),
-            LedgerCheck::Unreadable(seed_reason::IO_FAILURE)
-        );
-        assert_eq!(
-            classify_ledger_error(&sqlite_failure(ErrorCode::PermissionDenied, None)),
-            LedgerCheck::Unreadable(seed_reason::IO_FAILURE)
-        );
-        assert_eq!(
-            classify_ledger_error(&sqlite_failure(ErrorCode::DatabaseCorrupt, None)),
-            LedgerCheck::Corrupt
-        );
-        assert_eq!(
-            classify_ledger_error(&sqlite_failure(ErrorCode::NotADatabase, None)),
-            LedgerCheck::Corrupt
-        );
-        assert_eq!(
-            classify_ledger_error(&sqlite_failure(
+        let cases = [
+            (ErrorCode::DatabaseBusy, None, LedgerCheck::Busy),
+            (ErrorCode::DatabaseLocked, None, LedgerCheck::Busy),
+            (ErrorCode::CannotOpen, None, LedgerCheck::Unreadable),
+            (ErrorCode::PermissionDenied, None, LedgerCheck::Unreadable),
+            (ErrorCode::SystemIoFailure, None, LedgerCheck::Unreadable),
+            (ErrorCode::ReadOnly, None, LedgerCheck::Interrupted),
+            (ErrorCode::DatabaseCorrupt, None, LedgerCheck::Corrupt),
+            (ErrorCode::NotADatabase, None, LedgerCheck::Corrupt),
+            (
                 ErrorCode::Unknown,
-                Some("no such table: authority_objects")
+                Some("no such table: authority_objects"),
+                LedgerCheck::Incomplete,
+            ),
+        ];
+        for (code, message, expected) in cases {
+            assert_eq!(
+                classify_ledger_error(&sqlite_failure(code, message)),
+                expected,
+                "{code:?}"
+            );
+        }
+        assert_eq!(
+            classify_ledger_error(&rusqlite::Error::InvalidColumnType(
+                1,
+                "body_json".to_owned(),
+                rusqlite::types::Type::Blob
             )),
-            LedgerCheck::Incomplete
+            LedgerCheck::Corrupt,
+            "a non-text row is undecodable data, not an I/O failure"
         );
     }
 
@@ -1169,11 +1200,85 @@ mod tests {
         .expect("bad ledger");
         let corrupt = preflight_synthetic_seed(&vault_root).expect_err("undecodable ledger");
         assert_eq!(corrupt.kind, "corrupt");
-        assert_eq!(corrupt.reason, Some(seed_reason::CORE_CORRUPT));
+        assert_eq!(corrupt.reason, Some(seed_reason::LEDGER_UNDECODABLE));
         assert!(
             !corrupt.message.contains(&data_dir.display().to_string()),
             "user-facing errors never include filesystem paths"
         );
+        std::fs::remove_dir_all(&data_dir).expect("synthetic-only cleanup");
+    }
+
+    fn scratch_data_dir(tag: &str) -> PathBuf {
+        std::env::temp_dir().join(format!(
+            "medscale-{tag}-{}-{}",
+            std::process::id(),
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .expect("clock")
+                .as_nanos()
+        ))
+    }
+
+    #[test]
+    fn empty_real_ledger_file_is_incomplete_not_an_io_failure() {
+        let data_dir = scratch_data_dir("empty-ledger");
+        let vault_root = data_dir.join("synthetic-workspace");
+        std::fs::create_dir_all(&vault_root).expect("dir");
+        // A 0-byte file is a valid empty SQLite database with no schema.
+        std::fs::write(vault_root.join("meta.sqlite3"), b"").expect("empty ledger");
+        save_manifest(&vault_root, &full_seed_manifest_for_test()).expect("manifest");
+        let err = preflight_synthetic_seed(&vault_root).expect_err("no schema");
+        assert_eq!(err.kind, "corrupt");
+        assert_eq!(err.reason, Some(seed_reason::CORE_LEDGER_INCOMPLETE));
+        std::fs::remove_dir_all(&data_dir).expect("synthetic-only cleanup");
+    }
+
+    #[test]
+    fn manifest_without_vault_and_file_in_place_of_vault_are_vault_missing() {
+        let data_dir = scratch_data_dir("vault-missing");
+        std::fs::create_dir_all(&data_dir).expect("dir");
+        let vault_root = data_dir.join("synthetic-workspace");
+        save_manifest(&vault_root, &full_seed_manifest_for_test()).expect("manifest");
+        let no_vault = preflight_synthetic_seed(&vault_root).expect_err("no vault");
+        assert_eq!(no_vault.reason, Some(seed_reason::VAULT_MISSING));
+        std::fs::write(
+            &vault_root,
+            b"synthetic file where the vault folder belongs",
+        )
+        .expect("file");
+        let not_dir = preflight_synthetic_seed(&vault_root).expect_err("not a folder");
+        assert_eq!(not_dir.kind, "corrupt");
+        assert_eq!(not_dir.reason, Some(seed_reason::VAULT_MISSING));
+        std::fs::remove_dir_all(&data_dir).expect("synthetic-only cleanup");
+    }
+
+    #[test]
+    fn second_session_on_open_synthetic_workspace_is_writer_active() {
+        let data_dir = scratch_data_dir("writer-active");
+        let mut first = State {
+            data_dir: Some(data_dir.clone()),
+            ..State::default()
+        };
+        open_synthetic(&mut first).expect("first synthetic workspace");
+        let mut second = State {
+            data_dir: Some(data_dir.clone()),
+            ..State::default()
+        };
+        let err = open_synthetic(&mut second).expect_err("Core writer lock is held");
+        // Core's writer lock (writer_active) or, if Core also holds the
+        // ledger, the read-only preflight (workspace_busy): both mean in use.
+        assert_eq!(err.kind, "unavailable");
+        assert!(
+            matches!(
+                err.reason,
+                Some(seed_reason::WRITER_ACTIVE) | Some(seed_reason::BUSY)
+            ),
+            "{:?}",
+            err.reason
+        );
+        assert!(second.workspace.is_none());
+        drop(first);
+        drop(second);
         std::fs::remove_dir_all(&data_dir).expect("synthetic-only cleanup");
     }
 

@@ -44,10 +44,22 @@ The draft proposed one manual "set aside and rebuild" command that renamed the `
    - `save_manifest`, `save_pack_dirs` and `save_asr_pack` all use it.
    - Test: `sidecar_records_are_replaced_atomically_without_leftover_temp`.
    - This removes the M3 source of state 2.
-2. **Reason codes, and read failure ≠ corrupt.**
-   - `complete_synthetic_core` returns `Result<bool, _>`, so "could not read" maps to `unavailable`.
-   - `CmdError` carries a stable reason (`seed_manifest_missing`, `seed_manifest_invalid`, `seed_incomplete`).
-   - The UI and every recovery command key on the reason, not on the kind.
+2. **Reason codes, and read failure ≠ corrupt — implemented in PR #404 after two Goldfish code reviews.**
+   - `synthetic_core_ledger` returns `LedgerCheck`: `Complete | Incomplete | Busy | Unreadable | Interrupted | Corrupt`.
+     - SQLite BUSY/LOCKED → `Busy`.
+     - CANTOPEN, I/O and permission → `Unreadable`.
+     - READONLY (a hot journal that a read-only connection cannot roll back) → `Interrupted`.
+     - NOTADB, CORRUPT, row-shape and JSON decode errors → `Corrupt`.
+     - Missing table, column or ledger file, or a logical mismatch → `Incomplete`.
+   - `CmdError.reason` is omitted from the DTO when absent. The `seed_reason` codes are:
+     - Preflight only, produced before Core opens anything: `seed_manifest_missing`, `seed_manifest_invalid`, `seed_manifest_incomplete`, `seed_vault_missing`, `core_ledger_incomplete`, `seed_ledger_undecodable`, `seed_ledger_interrupted`.
+     - Retryable: `workspace_busy`, `workspace_io_failure`.
+     - Mapped from Core in `From<AuthorityError>`:
+       - `writer_active`: `InvalidArgument("WriterHeld")`, `LeaseHeld`, `AlreadyHeld`.
+       - `core_integrity_error`: any Core `Corrupt` or `DigestMismatch`. Its guidance makes no claim about earlier writes.
+   - The Welcome and Access screens show reason guidance inside the `role="alert"` element, replacing Core's raw message, which can contain internal paths.
+   - "Nothing has been changed or deleted" is shown only for preflight reasons.
+   - The UI and every recovery command key on the reason, not on the kind. A TS test pins the reason list to the Rust `seed_reason` block.
 3. **Single instance plus a writer-lock check.**
    - Enforce one running MedScale per user.
    - Any recovery command first tries Core's `WriterLock` and refuses on `WriterHeld`, releasing the lock before it touches files.
