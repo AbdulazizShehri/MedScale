@@ -880,16 +880,25 @@ pub(crate) fn seed_only_vault(vault_root: &Path) -> SeedOnlyCheck {
             .any(|r| r.first() == Some(&Some(t.to_owned())))
     };
 
-    // 2. store_state holds only the shared id counter.
+    // 2. store_state holds only Core's canonical decimal id counter.
+    // A matching key with arbitrary text is not evidence of a fixture-only
+    // vault: the value is persisted user-controlled database content.
     if has_table("store_state") {
-        let Some(keys) = query_strings("SELECT key FROM store_state") else {
+        let Some(rows) = query_strings("SELECT key, value FROM store_state") else {
             return SeedOnlyCheck::Unproven;
         };
-        if keys
-            .iter()
-            .any(|k| k.first() != Some(&Some("next_seq".to_owned())))
-        {
-            return SeedOnlyCheck::NotFixtureOnly;
+        for row in rows {
+            let (Some(Some(key)), Some(Some(value))) = (row.first(), row.get(1)) else {
+                return SeedOnlyCheck::NotFixtureOnly;
+            };
+            if key != "next_seq"
+                || !value
+                    .parse::<u64>()
+                    .ok()
+                    .is_some_and(|counter| counter.to_string() == *value)
+            {
+                return SeedOnlyCheck::NotFixtureOnly;
+            }
         }
     }
 
@@ -2243,6 +2252,46 @@ mod tests {
         drop(session);
         std::fs::remove_file(&path).expect("staging cleanup");
         assert_eq!(seed_only_vault(&vault_root), SeedOnlyCheck::FixtureOnly);
+        std::fs::remove_dir_all(&data_dir).expect("synthetic-only cleanup");
+    }
+
+    #[test]
+    fn seed_only_rejects_noncanonical_or_nonnumeric_next_seq() {
+        let (data_dir, vault_root) = seed_only_scratch("sequence-value");
+        let mut state = State {
+            data_dir: Some(data_dir.clone()),
+            ..State::default()
+        };
+        open_synthetic(&mut state).expect("genuine bundled seed");
+        drop(state);
+        let db = rusqlite::Connection::open(vault_root.join("meta.sqlite3")).expect("db");
+        let original: String = db
+            .query_row(
+                "SELECT value FROM store_state WHERE key = 'next_seq'",
+                [],
+                |row| row.get(0),
+            )
+            .expect("Core sequence");
+        assert_eq!(seed_only_vault(&vault_root), SeedOnlyCheck::FixtureOnly);
+        for value in ["fictional user note", "-1", "0001", "18446744073709551616"] {
+            db.execute(
+                "UPDATE store_state SET value = ?1 WHERE key = 'next_seq'",
+                [value],
+            )
+            .expect("mutate synthetic sequence");
+            assert_eq!(
+                seed_only_vault(&vault_root),
+                SeedOnlyCheck::NotFixtureOnly,
+                "a noncanonical sequence value is not disposable: {value}"
+            );
+        }
+        db.execute(
+            "UPDATE store_state SET value = ?1 WHERE key = 'next_seq'",
+            [&original],
+        )
+        .expect("restore synthetic sequence");
+        assert_eq!(seed_only_vault(&vault_root), SeedOnlyCheck::FixtureOnly);
+        drop(db);
         std::fs::remove_dir_all(&data_dir).expect("synthetic-only cleanup");
     }
 
