@@ -84,6 +84,21 @@ test("a readable marker cannot hide skipped oversized files", async () => {
   } finally { await rm(root, { recursive: true, force: true }); }
 });
 
+test("an empty file counts as fully examined without being read", async () => {
+  const root = await mkdtemp(path.join(os.tmpdir(), "medscale-webview-audit-"));
+  try {
+    await writeFile(path.join(root, "medscale-instance.lock"), "");
+    await writeFile(path.join(root, "synthetic-fixture"), "medscale.project");
+    const report = await auditProfiles([{ label: "app", root }]);
+    const [profile] = report.profiles;
+    assert.equal(profile.files_examined, 2);
+    assert.equal(profile.unreadable_entries, 0);
+    assert.equal(hasCompleteAuditCoverage(report), true);
+    // The non-empty marker file is still read and counted.
+    assert.equal(Object.values(profile.categories).reduce((n, c) => n + c.key_marker_files, 0), 1);
+  } finally { await rm(root, { recursive: true, force: true }); }
+});
+
 test("unreadable and symlink-skipped entries cannot be mistaken for complete scans", async () => {
   const root = await mkdtemp(path.join(os.tmpdir(), "medscale-webview-audit-"));
   try {
