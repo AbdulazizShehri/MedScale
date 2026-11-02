@@ -37,6 +37,12 @@ MedScale is an Apache-2.0, free, local-first, open-source health intelligence de
 
 The [complete opportunity matrix](COMPLETE_OPPORTUNITY_MATRIX.md) includes **every tracked cash, compute, OSS, startup, academic, and student offer** even when the current self-funded graduate is not eligible. Opportunities are labelled APPLY_NOW, VERIFY_FIRST, FUTURE_CONDITIONAL, NOT_NOW or FOUNDER_WRITES. The student email is still active following graduation but does not prove current enrollment or current University affiliation. Retaining an offer in the matrix does **not** authorize an inaccurate application.
 
+## New November 2 US/EU/Big-Tech research
+
+The [new global US/EU/AI funding inventory](NEW_GLOBAL_OPPORTUNITIES_20261102.md) cross-checks **19 newly tracked programmes** with official provider URLs, close dates, amounts, cash versus compute versus physical hardware, and specific independent-maintainer eligibility concerns. The funding tracker now covers **55 routes**; these are opportunities and do not mean applications were filed or funding granted.
+
+**New action confirmed:** FUTO microgrant application **emailed** on 2026-11-02, asking for USD 5,000; receipt and award not confirmed. **Time-sensitive:** Mozilla Human-Scale AI initial proposal Nov 20, Mozilla Independent Fellowship LOI Dec 17. Neither is filed and both require authentic evidence of community/project use; do not claim verified independent users where none are evidenced. AMD Lemonade offers potential *physical AI laptop* after a real open-source integration is submitted while available, not an assured gift.
+
 ## Confirmed November 2 submissions and follow-ups
 
 - **Hacker Initiative 2026 Signal/Noise:** **SUBMITTED and Google Forms confirmation verified on November 2, 2026** ("Thank you! We have received your grant application."); **USD 25,000 requested, including USD 15,000 project-specific hardware**. No award, selection, payment, or equipment approval is implied. Private mailing/contact/payee information was entered into the funder's form and is not published in this repository.
