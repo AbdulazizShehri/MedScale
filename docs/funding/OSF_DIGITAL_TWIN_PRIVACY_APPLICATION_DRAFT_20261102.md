@@ -114,3 +114,14 @@ A simple screen recording or personal introduction **no longer than 90 seconds**
 Clicking `Connect LinkedIn` opened LinkedIn's **sign-in page**, not an authorized identity callback, so there is **no verified connected profile**. YouTube Studio in the existing Google account prompted creation of a new channel, so no YouTube account/channel was created and **no video was uploaded**. The final form requires a real linked ORCID/LinkedIn/Bluesky identity, public/unlisted YouTube/Vimeo authentic clip <=90 seconds, meaningful runnable artifact evidence and applicant consent to research-question publication, Call Terms and reciprocal peer review. The 86% reflects completed content fields, **not** submission readiness.
 
 The deadline remains **2026-12-15 23:59:59 CET**. A provider-issued submission reference is required before status `submitted` may be used.
+
+
+## 2026-11-02 follow-up — browser data independently recovered
+
+The original OSF 7-question Mac Vivaldi local draft was reopened and independently verified at **86%**, including retained proposal, question, falsifiable claim, CHF 20,000 / 9 months, budget, public repository, synthetic data/ethics and AI-use disclosures. This is only a **browser-local draft** and **NOT SUBMITTED**. No grant award, payment or provider receipt.
+
+Connected Gmail shows an existing **ORCID account** for the named applicant, but its 2026 welcome/reminder emails requested account email verification. Opening the genuine ORCID email verification URL redirected to ORCID's **sign-in page** and demanded the holder's password: no login, identity connection or email verification was completed. A separate LinkedIn attempt had likewise reached sign-in, not OAuth completion. Never guess credentials or claim a verified linked identity.
+
+The applicant also needs an authentic original short video/demo on public or unlisted YouTube/Vimeo (<=90 seconds); none was uploaded or provided. Account creation or publishing on a social/video platform has not been authorized through an interactive owner login. Do not invent the URL or assert the proposed privacy-verifier research already exists.
+
+**Remaining:** person-side provider sign-in and OAuth, real video URL, final review of existing runnable artifact's relevance and grant ethics/AI claims, personal consent to research-question publication + Call Terms + reciprocal review, and official submit/receipt by **2026-12-15 23:59:59 CET**.
