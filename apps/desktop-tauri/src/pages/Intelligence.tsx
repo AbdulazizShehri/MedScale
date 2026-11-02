@@ -1,4 +1,5 @@
 import { useEffect, useState, type FormEvent } from "react";
+import { formatDecimalMegabytes } from "../model-storage";
 import { useAction, useCommand } from "../lib/ipc";
 import { ProjectScope } from "../components/project";
 import { Authority, Empty, ErrorState, Glyph, Icon, KV, Ledger, Notice, PageHead, Section, Skeleton, Status, glyphFor, useOutcome } from "../components/ui";
@@ -37,10 +38,10 @@ export function Models() {
           <table className="tb"><thead><tr><th style={{ width: "30%" }}>Model</th><th style={{ width: "18%" }}>Task</th><th className="col-p3" style={{ width: "18%" }}>Runtime</th><th style={{ width: "17%" }}>State</th><th>Trust</th></tr></thead>
             <tbody>{v.models.map((x, i) => (
               <tr key={x.model + i} className={`r2 clickable ${m === x ? "sel" : ""}`} tabIndex={0} onClick={() => setSel(i)} onKeyDown={(e) => e.key === "Enter" && setSel(i)}>
-                <td><div style={{ display: "flex", gap: 10, alignItems: "center", minWidth: 0 }}><Icon name="models" /><div style={{ display: "flex", flexDirection: "column", minWidth: 0 }}><span className="mono trunc" style={{ fontSize: 12.5, fontWeight: 500 }}>{x.model}</span><span className="t-sm i3 trunc">{x.scope}</span></div></div></td>
-                <td className="t-sm i2"><span className="trunc">{x.task}</span></td><td className="col-p3 mono t-mono-sm i2"><span className="trunc">{x.runtime}</span></td>
+                <td><div style={{ display: "flex", gap: 10, alignItems: "center", minWidth: 0 }}><Icon name="models" /><div style={{ display: "flex", flexDirection: "column", minWidth: 0 }}><span className="mono trunc" style={{ fontSize: 12.5, fontWeight: 500 }} title={x.model}>{x.model}</span><span className="t-sm i3 trunc" title={x.scope}>{x.scope}</span></div></div></td>
+                <td className="t-sm i2"><span className="trunc" title={x.task}>{x.task}</span></td><td className="col-p3 mono t-mono-sm i2"><span className="trunc" title={x.runtime}>{x.runtime}</span></td>
                 <td><Status kind={/candidate|proposal/i.test(x.state) ? "proposal" : glyphFor(x.state)}>{x.state}</Status></td>
-                <td className="t-sm i2"><span className="trunc">{x.trust}</span></td>
+                <td className="t-sm i2"><span className="trunc" title={x.trust}>{x.trust}</span></td>
               </tr>
             ))}</tbody></table>
         ) : <Empty icon="models" title="No admitted packs">Admit the bundled synthetic ONNX fixture pack. Core verifies its manifest, digests and signature before admission.</Empty>)}
@@ -115,11 +116,11 @@ function CatalogTab() {
         <table className="tb"><thead><tr><th style={{ width: "34%" }}>Model</th><th style={{ width: "18%" }}>Task</th><th className="col-p3" style={{ width: "14%" }}>Formats</th><th style={{ width: "10%" }}>Disk</th><th style={{ width: "14%" }}>Expectation</th><th>Status</th></tr></thead>
           <tbody>{p.rows.map((r) => (
             <tr key={r.repo_id} className="r2">
-              <td><div style={{ display: "flex", flexDirection: "column", minWidth: 0 }}><span className="mono trunc" style={{ fontSize: 12.5 }}>{catalogDisplayName(r.repo_id)}</span><span className="t-sm i3 trunc">{[r.family, r.tier, r.license_claim].filter(Boolean).join(" · ")}</span><span className="t-sm i3 mono trunc" title="MedScale catalog entry ID (not an assertion of model authorship)">{r.medscale_id}</span></div></td>
-              <td className="t-sm i2"><span className="trunc">{r.task ?? "—"}</span></td>
+              <td><div style={{ display: "flex", flexDirection: "column", minWidth: 0 }}><span className="mono trunc" style={{ fontSize: 12.5 }} title={r.repo_id}>{catalogDisplayName(r.repo_id)}</span><span className="t-sm i3 trunc">{[r.family, r.tier, r.license_claim].filter(Boolean).join(" · ")}</span><span className="t-sm i3 mono trunc" title="MedScale catalog entry ID (not an assertion of model authorship)">{r.medscale_id}</span></div></td>
+              <td className="t-sm i2"><span className="trunc" title={r.task ?? undefined}>{r.task ?? "—"}</span></td>
               <td className="col-p3 mono t-mono-sm i2"><span className="trunc">{r.formats.join(", ")}</span></td>
-              <td className="mono t-mono-sm i2">{r.disk?.megabytes != null ? `${Math.round(r.disk.megabytes)} MB` : "—"}</td>
-              <td className="t-sm i2"><span className="trunc">{r.runtime_expectation.kind.replace(/_/g, " ")}</span></td>
+              <td className="mono t-mono-sm i2">{formatDecimalMegabytes(r.disk?.megabytes)}</td>
+              <td className="t-sm i2"><span className="trunc" title={r.runtime_expectation.kind.replace(/_/g, " ")}>{r.runtime_expectation.kind.replace(/_/g, " ")}</span></td>
               <td><Status kind={r.status === "DISCOVERABLE" ? "available" : "limited"} weight="weak">{r.status}</Status></td>
             </tr>
           ))}</tbody></table>

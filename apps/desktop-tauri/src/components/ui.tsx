@@ -66,7 +66,8 @@ export function Glyph({ kind, size }: { kind: GlyphKind; size?: number }) {
 }
 
 export function Status({ kind, children, weight = "default" }: { kind: GlyphKind; children: ReactNode; weight?: "strong" | "default" | "weak" }) {
-  return <span className={`st ${weight === "default" ? "" : weight}`}><Glyph kind={kind} /><span className="st-t">{children}</span></span>;
+  // Status text may be truncated by table columns; keep the full value reachable on hover.
+  return <span className={`st ${weight === "default" ? "" : weight}`} title={typeof children === "string" ? children : undefined}><Glyph kind={kind} /><span className="st-t">{children}</span></span>;
 }
 
 /** Maps literal Core strings onto the grammar. Unknown strings stay "unknown". */
@@ -215,7 +216,8 @@ export function ToastHost({ children }: { children: ReactNode }) {
   const [toasts, setToasts] = useState<Toast[]>([]);
   const push = useCallback((t: Omit<Toast, "id">) => {
     const id = Date.now() + Math.random();
-    setToasts((all) => [...all.slice(-3), { ...t, id }]);
+    // At most two toasts at once so confirmations never bury primary controls.
+    setToasts((all) => [...all.slice(-1), { ...t, id }]);
     window.setTimeout(() => setToasts((all) => all.filter((x) => x.id !== id)), 6000);
   }, []);
   return (
