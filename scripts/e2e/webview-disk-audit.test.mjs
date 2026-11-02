@@ -3,7 +3,8 @@ import { test } from "node:test";
 import { mkdtemp, mkdir, writeFile, rm } from "node:fs/promises";
 import path from "node:path";
 import os from "node:os";
-import { auditProfiles, hasObservedProfileBytes, hasCompleteAuditCoverage } from "./webview-disk-audit.mjs";
+import { auditProfiles, hasObservedProfileBytes, hasCompleteAuditCoverage,
+  isTrustedEmptyInstanceLock, sameRegularFileSnapshot } from "./webview-disk-audit.mjs";
 import { compareSyntheticProfilePhases } from "./webview-audit-compare.mjs";
 
 test("bounded scanner emits counts and marker booleans only, no paths or contents", async () => {
@@ -96,6 +97,44 @@ test("an empty file counts as fully examined without being read", async () => {
     assert.equal(hasCompleteAuditCoverage(report), true);
     // The non-empty marker file is still read and counted.
     assert.equal(Object.values(profile.categories).reduce((n, c) => n + c.key_marker_files, 0), 1);
+  } finally { await rm(root, { recursive: true, force: true }); }
+});
+
+test("only the exact root-level empty MedScale lock can skip a read", () => {
+  const empty = {
+    size: 0, dev: 1, ino: 7, mtimeMs: 10, ctimeMs: 9,
+    isFile: () => true, isSymbolicLink: () => false,
+  };
+  assert.equal(isTrustedEmptyInstanceLock([], "medscale-instance.lock", empty), true);
+  assert.equal(isTrustedEmptyInstanceLock([], "another.lock", empty), false);
+  assert.equal(isTrustedEmptyInstanceLock(["EBWebView"], "medscale-instance.lock", empty), false);
+  assert.equal(isTrustedEmptyInstanceLock([], "medscale-instance.lock", { ...empty, size: 1 }), false);
+  assert.equal(isTrustedEmptyInstanceLock([], "medscale-instance.lock",
+    { ...empty, isSymbolicLink: () => true }), false);
+});
+
+test("an empty lock changing during inspection disqualifies the snapshot", () => {
+  const before = {
+    size: 0, dev: 1, ino: 7, mtimeMs: 10, ctimeMs: 9,
+    isFile: () => true, isSymbolicLink: () => false,
+  };
+  assert.equal(sameRegularFileSnapshot(before, { ...before }), true);
+  for (const changed of [
+    { size: 12 }, { dev: 2 }, { ino: 8 }, { mtimeMs: 11 }, { ctimeMs: 10 },
+    { isFile: () => false }, { isSymbolicLink: () => true },
+  ]) {
+    assert.equal(sameRegularFileSnapshot(before, { ...before, ...changed }), false);
+  }
+});
+
+test("a nonempty instance lock is scanned for markers, not exempted", async () => {
+  const root = await mkdtemp(path.join(os.tmpdir(), "medscale-webview-audit-"));
+  try {
+    await writeFile(path.join(root, "medscale-instance.lock"), "medscale.project");
+    const report = await auditProfiles([{ label: "app", root }]);
+    assert.equal(hasCompleteAuditCoverage(report), true);
+    assert.equal(report.profiles[0].categories.other.key_marker_files, 1);
+    assert.equal(report.profiles[0].bytes_examined, Buffer.byteLength("medscale.project"));
   } finally { await rm(root, { recursive: true, force: true }); }
 });
 
