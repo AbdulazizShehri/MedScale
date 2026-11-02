@@ -66,3 +66,16 @@ If selected, request support for an external safety and reproducibility review, 
 - How to apply: https://solve.mit.edu/how-to-apply
 - Applicant stage definitions and individual application support: both links above.
 - Programme outcome status: **no submission, acceptance or award is known** as of this update.
+
+## Actual browser checkpoint — 2026-11-02, still NOT SUBMITTED
+
+- Connected Mac Vivaldi was used to authenticate to MIT Solve via the existing Google identity and verify the applicant email using the genuine MIT Solve verification message.
+- An **individual/solo solution draft** was created in the official challenge portal. Private application number: **125017**, and portal edit URL: **https://solve.mit.edu/solutions/125017/edit** (do not publish access tokens or personal contact fields).
+- **NOT SUBMITTED.** No `SUBMIT SOLUTION` receipt or confirmation was reached.
+- The Solution Profile's organization/project/tagline/country and long-form answers were entered in the browser; the mandatory **headquarters city/town/region** remained unfilled because only Saudi residence, not the specific headquarters city, was verified.
+- The eligibility, impact, team and sustainability narratives were authored in an agent browser session, but subsequent official **Submit** validation listed their required fields as unanswered. DOM-only changes did not reliably persist to the portal's server. These text entries must **not** be described as submitted or saved on MIT Solve. The original candidate narrative in this file is retained for accurate manual entry/reverification.
+- Other mandatory blockers: genuine team lead telephone number including country code, two personal self-identification answers (gender and transgender status; `Prefer Not to Answer` is an allowed choice), MITx course completion status, and confirmation of prior MIT Solve/network involvement. Do not guess.
+- The MIT Solve instructions require agreeing to **Terms of Service, Media Release and License, Privacy Policy**, accuracy/GenAI verification, and GenAI data processing consent. These are binding applicant attestations and have not been accepted here; named applicant should read and accept them.
+- The signed-in account offers editing before the official deadline **2026-11-06 12:00 EST / 20:00 Riyadh**. Manual review and final submit are mandatory.
+
+**Immediate user-side checklist:** sign in to the saved solution, provide true headquarters city/region and mobile phone privately to the portal (never store phone in GitHub), confirm self-ID/course/past-program responses, paste verified narrative into each required field, personally accept programme agreements, and click `SUBMIT SOLUTION`. Record the official receipt or email before calling it submitted. The user has not claimed any clinical users or awards.
