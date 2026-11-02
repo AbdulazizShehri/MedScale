@@ -24,7 +24,17 @@ Project source: https://github.com/AbdulazizShehri/MedScale
 
 > MedScale is an independent, self-funded Apache-2.0 health-software project. I currently cannot afford a reliable dedicated development machine. A refurbished or new Linux-capable workstation/laptop with approximately 32 GiB RAM, 1 TiB SSD and a modern CPU would let me continue Rust/Tauri desktop development, independent CI/QA, and synthetic-only, nonclinical evaluation. One-time sponsorship goes toward hardware purchase and eligible delivery/customs costs. Any amount helps. I will publicly account for progress without exposing donor or personal banking information. This is not a medical service or clinical-use fundraiser.
 
-**Example one-time tiers (USD):** $10, $25, $50, $100. Enable GitHub's custom amount if available. These are contribution options, not a claim of a specific final device cost. The founder should get a real locally purchasable/device-shippable quote before setting a public fundraising target; a working draft target of **$1,500** is only a planning assumption, not a vendor quote or expected payout. Do not assert successful purchase or donor commitments.
+**Example one-time tiers (USD):** $10, $25, $50, $100, with custom amounts if available. The separate **hardware fundraising aspiration is USD $5,000 total** (non-recurring, not a native GitHub Sponsors goal type). This is an **illustrative budget**, not a price quotation, automatic monthly goal or secured funding. Before making the campaign public, obtain a verifiable hardware quotation with shipping and import fees to Saudi Arabia. The budget breakdown below may be revised accordingly. Do not assert successful purchase or donor commitments.
+
+| Proposed one-time hardware campaign budget | USD |
+|---|---:|
+| 64 GiB RAM / 2 TiB SSD workstation, strong CPU and NVIDIA GPU suitable for bounded local AI tests | 3,500 |
+| International shipping, taxes and import costs (estimate only) | 700 |
+| Backup storage, accessories and test equipment | 500 |
+| Price contingency | 300 |
+| **Illustrative total — not quoted, funded or spent** | **5,000** |
+
+**GitHub Sponsors goal semantics:** GitHub's built-in 'Your goals' section supports **monthly sponsorship income** or **number of monthly sponsors**, *not a cumulative one-time hardware target*. Use the $5,000 figure in the profile/campaign explanation, and separately set a sensible monthly support goal (for example $500/month) only once the sponsor account is approved and the maintainer chooses to make monthly receipts visible. Official documentation: https://docs.github.com/en/sponsors/receiving-sponsorships-through-github-sponsors/managing-your-sponsorship-goal .
 
 ## Suggested short GitHub Sponsors bio
 
