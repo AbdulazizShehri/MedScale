@@ -15,7 +15,7 @@ Requirements: Node.js 20+ only. No `npm install`, API keys, cloud services, heal
 From the repository root:
 
 ```powershell
-node --test experiments/future-health-care-loop/test/care-loop.test.mjs
+node --test experiments/future-health-care-loop/test/*.test.mjs
 node experiments/future-health-care-loop/server.mjs
 ```
 
@@ -53,3 +53,11 @@ The Node test suite also covers duplicate IDs, multiple synthetic patients, ambi
 5. Submit the final working source, test evidence and limitations only after official Hack2skill registration and challenge portal confirmation.
 
 **License:** Apache-2.0, consistent with the parent MedScale repository.
+
+## Verification checkpoint — 2026-11-03
+
+- **30/30 Node tests passed on the user's Windows PC** including 300 deterministic synthetic evidence mutations and three UI logic tests using a fake DOM. The fake DOM tests are NOT end-to-end browser tests.
+- The selected FHIR R4-style fixture now contains `Task.intent`, `Encounter.class`, and paired `Appointment.start` / `Appointment.end` to address three mandatory format gaps identified from the official R4 resource specifications. This still does NOT certify full R4 conformance.
+- Local loopback HTTP server smoke previously passed. Real-browser visual/click E2E remains **UNVERIFIED**.
+- The dedicated GitHub Actions workflow currently runs the original care-loop test file only; newer adversarial and UI tests have been exercised on Windows but **are not yet included in that workflow**. GitHub's separate general Rust CI has an unrelated `async-executor 1.14.0` yanked-crate failure; do not relax the security gate.
+- The official Hack2skill registration remains unsubmitted pending successful form persistence and personal acknowledgments. No prize awarded or competition prototype officially submitted.
