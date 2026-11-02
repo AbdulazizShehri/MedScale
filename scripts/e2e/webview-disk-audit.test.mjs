@@ -3,7 +3,7 @@ import { test } from "node:test";
 import { mkdtemp, mkdir, writeFile, rm } from "node:fs/promises";
 import path from "node:path";
 import os from "node:os";
-import { auditProfiles, auditProfilesWithTransientRetry, hasObservedProfileBytes, hasCompleteAuditCoverage } from "./webview-disk-audit.mjs";
+import { auditProfiles, auditProfilesWithTransientRetry, hasObservedProfileBytes, hasCompleteAuditCoverage, sameRegularFileSnapshot } from "./webview-disk-audit.mjs";
 import { compareSyntheticProfilePhases } from "./webview-audit-compare.mjs";
 
 test("bounded scanner emits counts and marker booleans only, no paths or contents", async () => {
@@ -296,6 +296,38 @@ test("app-data ownership scope comparison separates WebView2 from intended synth
   browserMarker.profiles[0].app_data_scopes.synthetic_workspace.synthetic_subject_marker_files = 2;
   assert.equal(compareSyntheticProfilePhases(before, browserMarker).webview2_runtime_marker_assessment,
     "SYNTHETIC_MARKERS_IN_SCANNED_WEBVIEW2_RUNTIME");
+});
+
+
+test("scanner detects UTF-8 and UTF-16LE markers crossing 64 KiB read boundaries", async () => {
+  const root = await mkdtemp(path.join(os.tmpdir(), "medscale-audit-boundary-"));
+  try {
+    const chunk = 64 * 1024;
+    const bytes = Buffer.alloc(chunk * 2 + 128, 0x78);
+    Buffer.from("medscale.project", "utf8").copy(bytes, chunk - 4);
+    Buffer.from("synthetic-subject-", "utf16le").copy(bytes, chunk * 2 - 9);
+    await writeFile(path.join(root, "boundary-fixture"), bytes);
+    const report = await auditProfiles([{ label: "boundary", root }]);
+    const info = report.profiles[0];
+    assert.equal(info.bytes_examined, bytes.length);
+    assert.equal(info.categories.other.key_marker_files, 1);
+    assert.equal(info.categories.other.synthetic_subject_marker_files, 1);
+    assert.equal(hasCompleteAuditCoverage(report), true);
+  } finally { await rm(root, { recursive: true, force: true }); }
+});
+
+test("same-sized changes and replacements invalidate a file scan snapshot", () => {
+  const before = {
+    dev: 3, ino: 17, size: 1024, mtimeMs: 100, ctimeMs: 90,
+    isFile: () => true,
+  };
+  assert.equal(sameRegularFileSnapshot(before, { ...before }), true);
+  for (const changed of [
+    { size: 1025 }, { mtimeMs: 101 }, { ctimeMs: 91 },
+    { ino: 18 }, { dev: 4 }, { isFile: () => false },
+  ]) {
+    assert.equal(sameRegularFileSnapshot(before, { ...before, ...changed }), false);
+  }
 });
 
 function syntheticAuditReport(overrides = {}) {
