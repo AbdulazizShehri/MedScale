@@ -589,10 +589,76 @@ fn preflight_synthetic_seed(vault_root: &Path) -> CmdResult<SeedManifest> {
     }
 }
 
+/// Replace `path` with `bytes` without exposing a truncated destination.
+/// Each attempt uses an exclusive, per-writer temporary file. A fixed
+/// `<file>.tmp` name can be truncated by a second writer, invalidating the
+/// first writer's rename; create_new prevents that collision. This does not
+/// replace the workspace's separate single-writer/locking requirement.
+fn write_atomic(path: &Path, bytes: &[u8]) -> std::io::Result<()> {
+    use std::io::{Error, ErrorKind, Write};
+    use std::sync::atomic::{AtomicU64, Ordering};
+
+    static NEXT_TEMP_ID: AtomicU64 = AtomicU64::new(0);
+    let name = path
+        .file_name()
+        .ok_or_else(|| Error::new(ErrorKind::InvalidInput, "atomic write needs a filename"))?;
+    let mut opened = None;
+    for _ in 0..16 {
+        let mut temp_name = name.to_os_string();
+        temp_name.push(format!(
+            ".{}.{}.tmp",
+            std::process::id(),
+            NEXT_TEMP_ID.fetch_add(1, Ordering::Relaxed)
+        ));
+        let candidate = path.with_file_name(temp_name);
+        match std::fs::OpenOptions::new()
+            .write(true)
+            .create_new(true)
+            .open(&candidate)
+        {
+            Ok(file) => {
+                opened = Some((candidate, file));
+                break;
+            }
+            Err(error) if error.kind() == ErrorKind::AlreadyExists => continue,
+            Err(error) => return Err(error),
+        }
+    }
+    let (tmp, mut file) = opened.ok_or_else(|| {
+        Error::new(ErrorKind::AlreadyExists, "no unused atomic temporary filename")
+    })?;
+    let write_result = file.write_all(bytes).and_then(|_| file.sync_all());
+    drop(file);
+    if let Err(error) = write_result {
+        let _ = std::fs::remove_file(&tmp);
+        return Err(error);
+    }
+    if let Err(error) = std::fs::rename(&tmp, path) {
+        let _ = std::fs::remove_file(&tmp);
+        return Err(error);
+    }
+    sync_parent_dir(path)
+}
+
+/// Persist the rename itself on Unix. Windows has no directory handle sync
+/// in std; NTFS journals the rename metadata.
+#[cfg(unix)]
+fn sync_parent_dir(path: &Path) -> std::io::Result<()> {
+    match path.parent() {
+        Some(dir) => std::fs::File::open(dir)?.sync_all(),
+        None => Ok(()),
+    }
+}
+
+#[cfg(not(unix))]
+fn sync_parent_dir(_path: &Path) -> std::io::Result<()> {
+    Ok(())
+}
+
 fn save_manifest(vault_root: &Path, manifest: &SeedManifest) -> CmdResult<()> {
     let bytes = serde_json::to_vec_pretty(manifest)
         .map_err(|_| CmdError::new("internal", "Internal: seed manifest"))?;
-    std::fs::write(manifest_path(vault_root), bytes)
+    write_atomic(&manifest_path(vault_root), &bytes)
         .map_err(|_| CmdError::unavailable("Unavailable: seed manifest not writable"))
 }
 
@@ -620,7 +686,7 @@ pub fn save_pack_dirs(
 ) -> CmdResult<()> {
     let bytes = serde_json::to_vec_pretty(dirs)
         .map_err(|_| CmdError::new("internal", "Internal: pack folders"))?;
-    std::fs::write(pack_dirs_path(vault_root), bytes)
+    write_atomic(&pack_dirs_path(vault_root), &bytes)
         .map_err(|_| CmdError::unavailable("Unavailable: pack folders not writable"))
 }
 
@@ -644,7 +710,7 @@ pub fn load_asr_pack(vault_root: &Path) -> Option<String> {
 pub fn save_asr_pack(vault_root: &Path, dir: &str) -> CmdResult<()> {
     let bytes = serde_json::to_vec_pretty(&serde_json::json!({ "dir": dir }))
         .map_err(|_| CmdError::new("internal", "Internal: audio pack record"))?;
-    std::fs::write(asr_pack_path(vault_root), bytes)
+    write_atomic(&asr_pack_path(vault_root), &bytes)
         .map_err(|_| CmdError::unavailable("Unavailable: audio pack record not writable"))
 }
 
@@ -921,6 +987,95 @@ pub fn bounded_text(raw: &str, max: usize) -> CmdResult<String> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn atomic_write_does_not_clobber_an_existing_legacy_temp_file() {
+        let dir = std::env::temp_dir().join(format!(
+            "medscale-atomic-legacy-temp-{}-{}",
+            std::process::id(),
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .expect("clock")
+                .as_nanos()
+        ));
+        std::fs::create_dir_all(&dir).expect("synthetic test dir");
+        let destination = dir.join("fictional-sidecar.json");
+        let legacy_temp = dir.join("fictional-sidecar.json.tmp");
+        std::fs::write(&legacy_temp, b"untouched legacy sentinel").expect("legacy temp");
+        write_atomic(&destination, b"{\"synthetic\":true}").expect("atomic replace");
+        assert_eq!(
+            std::fs::read(&destination).expect("read destination"),
+            b"{\"synthetic\":true}"
+        );
+        assert_eq!(
+            std::fs::read(&legacy_temp).expect("read legacy temp"),
+            b"untouched legacy sentinel",
+            "a pre-existing temporary file must not be truncated or renamed"
+        );
+        std::fs::remove_dir_all(&dir).expect("synthetic-only cleanup");
+    }
+
+    #[test]
+    fn failed_atomic_replace_preserves_destination_and_removes_its_temp() {
+        let dir = std::env::temp_dir().join(format!(
+            "medscale-atomic-failed-rename-{}-{}",
+            std::process::id(),
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .expect("clock")
+                .as_nanos()
+        ));
+        let destination = dir.join("fictional-sidecar.json");
+        std::fs::create_dir_all(&destination).expect("directory target");
+        let sentinel = destination.join("synthetic-sentinel.txt");
+        std::fs::write(&sentinel, b"unchanged").expect("sentinel");
+
+        let error = write_atomic(&destination, b"{\"synthetic\":true}")
+            .expect_err("a regular file must not replace an existing directory");
+        assert_ne!(error.kind(), std::io::ErrorKind::NotFound);
+        assert_eq!(std::fs::read(&sentinel).expect("read sentinel"), b"unchanged");
+        let leaked = std::fs::read_dir(&dir)
+            .expect("list temporary parent")
+            .filter_map(Result::ok)
+            .filter(|entry| entry.file_name().to_string_lossy().ends_with(".tmp"))
+            .count();
+        assert_eq!(leaked, 0, "failed rename must remove its own temp");
+        std::fs::remove_dir_all(&dir).expect("synthetic-only cleanup");
+    }
+
+    #[test]
+    fn sidecar_records_are_replaced_atomically_without_leftover_temp() {
+        let dir = std::env::temp_dir().join(format!(
+            "medscale-atomic-sidecar-{}-{}",
+            std::process::id(),
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .expect("clock")
+                .as_nanos()
+        ));
+        let vault_root = dir.join("synthetic-workspace");
+        std::fs::create_dir_all(&vault_root).expect("synthetic test dir");
+        let mut manifest = full_seed_manifest_for_test();
+        save_manifest(&vault_root, &manifest).expect("first manifest");
+        manifest.sources.truncate(1);
+        save_manifest(&vault_root, &manifest).expect("replacing manifest");
+        let reread: SeedManifest =
+            serde_json::from_slice(&std::fs::read(manifest_path(&vault_root)).expect("read"))
+                .expect("manifest stays valid JSON after replacement");
+        assert_eq!(reread.sources.len(), 1);
+        save_asr_pack(&vault_root, "synthetic-pack-dir").expect("asr record");
+        assert_eq!(
+            load_asr_pack(&vault_root).as_deref(),
+            Some("synthetic-pack-dir")
+        );
+        let leftovers = std::fs::read_dir(&dir)
+            .expect("list")
+            .filter_map(Result::ok)
+            .filter(|e| e.file_name().to_string_lossy().ends_with(".tmp"))
+            .count();
+        assert_eq!(leftovers, 0, "no temporary sidecar files remain");
+        std::fs::remove_dir_all(&dir).expect("synthetic-only cleanup");
+    }
 
     fn full_seed_manifest_for_test() -> SeedManifest {
         let mut manifest = SeedManifest::default();
