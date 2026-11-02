@@ -1833,6 +1833,9 @@ mod tests {
         std::fs::remove_dir_all(&data_dir).expect("cleanup");
     }
 
+    /// A named vault mutation for the seed-only rejection tables.
+    type Craft = (&'static str, fn(&Path));
+
     /// Edit the first matching authority row in place (no duplicate row), so
     /// each exact-shape check is proven on its own.
     fn edit_object_row(
@@ -1866,7 +1869,7 @@ mod tests {
 
     #[test]
     fn seed_only_each_exact_shape_check_is_load_bearing() {
-        let cases: [(&str, fn(&Path)); 9] = [
+        let cases: [Craft; 9] = [
             ("proposal-extra-field", |v| {
                 edit_object_row(v, "proposal", "%", |b| {
                     b["unexpected"] = serde_json::json!(1)
@@ -1929,7 +1932,7 @@ mod tests {
 
     #[test]
     fn seed_only_rejects_crafted_rows_and_files() {
-        let cases: [(&str, fn(&Path)); 7] = [
+        let cases: [Craft; 7] = [
             ("unknown-class", |v| {
                 let db = rusqlite::Connection::open(v.join("meta.sqlite3")).expect("db");
                 db.execute(
