@@ -893,18 +893,52 @@ pub(crate) fn seed_only_vault(vault_root: &Path) -> SeedOnlyCheck {
         }
     }
 
-    // 3. sources rows reference fixture digests only, in the CLI scope.
+    // 3. Every persisted source metadata column must describe the bundled
+    // fixture. Checking the digest alone could misclassify a modified Core
+    // source row as disposable. Core's ingest path writes the FHIR resource
+    // type; its durable sync may replace it with "authority_source".
     let mut table_sources: BTreeMap<String, String> = BTreeMap::new();
     if has_table("sources") {
         let Some(rows) = query_strings(
-            "SELECT source_id, digest_hex, realm_id, authority_scope_id FROM sources",
+            "SELECT source_id, digest_hex, realm_id, authority_scope_id, \
+             CAST(byte_length AS TEXT), media_type, CAST(visible AS TEXT), resource_type FROM sources",
         ) else {
             return SeedOnlyCheck::Unproven;
         };
         let mut seen = BTreeSet::new();
         for r in rows {
-            let (Some(Some(id)), Some(Some(hex)), Some(Some(realm)), Some(Some(scope))) =
-                (r.first(), r.get(1), r.get(2), r.get(3))
+            let (
+                Some(Some(id)),
+                Some(Some(hex)),
+                Some(Some(realm)),
+                Some(Some(scope)),
+                Some(Some(byte_length)),
+                Some(Some(media_type)),
+                Some(Some(visible)),
+                Some(Some(resource_type)),
+            ) = (
+                r.first(),
+                r.get(1),
+                r.get(2),
+                r.get(3),
+                r.get(4),
+                r.get(5),
+                r.get(6),
+                r.get(7),
+            ) else {
+                return SeedOnlyCheck::NotFixtureOnly;
+            };
+            let Some((fixture_length, fixture_type)) = seed_plan()
+                .into_iter()
+                .flat_map(|(_, fixtures)| fixtures)
+                .find(|f| DigestSha256::of(f.bytes).to_hex() == *hex)
+                .and_then(|f| {
+                    let resource: Value = serde_json::from_slice(f.bytes).ok()?;
+                    Some((
+                        f.bytes.len(),
+                        resource.get("resourceType")?.as_str()?.to_owned(),
+                    ))
+                })
             else {
                 return SeedOnlyCheck::NotFixtureOnly;
             };
@@ -912,6 +946,10 @@ pub(crate) fn seed_only_vault(vault_root: &Path) -> SeedOnlyCheck {
                 || !seen.insert(hex.clone())
                 || realm != SEED_REALM
                 || scope != SEED_SCOPE
+                || byte_length.parse::<usize>().ok() != Some(fixture_length)
+                || media_type != "application/fhir+json"
+                || visible != "1"
+                || (resource_type != "authority_source" && resource_type != &fixture_type)
             {
                 return SeedOnlyCheck::NotFixtureOnly;
             }
@@ -2089,6 +2127,28 @@ mod tests {
                 "{tag}"
             );
             std::fs::remove_dir_all(&data_dir).expect("cleanup");
+        }
+    }
+
+    #[test]
+    fn seed_only_rejects_source_metadata_column_mutations() {
+        // Each edit preserves the source ID and fixture digest. A digest-only
+        // proof would accept these non-seed metadata values.
+        let cases = [
+            ("source-hidden", "UPDATE sources SET visible = 0 WHERE source_id = (SELECT source_id FROM sources LIMIT 1)"),
+            ("source-media-type", "UPDATE sources SET media_type = 'text/plain' WHERE source_id = (SELECT source_id FROM sources LIMIT 1)"),
+            ("source-length", "UPDATE sources SET byte_length = -1 WHERE source_id = (SELECT source_id FROM sources LIMIT 1)"),
+            ("source-resource-type", "UPDATE sources SET resource_type = 'CustomResource' WHERE source_id = (SELECT source_id FROM sources LIMIT 1)"),
+        ];
+        for (tag, sql) in cases {
+            let (data_dir, vault_root) = seeded_scratch(tag);
+            edit_sql(&vault_root, sql);
+            assert_eq!(
+                seed_only_vault(&vault_root),
+                SeedOnlyCheck::NotFixtureOnly,
+                "{tag}"
+            );
+            std::fs::remove_dir_all(&data_dir).expect("synthetic-only cleanup");
         }
     }
 
