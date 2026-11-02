@@ -16,6 +16,20 @@ We publish engineering evidence and limitations rather than overstating real-wor
 
 Project source: https://github.com/AbdulazizShehri/MedScale
 
+## Hardware sponsorship goal (one-time donations)
+
+**Suggested campaign:** "Help MedScale obtain an open-source development computer."
+
+**Copy for the campaign:**
+
+> MedScale is an independent, self-funded Apache-2.0 health-software project. I currently cannot afford a reliable dedicated development machine. A refurbished or new Linux-capable workstation/laptop with approximately 32 GiB RAM, 1 TiB SSD and a modern CPU would let me continue Rust/Tauri desktop development, independent CI/QA, and synthetic-only, nonclinical evaluation. One-time sponsorship goes toward hardware purchase and eligible delivery/customs costs. Any amount helps. I will publicly account for progress without exposing donor or personal banking information. This is not a medical service or clinical-use fundraiser.
+
+**Example one-time tiers (USD):** $10, $25, $50, $100. Enable GitHub's custom amount if available. These are contribution options, not a claim of a specific final device cost. The founder should get a real locally purchasable/device-shippable quote before setting a public fundraising target; a working draft target of **$1,500** is only a planning assumption, not a vendor quote or expected payout. Do not assert successful purchase or donor commitments.
+
+## Suggested short GitHub Sponsors bio
+
+Maintaining MedScale — free, local-first, Apache-2.0 health software. Support open development, privacy-focused testing, and a needed development computer.
+
 ## Optional monthly tiers (illustrative, no promises)
 
 | Tier | USD/month | Description |
@@ -54,3 +68,7 @@ An annual support goal of USD 6,000 would require USD 500/month in combined recu
 ## Legal and safety boundary
 
 Do not create a nonexistent MedScale company or nonprofit entity, fake a research partner or promise tax-deductible donation receipts. Open-source sponsorship, grants, startup equity and research API credits are four different types of support and must be accounted for separately.
+
+## Public status caution
+
+Do **not** advertise a matching grant: GitHub's current documentation states the original Sponsors Matching Fund deadline was January 1, 2020. The personal sponsor account must be approved before the project adds a `.github/FUNDING.yml` Sponsor link. Never imply an active campaign before GitHub's review.
