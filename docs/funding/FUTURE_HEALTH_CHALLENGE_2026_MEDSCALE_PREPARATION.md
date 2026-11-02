@@ -42,3 +42,7 @@ Potential FHIR R4 objects: Person/Patient (synthetic), Observation (simulated sc
 ## Required distinction
 
 A submitted **registration** would not be the final **prototype submission**, selection, a prize or a health-system pilot. The technical prototype, evidence and final portal receipt must all be independently verified. No patient or clinical claims without explicit independent evidence.
+
+### Browser session persistence check (2026-11-03)
+
+The official authenticated registration tab was revisited after switching browser tabs: the name, birth-date-eligibility field, LinkedIn, individual designation and chosen challenge statement were still populated. However the country, state and city React-Select widgets **appeared empty again**, while the telephone country selector had successfully switched to Saudi Arabia but the phone input contained only the +966 prefix. The required Terms and communication-consent checkboxes remained **unchecked**. Consequently **no registration is complete or submitted** and no reliable persisted geographic or phone values can be claimed. A real user may need to reselect Saudi Arabia, Asir and Abha and enter their own WhatsApp number directly inside the authenticated official form. Do not paste identity credentials or numbers into a public repo. The tab was left open on the Mac; no platform receipt was issued. The final submission can only be reported after the official Hack2skill confirmation page or account dashboard verifies it.
