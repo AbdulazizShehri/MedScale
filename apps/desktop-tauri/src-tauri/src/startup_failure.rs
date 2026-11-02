@@ -67,6 +67,44 @@ pub fn report_and_exit(detail: &str) -> ! {
     std::process::exit(STARTUP_FAILURE_EXIT_CODE);
 }
 
+/// Exit code when another MedScale process already uses this data
+/// directory (Spec 108 step 3). Distinct from a failed startup (2).
+pub const ALREADY_RUNNING_EXIT_CODE: i32 = 3;
+
+pub const ALREADY_RUNNING_TITLE: &str = "MedScale is already running";
+
+pub const ALREADY_RUNNING_TEXT: &str = "MedScale is already open. Switch to the open MedScale window.\n\n\
+     If no MedScale window is visible, it may still be closing. Wait a moment and try again, \
+     or end MedScale in Task Manager.";
+
+pub const INSTANCE_UNCONFIRMED_TEXT: &str = "MedScale could not confirm that it is the only running copy, \
+     so it did not open. This protects your workspace from being changed by two copies at once.\n\n\
+     Check that MedScale's data folder is on a local drive you can write to, then try again.";
+
+/// Test-only: the native E2E launches a second copy deliberately and must
+/// not leave a blocking dialog on the runner. Release builds always show it.
+fn dialog_suppressed() -> bool {
+    cfg!(feature = "e2e-webdriver")
+        && std::env::var_os("MEDSCALE_E2E_HEADLESS_SECOND_INSTANCE").is_some_and(|v| v == "1")
+}
+
+/// Another process holds the instance lock: tell the user and exit 3
+/// without opening a window or touching any workspace file.
+pub fn exit_already_running() -> ! {
+    eprintln!("{ALREADY_RUNNING_TITLE}");
+    if !dialog_suppressed() {
+        native::show_info(ALREADY_RUNNING_TITLE, ALREADY_RUNNING_TEXT);
+    }
+    std::process::exit(ALREADY_RUNNING_EXIT_CODE);
+}
+
+/// Exclusivity could not be confirmed: fail closed with exit 2.
+pub fn exit_instance_unconfirmed() -> ! {
+    eprintln!("{TITLE}: {INSTANCE_UNCONFIRMED_TEXT}");
+    native::show(TITLE, INSTANCE_UNCONFIRMED_TEXT);
+    std::process::exit(STARTUP_FAILURE_EXIT_CODE);
+}
+
 #[cfg(windows)]
 mod native {
     //! Workspace `unsafe_code` is `deny`; this module allows one confined call
@@ -75,6 +113,7 @@ mod native {
     #![allow(unsafe_code)]
 
     const MB_ICONERROR: u32 = 0x0000_0010;
+    const MB_ICONINFORMATION: u32 = 0x0000_0040;
     const MB_SETFOREGROUND: u32 = 0x0001_0000;
 
     #[link(name = "user32")]
@@ -95,16 +134,24 @@ mod native {
     }
 
     pub fn show(title: &str, text: &str) {
+        message_box(title, text, MB_ICONERROR);
+    }
+
+    pub fn show_info(title: &str, text: &str) {
+        message_box(title, text, MB_ICONINFORMATION);
+    }
+
+    fn message_box(title: &str, text: &str, icon: u32) {
         let (title, text) = (wide(title), wide(text));
         // SAFETY: both buffers are NUL-terminated UTF-16 that outlive the call;
         // a null owner window is permitted; the call is synchronous. Style = OK
-        // button (0) + error icon + foreground.
+        // button (0) + icon + foreground.
         unsafe {
             MessageBoxW(
                 core::ptr::null_mut(),
                 text.as_ptr(),
                 title.as_ptr(),
-                MB_ICONERROR | MB_SETFOREGROUND,
+                icon | MB_SETFOREGROUND,
             );
         }
     }
@@ -123,11 +170,24 @@ mod native {
 mod native {
     // macOS and Linux: the message is written to stderr; no new dependency.
     pub fn show(_title: &str, _text: &str) {}
+    pub fn show_info(_title: &str, _text: &str) {}
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn instance_messages_are_actionable_and_path_free() {
+        assert_ne!(ALREADY_RUNNING_EXIT_CODE, STARTUP_FAILURE_EXIT_CODE);
+        assert!(ALREADY_RUNNING_TEXT.contains("Switch to the open MedScale window"));
+        assert!(ALREADY_RUNNING_TEXT.contains("Task Manager"));
+        assert!(INSTANCE_UNCONFIRMED_TEXT.contains("did not open"));
+        for text in [ALREADY_RUNNING_TEXT, INSTANCE_UNCONFIRMED_TEXT] {
+            assert!(!text.contains(":\\") && !text.contains('/'), "no paths");
+            assert!(!text.contains("WebView2"), "not the WebView2 message");
+        }
+    }
 
     #[test]
     fn message_names_webview2_and_refuses_download() {

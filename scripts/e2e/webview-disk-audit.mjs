@@ -113,6 +113,18 @@ export async function auditProfiles(roots, limits = defaults) {
         let metadata;
         try { metadata = await lstat(file); } catch { info.unreadable_entries++; continue; }
         if (!metadata.isFile() || metadata.size > limits.maxFileBytes) { info.skipped_large_files++; continue; }
+        // A 0-byte file has no content that could carry a marker, so it is
+        // fully examined without opening it. This matters for MedScale's own
+        // always-empty instance lock (Spec 108 step 3), which Windows
+        // LockFileEx makes unreadable while the app runs.
+        if (metadata.size === 0) {
+          info.files_examined++;
+          const scope = appDataScope(parts, ent.name);
+          (info.app_data_scopes[scope] ??= {
+            files_examined: 0, key_marker_files: 0, synthetic_subject_marker_files: 0,
+          }).files_examined++;
+          continue;
+        }
         const found = [false, false];
         try {
           const n = await scanNeedles(file, limits.maxBytes - info.bytes_examined, found);

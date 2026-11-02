@@ -358,6 +358,33 @@ try {
     await click(`//button[${text("Try MedScale with sample data")}]`, 60000);
     await find(`//button[contains(@class,'nav') and ${text("Patients")}]`, 60000);
   });
+  // Spec 108 step 3: a second copy against the same data directory must exit
+  // with code 3 inside setup, before any window or workspace access, while
+  // the first copy keeps working. Same env as the first copy so a regressed
+  // guard would show up as a second page target, not as a WebView2 failure.
+  await journey("second-instance-refused", async () => {
+    const second = spawn(path.resolve(app), [], {
+      env: {
+        ...process.env,
+        WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS: `--remote-debugging-port=${DEBUG_PORT}`,
+        MEDSCALE_E2E_HEADLESS_SECOND_INSTANCE: "1",
+      },
+      stdio: "ignore",
+    });
+    const code = await Promise.race([
+      new Promise((r) => second.once("exit", (c) => r(c))),
+      sleep(30000).then(() => "timeout"),
+    ]);
+    if (code === "timeout") {
+      second.kill();
+      throw new Error("second MedScale copy did not exit within 30 s");
+    }
+    if (code !== 3) throw new Error(`second MedScale copy exited ${code}, expected 3 (already running)`);
+    const targets = await (await fetch(`http://127.0.0.1:${DEBUG_PORT}/json/list`)).json();
+    const pages = targets.filter((t) => t.type === "page");
+    if (pages.length !== 1) throw new Error(`expected one MedScale page target, found ${pages.length}`);
+    await find(`//button[contains(@class,'nav') and ${text("Patients")}]`, 30000);
+  }, { screenshot: false });
   await journey("patients", async () => {
     await nav("Patients");
     await see("Ada");

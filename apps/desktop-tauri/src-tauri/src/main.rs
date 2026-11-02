@@ -16,6 +16,7 @@ mod cmd_core;
 mod cmd_ops;
 mod cmd_research;
 mod host;
+mod instance_lock;
 mod navigation_policy;
 mod startup_failure;
 mod synthesis;
@@ -134,6 +135,19 @@ fn main() {
         .setup(|app| {
             let data_dir = app.path().app_local_data_dir()?;
             std::fs::create_dir_all(&data_dir)?;
+            // Spec 108 step 3: before any window, vault, manifest or staging
+            // access, become the only MedScale process for this data dir.
+            // Outcomes exit directly; they never reach the WebView2 message.
+            if let Err(error) = instance_lock::acquire_for_process(&data_dir) {
+                match error {
+                    instance_lock::InstanceLockError::AlreadyRunning => {
+                        startup_failure::exit_already_running()
+                    }
+                    instance_lock::InstanceLockError::Unavailable => {
+                        startup_failure::exit_instance_unconfirmed()
+                    }
+                }
+            }
             if let Ok(mut state) = app.state::<host::Host>().state.lock() {
                 state.data_dir = Some(data_dir);
             }
