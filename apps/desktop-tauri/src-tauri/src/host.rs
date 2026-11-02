@@ -940,11 +940,17 @@ pub(crate) fn seed_only_vault(vault_root: &Path) -> SeedOnlyCheck {
                 .provenance_note
                 .as_deref()
                 .is_some_and(|n| n.starts_with("fhir "))
-            || table_sources.get(id).is_some_and(|t| *t != hex)
         {
             return SeedOnlyCheck::NotFixtureOnly;
         }
         source_digest.insert(id.clone(), hex);
+    }
+    // Core persists each SourceRecord with the same ID in sources. A digest
+    // match alone does not prove that a source metadata row belongs to the
+    // seed: orphan rows or missing bindings may hide non-seed activity.
+    // Fail closed on either side of the mismatch.
+    if table_sources != source_digest {
+        return SeedOnlyCheck::NotFixtureOnly;
     }
     // Identity: only the one Patient identifier of patient-golden.json.
     let golden_hex = seed_plan()
@@ -1918,6 +1924,32 @@ mod tests {
         for (tag, craft) in cases {
             let (data_dir, vault_root) = seeded_scratch(tag);
             craft(&vault_root);
+            assert_eq!(
+                seed_only_vault(&vault_root),
+                SeedOnlyCheck::NotFixtureOnly,
+                "{tag}"
+            );
+            std::fs::remove_dir_all(&data_dir).expect("cleanup");
+        }
+    }
+
+    #[test]
+    fn seed_only_rejects_source_metadata_without_matching_authority_source() {
+        // Both edits preserve a fixture digest and the CLI realm/scope. The
+        // binding by source_id, not just digest, must still be attested.
+        let cases = [
+            (
+                "source-id-drift",
+                "UPDATE sources SET source_id = 'source-forged' WHERE source_id = (SELECT source_id FROM sources LIMIT 1)",
+            ),
+            (
+                "missing-source-binding",
+                "DELETE FROM sources WHERE source_id = (SELECT source_id FROM sources LIMIT 1)",
+            ),
+        ];
+        for (tag, sql) in cases {
+            let (data_dir, vault_root) = seeded_scratch(tag);
+            edit_sql(&vault_root, sql);
             assert_eq!(
                 seed_only_vault(&vault_root),
                 SeedOnlyCheck::NotFixtureOnly,
