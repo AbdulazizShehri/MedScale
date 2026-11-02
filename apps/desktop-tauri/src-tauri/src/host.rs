@@ -800,6 +800,13 @@ pub(crate) fn seed_only_vault(vault_root: &Path) -> SeedOnlyCheck {
     let Ok(db) = Connection::open_with_flags(&meta, OpenFlags::SQLITE_OPEN_READ_ONLY) else {
         return SeedOnlyCheck::Unproven;
     };
+    // All table/row checks must see one SQLite snapshot. BEGIN DEFERRED
+    // pins the read snapshot on the first query; a failed BEGIN is unproven.
+    // This does not replace the instance + Core writer locks or the
+    // filesystem/sibling-sidecar proof required before any recovery action.
+    if db.execute_batch("BEGIN DEFERRED TRANSACTION").is_err() {
+        return SeedOnlyCheck::Unproven;
+    }
     let query_strings = |sql: &str| -> Option<Vec<Vec<Option<String>>>> {
         let mut stmt = db.prepare(sql).ok()?;
         let width = stmt.column_count();
@@ -1770,6 +1777,43 @@ mod tests {
         std::fs::create_dir_all(&target).expect("target");
         std::os::unix::fs::symlink(&target, &vault_root).expect("symlink");
         assert_eq!(seed_only_vault(&vault_root), SeedOnlyCheck::NotFixtureOnly);
+        std::fs::remove_dir_all(&data_dir).expect("synthetic-only cleanup");
+    }
+
+    #[test]
+    fn seed_only_readonly_sqlite_snapshot_survives_concurrent_wal_write() {
+        let (data_dir, _) = seed_only_scratch("sqlite-snapshot");
+        std::fs::create_dir_all(&data_dir).expect("scratch");
+        let path = data_dir.join("snapshot.sqlite3");
+        let writer = rusqlite::Connection::open(&path).expect("writer");
+        writer
+            .execute_batch(
+                "PRAGMA journal_mode=WAL;
+                 CREATE TABLE probe (value INTEGER NOT NULL);
+                 INSERT INTO probe (value) VALUES (1);",
+            )
+            .expect("setup");
+        let reader = rusqlite::Connection::open_with_flags(
+            &path,
+            rusqlite::OpenFlags::SQLITE_OPEN_READ_ONLY,
+        )
+        .expect("read-only connection");
+        reader
+            .execute_batch("BEGIN DEFERRED TRANSACTION")
+            .expect("read transaction");
+        let count = |db: &rusqlite::Connection| -> i64 {
+            db.query_row("SELECT COUNT(*) FROM probe", [], |row| row.get(0))
+                .expect("count")
+        };
+        assert_eq!(count(&reader), 1, "first query pins the snapshot");
+        writer
+            .execute("INSERT INTO probe (value) VALUES (2)", [])
+            .expect("concurrent WAL writer");
+        assert_eq!(count(&reader), 1, "read transaction must not see a later row");
+        reader.execute_batch("ROLLBACK").expect("end snapshot");
+        assert_eq!(count(&reader), 2, "new read sees committed write");
+        drop(reader);
+        drop(writer);
         std::fs::remove_dir_all(&data_dir).expect("synthetic-only cleanup");
     }
 
