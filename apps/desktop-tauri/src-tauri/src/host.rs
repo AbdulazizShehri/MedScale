@@ -696,7 +696,7 @@ fn preflight_synthetic_seed(vault_root: &Path) -> CmdResult<SeedManifest> {
                 .with_reason(seed_reason::LEDGER_UNDECODABLE)),
                 LedgerCheck::Interrupted => Err(incomplete(seed_reason::LEDGER_INTERRUPTED)),
                 LedgerCheck::Busy => Err(CmdError::unavailable(
-                    "Unavailable: the synthetic workspace is busy; close other MedScale windows and try again",
+                    "Unavailable: the synthetic workspace is busy; wait a moment and try again",
                 )
                 .with_reason(seed_reason::BUSY)),
                 LedgerCheck::Unreadable => Err(CmdError::unavailable(
