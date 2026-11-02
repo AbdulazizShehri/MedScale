@@ -47,6 +47,11 @@ The [complete opportunity matrix](COMPLETE_OPPORTUNITY_MATRIX.md) includes **eve
 6. See [TRACKER.csv](TRACKER.csv) for statuses and exact outstanding submission dependencies.
 7. See [OUTREACH.md](OUTREACH.md) for drafts addressed only to verified official programme contacts.
 
+
+## Physical development-computer support
+
+See [HARDWARE_OUTREACH.md](HARDWARE_OUTREACH.md) for the five **sent** non-Saudi correspondence items: four international hardware-manufacturer sponsorship inquiries and one US nonprofit hardware-expense eligibility inquiry. Messages were sent via a connected personal Gmail account; **no application, donor reply, equipment award or receipt of hardware is implied**. Full email thread IDs and personal contact details are not published.
+
 ## Submission integrity
 
 No programme should be marked `submitted` without a receipt (confirmation email, application ID or screenshot). No award should be described as received without a provider confirmation. Use the project's official email *only when the maintainer verifies it and the sending account*. Do not commit personal phone/address, identity documents, payment/tax details, API keys, project credentials or nonpublic partner material.
