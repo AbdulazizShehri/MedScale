@@ -16,25 +16,41 @@ We publish engineering evidence and limitations rather than overstating real-wor
 
 Project source: https://github.com/AbdulazizShehri/MedScale
 
-## Hardware sponsorship goal (one-time donations)
+## Hardware sponsorship campaign — one-time contributions
 
-**Suggested campaign:** "Help MedScale obtain an open-source development computer."
+**Requested funding aspiration: USD $15,000 total. Minimum initial funding milestone: USD $10,000.** These are user-selected fundraising targets for open-source engineering equipment, not an official grant offer or a claim of existing contributions.
 
-**Copy for the campaign:**
+**Suggested campaign:** "Fund MedScale's development workstation and cross-platform test equipment."
 
-> MedScale is an independent, self-funded Apache-2.0 health-software project. I currently cannot afford a reliable dedicated development machine. A refurbished or new Linux-capable workstation/laptop with approximately 32 GiB RAM, 1 TiB SSD and a modern CPU would let me continue Rust/Tauri desktop development, independent CI/QA, and synthetic-only, nonclinical evaluation. One-time sponsorship goes toward hardware purchase and eligible delivery/customs costs. Any amount helps. I will publicly account for progress without exposing donor or personal banking information. This is not a medical service or clinical-use fundraiser.
+**Public campaign copy:**
 
-**Example one-time tiers (USD):** $10, $25, $50, $100, with custom amounts if available. The separate **hardware fundraising aspiration is USD $5,000 total** (non-recurring, not a native GitHub Sponsors goal type). This is an **illustrative budget**, not a price quotation, automatic monthly goal or secured funding. Before making the campaign public, obtain a verifiable hardware quotation with shipping and import fees to Saudi Arabia. The budget breakdown below may be revised accordingly. Do not assert successful purchase or donor commitments.
+> MedScale is a self-funded, Apache-2.0 open-source project focused on local-first, evidence-grounded health software. I am raising **$15,000**, with a **$10,000 minimum equipment milestone**, to obtain a capable dedicated AI development workstation and the supplementary hardware needed for reproducible Windows and macOS testing. This is a hardware-focused funding aspiration for continued open-source work, **not the quoted price of one laptop**. Donations of any size would help. Funds would be used toward actual equipment purchases and reasonable shipping, import, storage and test setup costs; I would publish updates on purchases and adjusted spending while protecting donors' privacy. MedScale is an engineering Beta, not a clinically validated medical device.
 
-| Proposed one-time hardware campaign budget | USD |
-|---|---:|
-| 64 GiB RAM / 2 TiB SSD workstation, strong CPU and NVIDIA GPU suitable for bounded local AI tests | 3,500 |
-| International shipping, taxes and import costs (estimate only) | 700 |
-| Backup storage, accessories and test equipment | 500 |
-| Price contingency | 300 |
-| **Illustrative total — not quoted, funded or spent** | **5,000** |
+**Illustrative contribution tiers (USD):** one-time $10, $25, $50, $100, $250 or $500, and custom amount if enabled. Do not imply donors must meet either target individually.
 
-**GitHub Sponsors goal semantics:** GitHub's built-in 'Your goals' section supports **monthly sponsorship income** or **number of monthly sponsors**, *not a cumulative one-time hardware target*. Use the $5,000 figure in the profile/campaign explanation, and separately set a sensible monthly support goal (for example $500/month) only once the sponsor account is approved and the maintainer chooses to make monthly receipts visible. Official documentation: https://docs.github.com/en/sponsors/receiving-sponsorships-through-github-sponsors/managing-your-sponsorship-goal .
+### Proposed hardware allocation (illustrative, **not vendor quotes**)
+
+| Equipment and costs | Minimum stage (USD) | Expanded plan (USD) |
+|---|---:|---:|
+| High-memory CPU/NVIDIA GPU development workstation with adequate SSD | 6,000 | 6,000 |
+| Apple Silicon macOS test machine | 2,000 | 2,000 |
+| Dedicated Windows test/accessibility and reproducibility machine | 0 | 1,500 |
+| Encrypted backup and benchmark storage | 500 | 1,200 |
+| Test peripherals, power protection and accessibility testing accessories | 300 | 800 |
+| Shipping, import taxes, setup and delivery estimates | 900 | 1,500 |
+| Price/availability contingency | 300 | 2,000 |
+| **Total** | **10,000** | **15,000** |
+
+These are **provisional budget categories**, not confirmed invoices, binding commitments, actual prices or money received. Obtain real quotes including Saudi import charges before publishing equipment specs, supplier names, or the final fundraising budget. If donated hardware lowers costs, revise the allocation transparently; do not purchase unnecessary devices to exhaust the target.
+
+**What the stages mean:**
+
+- **USD $10,000 initial milestone:** acquire a suitable primary workstation and essential macOS test capability with basic storage and delivery allowance.
+- **USD $15,000 full aspiration:** add independent Windows/reproducibility and accessibility hardware plus resilience for regional shipping, storage and price fluctuations.
+
+**GitHub Sponsors platform distinction:** GitHub's built-in goal widget tracks monthly sponsorship revenue or number of sponsors, **not cumulative one-time hardware contributions**. The $10k/$15k campaign targets belong in the profile narrative and any transparent, separately maintained cumulative receipt tracker once actual contributions are recorded. A separate **monthly** goal (for example $500/month) can fund ongoing open-source maintenance after account approval; it is not the hardware target. Official documentation: https://docs.github.com/en/sponsors/receiving-sponsorships-through-github-sponsors/managing-your-sponsorship-goal .
+
+**Status:** GitHub Sponsors personal payee/account onboarding and any public sponsor campaign are **not confirmed active**. Do not add `.github/FUNDING.yml` or claim that fundraising has begun until the user verifies approval and recipient status.
 
 ## Suggested short GitHub Sponsors bio
 
