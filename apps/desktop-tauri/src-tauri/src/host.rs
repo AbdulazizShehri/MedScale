@@ -891,16 +891,11 @@ pub(crate) fn seed_only_vault(vault_root: &Path) -> SeedOnlyCheck {
         let Some(Some(name)) = row.first() else {
             return SeedOnlyCheck::Unproven;
         };
-        if SEED_TABLES.contains(&name.as_str()) || name.starts_with("sqlite_") {
-            continue;
-        }
-        let quoted = name.replace('"', "\"\"");
-        let Ok(count) = db.query_row(&format!("SELECT COUNT(*) FROM \"{quoted}\""), [], |r| {
-            r.get::<_, i64>(0)
-        }) else {
-            return SeedOnlyCheck::Unproven;
-        };
-        if count != 0 {
+        // An unknown table persists user-authored SQL in sqlite_master even
+        // when it contains zero rows. Row counts cannot prove it disposable.
+        // Keep SQLite's reserved internal tables; their contents are handled
+        // separately by Core's schema and ledger checks.
+        if !SEED_TABLES.contains(&name.as_str()) && !name.starts_with("sqlite_") {
             return SeedOnlyCheck::NotFixtureOnly;
         }
     }
@@ -1932,9 +1927,13 @@ mod tests {
 
     #[test]
     fn seed_only_rejects_persistent_unaccounted_sqlite_schema() {
-        // Views and triggers can contain user-authored SQL text without
-        // inserting a row in any application table. Never delete such a vault.
+        // Empty tables, views and triggers can contain user-authored SQL
+        // without inserting a row. Never delete such a vault.
         let cases = [
+            (
+                "extra-empty-table",
+                "CREATE TABLE unrelated_user_note (note TEXT NOT NULL)",
+            ),
             (
                 "extra-view",
                 "CREATE VIEW user_note_view AS SELECT 'not a seed fixture' AS note",
