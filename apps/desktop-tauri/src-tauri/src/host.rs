@@ -880,6 +880,29 @@ pub(crate) fn seed_only_vault(vault_root: &Path) -> SeedOnlyCheck {
             .any(|r| r.first() == Some(&Some(t.to_owned())))
     };
 
+    // Core migration state is persisted metadata, not disposable fixture data.
+    // Only finished migrations known to this build are admissible. A started,
+    // foreign or future migration cannot prove the vault is fixture-only.
+    if has_table("migration_journal") {
+        let Some(rows) =
+            query_strings("SELECT CAST(version AS TEXT), state FROM migration_journal")
+        else {
+            return SeedOnlyCheck::Unproven;
+        };
+        for row in rows {
+            let (Some(Some(version)), Some(Some(state))) = (row.first(), row.get(1)) else {
+                return SeedOnlyCheck::NotFixtureOnly;
+            };
+            let known_version = version.parse::<u32>().ok().is_some_and(|v| {
+                (1..=medscale_storage::CURRENT_META_SCHEMA_VERSION).contains(&v)
+                    && v.to_string() == *version
+            });
+            if state != "finished" || !known_version {
+                return SeedOnlyCheck::NotFixtureOnly;
+            }
+        }
+    }
+
     // 2. store_state holds only Core's canonical decimal id counter.
     // A matching key with arbitrary text is not evidence of a fixture-only
     // vault: the value is persisted user-controlled database content.
@@ -2253,6 +2276,40 @@ mod tests {
         std::fs::remove_file(&path).expect("staging cleanup");
         assert_eq!(seed_only_vault(&vault_root), SeedOnlyCheck::FixtureOnly);
         std::fs::remove_dir_all(&data_dir).expect("synthetic-only cleanup");
+    }
+
+    #[test]
+    fn seed_only_rejects_interrupted_or_foreign_migration_journal() {
+        // Core writes 'finished' for completed versions 1..=CURRENT_META_SCHEMA_VERSION.
+        // No migration metadata outside that contract is safe to discard.
+        let cases = [
+            (
+                "started-migration",
+                "UPDATE migration_journal SET state = 'started' WHERE version = (SELECT MAX(version) FROM migration_journal)",
+            ),
+            (
+                "foreign-state",
+                "UPDATE migration_journal SET state = 'fictional user note' WHERE version = (SELECT MAX(version) FROM migration_journal)",
+            ),
+            (
+                "zero-version",
+                "UPDATE migration_journal SET version = 0 WHERE version = (SELECT MAX(version) FROM migration_journal)",
+            ),
+            (
+                "future-version",
+                "INSERT INTO migration_journal(version, state) VALUES (999, 'finished')",
+            ),
+        ];
+        for (tag, sql) in cases {
+            let (data_dir, vault_root) = seeded_scratch(tag);
+            edit_sql(&vault_root, sql);
+            assert_eq!(
+                seed_only_vault(&vault_root),
+                SeedOnlyCheck::NotFixtureOnly,
+                "{tag}"
+            );
+            std::fs::remove_dir_all(&data_dir).expect("synthetic-only cleanup");
+        }
     }
 
     #[test]
