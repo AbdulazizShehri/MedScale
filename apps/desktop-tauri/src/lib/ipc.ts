@@ -2,13 +2,15 @@ import { invoke } from "@tauri-apps/api/core";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { visibleCommandState, type CommandLoadable, type KeyedLoadable } from "./command-state";
 import { createSingleFlightGate } from "./action-gate";
+import { parseSeedReason, type SeedReason } from "./seed-failure";
 
 /** Error classes rendered by the interface (board 25). Mirrors host.rs. */
 export type ErrorKind =
   | "unavailable" | "denied" | "blocked" | "missing" | "conflict" | "stale"
   | "invalid" | "corrupt" | "unsupported" | "cancelled" | "internal" | "disconnected";
 
-export type CmdError = { kind: ErrorKind; message: string };
+/** `reason` is present only for allowlisted stable codes (Spec 108 step 2). */
+export type CmdError = { kind: ErrorKind; message: string; reason?: SeedReason };
 
 const KINDS: ReadonlySet<string> = new Set([
   "unavailable", "denied", "blocked", "missing", "conflict", "stale",
@@ -19,9 +21,12 @@ const KINDS: ReadonlySet<string> = new Set([
  *  that is not registered or not granted surfaces as "denied", never as data. */
 export function toCmdError(raw: unknown): CmdError {
   if (raw && typeof raw === "object" && "kind" in raw && "message" in raw) {
-    const { kind, message } = raw as { kind: unknown; message: unknown };
+    const { kind, message, reason } = raw as { kind: unknown; message: unknown; reason?: unknown };
     if (typeof kind === "string" && KINDS.has(kind) && typeof message === "string") {
-      return { kind: kind as ErrorKind, message: message.slice(0, 400) };
+      const parsed = parseSeedReason(reason);
+      return parsed
+        ? { kind: kind as ErrorKind, message: message.slice(0, 400), reason: parsed }
+        : { kind: kind as ErrorKind, message: message.slice(0, 400) };
     }
   }
   const text = typeof raw === "string" ? raw : raw instanceof Error ? raw.message : "";
