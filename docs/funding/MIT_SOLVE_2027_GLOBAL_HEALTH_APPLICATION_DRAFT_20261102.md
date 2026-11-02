@@ -79,3 +79,15 @@ If selected, request support for an external safety and reproducibility review, 
 - The signed-in account offers editing before the official deadline **2026-11-06 12:00 EST / 20:00 Riyadh**. Manual review and final submit are mandatory.
 
 **Immediate user-side checklist:** sign in to the saved solution, provide true headquarters city/region and mobile phone privately to the portal (never store phone in GitHub), confirm self-ID/course/past-program responses, paste verified narrative into each required field, personally accept programme agreements, and click `SUBMIT SOLUTION`. Record the official receipt or email before calling it submitted. The user has not claimed any clinical users or awards.
+
+
+## 2026-11-02 follow-up — verified remote browser save (later session)
+
+**Submission: NOT SUBMITTED.** On connected Mac Vivaldi, reconstructed the missing MIT Solve inputs using real keyboard interactions so the site's Livewire handlers actually received changes. Untrusted DOM-only edits had not reliably persisted in the preceding run. The saved official solo application remains **#125017**, at https://solve.mit.edu/solutions/125017/edit.
+
+- Selected technology-based health solution and **Prototype** stage, with the nonclinical engineering evidence explanation. Navigated away and back: values remained present.
+- Saved team section with **None / zero current beneficiaries** (correcting a misleading initial 11–100 selection), website present, primary-care frontline-workforce dimension, single independent maintainer, honest nonclinical impact limits, lead name and contact email, privacy-preserving `Prefer Not to Answer` for optional demographic details, and no assumed grant awards or healthcare adoption. Narrative text was entered through physical keyboard paste and browser field blur, not only DOM setters.
+- Added optional innovation, theory of change, technology stack, business model, and sustainability narratives; explicitly stated **USD 0 earned revenue and USD 0 confirmed grant funding**. Any unverified choices about prior MIT Solve participation, networks, MITx course or source of referral must be personally checked before final submission.
+- **Hard page reload and official Submit-tab validation reduced required errors to exactly three:** (1) missing real headquarters city/town/region; (2) missing real Team Lead phone number including country code; and (3) unread/unaccepted MIT Solve Terms of Service, Media Release and License, and Privacy Policy. There was **no official submit receipt**.
+- The application form warns that AI-written copy may underperform and requires the applicant to personally verify and amend all GenAI-assisted claims before attesting accuracy. The account owner should review and personalize text and personally accept agreements. Never enter invented contact information, switch the application to clinical Pilot, or claim impact.
+- **Deadline:** Friday 2026-11-06 12:00 ET; approximately **20:00 Asia/Riyadh** (EST, UTC-5). Save & Exit is not a submission. The user can complete those three items privately in the existing portal and press `SUBMIT SOLUTION`, verifying confirmation afterward.
