@@ -708,7 +708,20 @@ fn seed_only_files(
             "meta.sqlite3-journal" | "writer.lock.sqlite3-journal" => {
                 return SeedOnlyCheck::Unproven;
             }
-            "meta.sqlite3" | "writer.lock.sqlite3" if kind.is_file() => {}
+            "meta.sqlite3" if kind.is_file() => {}
+            "writer.lock.sqlite3" if kind.is_file() => {
+                // Core's WriterLock only opens this SQLite file and holds
+                // BEGIN EXCLUSIVE; it never creates schema or writes rows.
+                // A genuine first seed therefore leaves a zero-byte lock
+                // file. Nonempty bytes (even a valid SQLite database) are
+                // unaccounted persistent content, not disposable fixtures.
+                let Ok(metadata) = std::fs::symlink_metadata(entry.path()) else {
+                    return SeedOnlyCheck::Unproven;
+                };
+                if !metadata.is_file() || metadata.len() != 0 {
+                    return SeedOnlyCheck::NotFixtureOnly;
+                }
+            }
             "blobs" if kind.is_dir() => {
                 let Ok(blobs) = std::fs::read_dir(entry.path()) else {
                     return SeedOnlyCheck::Unproven;
@@ -1997,6 +2010,48 @@ mod tests {
             assert_eq!(seed_only_vault(&vault_root), expected, "{tag}");
             std::fs::remove_dir_all(&data_dir).expect("synthetic-only cleanup");
         }
+    }
+
+    #[test]
+    fn seed_only_writer_lock_database_must_have_no_persistent_bytes() {
+        // WriterLock::try_acquire uses only PRAGMA locking_mode and BEGIN
+        // EXCLUSIVE. A user-created table in that SQLite file is not part
+        // of the bundled seed, even if the metadata database is pristine.
+        let (data_dir, vault_root) = seeded_scratch("writer-lock-persistent-content");
+        let lock_file = vault_root.join("writer.lock.sqlite3");
+        assert_eq!(
+            std::fs::metadata(&lock_file).expect("real Core lock file").len(),
+            0,
+            "the real Core writer lock does not persist any schema"
+        );
+        let db = rusqlite::Connection::open(&lock_file).expect("lock database");
+        db.execute_batch(
+            "CREATE TABLE unrelated_user_state (note TEXT NOT NULL);
+             INSERT INTO unrelated_user_state VALUES ('fictional non-fixture data');",
+        )
+        .expect("crafted persistent SQLite content");
+        drop(db);
+        assert_eq!(
+            seed_only_vault(&vault_root),
+            SeedOnlyCheck::NotFixtureOnly,
+            "a populated writer lock database cannot prove fixture-only"
+        );
+
+        std::fs::write(&lock_file, b"fictional non-SQLite content")
+            .expect("crafted non-SQLite bytes");
+        assert_eq!(
+            seed_only_vault(&vault_root),
+            SeedOnlyCheck::NotFixtureOnly,
+            "even an invalid nonempty lock database must fail closed"
+        );
+
+        std::fs::write(&lock_file, b"").expect("restore empty Core lock file");
+        assert_eq!(
+            seed_only_vault(&vault_root),
+            SeedOnlyCheck::FixtureOnly,
+            "the unchanged genuine Core seed remains admissible"
+        );
+        std::fs::remove_dir_all(&data_dir).expect("synthetic-only cleanup");
     }
 
     #[test]
