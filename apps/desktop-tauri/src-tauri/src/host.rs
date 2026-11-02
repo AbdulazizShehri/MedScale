@@ -426,10 +426,20 @@ fn classify_ledger_error(error: &rusqlite::Error) -> LedgerCheck {
         | rusqlite::Error::Utf8Error(..) => return LedgerCheck::Corrupt,
         _ => {}
     }
+    // Only SQLITE_READONLY_ROLLBACK proves that a hot rollback journal needs
+    // recovery that a read-only connection cannot perform. Plain READONLY can
+    // also mean filesystem permissions or a read-only volume, which must not
+    // be mistaken for interrupted Core persistence.
+    if let rusqlite::Error::SqliteFailure(sqlite, _) = error {
+        if sqlite.code == ErrorCode::ReadOnly
+            && sqlite.extended_code == rusqlite::ffi::SQLITE_READONLY_ROLLBACK
+        {
+            return LedgerCheck::Interrupted;
+        }
+    }
     match error.sqlite_error_code() {
         Some(ErrorCode::DatabaseBusy | ErrorCode::DatabaseLocked) => LedgerCheck::Busy,
         Some(ErrorCode::DatabaseCorrupt | ErrorCode::NotADatabase) => LedgerCheck::Corrupt,
-        Some(ErrorCode::ReadOnly) => LedgerCheck::Interrupted,
         _ => LedgerCheck::Unreadable,
     }
 }
@@ -1112,7 +1122,7 @@ mod tests {
             (ErrorCode::CannotOpen, None, LedgerCheck::Unreadable),
             (ErrorCode::PermissionDenied, None, LedgerCheck::Unreadable),
             (ErrorCode::SystemIoFailure, None, LedgerCheck::Unreadable),
-            (ErrorCode::ReadOnly, None, LedgerCheck::Interrupted),
+            (ErrorCode::ReadOnly, None, LedgerCheck::Unreadable),
             (ErrorCode::DatabaseCorrupt, None, LedgerCheck::Corrupt),
             (ErrorCode::NotADatabase, None, LedgerCheck::Corrupt),
             (
@@ -1128,6 +1138,28 @@ mod tests {
                 "{code:?}"
             );
         }
+        // A hot rollback journal is the *specific* read-only error that
+        // justifies the interrupted reason; a generic read-only error does not.
+        assert_eq!(
+            classify_ledger_error(&rusqlite::Error::SqliteFailure(
+                rusqlite::ffi::Error {
+                    code: ErrorCode::ReadOnly,
+                    extended_code: rusqlite::ffi::SQLITE_READONLY_ROLLBACK,
+                },
+                None,
+            )),
+            LedgerCheck::Interrupted,
+        );
+        assert_eq!(
+            classify_ledger_error(&rusqlite::Error::SqliteFailure(
+                rusqlite::ffi::Error {
+                    code: ErrorCode::ReadOnly,
+                    extended_code: rusqlite::ffi::SQLITE_READONLY_CANTLOCK,
+                },
+                None,
+            )),
+            LedgerCheck::Unreadable,
+        );
         assert_eq!(
             classify_ledger_error(&rusqlite::Error::InvalidColumnType(
                 1,
