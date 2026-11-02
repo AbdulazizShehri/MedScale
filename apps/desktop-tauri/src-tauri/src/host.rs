@@ -683,6 +683,16 @@ fn seed_only_files(
         Err(e) if e.kind() == std::io::ErrorKind::NotFound => return SeedOnlyCheck::FixtureOnly,
         Err(_) => return SeedOnlyCheck::Unproven,
     };
+    let fixture_bytes: std::collections::BTreeMap<String, &'static [u8]> = seed_plan()
+        .into_iter()
+        .flat_map(|(_, fixtures)| fixtures)
+        .map(|fixture| {
+            (
+                medscale_contracts::objects::DigestSha256::of(fixture.bytes).to_hex(),
+                fixture.bytes,
+            )
+        })
+        .collect();
     for entry in entries {
         let Ok(entry) = entry else {
             return SeedOnlyCheck::Unproven;
@@ -720,12 +730,34 @@ fn seed_only_files(
                             Err(_) => return SeedOnlyCheck::Unproven,
                         }
                     }
-                    // `.<hex>.tmp` is an interrupted blob write (blob.rs).
+                    // FsBlobStore writes exact fixture bytes to <digest> and
+                    // may leave a prefix in .<digest>.tmp after interruption.
+                    // A trusted filename alone is not proof of trusted bytes.
+                    let is_tmp = blob_name.starts_with('.') && blob_name.ends_with(".tmp");
                     let hex = blob_name
                         .strip_prefix('.')
                         .and_then(|n| n.strip_suffix(".tmp"))
                         .unwrap_or(&blob_name);
-                    if !(blob_kind.is_file() && digests.contains(hex)) {
+                    if !blob_kind.is_file() || !digests.contains(hex) {
+                        return SeedOnlyCheck::NotFixtureOnly;
+                    }
+                    let Some(expected) = fixture_bytes.get(hex) else {
+                        return SeedOnlyCheck::NotFixtureOnly;
+                    };
+                    let Ok(metadata) = blob.metadata() else {
+                        return SeedOnlyCheck::Unproven;
+                    };
+                    if metadata.len() > expected.len() as u64 {
+                        return SeedOnlyCheck::NotFixtureOnly;
+                    }
+                    let Ok(bytes) = std::fs::read(blob.path()) else {
+                        return SeedOnlyCheck::Unproven;
+                    };
+                    if is_tmp {
+                        if !expected.starts_with(&bytes) {
+                            return SeedOnlyCheck::NotFixtureOnly;
+                        }
+                    } else if bytes.as_slice() != *expected {
                         return SeedOnlyCheck::NotFixtureOnly;
                     }
                 }
@@ -1781,6 +1813,59 @@ mod tests {
         drop(state);
         assert_eq!(seed_only_vault(&vault_root), SeedOnlyCheck::FixtureOnly);
         (data_dir, vault_root)
+    }
+
+    #[test]
+    fn seed_only_attests_complete_blob_bytes_and_interrupted_temp_prefix() {
+        let fixture = seed_plan()
+            .into_iter()
+            .next()
+            .expect("seed subject")
+            .1
+            .into_iter()
+            .next()
+            .expect("fixture");
+        let hex = medscale_contracts::objects::DigestSha256::of(fixture.bytes).to_hex();
+        let mut corrupted = fixture.bytes.to_vec();
+        corrupted[0] ^= 1;
+        let cases = [
+            (
+                "tampered-complete-blob",
+                false,
+                corrupted,
+                SeedOnlyCheck::NotFixtureOnly,
+            ),
+            (
+                "foreign-temp-bytes",
+                true,
+                b"unrelated fixture bytes".to_vec(),
+                SeedOnlyCheck::NotFixtureOnly,
+            ),
+            (
+                "valid-interrupted-prefix",
+                true,
+                fixture.bytes[..fixture.bytes.len().min(32)].to_vec(),
+                SeedOnlyCheck::FixtureOnly,
+            ),
+            (
+                "oversized-interrupted-temp",
+                true,
+                vec![0; fixture.bytes.len() + 1],
+                SeedOnlyCheck::NotFixtureOnly,
+            ),
+        ];
+        for (tag, is_tmp, bytes, expected) in cases {
+            let (data_dir, vault_root) = seeded_scratch(tag);
+            let filename = if is_tmp {
+                format!(".{hex}.tmp")
+            } else {
+                hex.clone()
+            };
+            std::fs::write(vault_root.join("blobs").join(filename), bytes)
+                .expect("synthetic-only blob mutation");
+            assert_eq!(seed_only_vault(&vault_root), expected, "{tag}");
+            std::fs::remove_dir_all(&data_dir).expect("synthetic-only cleanup");
+        }
     }
 
     #[test]
