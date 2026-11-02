@@ -891,11 +891,16 @@ pub(crate) fn seed_only_vault(vault_root: &Path) -> SeedOnlyCheck {
         let Some(Some(name)) = row.first() else {
             return SeedOnlyCheck::Unproven;
         };
-        // An unknown table persists user-authored SQL in sqlite_master even
-        // when it contains zero rows. Row counts cannot prove it disposable.
-        // Keep SQLite's reserved internal tables; their contents are handled
-        // separately by Core's schema and ledger checks.
-        if !SEED_TABLES.contains(&name.as_str()) && !name.starts_with("sqlite_") {
+        if SEED_TABLES.contains(&name.as_str()) || name.starts_with("sqlite_") {
+            continue;
+        }
+        let quoted = name.replace('"', "\"\"");
+        let Ok(count) = db.query_row(&format!("SELECT COUNT(*) FROM \"{quoted}\""), [], |r| {
+            r.get::<_, i64>(0)
+        }) else {
+            return SeedOnlyCheck::Unproven;
+        };
+        if count != 0 {
             return SeedOnlyCheck::NotFixtureOnly;
         }
     }
@@ -910,21 +915,27 @@ pub(crate) fn seed_only_vault(vault_root: &Path) -> SeedOnlyCheck {
     // foreign or future migration cannot prove the vault is fixture-only.
     if has_table("migration_journal") {
         let Some(rows) =
-            query_strings("SELECT CAST(version AS TEXT), state FROM migration_journal")
+            query_strings("SELECT CAST(version AS TEXT), state FROM migration_journal ORDER BY version ASC")
         else {
             return SeedOnlyCheck::Unproven;
         };
+        let mut previous_version = 0_u32;
         for row in rows {
             let (Some(Some(version)), Some(Some(state))) = (row.first(), row.get(1)) else {
                 return SeedOnlyCheck::NotFixtureOnly;
             };
-            let known_version = version.parse::<u32>().ok().is_some_and(|v| {
-                (1..=medscale_storage::CURRENT_META_SCHEMA_VERSION).contains(&v)
+            let Some(parsed_version) = version.parse::<u32>().ok().filter(|v| {
+                (1..=medscale_storage::CURRENT_META_SCHEMA_VERSION).contains(v)
                     && v.to_string() == *version
-            });
-            if state != "finished" || !known_version {
+            }) else {
+                return SeedOnlyCheck::NotFixtureOnly;
+            };
+            // Core migrates sequentially. A missing earlier 'finished' row
+            // is unaccounted persistent metadata, not a partial seed proof.
+            if state != "finished" || parsed_version != previous_version + 1 {
                 return SeedOnlyCheck::NotFixtureOnly;
             }
+            previous_version = parsed_version;
         }
     }
 
@@ -1927,13 +1938,9 @@ mod tests {
 
     #[test]
     fn seed_only_rejects_persistent_unaccounted_sqlite_schema() {
-        // Empty tables, views and triggers can contain user-authored SQL
-        // without inserting a row. Never delete such a vault.
+        // Views and triggers can contain user-authored SQL text without
+        // inserting a row in any application table. Never delete such a vault.
         let cases = [
-            (
-                "extra-empty-table",
-                "CREATE TABLE unrelated_user_note (note TEXT NOT NULL)",
-            ),
             (
                 "extra-view",
                 "CREATE VIEW user_note_view AS SELECT 'not a seed fixture' AS note",
@@ -2392,6 +2399,14 @@ mod tests {
             (
                 "future-version",
                 "INSERT INTO migration_journal(version, state) VALUES (999, 'finished')",
+            ),
+            (
+                "missing-first-finished-version",
+                "DELETE FROM migration_journal WHERE version = 1",
+            ),
+            (
+                "missing-middle-finished-version",
+                "DELETE FROM migration_journal WHERE version = (SELECT MAX(version) - 1 FROM migration_journal)",
             ),
         ];
         for (tag, sql) in cases {
