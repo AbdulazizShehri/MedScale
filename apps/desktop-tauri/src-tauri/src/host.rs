@@ -702,11 +702,13 @@ fn seed_only_files(
         };
         let name = entry.file_name().to_string_lossy().into_owned();
         match name.as_str() {
-            // A hot rollback journal means an interrupted write: unproven
-            // until a rollback copy is inspected (v3 M5, not yet built).
-            "meta.sqlite3-journal" => return SeedOnlyCheck::Unproven,
-            "meta.sqlite3" | "writer.lock.sqlite3" | "writer.lock.sqlite3-journal"
-                if kind.is_file() => {}
+            // Either SQLite rollback journal can retain unaccounted pages
+            // after an interrupted write. Never classify either as a fixture,
+            // even if the journal is empty; private-copy recovery is pending.
+            "meta.sqlite3-journal" | "writer.lock.sqlite3-journal" => {
+                return SeedOnlyCheck::Unproven;
+            }
+            "meta.sqlite3" | "writer.lock.sqlite3" if kind.is_file() => {}
             "blobs" if kind.is_dir() => {
                 let Ok(blobs) = std::fs::read_dir(entry.path()) else {
                     return SeedOnlyCheck::Unproven;
@@ -750,9 +752,24 @@ fn seed_only_files(
                     if metadata.len() > expected.len() as u64 {
                         return SeedOnlyCheck::NotFixtureOnly;
                     }
-                    let Ok(bytes) = std::fs::read(blob.path()) else {
+                    // The file may grow between metadata() and read(). Cap
+                    // actual bytes read to the fixture length plus one, so a
+                    // concurrent writer cannot cause an unbounded allocation.
+                    use std::io::Read as _;
+                    let Ok(file) = std::fs::File::open(blob.path()) else {
                         return SeedOnlyCheck::Unproven;
                     };
+                    let mut bytes = Vec::new();
+                    if file
+                        .take(expected.len() as u64 + 1)
+                        .read_to_end(&mut bytes)
+                        .is_err()
+                    {
+                        return SeedOnlyCheck::Unproven;
+                    }
+                    if bytes.len() > expected.len() {
+                        return SeedOnlyCheck::NotFixtureOnly;
+                    }
                     if is_tmp {
                         if !expected.starts_with(&bytes) {
                             return SeedOnlyCheck::NotFixtureOnly;
@@ -1980,6 +1997,29 @@ mod tests {
             assert_eq!(seed_only_vault(&vault_root), expected, "{tag}");
             std::fs::remove_dir_all(&data_dir).expect("synthetic-only cleanup");
         }
+    }
+
+    #[test]
+    fn seed_only_writer_lock_rollback_journal_is_never_fixture_proof() {
+        // Core's WriterLock uses BEGIN EXCLUSIVE on writer.lock.sqlite3.
+        // A rollback journal may contain bytes that the seed plan does not
+        // attest. Its presence must block future automatic recovery.
+        let (data_dir, vault_root) = seeded_scratch("writer-lock-hot-journal");
+        let journal = vault_root.join("writer.lock.sqlite3-journal");
+        std::fs::write(&journal, b"fictional interrupted writer transaction")
+            .expect("synthetic journal");
+        assert_eq!(
+            seed_only_vault(&vault_root),
+            SeedOnlyCheck::Unproven,
+            "a writer-lock journal is not disposable fixture evidence"
+        );
+        std::fs::remove_file(&journal).expect("remove synthetic journal");
+        assert_eq!(
+            seed_only_vault(&vault_root),
+            SeedOnlyCheck::FixtureOnly,
+            "removing only the crafted journal restores the genuine fixture proof"
+        );
+        std::fs::remove_dir_all(&data_dir).expect("synthetic-only cleanup");
     }
 
     #[test]
