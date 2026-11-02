@@ -1016,6 +1016,34 @@ mod tests {
     }
 
     #[test]
+    fn failed_atomic_replace_preserves_destination_and_removes_its_temp() {
+        let dir = std::env::temp_dir().join(format!(
+            "medscale-atomic-failed-rename-{}-{}",
+            std::process::id(),
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .expect("clock")
+                .as_nanos()
+        ));
+        let destination = dir.join("fictional-sidecar.json");
+        std::fs::create_dir_all(&destination).expect("directory target");
+        let sentinel = destination.join("synthetic-sentinel.txt");
+        std::fs::write(&sentinel, b"unchanged").expect("sentinel");
+
+        let error = write_atomic(&destination, b"{\"synthetic\":true}")
+            .expect_err("a regular file must not replace an existing directory");
+        assert_ne!(error.kind(), std::io::ErrorKind::NotFound);
+        assert_eq!(std::fs::read(&sentinel).expect("read sentinel"), b"unchanged");
+        let leaked = std::fs::read_dir(&dir)
+            .expect("list temporary parent")
+            .filter_map(Result::ok)
+            .filter(|entry| entry.file_name().to_string_lossy().ends_with(".tmp"))
+            .count();
+        assert_eq!(leaked, 0, "failed rename must remove its own temp");
+        std::fs::remove_dir_all(&dir).expect("synthetic-only cleanup");
+    }
+
+    #[test]
     fn sidecar_records_are_replaced_atomically_without_leftover_temp() {
         let dir = std::env::temp_dir().join(format!(
             "medscale-atomic-sidecar-{}-{}",
