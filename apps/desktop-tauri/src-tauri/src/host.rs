@@ -747,10 +747,26 @@ fn seed_only_files(
 /// and the reads run in one transaction. Not yet wired to any action.
 #[cfg_attr(not(test), allow(dead_code))] // wired into step 4 recovery next
 pub(crate) fn seed_only_vault(vault_root: &Path) -> SeedOnlyCheck {
+    use medscale_contracts::objects::{
+        ActionAuditKind, ActionAuditRecord, AuthorityScopeId, ClinicalAssertion, DigestSha256,
+        IdentityAssertion, MedicalTime, ObjectHeader, OpaqueId, ProducerKind, Proposal, RealmId,
+        SourceRecord, TimePrecision,
+    };
     use rusqlite::{Connection, OpenFlags};
     use serde_json::Value;
     use std::collections::{BTreeMap, BTreeSet};
+    // CliSession's fixed realm and scope (medscale-core cli_session.rs).
+    const SEED_REALM: &str = "cli-realm";
+    const SEED_SCOPE: &str = "cli-scope";
 
+    match std::fs::symlink_metadata(vault_root) {
+        Ok(m) if m.file_type().is_symlink() || !m.is_dir() => {
+            return SeedOnlyCheck::NotFixtureOnly;
+        }
+        Ok(_) => {}
+        Err(e) if e.kind() == std::io::ErrorKind::NotFound => return SeedOnlyCheck::FixtureOnly,
+        Err(_) => return SeedOnlyCheck::Unproven,
+    }
     let digests = seed_fixture_digests();
     match seed_only_files(vault_root, &digests) {
         SeedOnlyCheck::FixtureOnly => {}
@@ -766,6 +782,11 @@ pub(crate) fn seed_only_vault(vault_root: &Path) -> SeedOnlyCheck {
     let Ok(db) = Connection::open_with_flags(&meta, OpenFlags::SQLITE_OPEN_READ_ONLY) else {
         return SeedOnlyCheck::Unproven;
     };
+    // One read transaction: every query below sees the same snapshot
+    // (review M1). Dropping the connection ends it.
+    if db.execute_batch("BEGIN DEFERRED").is_err() {
+        return SeedOnlyCheck::Unproven;
+    }
     let query_strings = |sql: &str| -> Option<Vec<Vec<Option<String>>>> {
         let mut stmt = db.prepare(sql).ok()?;
         let width = stmt.column_count();
@@ -825,46 +846,65 @@ pub(crate) fn seed_only_vault(vault_root: &Path) -> SeedOnlyCheck {
         }
     }
 
-    // 3. sources rows reference fixture digests only.
+    // 3. sources rows reference fixture digests only, in the CLI scope.
+    let mut table_sources: BTreeMap<String, String> = BTreeMap::new();
     if has_table("sources") {
-        let Some(rows) = query_strings("SELECT digest_hex FROM sources") else {
+        let Some(rows) = query_strings(
+            "SELECT source_id, digest_hex, realm_id, authority_scope_id FROM sources",
+        ) else {
             return SeedOnlyCheck::Unproven;
         };
         let mut seen = BTreeSet::new();
         for r in rows {
-            let Some(Some(hex)) = r.first() else {
+            let (Some(Some(id)), Some(Some(hex)), Some(Some(realm)), Some(Some(scope))) =
+                (r.first(), r.get(1), r.get(2), r.get(3))
+            else {
                 return SeedOnlyCheck::NotFixtureOnly;
             };
-            if !digests.contains(hex) || !seen.insert(hex.clone()) {
+            if !digests.contains(hex)
+                || !seen.insert(hex.clone())
+                || realm != SEED_REALM
+                || scope != SEED_SCOPE
+            {
                 return SeedOnlyCheck::NotFixtureOnly;
             }
+            table_sources.insert(id.clone(), hex.clone());
         }
     }
 
-    // 4. authority_objects: only the five seed classes, in seed shapes.
+    // 4. authority_objects: only the five seed classes, decoded with the
+    // contract types (all `deny_unknown_fields`) and checked against the
+    // exact values Core's seed path writes (review M2).
     if !has_table("authority_objects") {
         return SeedOnlyCheck::FixtureOnly;
     }
     let Some(rows) = query_strings(
-        "SELECT object_id, object_class, body_json, content_digest_hex FROM authority_objects",
+        "SELECT object_id, object_class, body_json, content_digest_hex, realm_id, authority_scope_id \
+         FROM authority_objects",
     ) else {
         return SeedOnlyCheck::Unproven;
     };
-    type ObjRow = (String, Value, Option<String>);
+    type ObjRow = (String, String, Option<String>);
     let mut by_class: BTreeMap<String, Vec<ObjRow>> = BTreeMap::new();
     for r in rows {
-        let (Some(Some(id)), Some(Some(class)), Some(Some(body))) = (r.first(), r.get(1), r.get(2))
+        let (
+            Some(Some(id)),
+            Some(Some(class)),
+            Some(Some(body)),
+            Some(Some(realm)),
+            Some(Some(scope)),
+        ) = (r.first(), r.get(1), r.get(2), r.get(4), r.get(5))
         else {
             return SeedOnlyCheck::NotFixtureOnly;
         };
-        let Ok(body) = serde_json::from_str::<Value>(body) else {
+        if realm != SEED_REALM || scope != SEED_SCOPE {
             return SeedOnlyCheck::NotFixtureOnly;
-        };
+        }
         let digest = r.get(3).cloned().flatten();
         by_class
             .entry(class.clone())
             .or_default()
-            .push((id.clone(), body, digest));
+            .push((id.clone(), body.clone(), digest));
     }
     if by_class
         .keys()
@@ -874,47 +914,81 @@ pub(crate) fn seed_only_vault(vault_root: &Path) -> SeedOnlyCheck {
     }
     let empty = Vec::new();
     let class = |c: &str| by_class.get(c).unwrap_or(&empty);
-    let strings = |v: &Value| -> Option<Vec<String>> {
-        v.as_array()?
-            .iter()
-            .map(|x| x.as_str().map(str::to_owned))
-            .collect()
+    let header_ok = |h: &ObjectHeader, id: &str| {
+        h.id.as_str() == id
+            && h.realm_id == RealmId::new(SEED_REALM)
+            && h.authority_scope_id == AuthorityScopeId::new(SEED_SCOPE)
     };
 
-    // Sources: one per distinct fixture digest.
+    // Sources: one per distinct fixture digest, bytes emptied by the
+    // durable sync, FHIR media type, no acquisition time.
     let mut source_digest: BTreeMap<String, String> = BTreeMap::new();
-    for (id, _, digest) in class("source") {
-        let Some(hex) = digest else {
+    for (id, body, column_digest) in class("source") {
+        let Ok(src) = serde_json::from_str::<SourceRecord>(body) else {
             return SeedOnlyCheck::NotFixtureOnly;
         };
-        if !digests.contains(hex) || source_digest.values().any(|d| d == hex) {
+        let hex = src.content_digest.to_hex();
+        if !header_ok(&src.header, id)
+            || column_digest.as_deref() != Some(hex.as_str())
+            || !digests.contains(&hex)
+            || source_digest.values().any(|d| *d == hex)
+            || !src.bytes.is_empty()
+            || src.media_type != "application/fhir+json"
+            || src.acquired_at.is_some()
+            || !src
+                .provenance_note
+                .as_deref()
+                .is_some_and(|n| n.starts_with("fhir "))
+            || table_sources.get(id).is_some_and(|t| *t != hex)
+        {
             return SeedOnlyCheck::NotFixtureOnly;
         }
-        source_digest.insert(id.clone(), hex.clone());
+        source_digest.insert(id.clone(), hex);
     }
-    // Identities: at most the one Patient identifier, evidenced by a source.
+    // Identity: only the one Patient identifier of patient-golden.json.
+    let golden_hex = seed_plan()
+        .into_iter()
+        .flat_map(|(_, fixtures)| fixtures)
+        .find(|f| f.file == "patient-golden.json")
+        .map(|f| DigestSha256::of(f.bytes).to_hex());
     if class("identity").len() > 1 {
         return SeedOnlyCheck::NotFixtureOnly;
     }
-    for (_, body, _) in class("identity") {
-        match strings(&body["evidence_refs"]) {
-            Some(refs)
-                if !refs.is_empty() && refs.iter().all(|r| source_digest.contains_key(r)) => {}
-            _ => return SeedOnlyCheck::NotFixtureOnly,
+    for (id, body, _) in class("identity") {
+        let Ok(ident) = serde_json::from_str::<IdentityAssertion>(body) else {
+            return SeedOnlyCheck::NotFixtureOnly;
+        };
+        let evidence_is_golden = ident.evidence_refs.len() == 1
+            && source_digest.get(ident.evidence_refs[0].as_str()) == golden_hex.as_ref();
+        if !header_ok(&ident.header, id)
+            || ident.subject_id.as_str() != "subject:http://hospital.example/mrn:P-004"
+            || ident.identifier_system != "http://hospital.example/mrn"
+            || ident.identifier_value != "P-004"
+            || ident.confidence.is_some()
+            || !evidence_is_golden
+        {
+            return SeedOnlyCheck::NotFixtureOnly;
         }
     }
     // Proposals: each equals one bundled plan entry, evidenced by the source
     // holding exactly that fixture's bytes; at most one per plan entry.
     let mut plan_used = BTreeSet::new();
-    let mut proposal_payload = BTreeMap::new();
+    let mut proposals: BTreeMap<String, Proposal> = BTreeMap::new();
     for (id, body, _) in class("proposal") {
-        let subject = body["subject_ref"].as_str().unwrap_or_default();
-        let kind = body["claim_kind"].as_str().unwrap_or_default();
-        let refs = strings(&body["evidence_refs"]).unwrap_or_default();
-        if body["producer"].as_str() != Some("rule") || refs.len() != 1 {
+        let Ok(proposal) = serde_json::from_str::<Proposal>(body) else {
+            return SeedOnlyCheck::NotFixtureOnly;
+        };
+        let Some(subject) = proposal.subject_ref.as_ref().map(OpaqueId::as_str) else {
+            return SeedOnlyCheck::NotFixtureOnly;
+        };
+        if !header_ok(&proposal.header, id)
+            || proposal.producer != ProducerKind::Rule
+            || proposal.confidence.is_some()
+            || proposal.evidence_refs.len() != 1
+        {
             return SeedOnlyCheck::NotFixtureOnly;
         }
-        let Some(source_hex) = source_digest.get(&refs[0]) else {
+        let Some(source_hex) = source_digest.get(proposal.evidence_refs[0].as_str()) else {
             return SeedOnlyCheck::NotFixtureOnly;
         };
         let matched = seed_plan()
@@ -923,10 +997,9 @@ pub(crate) fn seed_only_vault(vault_root: &Path) -> SeedOnlyCheck {
                 fixtures.into_iter().find_map(|f| {
                     let resource: Value = serde_json::from_slice(f.bytes).ok()?;
                     (plan_subject == subject
-                        && f.claim_kind == kind
-                        && body["payload"] == serde_json::json!({ "resource": resource })
-                        && *source_hex
-                            == medscale_contracts::objects::DigestSha256::of(f.bytes).to_hex())
+                        && f.claim_kind == proposal.claim_kind
+                        && proposal.payload == serde_json::json!({ "resource": resource })
+                        && *source_hex == DigestSha256::of(f.bytes).to_hex())
                     .then_some((plan_subject, f.file))
                 })
             });
@@ -936,41 +1009,74 @@ pub(crate) fn seed_only_vault(vault_root: &Path) -> SeedOnlyCheck {
         if !plan_used.insert(entry) {
             return SeedOnlyCheck::NotFixtureOnly;
         }
-        proposal_payload.insert(
-            id.clone(),
-            (subject.to_owned(), kind.to_owned(), body["payload"].clone()),
-        );
+        proposals.insert(id.clone(), proposal);
     }
-    // Assertions: at most one per proposal, an exact copy of it.
-    let mut promoted = BTreeSet::new();
-    let mut assertion_ids = BTreeSet::new();
+    // Assertions: at most one per proposal, an exact promotion of it.
+    let recorded = MedicalTime::new("1970-01-01T00:00:00Z", TimePrecision::Instant, false);
+    let mut assertion_of: BTreeMap<String, String> = BTreeMap::new();
     for (id, body, _) in class("assertion") {
-        let Some(from) = body["promoted_from_proposal_id"].as_str() else {
+        let Ok(assertion) = serde_json::from_str::<ClinicalAssertion>(body) else {
             return SeedOnlyCheck::NotFixtureOnly;
         };
-        let Some((subject, kind, payload)) = proposal_payload.get(from) else {
+        let Some(from) = assertion
+            .promoted_from_proposal_id
+            .as_ref()
+            .map(|p| p.as_str().to_owned())
+        else {
             return SeedOnlyCheck::NotFixtureOnly;
         };
-        if body["subject_ref"].as_str() != Some(subject.as_str())
-            || body["claim_kind"].as_str() != Some(kind.as_str())
-            || &body["payload"] != payload
-            || !promoted.insert(from.to_owned())
+        let Some(proposal) = proposals.get(&from) else {
+            return SeedOnlyCheck::NotFixtureOnly;
+        };
+        if !header_ok(&assertion.header, id)
+            || Some(&assertion.subject_ref) != proposal.subject_ref.as_ref()
+            || assertion.claim_kind != proposal.claim_kind
+            || assertion.payload != proposal.payload
+            || assertion.authorized_by.as_str() != "cli-operator"
+            || assertion.effective_time.is_some()
+            || assertion.recorded_time != recorded
+            || assertion_of.values().any(|p| *p == from)
         {
             return SeedOnlyCheck::NotFixtureOnly;
         }
-        assertion_ids.insert(id.clone());
+        assertion_of.insert(id.clone(), from);
     }
-    // Audits: only seed ingest and promotion records about seed objects.
-    for (_, body, _) in class("audit") {
-        let targets = strings(&body["target_refs"]).unwrap_or_default();
-        let ok = match body["action"].as_str() {
-            Some("ingest_fhir_synthetic") => {
-                targets.len() == 1 && source_digest.contains_key(&targets[0])
+    // Audits: one ingest audit per source and one promotion audit per
+    // assertion, exactly as Core's seed path writes them.
+    let mut ingest_audited = BTreeSet::new();
+    let mut promote_audited = BTreeSet::new();
+    for (id, body, _) in class("audit") {
+        let Ok(audit) = serde_json::from_str::<ActionAuditRecord>(body) else {
+            return SeedOnlyCheck::NotFixtureOnly;
+        };
+        if !header_ok(&audit.header, id)
+            || audit.kind != ActionAuditKind::Audit
+            || audit.effect_state.is_some()
+            || audit.detail.is_some()
+        {
+            return SeedOnlyCheck::NotFixtureOnly;
+        }
+        let targets: Vec<&str> = audit.target_refs.iter().map(OpaqueId::as_str).collect();
+        let ok = match audit.action.as_str() {
+            "ingest_fhir_synthetic" => {
+                targets.len() == 1
+                    && audit.actor.as_str() == "ingest"
+                    && source_digest.get(targets[0]).is_some_and(|hex| {
+                        audit
+                            .payload_digest
+                            .as_ref()
+                            .map(DigestSha256::to_hex)
+                            .as_ref()
+                            == Some(hex)
+                    })
+                    && ingest_audited.insert(targets[0].to_owned())
             }
-            Some("promote_proposal") => {
+            "promote_proposal" => {
                 targets.len() == 2
-                    && proposal_payload.contains_key(&targets[0])
-                    && assertion_ids.contains(&targets[1])
+                    && audit.actor.as_str() == "cli-operator"
+                    && audit.payload_digest.is_none()
+                    && assertion_of.get(targets[1]).map(String::as_str) == Some(targets[0])
+                    && promote_audited.insert(targets[1].to_owned())
             }
             _ => false,
         };
@@ -1628,6 +1734,151 @@ mod tests {
         ));
         let vault_root = data_dir.join("synthetic-workspace");
         (data_dir, vault_root)
+    }
+
+    fn copy_object_row(
+        vault_root: &Path,
+        class: &str,
+        new_id: &str,
+        edit: impl Fn(&mut serde_json::Value),
+    ) {
+        let db = rusqlite::Connection::open(vault_root.join("meta.sqlite3")).expect("db");
+        let (id, body): (String, String) = db
+            .query_row(
+                "SELECT object_id, body_json FROM authority_objects WHERE object_class = ?1 LIMIT 1",
+                [class],
+                |r| Ok((r.get(0)?, r.get(1)?)),
+            )
+            .expect("existing row");
+        let mut value: serde_json::Value = serde_json::from_str(&body).expect("json");
+        value["header"]["id"] = serde_json::json!(new_id);
+        edit(&mut value);
+        db.execute(
+            "INSERT INTO authority_objects(object_id, object_class, realm_id, authority_scope_id, body_json, content_digest_hex, updated_seq) \
+             SELECT ?1, object_class, realm_id, authority_scope_id, ?2, content_digest_hex, updated_seq \
+             FROM authority_objects WHERE object_id = ?3",
+            rusqlite::params![new_id, value.to_string(), id],
+        )
+        .expect("crafted row");
+    }
+
+    fn seeded_scratch(tag: &str) -> (PathBuf, PathBuf) {
+        let (data_dir, vault_root) = seed_only_scratch(tag);
+        let mut state = State {
+            data_dir: Some(data_dir.clone()),
+            ..State::default()
+        };
+        open_synthetic(&mut state).expect("genuine seed");
+        drop(state);
+        assert_eq!(seed_only_vault(&vault_root), SeedOnlyCheck::FixtureOnly);
+        (data_dir, vault_root)
+    }
+
+    #[test]
+    fn seed_only_rejects_real_core_user_activity_with_fixture_bytes() {
+        // Re-importing the exact bytes of a bundled fixture deduplicates the
+        // source (no new blob) but adds a second proposal for the same entry.
+        let (data_dir, vault_root) = seed_only_scratch("dup-import");
+        let mut state = State {
+            data_dir: Some(data_dir.clone()),
+            ..State::default()
+        };
+        open_synthetic(&mut state).expect("seed");
+        let (subject, fixtures) = seed_plan().into_iter().next().expect("plan");
+        let file = data_dir.join("same-bytes.json");
+        std::fs::write(&file, fixtures[0].bytes).expect("write");
+        import_fhir(state.workspace.as_mut().expect("workspace"), &file, subject)
+            .expect("same-content import");
+        drop(state);
+        assert_eq!(seed_only_vault(&vault_root), SeedOnlyCheck::NotFixtureOnly);
+        std::fs::remove_dir_all(&data_dir).expect("cleanup");
+
+        // The same fixture bytes under the other subject.
+        let (data_dir, vault_root) = seed_only_scratch("other-subject");
+        let mut state = State {
+            data_dir: Some(data_dir.clone()),
+            ..State::default()
+        };
+        open_synthetic(&mut state).expect("seed");
+        let plan = seed_plan();
+        let file = data_dir.join("cross-subject.json");
+        std::fs::write(&file, plan[0].1[0].bytes).expect("write");
+        import_fhir(
+            state.workspace.as_mut().expect("workspace"),
+            &file,
+            plan[1].0,
+        )
+        .expect("cross-subject import");
+        drop(state);
+        assert_eq!(seed_only_vault(&vault_root), SeedOnlyCheck::NotFixtureOnly);
+        std::fs::remove_dir_all(&data_dir).expect("cleanup");
+
+        // A project created through Core.
+        let (data_dir, vault_root) = seed_only_scratch("project");
+        let mut state = State {
+            data_dir: Some(data_dir.clone()),
+            ..State::default()
+        };
+        open_synthetic(&mut state).expect("seed");
+        state
+            .session()
+            .expect("session")
+            .project_create("Seed-only probe".to_owned(), None)
+            .expect("project");
+        drop(state);
+        assert_eq!(seed_only_vault(&vault_root), SeedOnlyCheck::NotFixtureOnly);
+        std::fs::remove_dir_all(&data_dir).expect("cleanup");
+    }
+
+    #[test]
+    fn seed_only_rejects_crafted_rows_and_files() {
+        let cases: [(&str, fn(&Path)); 7] = [
+            ("unknown-class", |v| {
+                let db = rusqlite::Connection::open(v.join("meta.sqlite3")).expect("db");
+                db.execute(
+                    "UPDATE authority_objects SET object_class = 'amendment' WHERE object_id = \
+                     (SELECT object_id FROM authority_objects WHERE object_class = 'audit' LIMIT 1)",
+                    [],
+                )
+                .expect("crafted class");
+            }),
+            ("second-identity", |v| {
+                copy_object_row(v, "identity", "ident-crafted", |_| {})
+            }),
+            ("forged-audit", |v| {
+                copy_object_row(v, "audit", "audit-crafted", |b| {
+                    b["action"] = serde_json::json!("packs.evaluate_local");
+                })
+            }),
+            ("extra-field", |v| {
+                copy_object_row(v, "proposal", "proposal-crafted", |b| {
+                    b["unexpected"] = serde_json::json!(true);
+                })
+            }),
+            ("quarantine", |v| {
+                std::fs::write(v.join("blobs").join("quarantine").join("x"), b"q").expect("q")
+            }),
+            ("tombstone", |v| {
+                std::fs::create_dir_all(v.join("blobs").join("tombstone")).expect("t")
+            }),
+            ("tmp-blob", |v| {
+                std::fs::write(
+                    v.join("blobs").join(format!(".{}.tmp", "0".repeat(64))),
+                    b"x",
+                )
+                .expect("tmp")
+            }),
+        ];
+        for (tag, craft) in cases {
+            let (data_dir, vault_root) = seeded_scratch(tag);
+            craft(&vault_root);
+            assert_eq!(
+                seed_only_vault(&vault_root),
+                SeedOnlyCheck::NotFixtureOnly,
+                "{tag}"
+            );
+            std::fs::remove_dir_all(&data_dir).expect("cleanup");
+        }
     }
 
     #[test]

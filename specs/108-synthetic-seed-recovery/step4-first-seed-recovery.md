@@ -9,6 +9,8 @@
   - one compile blocker, now fixed;
   - no Core write path that a single-process user action can push through as `FixtureOnly`.
 
+- **Increment 2: implemented** (M1 snapshot read, M2 typed exact shapes, M3 real-Core and crafted rejections). Remaining before wiring: the caller-held writer lock across classification and rename (increment 3); the hot-journal private-copy rollback (v3 M5); blob content hashing.
+
 ### Gates before `seed_only_vault` may authorise deletion (increment 2)
 
 - **M1 — consistent snapshot.** Run every SQL read in one read transaction. The caller holds the instance lock and Core's `WriterLock` for `vault_root` from before the classification until the rename to `.discarding`, or re-classifies after taking the lock.
