@@ -40,3 +40,69 @@ Hypothesis: for all accesses forced through a trusted local reference monitor, h
 - Read terms. Required reviewer commitment is up to four anonymous peer applications within 14 days, and the research question is temporarily public after the call closes. Only complete submission with official receipt counts.
 
 No sensitive authentication or banking information is stored in this repo.
+
+## Submission-ready remaining fields — prepared 2026-11-02, NOT entered into browser
+
+**Important:** These are copy-ready OFFLINE answers, not proof that the browser saved them. Existing browser draft still reported 43% in the last visible checkpoint. Verify official form input limits and the local browser's saved state before entering. No profile was authenticated, no video uploaded and no application receipt obtained.
+
+### Requested funding and duration
+
+- Requested funding: **CHF 20000** (type integer `20000`).
+- Duration: **9 months**, starting **2027-02-01** if selected.
+- The project is NEW research on the verifiable privacy layer, not repayment for already developed MedScale features. Do not claim an award or any double-funded expense.
+
+### Budget justification (under 100 words; verify terms before submission)
+
+> CHF 18,000 supports 400 hours of investigator effort at CHF 45/hour over nine months: formal threat model and protocol design (90h), reference-monitor and verifier implementation (145h), adversarial tests and blind re-runs (110h), open documentation and reproduction (55h). CHF 2,000 supports isolated compute and cross-platform test runs for tampering and denial-of-service experiments, with no paid-model or proprietary-service requirement for third-party reproduction. Synthetic fixtures and open tools are free. This budget excludes existing MedScale development, hardware purchases, clinical work, and any costs covered by other grants.
+
+**Check:** CHF 18,000 + CHF 2,000 = **CHF 20,000**, personnel plus compute only. Rate is an illustrative requested investigator rate, not a payroll/employment claim. Hardware request in other programmes is intentionally outside this application. Review final budget for tax and invoice rules with the funder; never use the same hour or invoice for two grants.
+
+### Data, permissions and ethics (under 150 words)
+
+> All evaluation will use reproducible synthetic FHIR R4 records and, where useful, explicitly licensed public nonpatient fixtures with documented provenance. No identifiable patient records, live clinical encounters, biometric identifiers or private data from other people will be collected, uploaded, or processed. We will publish synthetic generators, machine-readable fixture schemas and the exact adversarial mutation recipes. The experiment is software/security protocol research, not a medical intervention or human-subjects study; on this design, no patient consent or clinical ethics approval is claimed or required. We will reassess legal/ethics requirements before any material protocol change, user study, or use of real personal health information; any such activity is out of grant scope until appropriate approval. Results will report both detectability and demonstrable limitations of the reference-monitor trust assumption.
+
+### AI-use disclosure (under 150 words)
+
+> OpenAI ChatGPT assisted with opportunity research, proposal wording, budget structuring, question formulation and editing. The named applicant has to independently verify sources, code, protocol assumptions and every final claim before submission. Any subsequent coding, peer review or test-assistance model will be logged with its purpose in the public research methodology. No sensitive patient data are shared with AI systems. The foundation's official Theoria assessment is described in the Call Terms; only the application research question is sent to it by the foundation. We will not put other applicants' review material into unapproved AI tools.
+
+### Existing public runnable work: truthful artifact boundary
+
+- Public existing code: https://github.com/AbdulazizShehri/MedScale (Apache-2.0).
+- Documented existing CLI smoke demonstration on a machine with pinned repository Rust toolchain and platform dependencies:
+  ```sh
+  git clone https://github.com/AbdulazizShehri/MedScale.git
+  cd MedScale
+  cargo run -p medscale-cli --locked -- --version
+  cargo run -p medscale-cli --locked -- doctor
+  ```
+- Separate existing native audio integration evidence is linked in the repository README, but it does **not** show the proposed privacy monitor functioning.
+- The proposed privacy receipts and offline independent verifier do **not** exist as a grant-ready working demo yet. This distinction must be made clear when describing the existing artifact.
+- **Not yet verified:** fresh clean-room run of these commands on a pinned public commit, live screen capture of the documented synthetic workflow, funder's interpretation of a sufficient working demo, and public reproducible privacy research example. An existing CLI doctor's successful exit alone should not be represented as the new privacy-verification demonstration.
+
+### Personal introduction video — script and filming checklist, NOT recorded
+
+A simple screen recording or personal introduction **no longer than 90 seconds** is required on YouTube or Vimeo, public/unlisted. This is a proposed ~75-second script; use your own voice:
+
+> Hello. I'm an independent open-source developer with a Master of Public Health from the University of Melbourne. I'm building MedScale, a free, local-first desktop project for health information, transparency and FHIR interoperability. Today's project is an engineering beta tested on synthetic and licensed nonpatient data, not a clinically validated system.
+>
+> My research question is narrow: can a person actually verify what an AI agent was allowed to read and export from one synthetic digital health twin? I propose an independently checkable policy gateway, witnessed audit receipts, and a public set of adversarial tests for missing, forged and replayed records.
+>
+> The hard part is being honest about what cannot be seen: accesses that bypass the gateway are not covered. Over nine months, I would publish the protocol, test harness, results, failures and reproduction instructions under open licences. Thank you for considering the proposal.
+
+**Required person-side actions:** create real recording showing you or your authentic project demonstration; upload to your YouTube/Vimeo account; verify that the URL is playable without authentication and its length is at most 90 seconds. Do not invent or generate a claimed first-person recording. **Then** connect genuine LinkedIn/ORCID/Bluesky through the official grant site, review consent for temporarily publishing the research question and the obligation to review up to four applications, and only submit after the official receipt/reference is visible.
+
+### On-screen form fields not yet completed
+
+| Official field | Prepared material | Submission status |
+|---|---|---|
+| Requested funding | 20000 | OFFLINE READY, NOT ENTERED |
+| Duration | 9 months | OFFLINE READY, NOT ENTERED |
+| Budget justification | 85-word budget above | OFFLINE READY, NOT ENTERED |
+| Existing runnable repository | MedScale public URL, with limitations above | NEEDS VERIFIED DEMO |
+| Data and ethics | text above | OFFLINE READY, NOT ENTERED |
+| AI disclosure | text above | OFFLINE READY, NOT ENTERED |
+| Linked ORCID/LinkedIn/Bluesky | real applicant OAuth required | BLOCKED |
+| YouTube/Vimeo video | script drafted, actual clip/URL required | BLOCKED |
+| Final policy/peer-review consent and submission | applicant acceptance of binding terms, then official receipt | NOT SUBMITTED |
+
+**Official source:** https://opening.science/apply/health-twin-privacy-2026/ ; form https://funding.opening.science/health-twin-privacy-2026/ ; deadline **2026-12-15 23:59:59 CET**.
