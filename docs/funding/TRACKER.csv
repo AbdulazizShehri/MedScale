@@ -1,7 +1,7 @@
 program,priority,support_type,submission_status,official_url,blocking_requirement,deadline_or_cycle,receipt_reference
 Hacker Initiative,1,cash grant,draft_prepared_not_submitted,https://hackerinitiative.org/apply-now/,Verified applicant details and funder-approved budget expenses; online submission,2026-11-09,
 GitHub Sponsors,1,recurring cash,not_submitted,https://github.com/sponsors,Individual tax bank identity and sponsorship onboarding,rolling,
-Anthropic AI for Science,1,API credits,draft_prepared_not_submitted,https://www.anthropic.com/news/expanding-support-for-scientists,Official August expansion permits independent researchers but March help page favors institutional affiliations; needs valid Claude API organization and honest solo application,rolling,
+Anthropic AI for Science,1,API credits,eligibility_inquiry_sent_2026-11-02_form_not_submitted,https://www.anthropic.com/news/expanding-support-for-scientists,Official Google Form requires research org PI approval and Claude Organization ID; inquiry sent to aiforscience@anthropic.com for independent researcher pathway,rolling,
 OpenAI Codex for OSS,1,developer tools and API credits,draft_prepared_not_submitted,https://openai.com/form/codex-for-oss/,Official form requires email tied to ChatGPT and OpenAI Organization ID; must agree to program terms; nonclinical independent maintainer,rolling,
 fal Research Grants,1,compute,sent_via_official_email_2026-11-02,https://fal.ai/grants,Official programme email sent from connected personal Gmail; recipient decision pending,rolling,
 AWS OSS credits,2,cloud credits,draft_prepared_not_submitted,https://aws.amazon.com/blogs/opensource/aws-cloud-credits-for-open-source-projects-affirming-our-commitment/,Official AWS application is XLSX and must be attached to email; request must include genuine AWS payer account and documented usage plan,monthly,
@@ -10,7 +10,7 @@ GitHub Secure OSS Fund,3,cash and credits,not_submitted,https://github.com/open-
 Sequoia OSS Fellowship,1,living expenses,submitted_confirmed_thank_you_2026-11-02,https://sequoiacap.com/oss,Official Sequoia Typeform displayed Thanks for your response; selection pending,rolling,Typeform thank-you page 2026-11-02,
 Modal Academics,conditional_academic,compute credits,not_submitted,https://modal.com/academics,Graduate is not currently enrolled; verify explicit independent researcher route or new academic position,verify_current,
 Nebius Fellows,3,compute credits,not_submitted,https://nebius.com/fellows,Community commitments and curated selection,rolling_or_verify,
-Cloudflare Project Alexandria,2,services,not_submitted,https://www.cloudflare.com/lp/project-alexandria/,Programme application and OSS eligibility review,verify_current,
+Cloudflare Project Alexandria,2,services,blocked_by_cloudflare_browser_challenge_not_submitted,https://www.cloudflare.com/lp/project-alexandria/,Official site displayed Cloudflare security challenge on connected Mac browser; no submission receipt,verify_current,
 Google for Startups,blocked_pending_entity,cloud credits,not_submitted,https://cloud.google.com/startup/pre-funded,Startup commercial entity funding plans and eligibility,rolling,
 NLnet,excluded_by_policy_and_geography,cash grant,not_submitted,https://nlnet.nl/propose/,No AI-authored proposals and strong European dimension required,2026-11-03,
 FLOSS fund,defer_until_adoption,cash grant,not_submitted,https://floss.fund/faq/,Must have meaningful external adoption,quarterly,
