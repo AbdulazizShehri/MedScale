@@ -48,7 +48,8 @@ The draft proposed one manual "set aside and rebuild" command that renamed the `
    - `synthetic_core_ledger` returns `LedgerCheck`: `Complete | Incomplete | Busy | Unreadable | Interrupted | Corrupt`.
      - SQLite BUSY/LOCKED → `Busy`.
      - CANTOPEN, I/O and permission → `Unreadable`.
-     - READONLY (a hot journal that a read-only connection cannot roll back) → `Interrupted`.
+     - Only extended `SQLITE_READONLY_ROLLBACK` (a hot journal that a read-only connection cannot roll back) → `Interrupted`.
+     - Generic `READONLY`, including `SQLITE_READONLY_CANTLOCK`, → `Unreadable` (`workspace_io_failure`), never an automatic recovery signal.
      - NOTADB, CORRUPT, row-shape and JSON decode errors → `Corrupt`.
      - Missing table, column or ledger file, or a logical mismatch → `Incomplete`.
    - `CmdError.reason` is omitted from the DTO when absent. The `seed_reason` codes are:
