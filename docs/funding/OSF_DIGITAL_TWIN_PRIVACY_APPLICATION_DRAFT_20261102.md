@@ -106,3 +106,11 @@ A simple screen recording or personal introduction **no longer than 90 seconds**
 | Final policy/peer-review consent and submission | applicant acceptance of binding terms, then official receipt | NOT SUBMITTED |
 
 **Official source:** https://opening.science/apply/health-twin-privacy-2026/ ; form https://funding.opening.science/health-twin-privacy-2026/ ; deadline **2026-12-15 23:59:59 CET**.
+
+## Live connected Mac browser checkpoint — 2026-11-02
+
+**Saved draft 86% complete, NOT SUBMITTED**, on the original 7-question foundation form in Vivaldi. Official site persisted local draft under its own browser storage. Name, email, title, proposal, question, claim/measurement, CHF 20,000 request, 9-month duration, budget, public MedScale GitHub repository, synthetic data ethics and AI-use disclosure were entered and storage confirmed. Do not assume this local draft exists in another browser or that it was submitted to the foundation.
+
+Clicking `Connect LinkedIn` opened LinkedIn's **sign-in page**, not an authorized identity callback, so there is **no verified connected profile**. YouTube Studio in the existing Google account prompted creation of a new channel, so no YouTube account/channel was created and **no video was uploaded**. The final form requires a real linked ORCID/LinkedIn/Bluesky identity, public/unlisted YouTube/Vimeo authentic clip <=90 seconds, meaningful runnable artifact evidence and applicant consent to research-question publication, Call Terms and reciprocal peer review. The 86% reflects completed content fields, **not** submission readiness.
+
+The deadline remains **2026-12-15 23:59:59 CET**. A provider-issued submission reference is required before status `submitted` may be used.
