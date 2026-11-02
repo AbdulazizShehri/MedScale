@@ -914,9 +914,9 @@ pub(crate) fn seed_only_vault(vault_root: &Path) -> SeedOnlyCheck {
     // Only finished migrations known to this build are admissible. A started,
     // foreign or future migration cannot prove the vault is fixture-only.
     if has_table("migration_journal") {
-        let Some(rows) =
-            query_strings("SELECT CAST(version AS TEXT), state FROM migration_journal ORDER BY version ASC")
-        else {
+        let Some(rows) = query_strings(
+            "SELECT CAST(version AS TEXT), state FROM migration_journal ORDER BY version ASC",
+        ) else {
             return SeedOnlyCheck::Unproven;
         };
         let mut previous_version = 0_u32;
