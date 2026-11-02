@@ -1,0 +1,35 @@
+name: Future Health synthetic-only Care Loop
+
+on:
+  pull_request:
+    paths:
+      - 'experiments/future-health-care-loop/**'
+      - '.github/workflows/future-health-care-loop.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    name: Nonclinical synthetic-only unit tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 4
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - name: Verify syntax and deterministic negative fixtures
+        shell: bash
+        run: |
+          node --check experiments/future-health-care-loop/src/care-loop.mjs
+          node --check experiments/future-health-care-loop/fixtures/synthetic.mjs
+          node --check experiments/future-health-care-loop/server.mjs
+          node --test experiments/future-health-care-loop/test/care-loop.test.mjs
+      - name: Assert no npm dependencies or publishing scripts
+        shell: bash
+        run: |
+          node -e "const p=require('./experiments/future-health-care-loop/package.json'); if(Object.keys(p.dependencies||{}).length||Object.keys(p.devDependencies||{}).length||!p.private){process.exit(1)}"
