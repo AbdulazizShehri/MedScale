@@ -1,6 +1,6 @@
 # Hacker Initiative 2026 — MedScale application form working answers
 
-**Status:** PREPARED, NOT SUBMITTED. As of 2026-11-02; use only after the maintainer checks every response against the live application and accepts the reporting terms.
+**Status: SUBMITTED AND PROVIDER-ACKNOWLEDGED on 2026-11-02.** The official Google Forms completion screen displayed **"Thank you! We have received your grant application."** No application ID was displayed. This page retains *pre-submission working answers* for archival reference; some (including original USD 15,000 draft total) differ from the **final submitted request of USD 25,000, with USD 15,000 earmarked for test/development equipment and USD 10,000 for reproducible provenance research and infrastructure**. The private applicant contact, postal and payee fields were completed in the provider's actual form using user-supplied data but **must never be copied to this public repository**. Submission **does not** mean eligibility approval, selection, grant award, receipt of funds or equipment donation.
 
 **Official form:** https://hackerinitiative.org/apply-now/ — **official preview:** https://hackerinitiative.org/wp-content/uploads/2026/09/The-Hacker-Initiative-Grant-Application-2026.pdf
 
@@ -64,7 +64,7 @@ Independent open-source developers, security researchers, students of computer s
 
 ### 21. Amount of funding requested
 
-**USD $15,000** (proposed; funder may award less). The application must disclose any real, overlapping granted or expected funding at the moment of submission. No funds have been confirmed in this workspace.
+**Archived early draft:** USD $15,000. **ACTUAL SUBMITTED:** USD **$25,000**, including USD $15,000 project-specific development/test hardware and USD $10,000 proposed security/provenance benchmarking and verification expenses. Other pending funding applications were disclosed in the official form; none is recorded as awarded.
 
 ### 22. Intended use and proposed budget
 
@@ -102,7 +102,16 @@ Leave blank unless the official form explicitly requires it and the applicant se
 
 This is a privacy-preserving, open-source software research project. It will use synthetic or appropriately licensed nonpatient data only. It is not a medical device, clinical validation effort or request for payroll support.
 
-## Submission and reporting checklist
+## Final submission receipt and data boundaries
+
+- Verified: 2026-11-02, Google Forms provider thank-you response (no form-generated reference ID shown).
+- Final requested amount: USD $25,000; USD $15,000 allocated to hardware and equipment, USD $10,000 to research infrastructure, synthetic fixtures and evaluation as explained in the live application.
+- Project categories selected: Equipment purchase and Software/Tool Development, two categories total.
+- Reporting and anti-discrimination declarations were selected in the official form under the user's standing authorization to complete grant submissions. If selected, read and comply with all actual legal reporting terms.
+- Financial award, eligibility, payment and real hardware prices: **not confirmed**. Avoid double funding with any other pending application.
+- The private postal/contact/payee information entered in the actual form is intentionally absent from this public file. Do not reproduce or publish it here.
+
+## Archived pre-submission checklist (some items were completed in the provider form; do not infer pending status from the unchecked boxes below)
 
 - [ ] Confirm the legal recipient/payee can lawfully receive a USD check from a US charity in Saudi Arabia.
 - [ ] Confirm applicant's correct legal name and private mailing address/phone.
@@ -113,4 +122,4 @@ This is a privacy-preserving, open-source software research project. It will use
 - [ ] Store only the **nonsecret** application ID/date/URL in the funding tracker.
 - [ ] If approved, provide required reports by the funder's deadlines; retain private financial documents off the public repository.
 
-_No application or grant receipt has been obtained at creation time._
+_Created as a pre-submission draft; subsequently submitted and independently verified via the provider's November 2, 2026 thank-you page. No grant funds have been awarded._
