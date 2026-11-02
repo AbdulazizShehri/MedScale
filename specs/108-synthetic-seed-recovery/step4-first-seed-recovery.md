@@ -11,7 +11,7 @@
 
 ### Gates before `seed_only_vault` may authorise deletion (increment 2)
 
-- **M1 — consistent snapshot.** Run every SQL read in one read transaction. The caller holds the instance lock and Core's `WriterLock` for `vault_root` from before the classification until the rename to `.discarding`, or re-classifies after taking the lock.
+- **M1 — consistent snapshot (SQL portion implemented on the run11 follow-up branch, NOT qualified).** The read-only classifier now begins a deferred SQLite transaction before any SQL query, pinning all table reads to one snapshot after the first query; a failed BEGIN returns `Unproven`. A separate WAL concurrency regression verifies that a later writer commit is invisible inside the read transaction. **Still blocking recovery:** the caller must hold the instance lock and Core's `WriterLock` for `vault_root` from before classification until rename to `.discarding`, or re-classify after taking those locks; SQL snapshot alone does not protect filesystem blobs, sidecars, or path replacement. No recovery action is wired.
 - **M2 — exact shape, not a subset.**
   - Decode each body with the typed contract struct (`deny_unknown_fields`: `Proposal`, `ClinicalAssertion`, `ActionAuditRecord`, `IdentityAssertion`, `SourceRecord`).
   - Require `header.id == object_id`, and the header's realm and scope equal to the columns. All rows in `authority_objects` and `sources` must share one realm and scope.
