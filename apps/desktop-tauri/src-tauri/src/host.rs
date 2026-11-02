@@ -17,6 +17,33 @@ use serde::{Deserialize, Serialize};
 pub struct CmdError {
     pub kind: &'static str,
     pub message: String,
+    /// Stable machine reason for states the interface must tell apart (Spec
+    /// 108 step 2). Omitted from the DTO when absent, so existing consumers
+    /// that read only `kind` and `message` are unaffected.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub reason: Option<&'static str>,
+}
+
+/// Stable reasons for synthetic workspace failures (Spec 108 step 2). A read
+/// or lock failure is never reported as corruption.
+pub mod seed_reason {
+    pub const MANIFEST_MISSING: &str = "seed_manifest_missing";
+    pub const MANIFEST_INVALID: &str = "seed_manifest_invalid";
+    pub const MANIFEST_INCOMPLETE: &str = "seed_manifest_incomplete";
+    pub const CORE_LEDGER_INCOMPLETE: &str = "core_ledger_incomplete";
+    pub const IO_FAILURE: &str = "workspace_io_failure";
+    pub const BUSY: &str = "workspace_busy";
+    pub const WRITER_ACTIVE: &str = "writer_active";
+    /// Preflight only: the vault folder is missing, empty or not a folder.
+    pub const VAULT_MISSING: &str = "seed_vault_missing";
+    /// Preflight only: the ledger file exists but cannot be decoded.
+    pub const LEDGER_UNDECODABLE: &str = "seed_ledger_undecodable";
+    /// Preflight only: Core was interrupted mid-save (hot rollback journal);
+    /// a read-only check cannot roll it back.
+    pub const LEDGER_INTERRUPTED: &str = "seed_ledger_interrupted";
+    /// Any Core-originated integrity failure. Makes no claim about whether
+    /// anything was written before the failure.
+    pub const CORE_INTEGRITY: &str = "core_integrity_error";
 }
 
 impl CmdError {
@@ -24,7 +51,12 @@ impl CmdError {
         Self {
             kind,
             message: message.into(),
+            reason: None,
         }
+    }
+    pub fn with_reason(mut self, reason: &'static str) -> Self {
+        self.reason = Some(reason);
+        self
     }
     pub fn unavailable(message: impl Into<String>) -> Self {
         Self::new("unavailable", message)
@@ -76,7 +108,22 @@ impl From<AuthorityError> for CmdError {
             }
             _ => medscale_desktop_vm::project_workspace::status_message(&err).to_owned(),
         };
-        Self::new(kind, message)
+        match &err {
+            // Core reports a held vault writer lock as this invalid argument
+            // (medscale-core ingest_ops.rs). It is a busy workspace, not bad
+            // input and not corruption.
+            AuthorityError::InvalidArgument { message } if message.trim() == "WriterHeld" => {
+                Self::unavailable("Unavailable: another MedScale process is using this workspace")
+                    .with_reason(seed_reason::WRITER_ACTIVE)
+            }
+            AuthorityError::LeaseHeld { .. } | AuthorityError::AlreadyHeld { .. } => {
+                Self::new(kind, message).with_reason(seed_reason::WRITER_ACTIVE)
+            }
+            AuthorityError::Corrupt { .. } | AuthorityError::DigestMismatch => {
+                Self::new(kind, message).with_reason(seed_reason::CORE_INTEGRITY)
+            }
+            _ => Self::new(kind, message),
+        }
     }
 }
 
@@ -345,42 +392,98 @@ fn complete_synthetic_seed(seed: &SeedManifest) -> bool {
     true
 }
 
+/// Outcome of reading the persisted Core ledger. `Unreadable` and `Corrupt`
+/// are kept apart from `Incomplete` so a busy or unreadable workspace is
+/// never presented as a damaged one (Spec 108 step 2).
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum LedgerCheck {
+    Complete,
+    Incomplete,
+    /// Another connection holds a lock beyond SQLite's default busy wait.
+    Busy,
+    /// Real I/O or permission failure; the data itself was not judged.
+    Unreadable,
+    /// Hot rollback journal from an interrupted Core write.
+    Interrupted,
+    Corrupt,
+}
+
+/// Classify a SQLite failure while reading the ledger read-only.
+fn classify_ledger_error(error: &rusqlite::Error) -> LedgerCheck {
+    use rusqlite::ErrorCode;
+    // Missing table or column: Core never finished creating its schema.
+    // With modern_sqlite, prepare errors may carry an offset and arrive as
+    // SqlInputError rather than SqliteFailure.
+    // Display covers both variants without depending on that feature.
+    let text = error.to_string();
+    if text.contains("no such table") || text.contains("no such column") {
+        return LedgerCheck::Incomplete;
+    }
+    match error {
+        // Row shape errors: the data is present but not what Core writes.
+        rusqlite::Error::InvalidColumnType(..)
+        | rusqlite::Error::FromSqlConversionFailure(..)
+        | rusqlite::Error::Utf8Error(..) => return LedgerCheck::Corrupt,
+        _ => {}
+    }
+    match error.sqlite_error_code() {
+        Some(ErrorCode::DatabaseBusy | ErrorCode::DatabaseLocked) => LedgerCheck::Busy,
+        Some(ErrorCode::DatabaseCorrupt | ErrorCode::NotADatabase) => LedgerCheck::Corrupt,
+        Some(ErrorCode::ReadOnly) => LedgerCheck::Interrupted,
+        _ => LedgerCheck::Unreadable,
+    }
+}
+
+/// Bool view for tests that only need "fully proven".
+#[cfg(test)]
+fn complete_synthetic_core(vault_root: &Path, seed: &SeedManifest) -> bool {
+    synthetic_core_ledger(vault_root, seed) == LedgerCheck::Complete
+}
+
 /// Check the actual persisted Core ledger before trusting a complete sibling
 /// seed roster. Read-only: never migrate/rewrite existing patient or Core data.
-fn complete_synthetic_core(vault_root: &Path, seed: &SeedManifest) -> bool {
+fn synthetic_core_ledger(vault_root: &Path, seed: &SeedManifest) -> LedgerCheck {
     use medscale_contracts::objects::{ClinicalAssertion, Proposal};
     use rusqlite::{Connection, OpenFlags};
 
     let file = vault_root.join("meta.sqlite3");
-    if !std::fs::symlink_metadata(&file).is_ok_and(|m| m.is_file() && !m.file_type().is_symlink()) {
-        return false;
+    match std::fs::symlink_metadata(&file) {
+        Ok(m) if m.is_file() && !m.file_type().is_symlink() => {}
+        // A directory or symlink is not a ledger Core wrote: not proven.
+        Ok(_) => return LedgerCheck::Incomplete,
+        Err(e) if e.kind() == std::io::ErrorKind::NotFound => return LedgerCheck::Incomplete,
+        Err(_) => return LedgerCheck::Unreadable,
     }
-    let Ok(db) = Connection::open_with_flags(&file, OpenFlags::SQLITE_OPEN_READ_ONLY) else {
-        return false;
+    let db = match Connection::open_with_flags(&file, OpenFlags::SQLITE_OPEN_READ_ONLY) {
+        Ok(db) => db,
+        Err(e) => return classify_ledger_error(&e),
     };
-    let Ok(mut stmt) = db.prepare("SELECT object_class, body_json FROM authority_objects") else {
-        return false;
+    // rusqlite's default 5 s busy timeout already absorbs short writer locks.
+    let mut stmt = match db.prepare("SELECT object_class, body_json FROM authority_objects") {
+        Ok(stmt) => stmt,
+        Err(e) => return classify_ledger_error(&e),
     };
-    let Ok(rows) = stmt.query_map([], |r| Ok((r.get::<_, String>(0)?, r.get::<_, String>(1)?)))
-    else {
-        return false;
+    let rows = match stmt.query_map([], |r| Ok((r.get::<_, String>(0)?, r.get::<_, String>(1)?))) {
+        Ok(rows) => rows,
+        Err(e) => return classify_ledger_error(&e),
     };
     let mut proposals = Vec::<Proposal>::new();
     let mut assertions = Vec::<ClinicalAssertion>::new();
     for row in rows {
-        let Ok((kind, body)) = row else {
-            return false;
+        let (kind, body) = match row {
+            Ok(row) => row,
+            Err(e) => return classify_ledger_error(&e),
         };
         match kind.as_str() {
             "proposal" => {
                 let Ok(p) = serde_json::from_str(&body) else {
-                    return false;
+                    return LedgerCheck::Corrupt;
                 };
                 proposals.push(p);
             }
             "assertion" => {
                 let Ok(a) = serde_json::from_str(&body) else {
-                    return false;
+                    return LedgerCheck::Corrupt;
                 };
                 assertions.push(a);
             }
@@ -394,17 +497,17 @@ fn complete_synthetic_core(vault_root: &Path, seed: &SeedManifest) -> bool {
                 .iter()
                 .find(|s| s.subject_ref == subject && s.fixture == fixture.file)
             else {
-                return false;
+                return LedgerCheck::Incomplete;
             };
             let Ok(resource) = serde_json::from_slice::<serde_json::Value>(fixture.bytes) else {
-                return false;
+                return LedgerCheck::Incomplete;
             };
             let Some(resource_type) = resource
                 .get("resourceType")
                 .and_then(serde_json::Value::as_str)
                 .map(str::to_owned)
             else {
-                return false;
+                return LedgerCheck::Incomplete;
             };
             let payload = serde_json::json!({ "resource": resource });
             // Core deliberately deduplicates identical FHIR source bytes.
@@ -422,7 +525,7 @@ fn complete_synthetic_core(vault_root: &Path, seed: &SeedManifest) -> bool {
                 })
                 .count();
             let Some(expected_promotions) = imported_count.checked_add(1) else {
-                return false;
+                return LedgerCheck::Incomplete;
             };
             let matches: Vec<_> = proposals
                 .iter()
@@ -438,7 +541,7 @@ fn complete_synthetic_core(vault_root: &Path, seed: &SeedManifest) -> bool {
                 })
                 .collect();
             if matches.len() != expected_promotions {
-                return false;
+                return LedgerCheck::Incomplete;
             }
             for matched in matches {
                 let proposal_id = &matched.header.id;
@@ -453,7 +556,7 @@ fn complete_synthetic_core(vault_root: &Path, seed: &SeedManifest) -> bool {
                     .count()
                     != 1
                 {
-                    return false;
+                    return LedgerCheck::Incomplete;
                 }
             }
         }
@@ -476,7 +579,7 @@ fn complete_synthetic_core(vault_root: &Path, seed: &SeedManifest) -> bool {
             || row.resource_type.trim().is_empty()
             || !seed.subjects.iter().any(|s| s == &row.subject_ref)
         {
-            return false;
+            return LedgerCheck::Incomplete;
         }
         let key = (
             row.source_id.clone(),
@@ -485,7 +588,7 @@ fn complete_synthetic_core(vault_root: &Path, seed: &SeedManifest) -> bool {
             row.resource_type.clone(),
         );
         let Some(next) = import_counts.get(&key).copied().unwrap_or(0).checked_add(1) else {
-            return false;
+            return LedgerCheck::Incomplete;
         };
         import_counts.insert(key, next);
     }
@@ -504,7 +607,7 @@ fn complete_synthetic_core(vault_root: &Path, seed: &SeedManifest) -> bool {
             })
             .count();
         let Some(expected) = imported_count.checked_add(seeded_count) else {
-            return false;
+            return LedgerCheck::Incomplete;
         };
         let matches: Vec<_> = proposals
             .iter()
@@ -522,7 +625,7 @@ fn complete_synthetic_core(vault_root: &Path, seed: &SeedManifest) -> bool {
             })
             .collect();
         if matches.len() != expected {
-            return false;
+            return LedgerCheck::Incomplete;
         }
         for p in matches {
             if assertions
@@ -536,45 +639,71 @@ fn complete_synthetic_core(vault_root: &Path, seed: &SeedManifest) -> bool {
                 .count()
                 != 1
             {
-                return false;
+                return LedgerCheck::Incomplete;
             }
         }
     }
-    true
+    LedgerCheck::Complete
 }
 
 /// Fail closed before Core opens an existing synthetic vault. A missing,
 /// truncated or partial manifest after a prior Core write is NOT a license
 /// to replay fixture promotions: Core proposal creation is not idempotent.
 fn preflight_synthetic_seed(vault_root: &Path) -> CmdResult<SeedManifest> {
+    let inspection_failed = || {
+        CmdError::unavailable("Unavailable: synthetic vault inspection failed")
+            .with_reason(seed_reason::IO_FAILURE)
+    };
+    let incomplete = |reason: &'static str| {
+        CmdError::new(
+            "corrupt",
+            "Corrupt: synthetic seed state is incomplete; refusing replay",
+        )
+        .with_reason(reason)
+    };
     let vault_has_entries = match std::fs::read_dir(vault_root) {
         Ok(mut entries) => entries
             .next()
             .transpose()
-            .map_err(|_| CmdError::unavailable("Unavailable: synthetic vault inspection failed"))?
+            .map_err(|_| inspection_failed())?
             .is_some(),
         Err(error) if error.kind() == std::io::ErrorKind::NotFound => false,
-        Err(_) => {
-            return Err(CmdError::unavailable(
-                "Unavailable: synthetic vault inspection failed",
-            ));
+        // The vault path exists but is not a folder: never a vault Core made.
+        Err(error) if error.kind() == std::io::ErrorKind::NotADirectory => {
+            return Err(incomplete(seed_reason::VAULT_MISSING));
         }
+        Err(_) => return Err(inspection_failed()),
     };
     match std::fs::read(manifest_path(vault_root)) {
         Ok(bytes) => {
             let seed: SeedManifest = serde_json::from_slice(&bytes).map_err(|_| {
                 CmdError::new("corrupt", "Corrupt: synthetic seed manifest is invalid")
+                    .with_reason(seed_reason::MANIFEST_INVALID)
             })?;
-            if !vault_has_entries
-                || !complete_synthetic_seed(&seed)
-                || !complete_synthetic_core(vault_root, &seed)
-            {
-                return Err(CmdError::new(
-                    "corrupt",
-                    "Corrupt: synthetic seed state is incomplete; refusing replay",
-                ));
+            if !vault_has_entries {
+                return Err(incomplete(seed_reason::VAULT_MISSING));
             }
-            Ok(seed)
+            if !complete_synthetic_seed(&seed) {
+                return Err(incomplete(seed_reason::MANIFEST_INCOMPLETE));
+            }
+            match synthetic_core_ledger(vault_root, &seed) {
+                LedgerCheck::Complete => Ok(seed),
+                LedgerCheck::Incomplete => Err(incomplete(seed_reason::CORE_LEDGER_INCOMPLETE)),
+                LedgerCheck::Corrupt => Err(CmdError::new(
+                    "corrupt",
+                    "Corrupt: synthetic workspace data cannot be decoded; refusing replay",
+                )
+                .with_reason(seed_reason::LEDGER_UNDECODABLE)),
+                LedgerCheck::Interrupted => Err(incomplete(seed_reason::LEDGER_INTERRUPTED)),
+                LedgerCheck::Busy => Err(CmdError::unavailable(
+                    "Unavailable: the synthetic workspace is busy; close other MedScale windows and try again",
+                )
+                .with_reason(seed_reason::BUSY)),
+                LedgerCheck::Unreadable => Err(CmdError::unavailable(
+                    "Unavailable: the synthetic workspace could not be read",
+                )
+                .with_reason(seed_reason::IO_FAILURE)),
+            }
         }
         Err(error) if error.kind() == std::io::ErrorKind::NotFound && !vault_has_entries => {
             Ok(SeedManifest::default())
@@ -582,10 +711,12 @@ fn preflight_synthetic_seed(vault_root: &Path) -> CmdResult<SeedManifest> {
         Err(error) if error.kind() == std::io::ErrorKind::NotFound => Err(CmdError::new(
             "corrupt",
             "Corrupt: synthetic seed manifest missing; refusing replay",
-        )),
+        )
+        .with_reason(seed_reason::MANIFEST_MISSING)),
         Err(_) => Err(CmdError::unavailable(
             "Unavailable: synthetic seed manifest cannot be inspected",
-        )),
+        )
+        .with_reason(seed_reason::IO_FAILURE)),
     }
 }
 
@@ -709,7 +840,8 @@ pub fn seed_synthetic(workspace: &mut Workspace, data_dir: &Path) -> CmdResult<(
             return Err(CmdError::new(
                 "corrupt",
                 "Corrupt: synthetic seed state is incomplete; refusing replay",
-            ));
+            )
+            .with_reason(seed_reason::MANIFEST_INCOMPLETE));
         }
         return Ok(());
     }
@@ -961,6 +1093,195 @@ pub fn bounded_text(raw: &str, max: usize) -> CmdResult<String> {
 mod tests {
     use super::*;
 
+    fn sqlite_failure(code: rusqlite::ErrorCode, message: Option<&str>) -> rusqlite::Error {
+        rusqlite::Error::SqliteFailure(
+            rusqlite::ffi::Error {
+                code,
+                extended_code: 0,
+            },
+            message.map(str::to_owned),
+        )
+    }
+
+    #[test]
+    fn ledger_read_failures_are_not_reported_as_corruption() {
+        use rusqlite::ErrorCode;
+        let cases = [
+            (ErrorCode::DatabaseBusy, None, LedgerCheck::Busy),
+            (ErrorCode::DatabaseLocked, None, LedgerCheck::Busy),
+            (ErrorCode::CannotOpen, None, LedgerCheck::Unreadable),
+            (ErrorCode::PermissionDenied, None, LedgerCheck::Unreadable),
+            (ErrorCode::SystemIoFailure, None, LedgerCheck::Unreadable),
+            (ErrorCode::ReadOnly, None, LedgerCheck::Interrupted),
+            (ErrorCode::DatabaseCorrupt, None, LedgerCheck::Corrupt),
+            (ErrorCode::NotADatabase, None, LedgerCheck::Corrupt),
+            (
+                ErrorCode::Unknown,
+                Some("no such table: authority_objects"),
+                LedgerCheck::Incomplete,
+            ),
+        ];
+        for (code, message, expected) in cases {
+            assert_eq!(
+                classify_ledger_error(&sqlite_failure(code, message)),
+                expected,
+                "{code:?}"
+            );
+        }
+        assert_eq!(
+            classify_ledger_error(&rusqlite::Error::InvalidColumnType(
+                1,
+                "body_json".to_owned(),
+                rusqlite::types::Type::Blob
+            )),
+            LedgerCheck::Corrupt,
+            "a non-text row is undecodable data, not an I/O failure"
+        );
+    }
+
+    #[test]
+    fn writer_held_is_reported_as_busy_not_invalid_input() {
+        let err = CmdError::from(AuthorityError::InvalidArgument {
+            message: "WriterHeld".to_owned(),
+        });
+        assert_eq!(err.kind, "unavailable");
+        assert_eq!(err.reason, Some(seed_reason::WRITER_ACTIVE));
+        let other = CmdError::from(AuthorityError::InvalidArgument {
+            message: "bindings are alias=snapshot_id pairs".to_owned(),
+        });
+        assert_eq!(other.kind, "invalid");
+        assert_eq!(other.reason, None);
+    }
+
+    #[test]
+    fn reason_is_omitted_from_the_dto_when_absent() {
+        let plain = serde_json::to_value(CmdError::invalid("Invalid: x")).expect("json");
+        assert!(plain.get("reason").is_none());
+        let tagged = serde_json::to_value(
+            CmdError::unavailable("Unavailable: y").with_reason(seed_reason::BUSY),
+        )
+        .expect("json");
+        assert_eq!(tagged["reason"], "workspace_busy");
+    }
+
+    #[test]
+    fn preflight_reasons_distinguish_invalid_manifest_and_undecodable_ledger() {
+        let data_dir = std::env::temp_dir().join(format!(
+            "medscale-seed-reasons-{}-{}",
+            std::process::id(),
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .expect("clock")
+                .as_nanos()
+        ));
+        let vault_root = data_dir.join("synthetic-workspace");
+        std::fs::create_dir_all(&vault_root).expect("synthetic test dir");
+        std::fs::write(
+            vault_root.join("synthetic-core-placeholder"),
+            b"synthetic-only",
+        )
+        .expect("entry");
+
+        std::fs::write(manifest_path(&vault_root), b"{invalid-json").expect("manifest");
+        let invalid = preflight_synthetic_seed(&vault_root).expect_err("invalid JSON");
+        assert_eq!(invalid.kind, "corrupt");
+        assert_eq!(invalid.reason, Some(seed_reason::MANIFEST_INVALID));
+
+        save_manifest(&vault_root, &full_seed_manifest_for_test()).expect("manifest");
+        let no_ledger = preflight_synthetic_seed(&vault_root).expect_err("no Core ledger");
+        assert_eq!(no_ledger.reason, Some(seed_reason::CORE_LEDGER_INCOMPLETE));
+
+        // A file that is not a SQLite database is undecodable data, not a
+        // missing ledger and not a read failure.
+        std::fs::write(
+            vault_root.join("meta.sqlite3"),
+            b"synthetic non-database bytes",
+        )
+        .expect("bad ledger");
+        let corrupt = preflight_synthetic_seed(&vault_root).expect_err("undecodable ledger");
+        assert_eq!(corrupt.kind, "corrupt");
+        assert_eq!(corrupt.reason, Some(seed_reason::LEDGER_UNDECODABLE));
+        assert!(
+            !corrupt.message.contains(&data_dir.display().to_string()),
+            "user-facing errors never include filesystem paths"
+        );
+        std::fs::remove_dir_all(&data_dir).expect("synthetic-only cleanup");
+    }
+
+    fn scratch_data_dir(tag: &str) -> PathBuf {
+        std::env::temp_dir().join(format!(
+            "medscale-{tag}-{}-{}",
+            std::process::id(),
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .expect("clock")
+                .as_nanos()
+        ))
+    }
+
+    #[test]
+    fn empty_real_ledger_file_is_incomplete_not_an_io_failure() {
+        let data_dir = scratch_data_dir("empty-ledger");
+        let vault_root = data_dir.join("synthetic-workspace");
+        std::fs::create_dir_all(&vault_root).expect("dir");
+        // A 0-byte file is a valid empty SQLite database with no schema.
+        std::fs::write(vault_root.join("meta.sqlite3"), b"").expect("empty ledger");
+        save_manifest(&vault_root, &full_seed_manifest_for_test()).expect("manifest");
+        let err = preflight_synthetic_seed(&vault_root).expect_err("no schema");
+        assert_eq!(err.kind, "corrupt");
+        assert_eq!(err.reason, Some(seed_reason::CORE_LEDGER_INCOMPLETE));
+        std::fs::remove_dir_all(&data_dir).expect("synthetic-only cleanup");
+    }
+
+    #[test]
+    fn manifest_without_vault_and_file_in_place_of_vault_are_vault_missing() {
+        let data_dir = scratch_data_dir("vault-missing");
+        std::fs::create_dir_all(&data_dir).expect("dir");
+        let vault_root = data_dir.join("synthetic-workspace");
+        save_manifest(&vault_root, &full_seed_manifest_for_test()).expect("manifest");
+        let no_vault = preflight_synthetic_seed(&vault_root).expect_err("no vault");
+        assert_eq!(no_vault.reason, Some(seed_reason::VAULT_MISSING));
+        std::fs::write(
+            &vault_root,
+            b"synthetic file where the vault folder belongs",
+        )
+        .expect("file");
+        let not_dir = preflight_synthetic_seed(&vault_root).expect_err("not a folder");
+        assert_eq!(not_dir.kind, "corrupt");
+        assert_eq!(not_dir.reason, Some(seed_reason::VAULT_MISSING));
+        std::fs::remove_dir_all(&data_dir).expect("synthetic-only cleanup");
+    }
+
+    #[test]
+    fn second_session_on_open_synthetic_workspace_is_writer_active() {
+        let data_dir = scratch_data_dir("writer-active");
+        let mut first = State {
+            data_dir: Some(data_dir.clone()),
+            ..State::default()
+        };
+        open_synthetic(&mut first).expect("first synthetic workspace");
+        let mut second = State {
+            data_dir: Some(data_dir.clone()),
+            ..State::default()
+        };
+        let err = open_synthetic(&mut second).expect_err("Core writer lock is held");
+        // Core's writer lock (writer_active) or, if Core also holds the
+        // ledger, the read-only preflight (workspace_busy): both mean in use.
+        assert_eq!(err.kind, "unavailable");
+        assert!(
+            matches!(
+                err.reason,
+                Some(seed_reason::WRITER_ACTIVE) | Some(seed_reason::BUSY)
+            ),
+            "{:?}",
+            err.reason
+        );
+        assert!(second.workspace.is_none());
+        drop(first);
+        drop(second);
+        std::fs::remove_dir_all(&data_dir).expect("synthetic-only cleanup");
+    }
+
     #[test]
     fn sidecar_records_are_replaced_atomically_without_leftover_temp() {
         let dir = std::env::temp_dir().join(format!(
@@ -1139,6 +1460,7 @@ mod tests {
         };
         let missing = open_synthetic(&mut restarted).expect_err("missing seed must fail closed");
         assert_eq!(missing.kind, "corrupt");
+        assert_eq!(missing.reason, Some(seed_reason::MANIFEST_MISSING));
         assert!(restarted.workspace.is_none());
         assert_eq!(
             counts(&vault_root),
@@ -1160,6 +1482,7 @@ mod tests {
         save_manifest(&vault_root, &partial).expect("write deliberately partial fixture roster");
         let invalid = open_synthetic(&mut restarted).expect_err("partial seed must fail closed");
         assert_eq!(invalid.kind, "corrupt");
+        assert_eq!(invalid.reason, Some(seed_reason::MANIFEST_INCOMPLETE));
         assert!(restarted.workspace.is_none());
         assert_eq!(
             counts(&vault_root),
@@ -1171,6 +1494,7 @@ mod tests {
         let forged = open_synthetic(&mut restarted)
             .expect_err("complete JSON without complete Core must be refused");
         assert_eq!(forged.kind, "corrupt");
+        assert_eq!(forged.reason, Some(seed_reason::CORE_LEDGER_INCOMPLETE));
         assert_eq!(
             counts(&vault_root),
             before,

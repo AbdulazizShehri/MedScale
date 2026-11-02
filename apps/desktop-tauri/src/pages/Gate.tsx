@@ -3,6 +3,19 @@ import { useApp } from "../lib/app";
 import { useAction, type CmdError } from "../lib/ipc";
 import { Logo } from "../components/brand";
 import { Glyph } from "../components/ui";
+import { seedFailureGuidance } from "../lib/seed-failure";
+
+/** Spec 108 step 2: one announced alert per failure. With a known reason the
+ * plain guidance replaces Core's raw message, which can name internal paths. */
+function FailureAlert({ error, glyph = "failed", wrap = false }: { error: CmdError; glyph?: "failed" | "denied"; wrap?: boolean }) {
+  const g = seedFailureGuidance(error.reason);
+  return (
+    <p className="st" role="alert" data-reason={error.reason} style={wrap || g ? { whiteSpace: "normal" } : undefined}>
+      <Glyph kind={glyph} />
+      {g ? <span><b>{g.title}</b> {g.detail}</span> : error.message}
+    </p>
+  );
+}
 
 /** A height field rendered as dots. Decorative. */
 function Topology() {
@@ -61,7 +74,7 @@ export function Welcome({ onContinue }: { onContinue: () => void }) {
             <button type="button" className="btn btn-s lg" onClick={onContinue} disabled={!!pending}>Set up or unlock encrypted vault</button>
           </div>
           {pending && <p className="t-sm i3">First open ingests the synthetic FHIR fixtures through Core. This takes a few seconds once.</p>}
-          {error && <p className="st" role="alert"><Glyph kind="failed" />{error.message}</p>}
+          {error && <FailureAlert error={error} />}
         </div>
         <div className="row-gap" style={{ gap: 20, fontSize: 12, color: "var(--ink-3)" }}>
           <span className="st weak"><Glyph kind="available" />Beta · synthetic data only · runs on this device</span>
@@ -147,7 +160,7 @@ export function Access({ onBack }: { onBack: () => void }) {
                     <input id="pp2" type={show ? "text" : "password"} value={confirm} onChange={(e) => setConfirm(e.target.value)} autoComplete="new-password" style={{ width: "100%", height: 40 }} />
                   </div>
                 )}
-                {error && <p className="st" role="alert" style={{ whiteSpace: "normal" }}><Glyph kind={error.kind === "denied" ? "denied" : "failed"} />{error.message}</p>}
+                {error && <FailureAlert error={error} glyph={error.kind === "denied" ? "denied" : "failed"} wrap />}
                 <div className="row-gap" style={{ gap: 14 }}>
                   <button type="submit" className="btn btn-p lg" disabled={!!pending || pass.length < 8}>{pending === "unlock" || pending === "create" ? <><Glyph kind="running" />Working…</> : mode === "unlock" ? "Unlock workspace" : "Create vault"}</button>
                   {exists
