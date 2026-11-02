@@ -2,6 +2,40 @@
 
 **Status:** `NOT READY TO IMPLEMENT`. The second Goldfish review (2026-11-02) confirmed the single-file pending → complete model. No code path lets a pending manifest coexist with a workspace that reached the UI, and older builds fail safe. Factor 4(b) and the test plan must be rebuilt as v3 before any code is written.
 
+## v3 progress
+
+- **Increment 1 (PR #408): implemented.** `seed_only_vault` is a read-only classifier built from a source-backed inventory of what open and seed write. It is **not wired to any action**.
+- A fresh-context Goldfish code review found:
+  - one compile blocker, now fixed;
+  - no Core write path that a single-process user action can push through as `FixtureOnly`.
+
+### Gates before `seed_only_vault` may authorise deletion (increment 2)
+
+- **M1 — consistent snapshot.** Run every SQL read in one read transaction. The caller holds the instance lock and Core's `WriterLock` for `vault_root` from before the classification until the rename to `.discarding`, or re-classifies after taking the lock.
+- **M2 — exact shape, not a subset.**
+  - Decode each body with the typed contract struct (`deny_unknown_fields`: `Proposal`, `ClinicalAssertion`, `ActionAuditRecord`, `IdentityAssertion`, `SourceRecord`).
+  - Require `header.id == object_id`, and the header's realm and scope equal to the columns. All rows in `authority_objects` and `sources` must share one realm and scope.
+  - Ingest audit: `actor="ingest"`, `payload_digest` equal to its source's digest, `detail` and `effect_state` are `None`.
+  - Promote audit: `actor="cli-operator"`, and `targets[1].promoted_from_proposal_id == targets[0]`.
+  - At most one audit per source and one per assertion.
+  - Assertion: `authorized_by="cli-operator"`, the epoch `recorded_time`, and `effective_time = None`.
+  - Proposal: `confidence = None`.
+  - Identity: exactly the `patient-golden` source with `http://hospital.example/mrn`/`P-004`.
+- **M3 — database-level rejections driven by real Core.** Add tests for:
+  - fixture bytes re-imported for the same subject (a deduplicated source, caught by `plan_used`);
+  - fixture bytes imported for the other subject;
+  - project or data-source creation;
+  - a Pack evaluation;
+  - an assertion amendment;
+  - `CreateIdentityAssertion`.
+
+  Also add hand-crafted rejections for: an unknown class, a second identity, a forged audit action, a non-empty `quarantine`, `tombstone/`, and a non-fixture `.tmp` blob.
+- **Minor:**
+  - Hash the blob contents, and allow a `.tmp` blob only if it is a prefix of a fixture.
+  - `symlink_metadata(vault_root)` must not be a link.
+  - Decide whether `gc_marks` is allowed. It is currently treated as user data, which fails safe.
+  - `sources` rows must agree with any matching source object.
+
 ## Required for v3 (second review, source-verified)
 
 - **B1 — the seed object allowlist is too narrow.** Seeding writes `source`, `audit` and `identity` objects and `sources` table rows, not only `proposal`/`assertion` (`ingest_ops.rs:124,128,158,186`; `promote.rs:60-61`). Define the exact producible set:

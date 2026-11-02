@@ -646,6 +646,341 @@ fn synthetic_core_ledger(vault_root: &Path, seed: &SeedManifest) -> LedgerCheck 
     LedgerCheck::Complete
 }
 
+/// Result of the read-only "only bundled fixture data" proof (Spec 108
+/// step 4 v3). Anything not recognised as part of a (possibly partial)
+/// first seed is user activity or unknown, and is never auto-cleaned.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[cfg_attr(not(test), allow(dead_code))] // wired into step 4 recovery next
+pub(crate) enum SeedOnlyCheck {
+    /// Every byte on disk is accounted for by the bundled seed plan.
+    FixtureOnly,
+    /// Something other than the bundled seed exists.
+    NotFixtureOnly,
+    /// The vault could not be read fully (busy, I/O, hot journal): unproven.
+    Unproven,
+}
+
+/// SHA-256 hex digests of the distinct bundled seed fixtures.
+#[cfg_attr(not(test), allow(dead_code))] // wired into step 4 recovery next
+fn seed_fixture_digests() -> std::collections::BTreeSet<String> {
+    seed_plan()
+        .into_iter()
+        .flat_map(|(_, fixtures)| fixtures)
+        .map(|f| medscale_contracts::objects::DigestSha256::of(f.bytes).to_hex())
+        .collect()
+}
+
+/// Folder contents a partial first seed can leave: the Core metadata and
+/// writer-lock databases and content-addressed fixture blobs (inventory of
+/// medscale-storage vault.rs, writer_lock.rs, blob.rs, sqlite_meta.rs).
+#[cfg_attr(not(test), allow(dead_code))] // wired into step 4 recovery next
+fn seed_only_files(
+    vault_root: &Path,
+    digests: &std::collections::BTreeSet<String>,
+) -> SeedOnlyCheck {
+    let entries = match std::fs::read_dir(vault_root) {
+        Ok(entries) => entries,
+        Err(e) if e.kind() == std::io::ErrorKind::NotFound => return SeedOnlyCheck::FixtureOnly,
+        Err(_) => return SeedOnlyCheck::Unproven,
+    };
+    for entry in entries {
+        let Ok(entry) = entry else {
+            return SeedOnlyCheck::Unproven;
+        };
+        let Ok(kind) = entry.file_type() else {
+            return SeedOnlyCheck::Unproven;
+        };
+        let name = entry.file_name().to_string_lossy().into_owned();
+        match name.as_str() {
+            // A hot rollback journal means an interrupted write: unproven
+            // until a rollback copy is inspected (v3 M5, not yet built).
+            "meta.sqlite3-journal" => return SeedOnlyCheck::Unproven,
+            "meta.sqlite3" | "writer.lock.sqlite3" | "writer.lock.sqlite3-journal"
+                if kind.is_file() => {}
+            "blobs" if kind.is_dir() => {
+                let Ok(blobs) = std::fs::read_dir(entry.path()) else {
+                    return SeedOnlyCheck::Unproven;
+                };
+                for blob in blobs {
+                    let Ok(blob) = blob else {
+                        return SeedOnlyCheck::Unproven;
+                    };
+                    let Ok(blob_kind) = blob.file_type() else {
+                        return SeedOnlyCheck::Unproven;
+                    };
+                    let blob_name = blob.file_name().to_string_lossy().into_owned();
+                    if blob_name == "quarantine" && blob_kind.is_dir() {
+                        match std::fs::read_dir(blob.path()) {
+                            Ok(mut q) => {
+                                if q.next().is_some() {
+                                    return SeedOnlyCheck::NotFixtureOnly;
+                                }
+                                continue;
+                            }
+                            Err(_) => return SeedOnlyCheck::Unproven,
+                        }
+                    }
+                    // `.<hex>.tmp` is an interrupted blob write (blob.rs).
+                    let hex = blob_name
+                        .strip_prefix('.')
+                        .and_then(|n| n.strip_suffix(".tmp"))
+                        .unwrap_or(&blob_name);
+                    if !(blob_kind.is_file() && digests.contains(hex)) {
+                        return SeedOnlyCheck::NotFixtureOnly;
+                    }
+                }
+            }
+            _ => return SeedOnlyCheck::NotFixtureOnly,
+        }
+    }
+    SeedOnlyCheck::FixtureOnly
+}
+
+/// Read-only proof that a synthetic vault holds nothing but a (possibly
+/// partial) first seed of the bundled fixtures. Never writes; any doubt is
+/// `Unproven` or `NotFixtureOnly`.
+///
+/// Scope: only `vault_root`. Sibling sidecars are the caller's check.
+/// Precondition before this may authorize deletion (Goldfish review M1,
+/// step 4 increment 2): the caller holds the instance lock and Core's
+/// `WriterLock` for `vault_root` from before this call until the rename,
+/// and the reads run in one transaction. Not yet wired to any action.
+#[cfg_attr(not(test), allow(dead_code))] // wired into step 4 recovery next
+pub(crate) fn seed_only_vault(vault_root: &Path) -> SeedOnlyCheck {
+    use rusqlite::{Connection, OpenFlags};
+    use serde_json::Value;
+    use std::collections::{BTreeMap, BTreeSet};
+
+    let digests = seed_fixture_digests();
+    match seed_only_files(vault_root, &digests) {
+        SeedOnlyCheck::FixtureOnly => {}
+        other => return other,
+    }
+    let meta = vault_root.join("meta.sqlite3");
+    match std::fs::symlink_metadata(&meta) {
+        Ok(m) if m.is_file() => {}
+        Ok(_) => return SeedOnlyCheck::NotFixtureOnly,
+        Err(e) if e.kind() == std::io::ErrorKind::NotFound => return SeedOnlyCheck::FixtureOnly,
+        Err(_) => return SeedOnlyCheck::Unproven,
+    }
+    let Ok(db) = Connection::open_with_flags(&meta, OpenFlags::SQLITE_OPEN_READ_ONLY) else {
+        return SeedOnlyCheck::Unproven;
+    };
+    let query_strings = |sql: &str| -> Option<Vec<Vec<Option<String>>>> {
+        let mut stmt = db.prepare(sql).ok()?;
+        let width = stmt.column_count();
+        let rows = stmt
+            .query_map([], |r| {
+                (0..width)
+                    .map(|i| r.get::<_, Option<String>>(i))
+                    .collect::<Result<Vec<_>, _>>()
+            })
+            .ok()?;
+        rows.collect::<Result<Vec<_>, _>>().ok()
+    };
+
+    // 1. Only the seed's tables may hold rows.
+    let Some(tables) = query_strings("SELECT name FROM sqlite_master WHERE type = 'table'") else {
+        return SeedOnlyCheck::Unproven;
+    };
+    const SEED_TABLES: [&str; 4] = [
+        "migration_journal",
+        "store_state",
+        "sources",
+        "authority_objects",
+    ];
+    for row in &tables {
+        let Some(Some(name)) = row.first() else {
+            return SeedOnlyCheck::Unproven;
+        };
+        if SEED_TABLES.contains(&name.as_str()) || name.starts_with("sqlite_") {
+            continue;
+        }
+        let quoted = name.replace('"', "\"\"");
+        let Ok(count) = db.query_row(&format!("SELECT COUNT(*) FROM \"{quoted}\""), [], |r| {
+            r.get::<_, i64>(0)
+        }) else {
+            return SeedOnlyCheck::Unproven;
+        };
+        if count != 0 {
+            return SeedOnlyCheck::NotFixtureOnly;
+        }
+    }
+    let has_table = |t: &str| {
+        tables
+            .iter()
+            .any(|r| r.first() == Some(&Some(t.to_owned())))
+    };
+
+    // 2. store_state holds only the shared id counter.
+    if has_table("store_state") {
+        let Some(keys) = query_strings("SELECT key FROM store_state") else {
+            return SeedOnlyCheck::Unproven;
+        };
+        if keys
+            .iter()
+            .any(|k| k.first() != Some(&Some("next_seq".to_owned())))
+        {
+            return SeedOnlyCheck::NotFixtureOnly;
+        }
+    }
+
+    // 3. sources rows reference fixture digests only.
+    if has_table("sources") {
+        let Some(rows) = query_strings("SELECT digest_hex FROM sources") else {
+            return SeedOnlyCheck::Unproven;
+        };
+        let mut seen = BTreeSet::new();
+        for r in rows {
+            let Some(Some(hex)) = r.first() else {
+                return SeedOnlyCheck::NotFixtureOnly;
+            };
+            if !digests.contains(hex) || !seen.insert(hex.clone()) {
+                return SeedOnlyCheck::NotFixtureOnly;
+            }
+        }
+    }
+
+    // 4. authority_objects: only the five seed classes, in seed shapes.
+    if !has_table("authority_objects") {
+        return SeedOnlyCheck::FixtureOnly;
+    }
+    let Some(rows) = query_strings(
+        "SELECT object_id, object_class, body_json, content_digest_hex FROM authority_objects",
+    ) else {
+        return SeedOnlyCheck::Unproven;
+    };
+    type ObjRow = (String, Value, Option<String>);
+    let mut by_class: BTreeMap<String, Vec<ObjRow>> = BTreeMap::new();
+    for r in rows {
+        let (Some(Some(id)), Some(Some(class)), Some(Some(body))) = (r.first(), r.get(1), r.get(2))
+        else {
+            return SeedOnlyCheck::NotFixtureOnly;
+        };
+        let Ok(body) = serde_json::from_str::<Value>(body) else {
+            return SeedOnlyCheck::NotFixtureOnly;
+        };
+        let digest = r.get(3).cloned().flatten();
+        by_class
+            .entry(class.clone())
+            .or_default()
+            .push((id.clone(), body, digest));
+    }
+    if by_class
+        .keys()
+        .any(|c| !["source", "identity", "audit", "proposal", "assertion"].contains(&c.as_str()))
+    {
+        return SeedOnlyCheck::NotFixtureOnly;
+    }
+    let empty = Vec::new();
+    let class = |c: &str| by_class.get(c).unwrap_or(&empty);
+    let strings = |v: &Value| -> Option<Vec<String>> {
+        v.as_array()?
+            .iter()
+            .map(|x| x.as_str().map(str::to_owned))
+            .collect()
+    };
+
+    // Sources: one per distinct fixture digest.
+    let mut source_digest: BTreeMap<String, String> = BTreeMap::new();
+    for (id, _, digest) in class("source") {
+        let Some(hex) = digest else {
+            return SeedOnlyCheck::NotFixtureOnly;
+        };
+        if !digests.contains(hex) || source_digest.values().any(|d| d == hex) {
+            return SeedOnlyCheck::NotFixtureOnly;
+        }
+        source_digest.insert(id.clone(), hex.clone());
+    }
+    // Identities: at most the one Patient identifier, evidenced by a source.
+    if class("identity").len() > 1 {
+        return SeedOnlyCheck::NotFixtureOnly;
+    }
+    for (_, body, _) in class("identity") {
+        match strings(&body["evidence_refs"]) {
+            Some(refs)
+                if !refs.is_empty() && refs.iter().all(|r| source_digest.contains_key(r)) => {}
+            _ => return SeedOnlyCheck::NotFixtureOnly,
+        }
+    }
+    // Proposals: each equals one bundled plan entry, evidenced by the source
+    // holding exactly that fixture's bytes; at most one per plan entry.
+    let mut plan_used = BTreeSet::new();
+    let mut proposal_payload = BTreeMap::new();
+    for (id, body, _) in class("proposal") {
+        let subject = body["subject_ref"].as_str().unwrap_or_default();
+        let kind = body["claim_kind"].as_str().unwrap_or_default();
+        let refs = strings(&body["evidence_refs"]).unwrap_or_default();
+        if body["producer"].as_str() != Some("rule") || refs.len() != 1 {
+            return SeedOnlyCheck::NotFixtureOnly;
+        }
+        let Some(source_hex) = source_digest.get(&refs[0]) else {
+            return SeedOnlyCheck::NotFixtureOnly;
+        };
+        let matched = seed_plan()
+            .into_iter()
+            .find_map(|(plan_subject, fixtures)| {
+                fixtures.into_iter().find_map(|f| {
+                    let resource: Value = serde_json::from_slice(f.bytes).ok()?;
+                    (plan_subject == subject
+                        && f.claim_kind == kind
+                        && body["payload"] == serde_json::json!({ "resource": resource })
+                        && *source_hex
+                            == medscale_contracts::objects::DigestSha256::of(f.bytes).to_hex())
+                    .then_some((plan_subject, f.file))
+                })
+            });
+        let Some(entry) = matched else {
+            return SeedOnlyCheck::NotFixtureOnly;
+        };
+        if !plan_used.insert(entry) {
+            return SeedOnlyCheck::NotFixtureOnly;
+        }
+        proposal_payload.insert(
+            id.clone(),
+            (subject.to_owned(), kind.to_owned(), body["payload"].clone()),
+        );
+    }
+    // Assertions: at most one per proposal, an exact copy of it.
+    let mut promoted = BTreeSet::new();
+    let mut assertion_ids = BTreeSet::new();
+    for (id, body, _) in class("assertion") {
+        let Some(from) = body["promoted_from_proposal_id"].as_str() else {
+            return SeedOnlyCheck::NotFixtureOnly;
+        };
+        let Some((subject, kind, payload)) = proposal_payload.get(from) else {
+            return SeedOnlyCheck::NotFixtureOnly;
+        };
+        if body["subject_ref"].as_str() != Some(subject.as_str())
+            || body["claim_kind"].as_str() != Some(kind.as_str())
+            || &body["payload"] != payload
+            || !promoted.insert(from.to_owned())
+        {
+            return SeedOnlyCheck::NotFixtureOnly;
+        }
+        assertion_ids.insert(id.clone());
+    }
+    // Audits: only seed ingest and promotion records about seed objects.
+    for (_, body, _) in class("audit") {
+        let targets = strings(&body["target_refs"]).unwrap_or_default();
+        let ok = match body["action"].as_str() {
+            Some("ingest_fhir_synthetic") => {
+                targets.len() == 1 && source_digest.contains_key(&targets[0])
+            }
+            Some("promote_proposal") => {
+                targets.len() == 2
+                    && proposal_payload.contains_key(&targets[0])
+                    && assertion_ids.contains(&targets[1])
+            }
+            _ => false,
+        };
+        if !ok {
+            return SeedOnlyCheck::NotFixtureOnly;
+        }
+    }
+    SeedOnlyCheck::FixtureOnly
+}
+
 /// Fail closed before Core opens an existing synthetic vault. A missing,
 /// truncated or partial manifest after a prior Core write is NOT a license
 /// to replay fixture promotions: Core proposal creation is not idempotent.
@@ -1279,6 +1614,119 @@ mod tests {
         assert!(second.workspace.is_none());
         drop(first);
         drop(second);
+        std::fs::remove_dir_all(&data_dir).expect("synthetic-only cleanup");
+    }
+
+    fn seed_only_scratch(tag: &str) -> (PathBuf, PathBuf) {
+        let data_dir = std::env::temp_dir().join(format!(
+            "medscale-seedonly-{tag}-{}-{}",
+            std::process::id(),
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .expect("clock")
+                .as_nanos()
+        ));
+        let vault_root = data_dir.join("synthetic-workspace");
+        (data_dir, vault_root)
+    }
+
+    #[test]
+    fn seed_only_accepts_absent_and_complete_genuine_seed() {
+        let (data_dir, vault_root) = seed_only_scratch("complete");
+        assert_eq!(seed_only_vault(&vault_root), SeedOnlyCheck::FixtureOnly);
+        let mut state = State {
+            data_dir: Some(data_dir.clone()),
+            ..State::default()
+        };
+        open_synthetic(&mut state).expect("genuine 12/12 seed");
+        drop(state);
+        assert_eq!(
+            seed_only_vault(&vault_root),
+            SeedOnlyCheck::FixtureOnly,
+            "a genuine bundled seed is fixture-only"
+        );
+        std::fs::remove_dir_all(&data_dir).expect("synthetic-only cleanup");
+    }
+
+    #[test]
+    fn seed_only_accepts_a_genuine_partial_seed() {
+        let (data_dir, vault_root) = seed_only_scratch("partial");
+        std::fs::create_dir_all(&data_dir).expect("dir");
+        let mut session = CliSession::connect("desktop-synthetic").expect("Core");
+        session
+            .open_synthetic_vault(&vault_root.display().to_string())
+            .expect("vault");
+        let (subject, fixtures) = seed_plan().into_iter().next().expect("plan");
+        let fixture = fixtures.into_iter().next().expect("fixture");
+        let path = data_dir.join(fixture.file);
+        std::fs::write(&path, fixture.bytes).expect("staging");
+        let source = session
+            .ingest_fhir_file(&path.display().to_string())
+            .expect("ingest");
+        let resource: serde_json::Value = serde_json::from_slice(fixture.bytes).expect("json");
+        session
+            .promote_fixture_as_assertion(source, subject, fixture.claim_kind, resource)
+            .expect("promote");
+        drop(session);
+        std::fs::remove_file(&path).expect("staging cleanup");
+        assert_eq!(seed_only_vault(&vault_root), SeedOnlyCheck::FixtureOnly);
+        std::fs::remove_dir_all(&data_dir).expect("synthetic-only cleanup");
+    }
+
+    #[test]
+    fn seed_only_rejects_user_import_unknown_files_and_feature_rows() {
+        let (data_dir, vault_root) = seed_only_scratch("user");
+        let mut state = State {
+            data_dir: Some(data_dir.clone()),
+            ..State::default()
+        };
+        open_synthetic(&mut state).expect("seed");
+        let (subject, fixtures) = seed_plan().into_iter().next().expect("plan");
+        let mut resource: serde_json::Value =
+            serde_json::from_slice(fixtures[0].bytes).expect("json");
+        resource["id"] = serde_json::json!("seed-only-user-import");
+        let file = data_dir.join("user-import.json");
+        std::fs::write(&file, serde_json::to_vec(&resource).expect("json")).expect("write");
+        import_fhir(state.workspace.as_mut().expect("workspace"), &file, subject)
+            .expect("user import");
+        drop(state);
+        assert_eq!(
+            seed_only_vault(&vault_root),
+            SeedOnlyCheck::NotFixtureOnly,
+            "a user FHIR import is user data"
+        );
+        std::fs::remove_dir_all(&data_dir).expect("synthetic-only cleanup");
+
+        let (data_dir, vault_root) = seed_only_scratch("extra");
+        let mut state = State {
+            data_dir: Some(data_dir.clone()),
+            ..State::default()
+        };
+        open_synthetic(&mut state).expect("seed");
+        drop(state);
+        std::fs::write(vault_root.join("synthetic-fixture-table.csv"), b"a,b").expect("extra");
+        assert_eq!(seed_only_vault(&vault_root), SeedOnlyCheck::NotFixtureOnly);
+        std::fs::remove_file(vault_root.join("synthetic-fixture-table.csv")).expect("rm");
+        assert_eq!(seed_only_vault(&vault_root), SeedOnlyCheck::FixtureOnly);
+        {
+            let db = rusqlite::Connection::open(vault_root.join("meta.sqlite3")).expect("db");
+            db.execute(
+                "INSERT INTO store_state(key, value) VALUES ('project_id_seq', '1')",
+                [],
+            )
+            .expect("feature counter");
+        }
+        assert_eq!(
+            seed_only_vault(&vault_root),
+            SeedOnlyCheck::NotFixtureOnly,
+            "any feature id counter means user activity"
+        );
+        std::fs::write(vault_root.join("meta.sqlite3-journal"), b"hot").expect("journal");
+        assert_eq!(
+            seed_only_vault(&vault_root),
+            SeedOnlyCheck::Unproven,
+            "a hot journal is never proof"
+        );
         std::fs::remove_dir_all(&data_dir).expect("synthetic-only cleanup");
     }
 
