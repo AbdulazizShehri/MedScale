@@ -678,9 +678,16 @@ fn seed_only_files(
     vault_root: &Path,
     digests: &std::collections::BTreeSet<String>,
 ) -> SeedOnlyCheck {
+    // read_dir follows a symlink; a caller must never treat an arbitrary
+    // linked directory as a disposable first-seed vault.
+    match std::fs::symlink_metadata(vault_root) {
+        Ok(meta) if meta.file_type().is_dir() => {}
+        Ok(_) => return SeedOnlyCheck::NotFixtureOnly,
+        Err(e) if e.kind() == std::io::ErrorKind::NotFound => return SeedOnlyCheck::FixtureOnly,
+        Err(_) => return SeedOnlyCheck::Unproven,
+    }
     let entries = match std::fs::read_dir(vault_root) {
         Ok(entries) => entries,
-        Err(e) if e.kind() == std::io::ErrorKind::NotFound => return SeedOnlyCheck::FixtureOnly,
         Err(_) => return SeedOnlyCheck::Unproven,
     };
     for entry in entries {
@@ -720,12 +727,39 @@ fn seed_only_files(
                             Err(_) => return SeedOnlyCheck::Unproven,
                         }
                     }
-                    // `.<hex>.tmp` is an interrupted blob write (blob.rs).
-                    let hex = blob_name
+                    // Names alone are not proof: a user file could occupy a
+                    // fixture digest path. Verify exact bytes, or a prefix for
+                    // an interrupted `.<hex>.tmp` blob write.
+                    let temp_hex = blob_name
                         .strip_prefix('.')
-                        .and_then(|n| n.strip_suffix(".tmp"))
-                        .unwrap_or(&blob_name);
+                        .and_then(|n| n.strip_suffix(".tmp"));
+                    let hex = temp_hex.unwrap_or(&blob_name);
                     if !(blob_kind.is_file() && digests.contains(hex)) {
+                        return SeedOnlyCheck::NotFixtureOnly;
+                    }
+                    let Some(expected) = seed_plan()
+                        .into_iter()
+                        .flat_map(|(_, fixtures)| fixtures)
+                        .find(|fixture| {
+                            medscale_contracts::objects::DigestSha256::of(fixture.bytes).to_hex()
+                                == hex
+                        })
+                        .map(|fixture| fixture.bytes)
+                    else {
+                        return SeedOnlyCheck::NotFixtureOnly;
+                    };
+                    let Ok(meta) = blob.metadata() else {
+                        return SeedOnlyCheck::Unproven;
+                    };
+                    if meta.len() > expected.len() as u64 {
+                        return SeedOnlyCheck::NotFixtureOnly;
+                    }
+                    let Ok(bytes) = std::fs::read(blob.path()) else {
+                        return SeedOnlyCheck::Unproven;
+                    };
+                    if (temp_hex.is_some() && !expected.starts_with(&bytes))
+                        || (temp_hex.is_none() && bytes != expected)
+                    {
                         return SeedOnlyCheck::NotFixtureOnly;
                     }
                 }
@@ -1628,6 +1662,47 @@ mod tests {
         ));
         let vault_root = data_dir.join("synthetic-workspace");
         (data_dir, vault_root)
+    }
+
+    #[test]
+    fn seed_only_rejects_wrong_blob_bytes_and_accepts_interrupted_fixture_prefix() {
+        let (data_dir, vault_root) = seed_only_scratch("blob-proof");
+        let blobs = vault_root.join("blobs");
+        std::fs::create_dir_all(&blobs).expect("blob directory");
+        let fixture = seed_plan()
+            .into_iter()
+            .next()
+            .expect("plan")
+            .1
+            .into_iter()
+            .next()
+            .expect("fixture");
+        let digest = medscale_contracts::objects::DigestSha256::of(fixture.bytes).to_hex();
+        let complete = blobs.join(&digest);
+        std::fs::write(&complete, b"not fixture data").expect("fake blob");
+        assert_eq!(seed_only_vault(&vault_root), SeedOnlyCheck::NotFixtureOnly);
+        std::fs::write(&complete, fixture.bytes).expect("genuine blob");
+        assert_eq!(seed_only_vault(&vault_root), SeedOnlyCheck::FixtureOnly);
+        std::fs::remove_file(&complete).expect("remove complete blob");
+
+        let partial = blobs.join(format!(".{digest}.tmp"));
+        std::fs::write(&partial, &fixture.bytes[..fixture.bytes.len() / 2])
+            .expect("partial fixture");
+        assert_eq!(seed_only_vault(&vault_root), SeedOnlyCheck::FixtureOnly);
+        std::fs::write(&partial, b"not fixture data").expect("fake partial blob");
+        assert_eq!(seed_only_vault(&vault_root), SeedOnlyCheck::NotFixtureOnly);
+        std::fs::remove_dir_all(&data_dir).expect("synthetic-only cleanup");
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn seed_only_rejects_symlink_vault_root() {
+        let (data_dir, vault_root) = seed_only_scratch("symlink");
+        let target = data_dir.join("other-workspace");
+        std::fs::create_dir_all(&target).expect("target");
+        std::os::unix::fs::symlink(&target, &vault_root).expect("symlink");
+        assert_eq!(seed_only_vault(&vault_root), SeedOnlyCheck::NotFixtureOnly);
+        std::fs::remove_dir_all(&data_dir).expect("synthetic-only cleanup");
     }
 
     #[test]
