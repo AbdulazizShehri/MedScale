@@ -53,6 +53,22 @@ function appDataScope(parts, filename) {
   return "other_app_data";
 }
 
+/** Only the app-owned, root-level lock is exempt from a content read.
+ * Its handle may be unreadable on Windows while the process holds LockFileEx.
+ * Other zero-byte files still go through the normal scanner. */
+export function isTrustedEmptyInstanceLock(parts, filename, metadata) {
+  return parts.length === 0 && filename === "medscale-instance.lock" &&
+    metadata.isFile() && !metadata.isSymbolicLink() && metadata.size === 0;
+}
+
+/** A changed inode, length, or timestamp is not a stable audit snapshot. */
+export function sameRegularFileSnapshot(before, after) {
+  return after.isFile() && !after.isSymbolicLink() &&
+    before.dev === after.dev && before.ino === after.ino &&
+    before.size === after.size && before.mtimeMs === after.mtimeMs &&
+    before.ctimeMs === after.ctimeMs;
+}
+
 async function scanNeedles(file, remaining, found) {
   let scanned = 0;
   let tail = Buffer.alloc(0);
@@ -113,11 +129,19 @@ export async function auditProfiles(roots, limits = defaults) {
         let metadata;
         try { metadata = await lstat(file); } catch { info.unreadable_entries++; continue; }
         if (!metadata.isFile() || metadata.size > limits.maxFileBytes) { info.skipped_large_files++; continue; }
-        // A 0-byte file has no content that could carry a marker, so it is
-        // fully examined without opening it. This matters for MedScale's own
-        // always-empty instance lock (Spec 108 step 3), which Windows
-        // LockFileEx makes unreadable while the app runs.
-        if (metadata.size === 0) {
+        // A zero-byte file is NOT generally safe to skip: a concurrent
+        // writer could populate it between stat and scan. The sole exception
+        // is MedScale's own empty root-level instance lock, which Windows
+        // LockFileEx can make unreadable while the app runs. Re-stat it to
+        // reject a changed inode, size, or timestamps (fail closed).
+        if (isTrustedEmptyInstanceLock(parts, ent.name, metadata)) {
+          let after;
+          try { after = await lstat(file); }
+          catch { info.unreadable_entries++; continue; }
+          if (!sameRegularFileSnapshot(metadata, after)) {
+            info.bounded = true;
+            continue;
+          }
           info.files_examined++;
           const scope = appDataScope(parts, ent.name);
           (info.app_data_scopes[scope] ??= {
