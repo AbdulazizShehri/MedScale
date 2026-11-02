@@ -2,6 +2,12 @@
 
 _Last reviewed: 2026-11-02 (Asia/Riyadh). This is a planning and application-preparation workspace. No applications or awards are implied by inclusion here._
 
+## Latest verified grant submissions — 2026-11-02
+
+**Both priority applications have been formally submitted, not awarded.** [MIT Solve 2027 Global Health](MIT_SOLVE_2027_GLOBAL_HEALTH_APPLICATION_DRAFT_20261102.md): official individual **Prototype solution #125017**, confirmed “Your solution has been submitted.” [Open Science Foundation](OSF_DIGITAL_TWIN_PRIVACY_APPLICATION_DRAFT_20261102.md): **CHF 20,000 for nine months**, official reference **OP-DFF93223BF6B**, confirmed by both the portal's **APPLICATION RECEIVED** screen and a receipt email. No funding decision or payment has been made. Older historical draft checkpoints below are superseded by these official receipts.
+
+**Follow-through:** MIT Solve may conduct a legal eligibility review for a Saudi applicant; monitor the portal and email. For OSF, watch for Theoria's report and reviewer instructions; the lead agreed to substantive review of up to **four anonymised applications within 14 days after 15 December 2026**. Do not disclose peer application material to unapproved AI services. Selection is planned for 15 January 2027. Keep the submitted unlisted introduction video's URL with the provider rather than exposing it in public repo logs.
+
 ## Current priority and authoritative application evidence — 2026-11-02
 
 The [Open Science Foundation CHF 20,000 research application](OSF_DIGITAL_TWIN_PRIVACY_APPLICATION_DRAFT_20261102.md) remains **UNSUBMITTED**, with 43% shown in the last owner-browser view. A nine-month eligible-category illustrative CHF 20,000 budget, ethics field, AI-use disclosure and <=90 second *script* are now prepared offline; none of these updates is evidence of saving them in the browser. Actual linked identity, authentic YouTube/Vimeo clip, demonstrated public artifact, consent to peer review and official receipt are still required. The foundation confirmed that an independent Saudi researcher can apply in principle. Deadline 15 December 2026, 23:59:59 CET.
