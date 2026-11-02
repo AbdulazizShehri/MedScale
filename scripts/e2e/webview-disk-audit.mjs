@@ -71,6 +71,13 @@ async function scanNeedles(file, remaining, found) {
   return scanned;
 }
 
+/** A same-sized rewrite or file replacement must not count as stable coverage. */
+export function sameRegularFileSnapshot(before, after) {
+  return after.isFile() && before.dev === after.dev && before.ino === after.ino &&
+    before.size === after.size && before.mtimeMs === after.mtimeMs &&
+    before.ctimeMs === after.ctimeMs;
+}
+
 export async function auditProfiles(roots, limits = defaults) {
   const report = { scope: "synthetic-only-ci-tauri-app-local-data-including-webview2; not a privacy clearance", profiles: [] };
   for (const { label, root } of roots) {
@@ -116,6 +123,11 @@ export async function auditProfiles(roots, limits = defaults) {
         const found = [false, false];
         try {
           const n = await scanNeedles(file, limits.maxBytes - info.bytes_examined, found);
+          // A concurrent WebView2 rewrite can preserve byte length. Re-stat
+          // after reading and refuse full coverage if identity or timestamps
+          // changed, rather than relying on the pre-read size alone.
+          const after = await lstat(file);
+          if (!sameRegularFileSnapshot(metadata, after)) info.bounded = true;
           info.bytes_examined += n;
           info.files_examined++;
           const scope = appDataScope(parts, ent.name);
