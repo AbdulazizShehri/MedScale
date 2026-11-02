@@ -711,8 +711,12 @@ fn seed_only_files(
                     let blob_name = blob.file_name().to_string_lossy().into_owned();
                     if blob_name == "quarantine" && blob_kind.is_dir() {
                         match std::fs::read_dir(blob.path()) {
-                            Ok(mut q) if q.next().is_none() => continue,
-                            Ok(_) => return SeedOnlyCheck::NotFixtureOnly,
+                            Ok(mut q) => {
+                                if q.next().is_some() {
+                                    return SeedOnlyCheck::NotFixtureOnly;
+                                }
+                                continue;
+                            }
                             Err(_) => return SeedOnlyCheck::Unproven,
                         }
                     }
@@ -735,6 +739,12 @@ fn seed_only_files(
 /// Read-only proof that a synthetic vault holds nothing but a (possibly
 /// partial) first seed of the bundled fixtures. Never writes; any doubt is
 /// `Unproven` or `NotFixtureOnly`.
+///
+/// Scope: only `vault_root`. Sibling sidecars are the caller's check.
+/// Precondition before this may authorize deletion (Goldfish review M1,
+/// step 4 increment 2): the caller holds the instance lock and Core's
+/// `WriterLock` for `vault_root` from before this call until the rename,
+/// and the reads run in one transaction. Not yet wired to any action.
 #[cfg_attr(not(test), allow(dead_code))] // wired into step 4 recovery next
 pub(crate) fn seed_only_vault(vault_root: &Path) -> SeedOnlyCheck {
     use rusqlite::{Connection, OpenFlags};
@@ -840,7 +850,8 @@ pub(crate) fn seed_only_vault(vault_root: &Path) -> SeedOnlyCheck {
     ) else {
         return SeedOnlyCheck::Unproven;
     };
-    let mut by_class: BTreeMap<String, Vec<(String, Value, Option<String>)>> = BTreeMap::new();
+    type ObjRow = (String, Value, Option<String>);
+    let mut by_class: BTreeMap<String, Vec<ObjRow>> = BTreeMap::new();
     for r in rows {
         let (Some(Some(id)), Some(Some(class)), Some(Some(body))) = (r.first(), r.get(1), r.get(2))
         else {
@@ -871,7 +882,7 @@ pub(crate) fn seed_only_vault(vault_root: &Path) -> SeedOnlyCheck {
     };
 
     // Sources: one per distinct fixture digest.
-    let mut source_digest = BTreeMap::new();
+    let mut source_digest: BTreeMap<String, String> = BTreeMap::new();
     for (id, _, digest) in class("source") {
         let Some(hex) = digest else {
             return SeedOnlyCheck::NotFixtureOnly;
