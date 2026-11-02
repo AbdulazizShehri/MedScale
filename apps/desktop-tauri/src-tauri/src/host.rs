@@ -1694,6 +1694,74 @@ mod tests {
         std::fs::remove_dir_all(&data_dir).expect("synthetic-only cleanup");
     }
 
+    #[test]
+    fn seed_only_rejects_nonempty_quarantine_tombstone_and_unknown_temp_blob() {
+        let (data_dir, vault_root) = seed_only_scratch("unsafe-files");
+        let blobs = vault_root.join("blobs");
+        let quarantine = blobs.join("quarantine");
+        std::fs::create_dir_all(&quarantine).expect("quarantine directory");
+        assert_eq!(
+            seed_only_vault(&vault_root),
+            SeedOnlyCheck::FixtureOnly,
+            "an empty quarantine is not user data"
+        );
+
+        let quarantined = quarantine.join("unknown-user-file.json");
+        std::fs::write(&quarantined, b"unknown content").expect("quarantined file");
+        assert_eq!(
+            seed_only_vault(&vault_root),
+            SeedOnlyCheck::NotFixtureOnly,
+            "a non-empty quarantine must block recovery"
+        );
+        std::fs::remove_file(&quarantined).expect("remove quarantined file");
+
+        let tombstone = vault_root.join("tombstone");
+        std::fs::create_dir(&tombstone).expect("tombstone directory");
+        assert_eq!(
+            seed_only_vault(&vault_root),
+            SeedOnlyCheck::NotFixtureOnly,
+            "an unrecognised tombstone directory must block recovery"
+        );
+        std::fs::remove_dir(&tombstone).expect("remove tombstone");
+
+        let unknown_tmp = blobs.join(".not-a-bundled-fixture.tmp");
+        std::fs::write(&unknown_tmp, b"partial").expect("unknown temporary blob");
+        assert_eq!(
+            seed_only_vault(&vault_root),
+            SeedOnlyCheck::NotFixtureOnly,
+            "a temporary blob name is not proof of bundled data"
+        );
+        std::fs::remove_file(&unknown_tmp).expect("remove unknown blob");
+        assert_eq!(seed_only_vault(&vault_root), SeedOnlyCheck::FixtureOnly);
+        std::fs::remove_dir_all(&data_dir).expect("synthetic-only cleanup");
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn seed_only_rejects_symlinked_blob_entry() {
+        let (data_dir, vault_root) = seed_only_scratch("linked-blob");
+        let blobs = vault_root.join("blobs");
+        std::fs::create_dir_all(&blobs).expect("blob directory");
+        let fixture = seed_plan()
+            .into_iter()
+            .next()
+            .expect("plan")
+            .1
+            .into_iter()
+            .next()
+            .expect("fixture");
+        let digest = medscale_contracts::objects::DigestSha256::of(fixture.bytes).to_hex();
+        let target = data_dir.join("outside-vault.json");
+        std::fs::write(&target, fixture.bytes).expect("outside file");
+        std::os::unix::fs::symlink(&target, blobs.join(digest)).expect("linked blob");
+        assert_eq!(
+            seed_only_vault(&vault_root),
+            SeedOnlyCheck::NotFixtureOnly,
+            "even a linked genuine fixture is not an owned vault blob"
+        );
+        std::fs::remove_dir_all(&data_dir).expect("synthetic-only cleanup");
+    }
+
     #[cfg(unix)]
     #[test]
     fn seed_only_rejects_symlink_vault_root() {
