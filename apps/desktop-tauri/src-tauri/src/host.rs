@@ -625,7 +625,10 @@ fn write_atomic(path: &Path, bytes: &[u8]) -> std::io::Result<()> {
         }
     }
     let (tmp, mut file) = opened.ok_or_else(|| {
-        Error::new(ErrorKind::AlreadyExists, "no unused atomic temporary filename")
+        Error::new(
+            ErrorKind::AlreadyExists,
+            "no unused atomic temporary filename",
+        )
     })?;
     let write_result = file.write_all(bytes).and_then(|_| file.sync_all());
     drop(file);
@@ -1033,7 +1036,10 @@ mod tests {
         let error = write_atomic(&destination, b"{\"synthetic\":true}")
             .expect_err("a regular file must not replace an existing directory");
         assert_ne!(error.kind(), std::io::ErrorKind::NotFound);
-        assert_eq!(std::fs::read(&sentinel).expect("read sentinel"), b"unchanged");
+        assert_eq!(
+            std::fs::read(&sentinel).expect("read sentinel"),
+            b"unchanged"
+        );
         let leaked = std::fs::read_dir(&dir)
             .expect("list temporary parent")
             .filter_map(Result::ok)
