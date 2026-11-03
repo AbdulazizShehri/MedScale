@@ -1524,7 +1524,22 @@ pub fn open_synthetic(state: &mut State) -> CmdResult<bool> {
     let data_dir = state.data_dir()?.to_path_buf();
     let vault_root = data_dir.join("synthetic-workspace");
     let mut recovered = false;
-    let seed = match preflight_synthetic_seed(&vault_root)? {
+    let preflight = match preflight_synthetic_seed(&vault_root) {
+        // A committed sample with a hot journal: a later write (for example
+        // an import) was interrupted. Roll back only that uncommitted write
+        // under Core's writer lock, as Core's next open would, then re-check
+        // (Spec 108 step 5a).
+        Err(e)
+            if e.reason == Some(seed_reason::LEDGER_INTERRUPTED)
+                && regular_file(&vault_root.join("meta.sqlite3-journal"))
+                && regular_file(&vault_root.join("meta.sqlite3")) =>
+        {
+            settle_committed_hot_journal(&vault_root)?;
+            preflight_synthetic_seed(&vault_root)?
+        }
+        other => other?,
+    };
+    let seed = match preflight {
         Preflight::Complete(seed) => seed,
         Preflight::Pending(seed) => {
             recover_interrupted_first_seed(&data_dir, &vault_root, &seed)?;
@@ -1585,6 +1600,45 @@ pub fn open_synthetic(state: &mut State) -> CmdResult<bool> {
     restore_asr(&mut workspace);
     state.workspace = Some(workspace);
     Ok(recovered)
+}
+
+/// Regular file, never a symlink.
+fn regular_file(path: &Path) -> bool {
+    std::fs::symlink_metadata(path).is_ok_and(|m| m.file_type().is_file())
+}
+
+/// Roll back an interrupted, uncommitted write on a committed sample under
+/// Core's writer lock. Committed data, including user imports, is kept.
+fn settle_committed_hot_journal(vault_root: &Path) -> CmdResult<()> {
+    use medscale_core::{VaultWriterGuard, VaultWriterGuardError};
+    match std::fs::symlink_metadata(vault_root) {
+        Ok(m) if m.is_dir() && !m.file_type().is_symlink() => {}
+        _ => return Err(recovery_refused()),
+    }
+    let busy = || {
+        CmdError::unavailable(
+            "Unavailable: the synthetic workspace is busy; wait a moment and try again",
+        )
+        .with_reason(seed_reason::BUSY)
+    };
+    let io = || {
+        CmdError::unavailable("Unavailable: the synthetic workspace could not be read")
+            .with_reason(seed_reason::IO_FAILURE)
+    };
+    let guard = VaultWriterGuard::try_hold(vault_root).map_err(|e| match e {
+        VaultWriterGuardError::Held => {
+            CmdError::unavailable("Unavailable: another MedScale process is using this workspace")
+                .with_reason(seed_reason::WRITER_ACTIVE)
+        }
+        VaultWriterGuardError::Refused => recovery_refused(),
+        VaultWriterGuardError::Io => io(),
+    })?;
+    guard.settle_interrupted_write().map_err(|e| match e {
+        VaultWriterGuardError::Held => busy(),
+        _ => io(),
+    })?;
+    drop(guard);
+    Ok(())
 }
 
 fn recovery_refused() -> CmdError {
@@ -2921,6 +2975,65 @@ mod tests {
         assert_complete_sample(&state, &data_dir);
         drop(state);
         std::fs::remove_dir_all(&data_dir).expect("cleanup");
+    }
+
+    #[test]
+    fn committed_sample_with_a_hot_journal_keeps_imports_and_opens() {
+        // A complete sample plus a committed user import, then a later write
+        // interrupted mid-transaction: the uncommitted write is rolled back,
+        // the committed import is kept and the sample opens normally.
+        let data_dir = crash_scratch("committed-hot");
+        let (result, mut state) = reopen(&data_dir);
+        assert!(!result.expect("first seed"));
+        let (subject, fixtures) = seed_plan().into_iter().next().expect("plan");
+        let mut resource: serde_json::Value =
+            serde_json::from_slice(fixtures[0].bytes).expect("json");
+        resource["id"] = serde_json::json!("committed-user-import");
+        let file = data_dir.join("committed-user-import.json");
+        std::fs::write(&file, serde_json::to_vec(&resource).expect("json")).expect("write");
+        import_fhir(state.workspace.as_mut().expect("workspace"), &file, subject)
+            .expect("committed import");
+        drop(state);
+        let vault = data_dir.join("synthetic-workspace");
+        let scratch = crash_scratch("committed-hot-copies");
+        make_hot_journal(&vault, &scratch);
+        let (result, state) = reopen(&data_dir);
+        assert!(
+            !result.expect("settled committed sample opens"),
+            "not a first-seed recovery"
+        );
+        assert!(
+            !vault.join("meta.sqlite3-journal").exists(),
+            "journal settled"
+        );
+        assert_eq!(
+            ledger_counts(&vault),
+            (13, 13),
+            "12 fixtures plus the committed import"
+        );
+        let forged: i64 = rusqlite::Connection::open(vault.join("meta.sqlite3"))
+            .expect("db")
+            .query_row(
+                "SELECT COUNT(*) FROM authority_objects WHERE object_id LIKE 'forged-%'",
+                [],
+                |r| r.get(0),
+            )
+            .expect("count");
+        assert_eq!(forged, 0, "uncommitted rows were rolled back");
+        assert!(
+            state
+                .workspace
+                .as_ref()
+                .expect("workspace")
+                .seed
+                .sources
+                .iter()
+                .any(|s| s.fixture == "imported:committed-user-import.json"),
+            "the committed import is still listed"
+        );
+        drop(state);
+        std::fs::remove_dir_all(&data_dir).expect("cleanup");
+        std::fs::remove_dir_all(&scratch).expect("cleanup");
     }
 
     #[test]
