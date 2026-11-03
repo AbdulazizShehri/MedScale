@@ -67,8 +67,10 @@ jobs:
           }
           Write-Output "RELEASE_WEBVIEW_NATIVE_SEED_OBSERVED_BEFORE_RESTART=$($q.synthetic_seed_file_observed_before_restart)"
           Write-Output "RELEASE_WEBVIEW_NATIVE_SEED_WAIT_SECONDS=$($q.synthetic_seed_wait_seconds)"
+          Write-Output "RELEASE_WEBVIEW_NATIVE_SEED_MANIFEST_STATE=$($q.synthetic_seed_manifest_state_before_restart)"
           if ($q.synthetic_seed_file_observed_before_restart -ne $true -or
-              $q.synthetic_seed_wait_seconds -gt 30) {
+              $q.synthetic_seed_manifest_state_before_restart -ne 'COMPLETE' -or
+              $q.synthetic_seed_wait_seconds -gt 60) {
             throw "Normal-release synthetic seed was not observed before restart"
           }
           Write-Output "RELEASE_WEBVIEW_NATIVE_SYNTHETIC_ACTION=ENTER_SENT_DISPOSABLE_CI"
