@@ -8,6 +8,9 @@ use std::path::{Path, PathBuf};
 use medscale_storage::{SettleJournalError, WriterLock, WriterLockError};
 
 /// Holds Core's exclusive writer lock on one vault folder until dropped.
+///
+/// The recorded root is the path at lock time; if the folder is renamed
+/// while held, settling fails safely (no create flag) instead of following.
 #[derive(Debug)]
 pub struct VaultWriterGuard {
     _lock: WriterLock,

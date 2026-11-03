@@ -707,7 +707,7 @@ fn seed_only_files(
         let name = entry.file_name().to_string_lossy().into_owned();
         match name.as_str() {
             // A hot rollback journal means an interrupted write: unproven
-            // until a rollback copy is inspected (v3 M5, not yet built).
+            // here; recovery settles it under the writer lock and re-proves.
             "meta.sqlite3-journal" => return SeedOnlyCheck::Unproven,
             "meta.sqlite3" | "writer.lock.sqlite3" | "writer.lock.sqlite3-journal"
                 if kind.is_file() => {}
@@ -1716,9 +1716,12 @@ fn hold_and_prove_fixture_only(dir: &Path) -> CmdResult<medscale_core::VaultWrit
     // A hot journal is an uncommitted write. While holding the lock, let
     // SQLite roll it back exactly as Core's next open would, then prove the
     // settled, committed state (Spec 108 step 4 hot-journal v2).
+    // Regular files only: never settle through a symlink (review M1).
+    let regular_file =
+        |p: PathBuf| std::fs::symlink_metadata(p).is_ok_and(|m| m.file_type().is_file());
     if check == SeedOnlyCheck::Unproven
-        && dir.join("meta.sqlite3-journal").exists()
-        && dir.join("meta.sqlite3").is_file()
+        && regular_file(dir.join("meta.sqlite3-journal"))
+        && regular_file(dir.join("meta.sqlite3"))
     {
         guard.settle_interrupted_write().map_err(|e| match e {
             VaultWriterGuardError::Held => CmdError::unavailable(
@@ -2786,6 +2789,7 @@ mod tests {
         let journal = vault.join("meta.sqlite3-journal");
         let meta_copy = scratch.join("meta.copy");
         let journal_copy = scratch.join("journal.copy");
+        let before = std::fs::read(&meta).expect("committed database");
         {
             let writer = rusqlite::Connection::open(&meta).expect("db");
             writer
@@ -2806,22 +2810,18 @@ mod tests {
             copy_through_read(&journal, &journal_copy);
             writer.execute_batch("ROLLBACK;").expect("rollback");
         }
-        // The copy without its journal must show the forged rows: proof that
-        // uncommitted pages really reached the database file.
-        let probe = scratch.join("probe");
-        std::fs::create_dir_all(&probe).expect("probe dir");
-        copy_through_read(&meta_copy, &probe.join("meta.sqlite3"));
-        let forged: i64 = rusqlite::Connection::open(probe.join("meta.sqlite3"))
-            .expect("probe db")
-            .query_row(
-                "SELECT COUNT(*) FROM authority_objects WHERE object_id LIKE 'forged-uncommitted-%'",
-                [],
-                |r| r.get(0),
-            )
-            .expect("probe count");
+        // Byte proof that uncommitted pages reached the database file: an
+        // original page was overwritten, so only the journal can restore it.
+        // (A SQL probe of a mid-transaction copy is unreliable: page 1 keeps
+        // the old page count until commit.)
+        let torn = std::fs::read(&meta_copy).expect("torn copy");
         assert!(
-            forged > 0,
-            "uncommitted pages spilled into the database file"
+            torn.len() >= before.len() && torn[..before.len()] != before[..],
+            "an original page was overwritten by the uncommitted write"
+        );
+        assert!(
+            torn.windows(19).any(|w| w == b"forged-uncommitted-"),
+            "forged uncommitted rows are on disk"
         );
         // Install the torn pair: database with uncommitted pages + hot journal.
         copy_through_read(&meta_copy, &meta);
@@ -2837,7 +2837,14 @@ mod tests {
                 r.get::<_, i64>(0)
             })
             .expect_err("hot journal blocks a read-only reader");
-        assert_eq!(err.sqlite_error_code(), Some(rusqlite::ErrorCode::ReadOnly));
+        match err {
+            rusqlite::Error::SqliteFailure(e, _) => assert_eq!(
+                e.extended_code,
+                rusqlite::ffi::SQLITE_READONLY_ROLLBACK,
+                "the journal is hot"
+            ),
+            other => panic!("expected SQLITE_READONLY_ROLLBACK, got {other:?}"),
+        }
     }
 
     #[test]
@@ -2850,6 +2857,16 @@ mod tests {
         let (result, state) = reopen(&data_dir);
         assert!(result.expect("settled and recovered"));
         assert_complete_sample(&state, &data_dir);
+        let forged: i64 =
+            rusqlite::Connection::open(data_dir.join("synthetic-workspace").join("meta.sqlite3"))
+                .expect("db")
+                .query_row(
+                    "SELECT COUNT(*) FROM authority_objects WHERE object_id LIKE 'forged-%'",
+                    [],
+                    |r| r.get(0),
+                )
+                .expect("count");
+        assert_eq!(forged, 0, "no forged row survives");
         drop(state);
         std::fs::remove_dir_all(&data_dir).expect("cleanup");
         std::fs::remove_dir_all(&scratch).expect("cleanup");

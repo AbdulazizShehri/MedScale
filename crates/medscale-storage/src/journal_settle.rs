@@ -39,7 +39,10 @@ fn classify(error: &rusqlite::Error) -> SettleJournalError {
 /// # Errors
 /// [`SettleJournalError`] when the file is missing, busy or unreadable.
 pub fn settle_meta_journal(root: &Path) -> Result<(), SettleJournalError> {
-    let flags = OpenFlags::SQLITE_OPEN_READ_WRITE | OpenFlags::SQLITE_OPEN_NO_MUTEX;
+    // NOFOLLOW: never settle a database reached through a symlink.
+    let flags = OpenFlags::SQLITE_OPEN_READ_WRITE
+        | OpenFlags::SQLITE_OPEN_NO_MUTEX
+        | OpenFlags::SQLITE_OPEN_NOFOLLOW;
     let conn =
         Connection::open_with_flags(root.join("meta.sqlite3"), flags).map_err(|e| classify(&e))?;
     conn.busy_timeout(Duration::ZERO)
@@ -118,6 +121,10 @@ mod tests {
         writer
             .execute_batch("BEGIN IMMEDIATE; INSERT INTO store_state(key, value) VALUES ('settle_probe', '1');")
             .expect("reserved");
+        assert_eq!(settle_meta_journal(&dir), Err(SettleJournalError::Busy));
+        writer.execute_batch("ROLLBACK;").expect("release");
+        // An EXCLUSIVE holder blocks even the first read: also Busy.
+        writer.execute_batch("BEGIN EXCLUSIVE;").expect("exclusive");
         assert_eq!(settle_meta_journal(&dir), Err(SettleJournalError::Busy));
         writer.execute_batch("ROLLBACK;").expect("release");
         drop(writer);
