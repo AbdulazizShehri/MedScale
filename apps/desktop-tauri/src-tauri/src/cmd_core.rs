@@ -84,6 +84,7 @@ pub fn workspace_status(host: tauri::State<'_, Host>) -> CmdResult<Value> {
         "encrypted_vault_exists": host::encrypted_root(&state)
             .map(|root| root.join("vault_header.json").is_file() && root.join("meta.sealed").is_file())
             .unwrap_or(false),
+        "set_aside_exists": state.data_dir().map(host::set_aside_exists).unwrap_or(false),
         "version": medscale_contracts::MEDSCALE_VERSION,
         "local_only": report.local_only,
         "real_phi_authorized": report.real_phi_authorized,
@@ -104,6 +105,22 @@ pub fn workspace_open_synthetic(host: tauri::State<'_, Host>) -> CmdResult<Value
         );
     }
     Ok(label)
+}
+
+/// Spec 108 step 5: move an un-openable sample aside (never deletes).
+#[tauri::command(async)]
+pub fn workspace_set_aside_synthetic(host: tauri::State<'_, Host>) -> CmdResult<Value> {
+    let mut state = lock(&host)?;
+    host::set_aside_synthetic(&mut state)?;
+    Ok(json!({ "set_aside": true }))
+}
+
+/// Spec 108 step 5: permanently delete the set-aside sample.
+#[tauri::command(async)]
+pub fn workspace_delete_set_aside_synthetic(host: tauri::State<'_, Host>) -> CmdResult<Value> {
+    let state = lock(&host)?;
+    host::delete_set_aside_synthetic(&state)?;
+    Ok(json!({ "deleted": true }))
 }
 
 #[tauri::command(async)]

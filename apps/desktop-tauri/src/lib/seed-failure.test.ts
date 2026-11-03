@@ -25,7 +25,7 @@ test("a missing or incomplete setup record is not described as undecodable", () 
     const g = seedFailureGuidance(reason)!;
     assert.equal(g.category, "incomplete", reason);
     assert.doesNotMatch(`${g.title} ${g.detail}`, /decod|corrupt/i, reason);
-    assert.match(g.detail, /another MedScale window may still be preparing it/);
+    assert.match(g.detail, /MedScale may have closed while preparing it/);
   }
 });
 

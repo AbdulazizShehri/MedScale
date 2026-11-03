@@ -17,6 +17,9 @@ export const SEED_REASONS = [
   "core_integrity_error",
   "seed_recovery_refused",
   "seed_stale_sidecar",
+  "set_aside_slot_occupied",
+  "set_aside_incomplete",
+  "set_aside_refused",
 ] as const;
 
 export type SeedReason = (typeof SEED_REASONS)[number];
@@ -60,7 +63,7 @@ export function seedFailureGuidance(reason: SeedReason | undefined): SeedGuidanc
       return {
         category: "incomplete",
         title: "The sample workspace was not finished setting up.",
-        detail: `MedScale may have closed while preparing it, or another MedScale window may still be preparing it. To avoid duplicating records, MedScale will not reuse it. ${UNCHANGED}`,
+        detail: `MedScale may have closed while preparing it. To avoid duplicating records, MedScale will not reuse it. ${UNCHANGED}`,
       };
     case "seed_manifest_invalid":
       return {
@@ -91,6 +94,24 @@ export function seedFailureGuidance(reason: SeedReason | undefined): SeedGuidanc
         category: "incomplete",
         title: "Settings from an earlier sample workspace remain.",
         detail: `MedScale will not start a new sample over them. ${UNCHANGED}`,
+      };
+    case "set_aside_slot_occupied":
+      return {
+        category: "incomplete",
+        title: "A previously set-aside sample still exists.",
+        detail: "Delete it first to set this one aside. Deleting it is permanent.",
+      };
+    case "set_aside_incomplete":
+      return {
+        category: "retry",
+        title: "Setting the sample aside did not finish.",
+        detail: "Some sample files were moved to the set-aside folder. Try again to finish; nothing was deleted.",
+      };
+    case "set_aside_refused":
+      return {
+        category: "retry",
+        title: "The sample workspace was not set aside.",
+        detail: "This action only applies to a sample workspace that cannot be opened. Nothing was changed.",
       };
     case "core_integrity_error":
       return {
