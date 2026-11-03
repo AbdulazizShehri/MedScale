@@ -1720,10 +1720,32 @@ fn hold_and_prove_fixture_only(dir: &Path) -> CmdResult<medscale_core::VaultWrit
             "Corrupt: synthetic seed state is incomplete; refusing replay",
         )
         .with_reason(seed_reason::LEDGER_INTERRUPTED)),
+        SeedOnlyCheck::Unproven if ledger_busy(dir) => Err(CmdError::unavailable(
+            "Unavailable: the synthetic workspace is busy; wait a moment and try again",
+        )
+        .with_reason(seed_reason::BUSY)),
         SeedOnlyCheck::Unproven => Err(CmdError::unavailable(
             "Unavailable: the synthetic workspace could not be read",
         )
         .with_reason(seed_reason::IO_FAILURE)),
+    }
+}
+
+/// True when the vault's Core ledger is currently locked by another
+/// connection (review M2): a busy vault is not an I/O failure.
+fn ledger_busy(dir: &Path) -> bool {
+    use rusqlite::{Connection, OpenFlags};
+    let Ok(db) =
+        Connection::open_with_flags(dir.join("meta.sqlite3"), OpenFlags::SQLITE_OPEN_READ_ONLY)
+    else {
+        return false;
+    };
+    let _ = db.busy_timeout(std::time::Duration::ZERO);
+    match db.query_row("SELECT COUNT(*) FROM sqlite_master", [], |r| {
+        r.get::<_, i64>(0)
+    }) {
+        Ok(_) => false,
+        Err(e) => classify_ledger_error(&e) == LedgerCheck::Busy,
     }
 }
 
@@ -2663,6 +2685,56 @@ mod tests {
             Some(seed_reason::RECOVERY_REFUSED)
         );
         assert!(orphan.exists());
+        std::fs::remove_dir_all(&data_dir).expect("cleanup");
+    }
+
+    #[test]
+    fn recovery_reports_interrupted_busy_and_foreign_states_without_touching_them() {
+        // A hot journal from an interrupted Core write is never proof.
+        let data_dir = crash_scratch("hot-journal");
+        run_crash_child(&data_dir, "after_fixture_1");
+        let vault = data_dir.join("synthetic-workspace");
+        std::fs::write(vault.join("meta.sqlite3-journal"), b"synthetic hot journal")
+            .expect("journal");
+        let (result, _state) = reopen(&data_dir);
+        assert_eq!(
+            result.expect_err("hot journal").reason,
+            Some(seed_reason::LEDGER_INTERRUPTED)
+        );
+        assert!(vault.join("meta.sqlite3").exists(), "nothing deleted");
+        std::fs::remove_dir_all(&data_dir).expect("cleanup");
+
+        // A discard folder that is not bound to this pending seed's nonce.
+        let data_dir = crash_scratch("foreign-nonce");
+        run_crash_child(&data_dir, "after_fixture_1");
+        let foreign = data_dir.join(format!("{DISCARD_PREFIX}{}", "f".repeat(32)));
+        std::fs::create_dir_all(&foreign).expect("foreign");
+        let (result, _state) = reopen(&data_dir);
+        assert_eq!(
+            result.expect_err("foreign nonce").reason,
+            Some(seed_reason::RECOVERY_REFUSED)
+        );
+        assert!(foreign.exists() && data_dir.join("synthetic-workspace").exists());
+        std::fs::remove_dir_all(&data_dir).expect("cleanup");
+
+        // Another connection holds the Core ledger exclusively: busy, not I/O.
+        let data_dir = crash_scratch("busy");
+        run_crash_child(&data_dir, "after_fixture_1");
+        let holder =
+            rusqlite::Connection::open(data_dir.join("synthetic-workspace").join("meta.sqlite3"))
+                .expect("db");
+        holder.execute_batch("BEGIN EXCLUSIVE;").expect("exclusive");
+        let (result, _state) = reopen(&data_dir);
+        assert_eq!(
+            result.expect_err("busy ledger").reason,
+            Some(seed_reason::BUSY)
+        );
+        holder.execute_batch("ROLLBACK;").expect("release");
+        drop(holder);
+        let (result, state) = reopen(&data_dir);
+        assert!(result.expect("recovered once free"));
+        assert_complete_sample(&state, &data_dir);
+        drop(state);
         std::fs::remove_dir_all(&data_dir).expect("cleanup");
     }
 
