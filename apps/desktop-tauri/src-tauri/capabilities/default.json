@@ -7,6 +7,8 @@
     "allow-get-shell-status",
     "allow-workspace-status",
     "allow-workspace-open-synthetic",
+    "allow-workspace-set-aside-synthetic",
+    "allow-workspace-delete-set-aside-synthetic",
     "allow-workspace-create-encrypted",
     "allow-workspace-unlock",
     "allow-workspace-lock",

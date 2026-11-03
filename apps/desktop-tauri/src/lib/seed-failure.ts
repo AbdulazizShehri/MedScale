@@ -17,6 +17,9 @@ export const SEED_REASONS = [
   "core_integrity_error",
   "seed_recovery_refused",
   "seed_stale_sidecar",
+  "set_aside_slot_occupied",
+  "set_aside_incomplete",
+  "set_aside_refused",
 ] as const;
 
 export type SeedReason = (typeof SEED_REASONS)[number];
@@ -60,7 +63,7 @@ export function seedFailureGuidance(reason: SeedReason | undefined): SeedGuidanc
       return {
         category: "incomplete",
         title: "The sample workspace was not finished setting up.",
-        detail: `MedScale may have closed while preparing it, or another MedScale window may still be preparing it. To avoid duplicating records, MedScale will not reuse it. ${UNCHANGED}`,
+        detail: `MedScale may have closed while preparing it. To avoid duplicating records, MedScale will not reuse it. ${UNCHANGED}`,
       };
     case "seed_manifest_invalid":
       return {
@@ -78,7 +81,7 @@ export function seedFailureGuidance(reason: SeedReason | undefined): SeedGuidanc
       return {
         category: "incomplete",
         title: "The sample workspace was interrupted while saving.",
-        detail: `MedScale does not repair this automatically yet. To avoid duplicating records, it will not reuse the sample. ${UNCHANGED}`,
+        detail: `MedScale could not repair this automatically. To avoid duplicating records, it will not reuse the sample. ${UNCHANGED}`,
       };
     case "seed_recovery_refused":
       return {
@@ -91,6 +94,24 @@ export function seedFailureGuidance(reason: SeedReason | undefined): SeedGuidanc
         category: "incomplete",
         title: "Settings from an earlier sample workspace remain.",
         detail: `MedScale will not start a new sample over them. ${UNCHANGED}`,
+      };
+    case "set_aside_slot_occupied":
+      return {
+        category: "incomplete",
+        title: "A previously set-aside sample still exists.",
+        detail: "Delete it first to set this one aside. Deleting it is permanent.",
+      };
+    case "set_aside_incomplete":
+      return {
+        category: "retry",
+        title: "Setting the sample aside did not finish.",
+        detail: "Some sample files were moved to the set-aside folder. Try again to finish; nothing was deleted.",
+      };
+    case "set_aside_refused":
+      return {
+        category: "retry",
+        title: "The sample workspace was not set aside.",
+        detail: "This action only applies to a sample workspace that cannot be opened. Nothing was changed.",
       };
     case "core_integrity_error":
       return {
@@ -114,3 +135,26 @@ export const RECOVERED_SEED_NOTICE = {
   title: "Sample workspace rebuilt",
   detail: "It had not finished setting up the last time MedScale ran, so it was set up again from the bundled sample.",
 } as const;
+
+/** Spec 108 step 5: offer a manual set-aside only for sample-setup states the
+ * backend also re-checks; never for integrity errors or set-aside outcomes. */
+export function setAsideOffered(reason: SeedReason | undefined): boolean {
+  if (reason === "set_aside_incomplete") return true; // retry finishes the move
+  if (!reason || reason === "core_integrity_error" || reason.startsWith("set_aside_")) return false;
+  return seedFailureGuidance(reason)?.category === "incomplete";
+}
+
+export const SET_ASIDE_DIALOG = {
+  title: "Set the sample workspace aside?",
+  body: "MedScale will move the sample workspace and its settings into a folder inside MedScale's own data, then create a new sample. Nothing is deleted. The set-aside copy is not encrypted, cannot be opened in MedScale, may include FHIR files you imported into the sample, and is kept until you delete it. Your original source files elsewhere are untouched. Audio Pack settings for the sample need to be set up again; downloaded models stay.",
+  confirm: "Set aside and start a new sample",
+} as const;
+
+export const DELETE_SET_ASIDE_DIALOG = {
+  title: "Delete the set-aside sample?",
+  body: "This permanently deletes the set-aside copy, including any FHIR files you imported into it. It cannot be undone. Your current sample and your original source files are not affected.",
+  confirm: "Delete permanently",
+} as const;
+
+export const SET_ASIDE_EXISTS_NOTICE =
+  "A set-aside sample workspace is stored on this device. It is not encrypted and cannot be opened in MedScale.";

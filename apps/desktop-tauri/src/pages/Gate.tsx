@@ -3,7 +3,8 @@ import { useApp } from "../lib/app";
 import { useAction, type CmdError } from "../lib/ipc";
 import { Logo } from "../components/brand";
 import { Glyph, useToast } from "../components/ui";
-import { RECOVERED_SEED_NOTICE, recoveredInterruptedSeed, seedFailureGuidance } from "../lib/seed-failure";
+import { DELETE_SET_ASIDE_DIALOG, RECOVERED_SEED_NOTICE, SET_ASIDE_DIALOG, SET_ASIDE_EXISTS_NOTICE, recoveredInterruptedSeed, seedFailureGuidance, setAsideOffered } from "../lib/seed-failure";
+import { ConfirmPanel } from "../components/confirm";
 
 /** Spec 108 step 2: one announced alert per failure. With a known reason the
  * plain guidance replaces Core's raw message, which can name internal paths. */
@@ -50,10 +51,28 @@ export function Welcome({ onContinue }: { onContinue: () => void }) {
   const [error, setError] = useState<CmdError | null>(null);
 
   const toast = useToast();
+  const [confirming, setConfirming] = useState<null | "set-aside" | "delete">(null);
   async function openSynthetic() {
     const r = await run<unknown>("synthetic", "workspace_open_synthetic");
     if (!r.ok) { setError(r.error); return; }
     if (recoveredInterruptedSeed(r.data)) toast({ kind: "completed", ...RECOVERED_SEED_NOTICE });
+    await refreshWorkspace();
+  }
+  async function setAside() {
+    const r = await run<unknown>("set-aside", "workspace_set_aside_synthetic");
+    setConfirming(null);
+    if (!r.ok) { setError(r.error); return; }
+    setError(null);
+    toast({ kind: "completed", title: "Sample workspace set aside", detail: "A new sample is being created." });
+    await openSynthetic();
+    await refreshWorkspace();
+  }
+  async function deleteSetAside() {
+    const r = await run<unknown>("delete-set-aside", "workspace_delete_set_aside_synthetic");
+    setConfirming(null);
+    if (!r.ok) { setError(r.error); return; }
+    setError(null);
+    toast({ kind: "completed", title: "Set-aside sample deleted" });
     await refreshWorkspace();
   }
 
@@ -78,6 +97,25 @@ export function Welcome({ onContinue }: { onContinue: () => void }) {
           </div>
           {pending && <p className="t-sm i3">First open ingests the synthetic FHIR fixtures through Core. This takes a few seconds once.</p>}
           {error && <FailureAlert error={error} />}
+          {error && setAsideOffered(error.reason) && (
+            <button type="button" className="btn btn-s" style={{ marginTop: 10 }} aria-expanded={confirming === "set-aside"} onClick={() => setConfirming("set-aside")} disabled={!!pending}>
+              Set the sample workspace aside…
+            </button>
+          )}
+          {(ws?.set_aside_exists || error?.reason === "set_aside_slot_occupied") && (
+            <p className="t-sm i2" style={{ marginTop: 10, whiteSpace: "normal" }}>
+              {SET_ASIDE_EXISTS_NOTICE}{" "}
+              <button type="button" className="btn btn-g" aria-expanded={confirming === "delete"} onClick={() => setConfirming("delete")} disabled={!!pending}>Delete set-aside sample…</button>
+            </p>
+          )}
+          {confirming === "set-aside" && (
+            <ConfirmPanel title={SET_ASIDE_DIALOG.title} confirmLabel={SET_ASIDE_DIALOG.confirm} busy={!!pending}
+              onConfirm={setAside} onCancel={() => setConfirming(null)}>{SET_ASIDE_DIALOG.body}</ConfirmPanel>
+          )}
+          {confirming === "delete" && (
+            <ConfirmPanel title={DELETE_SET_ASIDE_DIALOG.title} confirmLabel={DELETE_SET_ASIDE_DIALOG.confirm} busy={!!pending}
+              onConfirm={deleteSetAside} onCancel={() => setConfirming(null)}>{DELETE_SET_ASIDE_DIALOG.body}</ConfirmPanel>
+          )}
         </div>
         <div className="row-gap" style={{ gap: 20, fontSize: 12, color: "var(--ink-3)" }}>
           <span className="st weak"><Glyph kind="available" />Beta · synthetic data only · runs on this device</span>

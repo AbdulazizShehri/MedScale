@@ -36,6 +36,8 @@ fn presentation_builder<R: tauri::Runtime>(builder: tauri::Builder<R>) -> tauri:
             cmd_core::get_shell_status,
             cmd_core::workspace_status,
             cmd_core::workspace_open_synthetic,
+            cmd_core::workspace_set_aside_synthetic,
+            cmd_core::workspace_delete_set_aside_synthetic,
             cmd_core::workspace_create_encrypted,
             cmd_core::workspace_unlock,
             cmd_core::workspace_lock,

@@ -29,6 +29,8 @@ fn main() {
             "get_shell_status",
             "workspace_status",
             "workspace_open_synthetic",
+            "workspace_set_aside_synthetic",
+            "workspace_delete_set_aside_synthetic",
             "workspace_create_encrypted",
             "workspace_unlock",
             "workspace_lock",
