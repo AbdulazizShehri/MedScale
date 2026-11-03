@@ -758,7 +758,8 @@ fn seed_only_files(
 /// Precondition before this may authorize deletion (Goldfish review M1,
 /// step 4 increment 2): the caller holds the instance lock and Core's
 /// `WriterLock` for `vault_root` from before this call until the rename,
-/// and the reads run in one transaction. Not yet wired to any action.
+/// and the reads run in one transaction. Used by first-seed recovery, which
+/// holds that lock (`hold_and_prove_fixture_only`).
 pub(crate) fn seed_only_vault(vault_root: &Path) -> SeedOnlyCheck {
     use medscale_contracts::objects::{
         ActionAuditKind, ActionAuditRecord, AuthorityScopeId, ClinicalAssertion, DigestSha256,
@@ -1103,9 +1104,6 @@ pub(crate) fn seed_only_vault(vault_root: &Path) -> SeedOnlyCheck {
     SeedOnlyCheck::FixtureOnly
 }
 
-/// Fail closed before Core opens an existing synthetic vault. A missing,
-/// truncated or partial manifest after a prior Core write is NOT a license
-/// to replay fixture promotions: Core proposal creation is not idempotent.
 /// What the read-only preflight found (Spec 108 step 4).
 #[derive(Debug)]
 enum Preflight {
@@ -1158,6 +1156,9 @@ fn new_discard_nonce() -> String {
     medscale_contracts::objects::DigestSha256::of(seed.as_bytes()).to_hex()[..32].to_owned()
 }
 
+/// Fail closed before Core opens an existing synthetic vault. A missing,
+/// truncated or partial manifest after a prior Core write is NOT a license
+/// to replay fixture promotions: Core proposal creation is not idempotent.
 fn preflight_synthetic_seed(vault_root: &Path) -> CmdResult<Preflight> {
     let inspection_failed = || {
         CmdError::unavailable("Unavailable: synthetic vault inspection failed")
@@ -1247,14 +1248,20 @@ fn preflight_synthetic_seed(vault_root: &Path) -> CmdResult<Preflight> {
 /// new one, never a truncated file. Spec 108 (M3): a torn seed manifest is
 /// reported as corrupt and blocks reopening a workspace that may hold user
 /// imports, so sidecar records must not be written in place.
-fn write_atomic(path: &Path, bytes: &[u8]) -> std::io::Result<()> {
-    use std::io::Write;
+/// The temporary sibling `write_atomic` writes before renaming; the inverse
+/// is `atomic_temp_target`.
+fn atomic_temp_path(path: &Path) -> PathBuf {
     let mut tmp_name = path
         .file_name()
         .map(|n| n.to_os_string())
         .unwrap_or_default();
     tmp_name.push(".tmp");
-    let tmp = path.with_file_name(tmp_name);
+    path.with_file_name(tmp_name)
+}
+
+fn write_atomic(path: &Path, bytes: &[u8]) -> std::io::Result<()> {
+    use std::io::Write;
+    let tmp = atomic_temp_path(path);
     {
         let mut file = std::fs::File::create(&tmp)?;
         file.write_all(bytes)?;
@@ -1288,9 +1295,7 @@ fn save_manifest(vault_root: &Path, manifest: &SeedManifest) -> CmdResult<()> {
     #[cfg(test)]
     if !manifest.pending && crash_requested("during_commit") {
         // The temporary file of the commit exists; the rename never happened.
-        let mut tmp = manifest_path(vault_root).into_os_string();
-        tmp.push(".tmp");
-        let _ = std::fs::write(PathBuf::from(tmp), &bytes);
+        let _ = std::fs::write(atomic_temp_path(&manifest_path(vault_root)), &bytes);
         crash_point("during_commit");
     }
     write_atomic(&manifest_path(vault_root), &bytes)
@@ -1512,8 +1517,8 @@ pub fn import_fhir(
 }
 
 /// Opens (or first-seeds) the synthetic workspace. Returns true when an
-/// interrupted first seed was proven fixture-only and rebuilt (Spec 108
-/// step 4).
+/// interrupted first seed was rebuilt (Spec 108 step 4); any folder it
+/// deleted was first proven fixture-only under Core's writer lock.
 pub fn open_synthetic(state: &mut State) -> CmdResult<bool> {
     let data_dir = state.data_dir()?.to_path_buf();
     let vault_root = data_dir.join("synthetic-workspace");
@@ -1526,6 +1531,12 @@ pub fn open_synthetic(state: &mut State) -> CmdResult<bool> {
             seed
         }
         Preflight::Fresh => {
+            // The pending manifest lives beside the vault; create only the
+            // data directory here, never the vault itself.
+            std::fs::create_dir_all(&data_dir).map_err(|_| {
+                CmdError::unavailable("Unavailable: data folder not writable")
+                    .with_reason(seed_reason::IO_FAILURE)
+            })?;
             scan_siblings(&data_dir, None)?;
             let pending = SeedManifest {
                 pending: true,
@@ -1672,7 +1683,7 @@ fn with_fs_retry(mut op: impl FnMut() -> std::io::Result<()>) -> CmdResult<()> {
             }
             Err(_) => {
                 return Err(CmdError::unavailable(
-                    "Unavailable: the sample workspace folder is in use; nothing was deleted",
+                    "Unavailable: the sample workspace folder is in use; try again in a moment",
                 )
                 .with_reason(seed_reason::IO_FAILURE));
             }
@@ -1757,6 +1768,7 @@ fn recover_interrupted_first_seed(
                 // Windows: release, rename (fails on any open handle), then
                 // re-prove the renamed folder under a fresh lock.
                 drop(guard);
+                ensure_absent(&discard)?;
                 with_fs_retry(|| std::fs::rename(vault_root, &discard))?;
                 crash_point("recovery_after_rename");
                 if let Err(e) = hold_and_prove_fixture_only(&discard).map(drop) {
@@ -1768,6 +1780,7 @@ fn recover_interrupted_first_seed(
                 // Unix: keep the lock through the rename and re-prove under
                 // the same guard (a second lock on the same file would be
                 // refused by SQLite's in-process locking).
+                ensure_absent(&discard)?;
                 with_fs_retry(|| std::fs::rename(vault_root, &discard))?;
                 crash_point("recovery_after_rename");
                 if seed_only_vault(&discard) != SeedOnlyCheck::FixtureOnly {
@@ -1789,6 +1802,15 @@ fn recover_interrupted_first_seed(
         let _ = std::fs::remove_file(temp);
     }
     Ok(())
+}
+
+/// A rename target must not exist: on Unix renaming onto an empty folder
+/// would silently replace it.
+fn ensure_absent(path: &Path) -> CmdResult<()> {
+    match std::fs::symlink_metadata(path) {
+        Err(e) if e.kind() == std::io::ErrorKind::NotFound => Ok(()),
+        _ => Err(recovery_refused()),
+    }
 }
 
 /// Test-only crash hook: exit with a sentinel code at a named boundary.
@@ -2624,9 +2646,12 @@ mod tests {
 
     #[test]
     fn pending_shape_and_temp_names_are_exact() {
+        let generated =
+            atomic_temp_path(&manifest_path(Path::new("data").join(VAULT_NAME).as_path()));
         assert_eq!(
-            atomic_temp_target("synthetic-workspace.desktop-seed.json.tmp"),
-            Some(MANIFEST_NAME)
+            atomic_temp_target(&generated.file_name().expect("name").to_string_lossy()),
+            Some(MANIFEST_NAME),
+            "atomic_temp_target is the exact inverse of write_atomic's temp name"
         );
         assert_eq!(atomic_temp_target(".tmp"), None);
         assert_eq!(atomic_temp_target("synthetic-workspace"), None);

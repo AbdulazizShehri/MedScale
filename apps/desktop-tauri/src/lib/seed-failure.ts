@@ -84,7 +84,7 @@ export function seedFailureGuidance(reason: SeedReason | undefined): SeedGuidanc
       return {
         category: "incomplete",
         title: "The sample workspace could not be rebuilt automatically.",
-        detail: `MedScale found data it could not prove was only the bundled sample, so it did not delete anything. ${UNCHANGED}`,
+        detail: "MedScale found data it could not prove was only the bundled sample, so it left that data in place. Nothing that could be yours was changed or deleted.",
       };
     case "seed_stale_sidecar":
       return {
