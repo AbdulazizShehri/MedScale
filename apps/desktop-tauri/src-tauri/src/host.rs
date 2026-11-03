@@ -891,7 +891,10 @@ pub(crate) fn seed_only_vault(vault_root: &Path) -> SeedOnlyCheck {
         let Some(Some(name)) = row.first() else {
             return SeedOnlyCheck::Unproven;
         };
-        if SEED_TABLES.contains(&name.as_str()) || name.starts_with("sqlite_") {
+        // Even SQLite-owned tables (sqlite_sequence, sqlite_stat1, etc.) can
+        // contain persistent non-fixture metadata. Only skip the known
+        // Core seed tables; inspect every other table for retained rows.
+        if SEED_TABLES.contains(&name.as_str()) {
             continue;
         }
         let quoted = name.replace('"', "\"\"");
@@ -1963,6 +1966,48 @@ mod tests {
             );
             std::fs::remove_dir_all(&data_dir).expect("synthetic-only cleanup");
         }
+    }
+
+    #[test]
+    fn seed_only_rejects_persisted_sqlite_internal_rows() {
+        // An empty custom table can still leave persistent SQLite metadata:
+        // AUTOINCREMENT retains sqlite_sequence even after its rows are deleted.
+        // The table being empty does not make its internal sequence disposable.
+        let (data_dir, vault_root) = seeded_scratch("sqlite-sequence-persisted");
+        let db = rusqlite::Connection::open(vault_root.join("meta.sqlite3")).expect("db");
+        db.execute_batch(
+            "CREATE TABLE fictional_empty_table (id INTEGER PRIMARY KEY AUTOINCREMENT, note TEXT);",
+        )
+        .expect("crafted empty table");
+        assert_eq!(
+            seed_only_vault(&vault_root),
+            SeedOnlyCheck::FixtureOnly,
+            "an empty table with no persistent sequence value is still permitted"
+        );
+        db.execute_batch(
+            "INSERT INTO fictional_empty_table(note) VALUES ('fictional non-seed record');
+             DELETE FROM fictional_empty_table;",
+        )
+        .expect("crafted deleted row");
+        let table_rows: i64 = db
+            .query_row("SELECT COUNT(*) FROM fictional_empty_table", [], |r| r.get(0))
+            .expect("empty table");
+        let sequence_rows: i64 = db
+            .query_row(
+                "SELECT COUNT(*) FROM sqlite_sequence WHERE name = 'fictional_empty_table'",
+                [],
+                |r| r.get(0),
+            )
+            .expect("persistent sequence");
+        assert_eq!(table_rows, 0);
+        assert_eq!(sequence_rows, 1);
+        drop(db);
+        assert_eq!(
+            seed_only_vault(&vault_root),
+            SeedOnlyCheck::NotFixtureOnly,
+            "persistent SQLite internal metadata is not a bundled fixture"
+        );
+        std::fs::remove_dir_all(&data_dir).expect("synthetic-only cleanup");
     }
 
     #[test]
