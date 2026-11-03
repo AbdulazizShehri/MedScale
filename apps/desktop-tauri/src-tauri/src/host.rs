@@ -2017,7 +2017,8 @@ fn set_aside_slots(dir: &Path) -> CmdResult<(Vec<PathBuf>, Vec<PathBuf>)> {
     Ok((completed, partial))
 }
 
-/// True when a completed set-aside exists (shown with a delete action).
+/// True when any set-aside copy exists, completed or partial, so the copy is
+/// always disclosed. Delete refuses a partial slot with `set_aside_incomplete`.
 pub fn set_aside_exists(data_dir: &Path) -> bool {
     matches!(set_aside_root(data_dir), Ok(Some(dir))
         if set_aside_slots(&dir).is_ok_and(|(completed, partial)| !completed.is_empty() || !partial.is_empty()))
@@ -3564,9 +3565,12 @@ mod tests {
             data_dir: Some(data_dir.clone()),
             ..State::default()
         };
-        assert!(
-            !set_aside_exists(&data_dir),
-            "a partial slot is not deletable"
+        assert!(set_aside_exists(&data_dir), "a partial slot is disclosed");
+        assert_eq!(
+            delete_set_aside_synthetic(&state)
+                .expect_err("a partial slot is not deletable")
+                .reason,
+            Some(seed_reason::SET_ASIDE_INCOMPLETE)
         );
         set_aside_synthetic(&mut state).expect("resumed set-aside");
         scan_siblings(&data_dir, None).expect("all moved");
