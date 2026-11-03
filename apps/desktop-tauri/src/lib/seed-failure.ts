@@ -15,6 +15,8 @@ export const SEED_REASONS = [
   "seed_ledger_undecodable",
   "seed_ledger_interrupted",
   "core_integrity_error",
+  "seed_recovery_refused",
+  "seed_stale_sidecar",
 ] as const;
 
 export type SeedReason = (typeof SEED_REASONS)[number];
@@ -77,6 +79,18 @@ export function seedFailureGuidance(reason: SeedReason | undefined): SeedGuidanc
         category: "incomplete",
         title: "The sample workspace was interrupted while saving.",
         detail: `MedScale does not repair this automatically yet. To avoid duplicating records, it will not reuse the sample. ${UNCHANGED}`,
+      };
+    case "seed_recovery_refused":
+      return {
+        category: "incomplete",
+        title: "The sample workspace could not be rebuilt automatically.",
+        detail: "MedScale found data it could not prove was only the bundled sample, so it left that data in place. Nothing that could be yours was changed or deleted.",
+      };
+    case "seed_stale_sidecar":
+      return {
+        category: "incomplete",
+        title: "Settings from an earlier sample workspace remain.",
+        detail: `MedScale will not start a new sample over them. ${UNCHANGED}`,
       };
     case "core_integrity_error":
       return {

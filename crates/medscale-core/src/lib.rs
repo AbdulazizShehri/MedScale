@@ -18,6 +18,7 @@ pub mod r_workspace_host;
 pub mod release_sbom;
 pub mod text;
 pub mod validate;
+pub mod vault_guard;
 pub mod workflow;
 
 pub use authority::{
@@ -35,6 +36,7 @@ pub use ipc::{
 };
 pub use medscale_contracts::{MEDSCALE_VERSION, WorkspaceIdentity};
 pub use process::SessionEnforcement;
+pub use vault_guard::{VaultWriterGuard, VaultWriterGuardError};
 pub use workflow::{JourneyConfig, run_minimum_lovable_journey};
 
 /// Non-authoritative bootstrap health report for operators.

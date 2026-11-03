@@ -95,8 +95,15 @@ pub fn workspace_status(host: tauri::State<'_, Host>) -> CmdResult<Value> {
 pub fn workspace_open_synthetic(host: tauri::State<'_, Host>) -> CmdResult<Value> {
     let mut state = lock(&host)?;
     state.workspace = None;
-    host::open_synthetic(&mut state)?;
-    Ok(vault_label(&state))
+    let recovered = host::open_synthetic(&mut state)?;
+    let mut label = vault_label(&state);
+    if let Some(object) = label.as_object_mut() {
+        object.insert(
+            "recovered_interrupted_seed".to_owned(),
+            Value::Bool(recovered),
+        );
+    }
+    Ok(label)
 }
 
 #[tauri::command(async)]
