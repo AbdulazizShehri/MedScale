@@ -38,9 +38,9 @@ let step = 0;
 const results = [];
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
-async function launch() {
+async function launch(extraEnv = {}) {
   child = spawn(path.resolve(app), [], {
-    env: { ...process.env, WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS: `--remote-debugging-port=${DEBUG_PORT}` },
+    env: { ...process.env, ...extraEnv, WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS: `--remote-debugging-port=${DEBUG_PORT}` },
     stdio: "ignore",
   });
   // A fresh runner profile can take minutes to start WebView2 the first time.
@@ -354,8 +354,27 @@ try {
     // Reopen the very same app/profile; existing 26 journeys stay unchanged.
     await launch();
   }
+  // Spec 108 step 4 (3b): kill the app during its first sample seed, then
+  // the next launch must rebuild it from the bundled sample. The
+  // e2e-webdriver build blocks the seed after fixture 3 and writes a marker.
+  const seedMarker = path.join(os.tmpdir(), `medscale-e2e-seed-${process.pid}`);
+  await quit();
+  await launch({ MEDSCALE_E2E_BLOCK_SEED_AFTER: "3", MEDSCALE_E2E_SEED_MARKER: seedMarker });
+  await journey("interrupted-first-seed-killed", async () => {
+    await click(`//button[${text("Try MedScale with sample data")}]`, 60000);
+    const end = Date.now() + 180000;
+    while (!fs.existsSync(seedMarker)) {
+      if (Date.now() > end) throw new Error("first seed never reached the blocking boundary");
+      await sleep(250);
+    }
+  }, { screenshot: false });
+  await quit();
+  fs.rmSync(seedMarker, { force: true });
+  await launch();
   await journey("launch-and-open-synthetic-workspace", async () => {
     await click(`//button[${text("Try MedScale with sample data")}]`, 60000);
+    // The interrupted seed above was proven fixture-only and rebuilt.
+    await see("Sample workspace rebuilt", 120000);
     await find(`//button[contains(@class,'nav') and ${text("Patients")}]`, 60000);
   });
   // Spec 108 step 3: a second copy against the same data directory must exit

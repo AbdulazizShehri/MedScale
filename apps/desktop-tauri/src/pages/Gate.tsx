@@ -2,8 +2,8 @@ import { useMemo, useState, type FormEvent } from "react";
 import { useApp } from "../lib/app";
 import { useAction, type CmdError } from "../lib/ipc";
 import { Logo } from "../components/brand";
-import { Glyph } from "../components/ui";
-import { seedFailureGuidance } from "../lib/seed-failure";
+import { Glyph, useToast } from "../components/ui";
+import { RECOVERED_SEED_NOTICE, recoveredInterruptedSeed, seedFailureGuidance } from "../lib/seed-failure";
 
 /** Spec 108 step 2: one announced alert per failure. With a known reason the
  * plain guidance replaces Core's raw message, which can name internal paths. */
@@ -49,9 +49,12 @@ export function Welcome({ onContinue }: { onContinue: () => void }) {
   const { pending, run } = useAction();
   const [error, setError] = useState<CmdError | null>(null);
 
+  const toast = useToast();
   async function openSynthetic() {
-    const r = await run("synthetic", "workspace_open_synthetic");
-    if (r.ok) await refreshWorkspace(); else setError(r.error);
+    const r = await run<unknown>("synthetic", "workspace_open_synthetic");
+    if (!r.ok) { setError(r.error); return; }
+    if (recoveredInterruptedSeed(r.data)) toast({ kind: "completed", ...RECOVERED_SEED_NOTICE });
+    await refreshWorkspace();
   }
 
   return (
@@ -110,9 +113,12 @@ export function Access({ onBack }: { onBack: () => void }) {
     }
   }
 
+  const toast = useToast();
   async function synthetic() {
-    const r = await run("synthetic", "workspace_open_synthetic");
-    if (r.ok) await refreshWorkspace(); else setError(r.error);
+    const r = await run<unknown>("synthetic", "workspace_open_synthetic");
+    if (!r.ok) { setError(r.error); return; }
+    if (recoveredInterruptedSeed(r.data)) toast({ kind: "completed", ...RECOVERED_SEED_NOTICE });
+    await refreshWorkspace();
   }
 
   return (

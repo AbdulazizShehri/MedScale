@@ -1,7 +1,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import fs from "node:fs";
-import { SEED_REASONS, parseSeedReason, seedFailureGuidance } from "./seed-failure.ts";
+import { RECOVERED_SEED_NOTICE, SEED_REASONS, parseSeedReason, recoveredInterruptedSeed, seedFailureGuidance } from "./seed-failure.ts";
 
 const RETRY = ["workspace_busy", "writer_active", "workspace_io_failure"] as const;
 
@@ -45,4 +45,12 @@ test("reason codes match the Rust seed_reason constants exactly", () => {
   const block = host.slice(host.indexOf("pub mod seed_reason {"), host.indexOf("\n}\n", host.indexOf("pub mod seed_reason {")));
   const rust = [...block.matchAll(/pub const [A-Z_]+: &str = "([a-z_]+)";/g)].map((m) => m[1]).sort();
   assert.deepEqual(rust, [...SEED_REASONS].sort());
+});
+
+test("the rebuilt notice appears only for an explicit true flag", () => {
+  assert.equal(recoveredInterruptedSeed({ recovered_interrupted_seed: true, kind: "synthetic" }), true);
+  for (const data of [{ recovered_interrupted_seed: false }, { recovered_interrupted_seed: "true" }, {}, null, undefined, "x"]) {
+    assert.equal(recoveredInterruptedSeed(data), false, JSON.stringify(data));
+  }
+  assert.doesNotMatch(`${RECOVERED_SEED_NOTICE.title} ${RECOVERED_SEED_NOTICE.detail}`, /corrupt|deleted|lost/i);
 });

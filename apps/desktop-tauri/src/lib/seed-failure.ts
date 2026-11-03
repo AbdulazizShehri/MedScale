@@ -102,3 +102,15 @@ export function seedFailureGuidance(reason: SeedReason | undefined): SeedGuidanc
       return null;
   }
 }
+
+/** Spec 108 step 4: true only when `workspace_open_synthetic` reports that an
+ * interrupted first seed was proven fixture-only and rebuilt. */
+export function recoveredInterruptedSeed(data: unknown): boolean {
+  return typeof data === "object" && data !== null
+    && (data as { recovered_interrupted_seed?: unknown }).recovered_interrupted_seed === true;
+}
+
+export const RECOVERED_SEED_NOTICE = {
+  title: "Sample workspace rebuilt",
+  detail: "It had not finished setting up the last time MedScale ran, so it was set up again from the bundled sample.",
+} as const;

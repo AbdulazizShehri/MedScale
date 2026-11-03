@@ -1409,6 +1409,7 @@ pub fn seed_synthetic(workspace: &mut Workspace, data_dir: &Path) -> CmdResult<(
                 resource,
             )?;
             crash_point(&format!("after_fixture_{promoted}"));
+            e2e_block_point(promoted);
             manifest.sources.push(SeededSource {
                 source_id: source_id.as_str().to_owned(),
                 fixture: fixture.file.to_owned(),
@@ -1812,6 +1813,27 @@ fn ensure_absent(path: &Path) -> CmdResult<()> {
         _ => Err(recovery_refused()),
     }
 }
+
+/// Native E2E only (`e2e-webdriver` builds): block the first seed after
+/// fixture `n` and write a marker, so the journey can kill the app at a known
+/// boundary without Windows Error Reporting holding the instance lock.
+#[cfg(feature = "e2e-webdriver")]
+fn e2e_block_point(promoted: usize) {
+    let wanted = std::env::var("MEDSCALE_E2E_BLOCK_SEED_AFTER")
+        .ok()
+        .and_then(|v| v.parse::<usize>().ok());
+    if wanted == Some(promoted) {
+        if let Ok(marker) = std::env::var("MEDSCALE_E2E_SEED_MARKER") {
+            let _ = std::fs::write(marker, promoted.to_string());
+        }
+        loop {
+            std::thread::sleep(std::time::Duration::from_secs(60));
+        }
+    }
+}
+
+#[cfg(not(feature = "e2e-webdriver"))]
+fn e2e_block_point(_promoted: usize) {}
 
 /// Test-only crash hook: exit with a sentinel code at a named boundary.
 #[cfg(test)]
