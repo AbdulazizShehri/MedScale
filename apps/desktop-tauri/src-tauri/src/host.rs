@@ -849,6 +849,16 @@ pub(crate) fn seed_only_vault(vault_root: &Path) -> SeedOnlyCheck {
     if db.execute_batch("BEGIN DEFERRED").is_err() {
         return SeedOnlyCheck::Unproven;
     }
+    // Core does not write either SQLite header field during migration or
+    // synthetic seeding. They persist independently of sqlite_master rows:
+    // nonzero values are unaccounted metadata even if every table is empty.
+    for pragma in ["user_version", "application_id"] {
+        match db.pragma_query_value(None, pragma, |row| row.get::<_, i64>(0)) {
+            Ok(0) => {}
+            Ok(_) => return SeedOnlyCheck::NotFixtureOnly,
+            Err(_) => return SeedOnlyCheck::Unproven,
+        }
+    }
     let query_strings = |sql: &str| -> Option<Vec<Vec<Option<String>>>> {
         let mut stmt = db.prepare(sql).ok()?;
         let width = stmt.column_count();
@@ -2008,6 +2018,38 @@ mod tests {
             "persistent SQLite internal metadata is not a bundled fixture"
         );
         std::fs::remove_dir_all(&data_dir).expect("synthetic-only cleanup");
+    }
+
+    #[test]
+    fn seed_only_rejects_unaccounted_sqlite_header_metadata() {
+        // These two SQLite header fields survive without any application
+        // rows or schema objects. Core's first seed leaves both at zero.
+        for (tag, sql, reset) in [
+            ("user-version", "PRAGMA user_version = 7", "PRAGMA user_version = 0"),
+            (
+                "application-id",
+                "PRAGMA application_id = 2468",
+                "PRAGMA application_id = 0",
+            ),
+        ] {
+            let (data_dir, vault_root) = seeded_scratch(tag);
+            let db = rusqlite::Connection::open(vault_root.join("meta.sqlite3"))
+                .expect("synthetic Core database");
+            db.execute_batch(sql).expect("craft header metadata");
+            assert_eq!(
+                seed_only_vault(&vault_root),
+                SeedOnlyCheck::NotFixtureOnly,
+                "{tag}: persistent non-seed SQLite header data must be rejected"
+            );
+            db.execute_batch(reset).expect("restore default header");
+            drop(db);
+            assert_eq!(
+                seed_only_vault(&vault_root),
+                SeedOnlyCheck::FixtureOnly,
+                "{tag}: restored genuine seed remains admissible"
+            );
+            std::fs::remove_dir_all(&data_dir).expect("synthetic-only cleanup");
+        }
     }
 
     #[test]
