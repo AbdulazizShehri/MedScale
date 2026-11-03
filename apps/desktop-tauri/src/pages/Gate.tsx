@@ -65,6 +65,7 @@ export function Welcome({ onContinue }: { onContinue: () => void }) {
     setError(null);
     toast({ kind: "completed", title: "Sample workspace set aside", detail: "A new sample is being created." });
     await openSynthetic();
+    await refreshWorkspace();
   }
   async function deleteSetAside() {
     const r = await run<unknown>("delete-set-aside", "workspace_delete_set_aside_synthetic");
@@ -96,15 +97,15 @@ export function Welcome({ onContinue }: { onContinue: () => void }) {
           </div>
           {pending && <p className="t-sm i3">First open ingests the synthetic FHIR fixtures through Core. This takes a few seconds once.</p>}
           {error && <FailureAlert error={error} />}
-          {error && setAsideOffered(error.reason) && !confirming && (
-            <button type="button" className="btn btn-s" style={{ marginTop: 10 }} onClick={() => setConfirming("set-aside")} disabled={!!pending}>
+          {error && setAsideOffered(error.reason) && (
+            <button type="button" className="btn btn-s" style={{ marginTop: 10 }} aria-expanded={confirming === "set-aside"} onClick={() => setConfirming("set-aside")} disabled={!!pending}>
               Set the sample workspace aside…
             </button>
           )}
-          {(ws?.set_aside_exists || error?.reason === "set_aside_slot_occupied") && !confirming && (
+          {(ws?.set_aside_exists || error?.reason === "set_aside_slot_occupied") && (
             <p className="t-sm i2" style={{ marginTop: 10, whiteSpace: "normal" }}>
               {SET_ASIDE_EXISTS_NOTICE}{" "}
-              <button type="button" className="btn btn-g" onClick={() => setConfirming("delete")} disabled={!!pending}>Delete set-aside sample…</button>
+              <button type="button" className="btn btn-g" aria-expanded={confirming === "delete"} onClick={() => setConfirming("delete")} disabled={!!pending}>Delete set-aside sample…</button>
             </p>
           )}
           {confirming === "set-aside" && (

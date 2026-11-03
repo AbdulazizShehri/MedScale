@@ -6,6 +6,9 @@ import { MOD } from "../components/shell";
 import { Mark, Wordmark } from "../components/brand";
 import { Authority, Empty, ErrorState, Glyph, KV, Ledger, Notice, PageHead, Section, Skeleton, Status, glyphFor, useOutcome } from "../components/ui";
 import { SUPPORT_DATA_RULE, SUPPORT_ISSUES_URL, supportDiagnostics } from "../support";
+import { ConfirmPanel } from "../components/confirm";
+import { DELETE_SET_ASIDE_DIALOG, SET_ASIDE_EXISTS_NOTICE } from "../lib/seed-failure";
+import { useToast } from "../components/ui";
 
 type Row = { label: string; value: string; detail: string; status: string };
 type Gov = {
@@ -235,9 +238,37 @@ export function About() {
           <Section n="04" title="Provenance"><KV keyWidth={110} rows={[["dependencies", "cargo-deny policy and supply-chain audits"], ["signing", <Status kind="pending">Not claimed</Status>], ["clinical use", <Status kind="blocked">Not authorized · synthetic only</Status>]]} /></Section>
         </div>
         <Notice kind="synthetic" title="Synthetic fixtures.">Patients, evidence and model packs in the synthetic workspace come from the repository's synthetic fixtures. They are not real records.</Notice>
+        <SetAsideNotice />
         <ReportProblem about={a} />
       </div>
     </div>
+  );
+}
+
+/** Spec 108 step 5: the set-aside sample copy is always disclosed here with
+ * a confirmed, permanent delete. */
+function SetAsideNotice() {
+  const { ws, refreshWorkspace } = useApp();
+  const { pending, run } = useAction();
+  const toast = useToast();
+  const [confirming, setConfirming] = useState(false);
+  if (!ws?.set_aside_exists) return null;
+  async function remove() {
+    const r = await run<unknown>("delete-set-aside", "workspace_delete_set_aside_synthetic");
+    setConfirming(false);
+    if (r.ok) toast({ kind: "completed", title: "Set-aside sample deleted" });
+    else toast({ kind: "blocked", title: "Not deleted", detail: r.error.message });
+    await refreshWorkspace();
+  }
+  return (
+    <Section n="06" title="Set-aside sample">
+      <p className="t-sm i2" style={{ margin: "0 0 10px", whiteSpace: "normal" }}>{SET_ASIDE_EXISTS_NOTICE}</p>
+      <button type="button" className="btn btn-g" aria-expanded={confirming} onClick={() => setConfirming(true)} disabled={!!pending}>Delete set-aside sample…</button>
+      {confirming && (
+        <ConfirmPanel title={DELETE_SET_ASIDE_DIALOG.title} confirmLabel={DELETE_SET_ASIDE_DIALOG.confirm} busy={!!pending}
+          onConfirm={remove} onCancel={() => setConfirming(false)}>{DELETE_SET_ASIDE_DIALOG.body}</ConfirmPanel>
+      )}
+    </Section>
   );
 }
 

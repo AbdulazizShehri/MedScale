@@ -56,10 +56,10 @@ test("the rebuilt notice appears only for an explicit true flag", () => {
 });
 
 test("set-aside is offered only for un-openable sample-setup states", () => {
-  for (const reason of ["seed_manifest_missing", "seed_manifest_invalid", "seed_manifest_incomplete", "core_ledger_incomplete", "seed_recovery_refused", "seed_stale_sidecar", "seed_ledger_interrupted"] as const) {
+  for (const reason of ["seed_manifest_missing", "seed_manifest_invalid", "seed_manifest_incomplete", "core_ledger_incomplete", "seed_recovery_refused", "seed_stale_sidecar", "seed_ledger_interrupted", "seed_vault_missing", "seed_ledger_undecodable", "set_aside_incomplete"] as const) {
     assert.equal(setAsideOffered(reason), true, reason);
   }
-  for (const reason of ["workspace_busy", "writer_active", "workspace_io_failure", "core_integrity_error", "set_aside_slot_occupied", "set_aside_incomplete", "set_aside_refused"] as const) {
+  for (const reason of ["workspace_busy", "writer_active", "workspace_io_failure", "core_integrity_error", "set_aside_slot_occupied", "set_aside_refused"] as const) {
     assert.equal(setAsideOffered(reason), false, reason);
   }
   assert.equal(setAsideOffered(undefined), false);

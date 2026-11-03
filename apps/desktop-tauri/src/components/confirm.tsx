@@ -19,7 +19,7 @@ export function ConfirmPanel({ title, children, confirmLabel, onConfirm, onCance
     return () => returnTo?.focus();
   }, []);
   function onKeyDown(e: KeyboardEvent<HTMLDivElement>) {
-    if (e.key === "Escape") { e.preventDefault(); onCancel(); return; }
+    if (e.key === "Escape") { e.preventDefault(); if (!busy) onCancel(); return; }
     if (e.key !== "Tab") return;
     const buttons = Array.from(ref.current?.querySelectorAll<HTMLButtonElement>("button:not([disabled])") ?? []);
     const first = buttons.at(0), last = buttons.at(-1);
@@ -28,12 +28,12 @@ export function ConfirmPanel({ title, children, confirmLabel, onConfirm, onCance
     else if (!e.shiftKey && document.activeElement === last) { e.preventDefault(); first.focus(); }
   }
   return (
-    <div ref={ref} role="dialog" aria-modal="true" aria-labelledby={titleId} className="notice" onKeyDown={onKeyDown}
+    <div ref={ref} role="group" aria-labelledby={titleId} className="notice" onKeyDown={onKeyDown}
       style={{ display: "block", whiteSpace: "normal", marginTop: 12 }}>
       <b id={titleId}>{title}</b>
       <div className="t-sm" style={{ margin: "6px 0 10px" }}>{children}</div>
       <div className="row-gap" style={{ gap: 8 }}>
-        <button type="button" className="btn btn-g" onClick={onCancel}>Cancel</button>
+        <button type="button" className="btn btn-g" onClick={onCancel} disabled={busy}>Cancel</button>
         <button type="button" className="btn btn-p" onClick={onConfirm} disabled={busy}>{confirmLabel}</button>
       </div>
     </div>

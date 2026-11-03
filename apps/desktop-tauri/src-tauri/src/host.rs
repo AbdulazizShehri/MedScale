@@ -1559,6 +1559,7 @@ pub fn open_synthetic(state: &mut State) -> CmdResult<bool> {
                 CmdError::unavailable("Unavailable: data folder not writable")
                     .with_reason(seed_reason::IO_FAILURE)
             })?;
+            finalize_orphan_partial(&data_dir)?;
             scan_siblings(&data_dir, None)?;
             let pending = SeedManifest {
                 pending: true,
@@ -1953,7 +1954,7 @@ fn set_aside_error(reason: &'static str, message: &str) -> CmdError {
     } else {
         "unavailable"
     };
-    CmdError::new(kind, message.to_owned()).with_reason(reason)
+    CmdError::new(kind, message).with_reason(reason)
 }
 
 /// `yyyymmddThhmmssZ` for the current UTC time (civil-from-days).
@@ -2019,7 +2020,54 @@ fn set_aside_slots(dir: &Path) -> CmdResult<(Vec<PathBuf>, Vec<PathBuf>)> {
 /// True when a completed set-aside exists (shown with a delete action).
 pub fn set_aside_exists(data_dir: &Path) -> bool {
     matches!(set_aside_root(data_dir), Ok(Some(dir))
-        if set_aside_slots(&dir).is_ok_and(|(completed, _)| !completed.is_empty()))
+        if set_aside_slots(&dir).is_ok_and(|(completed, partial)| !completed.is_empty() || !partial.is_empty()))
+}
+
+/// True when any entry of the synthetic workspace remains in the data dir.
+fn has_synthetic_siblings(data_dir: &Path) -> CmdResult<bool> {
+    let io = || {
+        CmdError::unavailable("Unavailable: synthetic vault inspection failed")
+            .with_reason(seed_reason::IO_FAILURE)
+    };
+    let entries = match std::fs::read_dir(data_dir) {
+        Ok(entries) => entries,
+        Err(e) if e.kind() == std::io::ErrorKind::NotFound => return Ok(false),
+        Err(_) => return Err(io()),
+    };
+    for entry in entries {
+        if is_synthetic_sibling(&entry.map_err(|_| io())?.file_name().to_string_lossy()) {
+            return Ok(true);
+        }
+    }
+    Ok(false)
+}
+
+fn completed_slot_name(slot: &Path) -> PathBuf {
+    let name = slot
+        .file_name()
+        .map(|n| n.to_string_lossy().into_owned())
+        .unwrap_or_default();
+    slot.with_file_name(name.strip_suffix(PARTIAL_SUFFIX).unwrap_or(&name))
+}
+
+/// A partial slot whose move completed (nothing of the workspace remains in
+/// the data dir) is finished, so it is disclosed and deletable instead of
+/// stranded (review MAJOR 2).
+fn finalize_orphan_partial(data_dir: &Path) -> CmdResult<()> {
+    let Some(dir) = set_aside_root(data_dir)? else {
+        return Ok(());
+    };
+    let (_, partial) = set_aside_slots(&dir)?;
+    if partial.is_empty() || has_synthetic_siblings(data_dir)? {
+        return Ok(());
+    }
+    for slot in partial {
+        let finished = completed_slot_name(&slot);
+        ensure_absent(&finished)?;
+        with_fs_retry(|| std::fs::rename(&slot, &finished))?;
+        let _ = sync_parent_dir(&finished);
+    }
+    Ok(())
 }
 
 /// Spec 108 step 5: move an un-openable sample workspace and every entry that
@@ -2032,6 +2080,7 @@ pub fn set_aside_synthetic(state: &mut State) -> CmdResult<()> {
             "Refused: close the open workspace first; nothing was changed",
         ));
     }
+    finalize_orphan_partial(state.data_dir()?)?;
     let data_dir = state.data_dir()?.to_path_buf();
     let vault_root = data_dir.join(VAULT_NAME);
     // The backend re-checks that the sample really cannot be opened; the
@@ -2075,7 +2124,7 @@ pub fn set_aside_synthetic(state: &mut State) -> CmdResult<()> {
     let manifest_lower = MANIFEST_NAME.to_ascii_lowercase();
     entries.sort_by_key(|name| {
         let lower = name.to_ascii_lowercase();
-        if name == VAULT_NAME {
+        if name.eq_ignore_ascii_case(VAULT_NAME) {
             2
         } else if lower.starts_with(&manifest_lower) {
             0
@@ -2084,6 +2133,24 @@ pub fn set_aside_synthetic(state: &mut State) -> CmdResult<()> {
         }
     });
 
+    let vault_is_dir = std::fs::symlink_metadata(&vault_root)
+        .is_ok_and(|m| m.is_dir() && !m.file_type().is_symlink());
+    let mut guard =
+        if vault_is_dir {
+            Some(VaultWriterGuard::try_hold(&vault_root).map_err(|e| match e {
+            VaultWriterGuardError::Held => CmdError::unavailable(
+                "Unavailable: another MedScale process is using this workspace",
+            )
+            .with_reason(seed_reason::WRITER_ACTIVE),
+            VaultWriterGuardError::Refused => set_aside_error(
+                seed_reason::SET_ASIDE_REFUSED,
+                "Refused: the sample workspace folder cannot be locked; nothing was changed",
+            ),
+            VaultWriterGuardError::Io => io(),
+        })?)
+        } else {
+            None
+        };
     let set_aside = match set_aside_root(&data_dir)? {
         Some(dir) => dir,
         None => {
@@ -2108,29 +2175,9 @@ pub fn set_aside_synthetic(state: &mut State) -> CmdResult<()> {
         }
     };
 
-    let vault_is_dir = std::fs::symlink_metadata(&vault_root)
-        .is_ok_and(|m| m.is_dir() && !m.file_type().is_symlink());
-    let guard =
-        if vault_is_dir {
-            Some(VaultWriterGuard::try_hold(&vault_root).map_err(|e| match e {
-            VaultWriterGuardError::Held => CmdError::unavailable(
-                "Unavailable: another MedScale process is using this workspace",
-            )
-            .with_reason(seed_reason::WRITER_ACTIVE),
-            VaultWriterGuardError::Refused => set_aside_error(
-                seed_reason::SET_ASIDE_REFUSED,
-                "Refused: the sample workspace folder cannot be locked; nothing was changed",
-            ),
-            VaultWriterGuardError::Io => io(),
-        })?)
-        } else {
-            None
-        };
-
     let mut moved: Vec<String> = Vec::new();
-    let mut guard = guard;
     for (index, name) in entries.iter().enumerate() {
-        if name == VAULT_NAME && cfg!(windows) {
+        if name.eq_ignore_ascii_case(VAULT_NAME) && cfg!(windows) {
             // Windows: release first; the rename fails on any open handle.
             guard = None;
         }
@@ -2150,15 +2197,8 @@ pub fn set_aside_synthetic(state: &mut State) -> CmdResult<()> {
         crash_point(&format!("set_aside_after_{index}"));
     }
     drop(guard);
-    let finished = slot.with_file_name(
-        slot.file_name()
-            .map(|n| {
-                n.to_string_lossy()
-                    .trim_end_matches(PARTIAL_SUFFIX)
-                    .to_owned()
-            })
-            .unwrap_or_default(),
-    );
+    crash_point("set_aside_before_finalize");
+    let finished = completed_slot_name(&slot);
     ensure_absent(&finished)
         .and_then(|()| with_fs_retry(|| std::fs::rename(&slot, &finished)))
         .map_err(|_| {
@@ -2186,7 +2226,14 @@ fn roll_back_set_aside(
     }
     if all_back {
         let _ = std::fs::remove_dir(slot);
-        original
+        if original.reason == Some(seed_reason::RECOVERY_REFUSED) {
+            set_aside_error(
+                seed_reason::SET_ASIDE_REFUSED,
+                "Refused: an entry with the same name is already set aside; nothing was deleted",
+            )
+        } else {
+            original
+        }
     } else {
         set_aside_error(
             seed_reason::SET_ASIDE_INCOMPLETE,
@@ -2206,6 +2253,7 @@ pub fn delete_set_aside_synthetic(state: &State) -> CmdResult<()> {
             "Refused: there is no set-aside sample to delete",
         ));
     };
+    finalize_orphan_partial(&data_dir)?;
     let (_, partial) = set_aside_slots(&dir)?;
     if !partial.is_empty() {
         return Err(set_aside_error(
@@ -2863,7 +2911,11 @@ mod tests {
             ..State::default()
         };
         if std::env::var("MEDSCALE_TEST_CHILD_ACTION").as_deref() == Ok("set_aside") {
-            let _ = set_aside_synthetic(&mut state);
+            let outcome = set_aside_synthetic(&mut state);
+            println!(
+                "SET_ASIDE_OUTCOME {}",
+                outcome.err().map(|e| e.message).unwrap_or_default()
+            );
         } else {
             let _ = open_synthetic(&mut state);
         }
@@ -3486,6 +3538,10 @@ mod tests {
             .output()
             .expect("child");
         assert!(out.status.success(), "child ran to completion");
+        assert!(
+            String::from_utf8_lossy(&out.stdout).contains("injected test failure"),
+            "the injected failure on the vault move caused the rollback"
+        );
         assert!(data_dir.join(VAULT_NAME).join("meta.sqlite3").exists());
         assert!(
             data_dir
@@ -3534,6 +3590,128 @@ mod tests {
             .expect("symlink");
         delete_set_aside_synthetic(&state).expect("delete");
         assert!(outside.join("sentinel").exists(), "link target untouched");
+        std::fs::remove_dir_all(&data_dir).expect("cleanup");
+        std::fs::remove_dir_all(&outside).expect("cleanup");
+    }
+
+    #[test]
+    fn a_crash_before_finalizing_never_strands_the_set_aside_copy() {
+        let data_dir = unopenable_legacy_sample("finalize");
+        run_crash_child_with(
+            &data_dir,
+            "set_aside_before_finalize",
+            &[("MEDSCALE_TEST_CHILD_ACTION", "set_aside")],
+        );
+        let set_aside = data_dir.join(SET_ASIDE_DIR);
+        let (completed, partial) = set_aside_slots(&set_aside).expect("slots");
+        assert_eq!(
+            (completed.len(), partial.len()),
+            (0, 1),
+            "crash left a partial slot"
+        );
+        assert!(
+            set_aside_exists(&data_dir),
+            "a partial copy is still disclosed"
+        );
+        // The next open finds nothing of the workspace left, finishes the
+        // slot, and seeds a fresh sample.
+        let (result, state) = reopen(&data_dir);
+        assert!(!result.expect("fresh sample"));
+        assert_complete_sample(&state, &data_dir);
+        drop(state);
+        let (completed, partial) = set_aside_slots(&set_aside).expect("slots");
+        assert_eq!(
+            (completed.len(), partial.len()),
+            (1, 0),
+            "orphan slot finished"
+        );
+        let state = State {
+            data_dir: Some(data_dir.clone()),
+            ..State::default()
+        };
+        delete_set_aside_synthetic(&state).expect("now deletable");
+        assert!(!set_aside_exists(&data_dir));
+        std::fs::remove_dir_all(&data_dir).expect("cleanup");
+    }
+
+    #[cfg(windows)]
+    fn junction(link: &Path, target: &Path) {
+        let status = std::process::Command::new("cmd")
+            .args(["/C", "mklink", "/J"])
+            .arg(link)
+            .arg(target)
+            .status()
+            .expect("mklink");
+        assert!(status.success(), "junction created");
+    }
+
+    #[cfg(windows)]
+    #[test]
+    fn deleting_the_set_aside_never_follows_junctions() {
+        // A junction inside the completed slot: deleted as a link only.
+        let data_dir = unopenable_legacy_sample("junction-in");
+        let outside = crash_scratch("junction-outside");
+        std::fs::write(outside.join("sentinel"), b"keep").expect("sentinel");
+        let mut state = State {
+            data_dir: Some(data_dir.clone()),
+            ..State::default()
+        };
+        set_aside_synthetic(&mut state).expect("set aside");
+        let (completed, _) = set_aside_slots(&data_dir.join(SET_ASIDE_DIR)).expect("slots");
+        junction(&completed[0].join("junction-to-outside"), &outside);
+        delete_set_aside_synthetic(&state).expect("delete");
+        assert!(
+            outside.join("sentinel").exists(),
+            "junction target untouched"
+        );
+        std::fs::remove_dir_all(&data_dir).expect("cleanup");
+
+        // A junction AT the set-aside folder: refused, target untouched.
+        let data_dir = unopenable_legacy_sample("junction-at");
+        junction(&data_dir.join(SET_ASIDE_DIR), &outside);
+        let mut state = State {
+            data_dir: Some(data_dir.clone()),
+            ..State::default()
+        };
+        assert_eq!(
+            set_aside_synthetic(&mut state)
+                .expect_err("linked root")
+                .reason,
+            Some(seed_reason::SET_ASIDE_REFUSED)
+        );
+        assert_eq!(
+            delete_set_aside_synthetic(&state)
+                .expect_err("linked root")
+                .reason,
+            Some(seed_reason::SET_ASIDE_REFUSED)
+        );
+        assert!(
+            outside.join("sentinel").exists(),
+            "junction target untouched"
+        );
+        std::fs::remove_dir(data_dir.join(SET_ASIDE_DIR)).expect("remove junction only");
+        std::fs::remove_dir_all(&data_dir).expect("cleanup");
+        std::fs::remove_dir_all(&outside).expect("cleanup");
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn a_symlinked_set_aside_folder_is_refused() {
+        let data_dir = unopenable_legacy_sample("symlink-at");
+        let outside = crash_scratch("symlink-at-outside");
+        std::fs::write(outside.join("sentinel"), b"keep").expect("sentinel");
+        std::os::unix::fs::symlink(&outside, data_dir.join(SET_ASIDE_DIR)).expect("symlink");
+        let mut state = State {
+            data_dir: Some(data_dir.clone()),
+            ..State::default()
+        };
+        assert_eq!(
+            set_aside_synthetic(&mut state)
+                .expect_err("linked root")
+                .reason,
+            Some(seed_reason::SET_ASIDE_REFUSED)
+        );
+        assert!(outside.join("sentinel").exists());
         std::fs::remove_dir_all(&data_dir).expect("cleanup");
         std::fs::remove_dir_all(&outside).expect("cleanup");
     }

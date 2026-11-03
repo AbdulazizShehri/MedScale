@@ -789,7 +789,9 @@ try {
   if (process.env.GITHUB_ACTIONS === "true" && process.platform === "win32" && process.env.LOCALAPPDATA) {
     await quit();
     const appData = path.join(process.env.LOCALAPPDATA, "org.medscale.desktop.preview");
-    fs.rmSync(path.join(appData, "synthetic-workspace.desktop-seed.json"), { force: true });
+    const manifest = path.join(appData, "synthetic-workspace.desktop-seed.json");
+    if (!fs.existsSync(manifest)) throw new Error("expected the committed sample manifest before breaking it");
+    fs.rmSync(manifest);
     await launch();
     await journey("unopenable-sample-set-aside", async () => {
       await click(`//button[${text("Try MedScale with sample data")}]`, 60000);

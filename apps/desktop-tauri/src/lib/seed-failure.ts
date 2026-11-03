@@ -81,7 +81,7 @@ export function seedFailureGuidance(reason: SeedReason | undefined): SeedGuidanc
       return {
         category: "incomplete",
         title: "The sample workspace was interrupted while saving.",
-        detail: `MedScale does not repair this automatically yet. To avoid duplicating records, it will not reuse the sample. ${UNCHANGED}`,
+        detail: `MedScale could not repair this automatically. To avoid duplicating records, it will not reuse the sample. ${UNCHANGED}`,
       };
     case "seed_recovery_refused":
       return {
@@ -139,6 +139,7 @@ export const RECOVERED_SEED_NOTICE = {
 /** Spec 108 step 5: offer a manual set-aside only for sample-setup states the
  * backend also re-checks; never for integrity errors or set-aside outcomes. */
 export function setAsideOffered(reason: SeedReason | undefined): boolean {
+  if (reason === "set_aside_incomplete") return true; // retry finishes the move
   if (!reason || reason === "core_integrity_error" || reason.startsWith("set_aside_")) return false;
   return seedFailureGuidance(reason)?.category === "incomplete";
 }
