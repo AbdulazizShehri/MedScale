@@ -707,7 +707,7 @@ fn seed_only_files(
         let name = entry.file_name().to_string_lossy().into_owned();
         match name.as_str() {
             // A hot rollback journal means an interrupted write: unproven
-            // until a rollback copy is inspected (v3 M5, not yet built).
+            // here; recovery settles it under the writer lock and re-proves.
             "meta.sqlite3-journal" => return SeedOnlyCheck::Unproven,
             "meta.sqlite3" | "writer.lock.sqlite3" | "writer.lock.sqlite3-journal"
                 if kind.is_file() => {}
@@ -1712,7 +1712,28 @@ fn hold_and_prove_fixture_only(dir: &Path) -> CmdResult<medscale_core::VaultWrit
                 .with_reason(seed_reason::IO_FAILURE)
         }
     })?;
-    match seed_only_vault(dir) {
+    let mut check = seed_only_vault(dir);
+    // A hot journal is an uncommitted write. While holding the lock, let
+    // SQLite roll it back exactly as Core's next open would, then prove the
+    // settled, committed state (Spec 108 step 4 hot-journal v2).
+    // Regular files only: never settle through a symlink (review M1).
+    let regular_file =
+        |p: PathBuf| std::fs::symlink_metadata(p).is_ok_and(|m| m.file_type().is_file());
+    if check == SeedOnlyCheck::Unproven
+        && regular_file(dir.join("meta.sqlite3-journal"))
+        && regular_file(dir.join("meta.sqlite3"))
+    {
+        guard.settle_interrupted_write().map_err(|e| match e {
+            VaultWriterGuardError::Held => CmdError::unavailable(
+                "Unavailable: the synthetic workspace is busy; wait a moment and try again",
+            )
+            .with_reason(seed_reason::BUSY),
+            _ => CmdError::unavailable("Unavailable: the synthetic workspace could not be read")
+                .with_reason(seed_reason::IO_FAILURE),
+        })?;
+        check = seed_only_vault(dir);
+    }
+    match check {
         SeedOnlyCheck::FixtureOnly => Ok(guard),
         SeedOnlyCheck::NotFixtureOnly => Err(recovery_refused()),
         SeedOnlyCheck::Unproven if dir.join("meta.sqlite3-journal").exists() => Err(CmdError::new(
@@ -2690,18 +2711,32 @@ mod tests {
 
     #[test]
     fn recovery_reports_interrupted_busy_and_foreign_states_without_touching_them() {
-        // A hot journal from an interrupted Core write is never proof.
-        let data_dir = crash_scratch("hot-journal");
+        // A journal whose first byte is zero is not hot: SQLite leaves it,
+        // so the state stays unproven and is never auto-cleaned.
+        let data_dir = crash_scratch("cold-journal");
+        run_crash_child(&data_dir, "after_fixture_1");
+        let vault = data_dir.join("synthetic-workspace");
+        std::fs::write(vault.join("meta.sqlite3-journal"), [0_u8; 512]).expect("journal");
+        let (result, _state) = reopen(&data_dir);
+        assert_eq!(
+            result.expect_err("cold journal").reason,
+            Some(seed_reason::LEDGER_INTERRUPTED)
+        );
+        assert!(vault.join("meta.sqlite3").exists(), "nothing deleted");
+        std::fs::remove_dir_all(&data_dir).expect("cleanup");
+
+        // A short journal with a non-zero first byte is hot but holds no
+        // complete header: SQLite replays nothing and deletes it (no page was
+        // ever overwritten), so the settled state is proven and rebuilt.
+        let data_dir = crash_scratch("short-journal");
         run_crash_child(&data_dir, "after_fixture_1");
         let vault = data_dir.join("synthetic-workspace");
         std::fs::write(vault.join("meta.sqlite3-journal"), b"synthetic hot journal")
             .expect("journal");
-        let (result, _state) = reopen(&data_dir);
-        assert_eq!(
-            result.expect_err("hot journal").reason,
-            Some(seed_reason::LEDGER_INTERRUPTED)
-        );
-        assert!(vault.join("meta.sqlite3").exists(), "nothing deleted");
+        let (result, state) = reopen(&data_dir);
+        assert!(result.expect("settled short journal"));
+        assert_complete_sample(&state, &data_dir);
+        drop(state);
         std::fs::remove_dir_all(&data_dir).expect("cleanup");
 
         // A discard folder that is not bound to this pending seed's nonce.
@@ -2733,6 +2768,156 @@ mod tests {
         drop(holder);
         let (result, state) = reopen(&data_dir);
         assert!(result.expect("recovered once free"));
+        assert_complete_sample(&state, &data_dir);
+        drop(state);
+        std::fs::remove_dir_all(&data_dir).expect("cleanup");
+    }
+
+    /// Copy a file through plain reads, which share with SQLite's handles on
+    /// Windows (std::fs::copy uses CopyFileExW).
+    fn copy_through_read(from: &Path, to: &Path) {
+        let mut src = std::fs::File::open(from).expect("open source");
+        let mut dst = std::fs::File::create(to).expect("create copy");
+        std::io::copy(&mut src, &mut dst).expect("copy");
+        dst.sync_all().expect("sync copy");
+    }
+
+    /// Build a genuine hot journal in `vault`: uncommitted forged rows are
+    /// spilled into meta.sqlite3 while the journal holds the originals.
+    fn make_hot_journal(vault: &Path, scratch: &Path) {
+        let meta = vault.join("meta.sqlite3");
+        let journal = vault.join("meta.sqlite3-journal");
+        let meta_copy = scratch.join("meta.copy");
+        let journal_copy = scratch.join("journal.copy");
+        let before = std::fs::read(&meta).expect("committed database");
+        {
+            let writer = rusqlite::Connection::open(&meta).expect("db");
+            writer
+                .execute_batch("PRAGMA cache_size = 1; BEGIN IMMEDIATE;")
+                .expect("begin");
+            for n in 0..500 {
+                writer
+                    .execute(
+                        "INSERT INTO authority_objects(object_id, object_class, realm_id, authority_scope_id, body_json, content_digest_hex, updated_seq) \
+                         SELECT ?1, object_class, realm_id, authority_scope_id, body_json, content_digest_hex, updated_seq \
+                         FROM authority_objects WHERE object_class = 'proposal' LIMIT 1",
+                        [format!("forged-uncommitted-{n}")],
+                    )
+                    .expect("forged row");
+            }
+            assert!(journal.exists(), "the uncommitted write has a journal");
+            copy_through_read(&meta, &meta_copy);
+            copy_through_read(&journal, &journal_copy);
+            writer.execute_batch("ROLLBACK;").expect("rollback");
+        }
+        // Byte proof that uncommitted pages reached the database file. SQLite
+        // spills pages that need no journal sync first (new pages appended
+        // past the old end), so the file grows or its prefix changes; the
+        // journal's rollback truncates/restores it. (A SQL probe of a
+        // mid-transaction copy is unreliable: page 1 keeps the old count.)
+        let torn = std::fs::read(&meta_copy).expect("torn copy");
+        assert!(
+            torn.len() > before.len()
+                || torn[..before.len().min(torn.len())] != before[..before.len().min(torn.len())],
+            "uncommitted pages reached the database file"
+        );
+        assert!(
+            torn.windows(19).any(|w| w == b"forged-uncommitted-"),
+            "forged uncommitted rows are on disk"
+        );
+        // Install the torn pair: database with uncommitted pages + hot journal.
+        copy_through_read(&meta_copy, &meta);
+        copy_through_read(&journal_copy, &journal);
+        // A read-only open cannot roll back: proof the journal is hot.
+        let ro = rusqlite::Connection::open_with_flags(
+            &meta,
+            rusqlite::OpenFlags::SQLITE_OPEN_READ_ONLY,
+        )
+        .expect("read-only");
+        let err = ro
+            .query_row("SELECT COUNT(*) FROM authority_objects", [], |r| {
+                r.get::<_, i64>(0)
+            })
+            .expect_err("hot journal blocks a read-only reader");
+        match err {
+            rusqlite::Error::SqliteFailure(e, _) => assert_eq!(
+                e.extended_code,
+                rusqlite::ffi::SQLITE_READONLY_ROLLBACK,
+                "the journal is hot"
+            ),
+            other => panic!("expected SQLITE_READONLY_ROLLBACK, got {other:?}"),
+        }
+    }
+
+    #[test]
+    fn hot_journal_from_an_interrupted_write_is_settled_then_proven() {
+        // Uncommitted forged rows only: settled away, then rebuilt 12/12.
+        let data_dir = crash_scratch("hot-uncommitted");
+        run_crash_child(&data_dir, "after_fixture_1");
+        let scratch = crash_scratch("hot-uncommitted-copies");
+        make_hot_journal(&data_dir.join("synthetic-workspace"), &scratch);
+        let (result, state) = reopen(&data_dir);
+        assert!(result.expect("settled and recovered"));
+        assert_complete_sample(&state, &data_dir);
+        let forged: i64 =
+            rusqlite::Connection::open(data_dir.join("synthetic-workspace").join("meta.sqlite3"))
+                .expect("db")
+                .query_row(
+                    "SELECT COUNT(*) FROM authority_objects WHERE object_id LIKE 'forged-%'",
+                    [],
+                    |r| r.get(0),
+                )
+                .expect("count");
+        assert_eq!(forged, 0, "no forged row survives");
+        drop(state);
+        std::fs::remove_dir_all(&data_dir).expect("cleanup");
+        std::fs::remove_dir_all(&scratch).expect("cleanup");
+
+        // A committed forged row survives settling and is refused.
+        let data_dir = crash_scratch("hot-committed");
+        run_crash_child(&data_dir, "after_fixture_1");
+        let vault = data_dir.join("synthetic-workspace");
+        copy_object_row(&vault, "proposal", "proposal-committed-user", |b| {
+            b["claim_kind"] = serde_json::json!("observation")
+        });
+        let scratch = crash_scratch("hot-committed-copies");
+        make_hot_journal(&vault, &scratch);
+        let (result, _state) = reopen(&data_dir);
+        assert_eq!(
+            result.expect_err("committed user row").reason,
+            Some(seed_reason::RECOVERY_REFUSED)
+        );
+        let kept: i64 = rusqlite::Connection::open(vault.join("meta.sqlite3"))
+            .expect("db")
+            .query_row(
+                "SELECT COUNT(*) FROM authority_objects WHERE object_id = 'proposal-committed-user'",
+                [],
+                |r| r.get(0),
+            )
+            .expect("count");
+        assert_eq!(kept, 1, "committed data is never rolled back");
+        std::fs::remove_dir_all(&data_dir).expect("cleanup");
+        std::fs::remove_dir_all(&scratch).expect("cleanup");
+
+        // A live writer holding RESERVED with its journal: busy, not a crash.
+        let data_dir = crash_scratch("hot-live");
+        run_crash_child(&data_dir, "after_fixture_1");
+        let vault = data_dir.join("synthetic-workspace");
+        let writer = rusqlite::Connection::open(vault.join("meta.sqlite3")).expect("db");
+        writer
+            .execute_batch(
+                "BEGIN IMMEDIATE; INSERT INTO store_state(key, value) VALUES ('live_probe', '1');",
+            )
+            .expect("reserved");
+        let (result, _state) = reopen(&data_dir);
+        assert_eq!(
+            result.expect_err("live writer").reason,
+            Some(seed_reason::BUSY)
+        );
+        writer.execute_batch("ROLLBACK;").expect("release");
+        drop(writer);
+        let (result, state) = reopen(&data_dir);
+        assert!(result.expect("recovered once the writer left"));
         assert_complete_sample(&state, &data_dir);
         drop(state);
         std::fs::remove_dir_all(&data_dir).expect("cleanup");
