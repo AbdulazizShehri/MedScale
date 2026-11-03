@@ -2810,14 +2810,16 @@ mod tests {
             copy_through_read(&journal, &journal_copy);
             writer.execute_batch("ROLLBACK;").expect("rollback");
         }
-        // Byte proof that uncommitted pages reached the database file: an
-        // original page was overwritten, so only the journal can restore it.
-        // (A SQL probe of a mid-transaction copy is unreliable: page 1 keeps
-        // the old page count until commit.)
+        // Byte proof that uncommitted pages reached the database file. SQLite
+        // spills pages that need no journal sync first (new pages appended
+        // past the old end), so the file grows or its prefix changes; the
+        // journal's rollback truncates/restores it. (A SQL probe of a
+        // mid-transaction copy is unreliable: page 1 keeps the old count.)
         let torn = std::fs::read(&meta_copy).expect("torn copy");
         assert!(
-            torn.len() >= before.len() && torn[..before.len()] != before[..],
-            "an original page was overwritten by the uncommitted write"
+            torn.len() > before.len()
+                || torn[..before.len().min(torn.len())] != before[..before.len().min(torn.len())],
+            "uncommitted pages reached the database file"
         );
         assert!(
             torn.windows(19).any(|w| w == b"forged-uncommitted-"),

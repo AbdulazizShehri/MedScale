@@ -39,10 +39,9 @@ fn classify(error: &rusqlite::Error) -> SettleJournalError {
 /// # Errors
 /// [`SettleJournalError`] when the file is missing, busy or unreadable.
 pub fn settle_meta_journal(root: &Path) -> Result<(), SettleJournalError> {
-    // NOFOLLOW: never settle a database reached through a symlink.
-    let flags = OpenFlags::SQLITE_OPEN_READ_WRITE
-        | OpenFlags::SQLITE_OPEN_NO_MUTEX
-        | OpenFlags::SQLITE_OPEN_NOFOLLOW;
+    // No NOFOLLOW: SQLite rejects symlinks anywhere in the path (macOS
+    // /var -> /private/var). Callers check the final components instead.
+    let flags = OpenFlags::SQLITE_OPEN_READ_WRITE | OpenFlags::SQLITE_OPEN_NO_MUTEX;
     let conn =
         Connection::open_with_flags(root.join("meta.sqlite3"), flags).map_err(|e| classify(&e))?;
     conn.busy_timeout(Duration::ZERO)
