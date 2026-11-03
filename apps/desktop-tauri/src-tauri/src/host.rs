@@ -44,6 +44,12 @@ pub mod seed_reason {
     /// Any Core-originated integrity failure. Makes no claim about whether
     /// anything was written before the failure.
     pub const CORE_INTEGRITY: &str = "core_integrity_error";
+    /// Automatic first-seed recovery found something it cannot prove is
+    /// only the bundled sample; nothing was changed.
+    pub const RECOVERY_REFUSED: &str = "seed_recovery_refused";
+    /// Pack or ASR records from an earlier workspace exist without a
+    /// complete manifest; a new sample is not started over them.
+    pub const STALE_SIDECAR: &str = "seed_stale_sidecar";
 }
 
 impl CmdError {
@@ -142,6 +148,14 @@ pub enum VaultKind {
 pub struct SeedManifest {
     pub subjects: Vec<String>,
     pub sources: Vec<SeededSource>,
+    /// Spec 108 step 4: written before Core runs on a first seed and
+    /// replaced atomically by the complete manifest, so a pending workspace
+    /// never reaches the UI. Omitted when false (byte-identical to before).
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+    pub pending: bool,
+    /// Binds the one discard folder name to this pending seed.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub discard_nonce: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -343,6 +357,9 @@ fn load_manifest(vault_root: &Path) -> SeedManifest {
 /// A persisted synthetic seed is complete only when every bundled fixture
 /// was promoted exactly once. Imported FHIR rows may be present in addition.
 fn complete_synthetic_seed(seed: &SeedManifest) -> bool {
+    if seed.pending {
+        return false;
+    }
     let distinct_subjects: std::collections::HashSet<_> = seed.subjects.iter().collect();
     if distinct_subjects.len() != seed.subjects.len() {
         return false;
@@ -650,7 +667,6 @@ fn synthetic_core_ledger(vault_root: &Path, seed: &SeedManifest) -> LedgerCheck 
 /// step 4 v3). Anything not recognised as part of a (possibly partial)
 /// first seed is user activity or unknown, and is never auto-cleaned.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-#[cfg_attr(not(test), allow(dead_code))] // wired into step 4 recovery next
 pub(crate) enum SeedOnlyCheck {
     /// Every byte on disk is accounted for by the bundled seed plan.
     FixtureOnly,
@@ -661,7 +677,6 @@ pub(crate) enum SeedOnlyCheck {
 }
 
 /// SHA-256 hex digests of the distinct bundled seed fixtures.
-#[cfg_attr(not(test), allow(dead_code))] // wired into step 4 recovery next
 fn seed_fixture_digests() -> std::collections::BTreeSet<String> {
     seed_plan()
         .into_iter()
@@ -673,7 +688,6 @@ fn seed_fixture_digests() -> std::collections::BTreeSet<String> {
 /// Folder contents a partial first seed can leave: the Core metadata and
 /// writer-lock databases and content-addressed fixture blobs (inventory of
 /// medscale-storage vault.rs, writer_lock.rs, blob.rs, sqlite_meta.rs).
-#[cfg_attr(not(test), allow(dead_code))] // wired into step 4 recovery next
 fn seed_only_files(
     vault_root: &Path,
     digests: &std::collections::BTreeSet<String>,
@@ -745,7 +759,6 @@ fn seed_only_files(
 /// step 4 increment 2): the caller holds the instance lock and Core's
 /// `WriterLock` for `vault_root` from before this call until the rename,
 /// and the reads run in one transaction. Not yet wired to any action.
-#[cfg_attr(not(test), allow(dead_code))] // wired into step 4 recovery next
 pub(crate) fn seed_only_vault(vault_root: &Path) -> SeedOnlyCheck {
     use medscale_contracts::objects::{
         ActionAuditKind, ActionAuditRecord, AuthorityScopeId, ClinicalAssertion, DigestSha256,
@@ -1093,7 +1106,59 @@ pub(crate) fn seed_only_vault(vault_root: &Path) -> SeedOnlyCheck {
 /// Fail closed before Core opens an existing synthetic vault. A missing,
 /// truncated or partial manifest after a prior Core write is NOT a license
 /// to replay fixture promotions: Core proposal creation is not idempotent.
-fn preflight_synthetic_seed(vault_root: &Path) -> CmdResult<SeedManifest> {
+/// What the read-only preflight found (Spec 108 step 4).
+#[derive(Debug)]
+enum Preflight {
+    /// No manifest and an absent or empty folder: a first seed may start.
+    Fresh,
+    /// A complete manifest proven against the durable Core ledger.
+    Complete(SeedManifest),
+    /// An exact pending manifest: an interrupted first seed to recover.
+    Pending(SeedManifest),
+}
+
+/// The exact pending shape: `{pending: true, subjects: [], sources: [],
+/// discard_nonce: <32 lowercase hex>}` and no other keys.
+fn exact_pending_manifest(bytes: &[u8]) -> Option<SeedManifest> {
+    let raw: serde_json::Value = serde_json::from_slice(bytes).ok()?;
+    let object = raw.as_object()?;
+    let keys: std::collections::BTreeSet<&str> = object.keys().map(String::as_str).collect();
+    let expected: std::collections::BTreeSet<&str> =
+        ["pending", "subjects", "sources", "discard_nonce"]
+            .into_iter()
+            .collect();
+    if keys != expected {
+        return None;
+    }
+    let seed: SeedManifest = serde_json::from_value(raw).ok()?;
+    let nonce_ok = seed
+        .discard_nonce
+        .as_deref()
+        .is_some_and(valid_discard_nonce);
+    (seed.pending && seed.subjects.is_empty() && seed.sources.is_empty() && nonce_ok)
+        .then_some(seed)
+}
+
+fn valid_discard_nonce(nonce: &str) -> bool {
+    nonce.len() == 32
+        && nonce
+            .bytes()
+            .all(|b| b.is_ascii_digit() || (b'a'..=b'f').contains(&b))
+}
+
+fn new_discard_nonce() -> String {
+    let seed = format!(
+        "{}-{}",
+        std::process::id(),
+        std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .map(|d| d.as_nanos())
+            .unwrap_or_default()
+    );
+    medscale_contracts::objects::DigestSha256::of(seed.as_bytes()).to_hex()[..32].to_owned()
+}
+
+fn preflight_synthetic_seed(vault_root: &Path) -> CmdResult<Preflight> {
     let inspection_failed = || {
         CmdError::unavailable("Unavailable: synthetic vault inspection failed")
             .with_reason(seed_reason::IO_FAILURE)
@@ -1120,6 +1185,20 @@ fn preflight_synthetic_seed(vault_root: &Path) -> CmdResult<SeedManifest> {
     };
     match std::fs::read(manifest_path(vault_root)) {
         Ok(bytes) => {
+            if serde_json::from_slice::<serde_json::Value>(&bytes)
+                .ok()
+                .is_some_and(|v| v.get("pending").is_some())
+            {
+                // Any pending manifest that is not the exact pending shape
+                // is not something MedScale wrote: never recover from it.
+                return exact_pending_manifest(&bytes).map(Preflight::Pending).ok_or_else(|| {
+                    CmdError::new(
+                        "corrupt",
+                        "Corrupt: the sample workspace setup record is not recognised; nothing was changed",
+                    )
+                    .with_reason(seed_reason::RECOVERY_REFUSED)
+                });
+            }
             let seed: SeedManifest = serde_json::from_slice(&bytes).map_err(|_| {
                 CmdError::new("corrupt", "Corrupt: synthetic seed manifest is invalid")
                     .with_reason(seed_reason::MANIFEST_INVALID)
@@ -1131,7 +1210,7 @@ fn preflight_synthetic_seed(vault_root: &Path) -> CmdResult<SeedManifest> {
                 return Err(incomplete(seed_reason::MANIFEST_INCOMPLETE));
             }
             match synthetic_core_ledger(vault_root, &seed) {
-                LedgerCheck::Complete => Ok(seed),
+                LedgerCheck::Complete => Ok(Preflight::Complete(seed)),
                 LedgerCheck::Incomplete => Err(incomplete(seed_reason::CORE_LEDGER_INCOMPLETE)),
                 LedgerCheck::Corrupt => Err(CmdError::new(
                     "corrupt",
@@ -1150,7 +1229,7 @@ fn preflight_synthetic_seed(vault_root: &Path) -> CmdResult<SeedManifest> {
             }
         }
         Err(error) if error.kind() == std::io::ErrorKind::NotFound && !vault_has_entries => {
-            Ok(SeedManifest::default())
+            Ok(Preflight::Fresh)
         }
         Err(error) if error.kind() == std::io::ErrorKind::NotFound => Err(CmdError::new(
             "corrupt",
@@ -1206,6 +1285,14 @@ fn sync_parent_dir(_path: &Path) -> std::io::Result<()> {
 fn save_manifest(vault_root: &Path, manifest: &SeedManifest) -> CmdResult<()> {
     let bytes = serde_json::to_vec_pretty(manifest)
         .map_err(|_| CmdError::new("internal", "Internal: seed manifest"))?;
+    #[cfg(test)]
+    if !manifest.pending && crash_requested("during_commit") {
+        // The temporary file of the commit exists; the rename never happened.
+        let mut tmp = manifest_path(vault_root).into_os_string();
+        tmp.push(".tmp");
+        let _ = std::fs::write(PathBuf::from(tmp), &bytes);
+        crash_point("during_commit");
+    }
     write_atomic(&manifest_path(vault_root), &bytes)
         .map_err(|_| CmdError::unavailable("Unavailable: seed manifest not writable"))
 }
@@ -1292,6 +1379,7 @@ pub fn seed_synthetic(workspace: &mut Workspace, data_dir: &Path) -> CmdResult<(
     let staging = data_dir.join("fixture-staging");
     std::fs::create_dir_all(&staging).map_err(|_| CmdError::unavailable("Unavailable: staging"))?;
     let mut manifest = SeedManifest::default();
+    let mut promoted = 0_usize;
     for (subject, fixtures) in seed_plan() {
         for fixture in fixtures {
             let path = staging.join(fixture.file);
@@ -1307,12 +1395,15 @@ pub fn seed_synthetic(workspace: &mut Workspace, data_dir: &Path) -> CmdResult<(
             let source_id = workspace
                 .session
                 .ingest_fhir_file(&path.display().to_string())?;
+            promoted += 1;
+            crash_point(&format!("after_ingest_{promoted}"));
             workspace.session.promote_fixture_as_assertion(
                 source_id.clone(),
                 subject,
                 fixture.claim_kind,
                 resource,
             )?;
+            crash_point(&format!("after_fixture_{promoted}"));
             manifest.sources.push(SeededSource {
                 source_id: source_id.as_str().to_owned(),
                 fixture: fixture.file.to_owned(),
@@ -1324,6 +1415,7 @@ pub fn seed_synthetic(workspace: &mut Workspace, data_dir: &Path) -> CmdResult<(
         manifest.subjects.push(subject.to_owned());
     }
     let _ = std::fs::remove_dir_all(&staging);
+    crash_point("before_commit");
     save_manifest(&workspace.vault_root, &manifest)?;
     workspace.seed = manifest;
     Ok(())
@@ -1379,6 +1471,11 @@ pub fn import_fhir(
             "Denied: clinical ingest is admitted into the synthetic workspace only",
         ));
     }
+    if workspace.seed.pending {
+        return Err(CmdError::unavailable(
+            "Unavailable: the sample workspace is still being prepared",
+        ));
+    }
     let bytes = read_bounded(path, FHIR_IMPORT_MAX_BYTES)?;
     let resource: serde_json::Value = serde_json::from_slice(&bytes)
         .map_err(|_| CmdError::new("corrupt", "Corrupt: file is not JSON"))?;
@@ -1414,10 +1511,47 @@ pub fn import_fhir(
     Ok(source)
 }
 
-pub fn open_synthetic(state: &mut State) -> CmdResult<()> {
+/// Opens (or first-seeds) the synthetic workspace. Returns true when an
+/// interrupted first seed was proven fixture-only and rebuilt (Spec 108
+/// step 4).
+pub fn open_synthetic(state: &mut State) -> CmdResult<bool> {
     let data_dir = state.data_dir()?.to_path_buf();
     let vault_root = data_dir.join("synthetic-workspace");
-    let seed = preflight_synthetic_seed(&vault_root)?;
+    let mut recovered = false;
+    let seed = match preflight_synthetic_seed(&vault_root)? {
+        Preflight::Complete(seed) => seed,
+        Preflight::Pending(seed) => {
+            recover_interrupted_first_seed(&data_dir, &vault_root, &seed)?;
+            recovered = true;
+            seed
+        }
+        Preflight::Fresh => {
+            scan_siblings(&data_dir, None)?;
+            let pending = SeedManifest {
+                pending: true,
+                discard_nonce: Some(new_discard_nonce()),
+                ..SeedManifest::default()
+            };
+            save_manifest(&vault_root, &pending)?;
+            crash_point("after_pending_write");
+            pending
+        }
+    };
+    // Only an absent or empty real folder may receive a new seed.
+    if seed.pending {
+        match std::fs::symlink_metadata(&vault_root) {
+            Err(e) if e.kind() == std::io::ErrorKind::NotFound => {}
+            Ok(m) if m.is_dir() && !m.file_type().is_symlink() => {
+                let empty = std::fs::read_dir(&vault_root)
+                    .map(|mut d| d.next().is_none())
+                    .unwrap_or(false);
+                if !empty {
+                    return Err(recovery_refused());
+                }
+            }
+            _ => return Err(recovery_refused()),
+        }
+    }
     std::fs::create_dir_all(&vault_root)
         .map_err(|_| CmdError::unavailable("Unavailable: vault folder not writable"))?;
     let mut session = CliSession::connect("desktop-synthetic")?;
@@ -1427,6 +1561,7 @@ pub fn open_synthetic(state: &mut State) -> CmdResult<()> {
     session.use_fixture_asr();
     session.use_in_memory_privacy_keys();
     session.open_synthetic_vault(&vault_root.display().to_string())?;
+    crash_point("after_core_open");
     let mut workspace = Workspace {
         session,
         kind: VaultKind::Synthetic,
@@ -1434,10 +1569,246 @@ pub fn open_synthetic(state: &mut State) -> CmdResult<()> {
         seed,
     };
     seed_synthetic(&mut workspace, &data_dir)?;
+    crash_point("after_commit");
     restore_asr(&mut workspace);
     state.workspace = Some(workspace);
+    Ok(recovered)
+}
+
+fn recovery_refused() -> CmdError {
+    CmdError::new(
+        "corrupt",
+        "Corrupt: the sample workspace could not be rebuilt automatically; nothing was changed",
+    )
+    .with_reason(seed_reason::RECOVERY_REFUSED)
+}
+
+const VAULT_NAME: &str = "synthetic-workspace";
+const MANIFEST_NAME: &str = "synthetic-workspace.desktop-seed.json";
+const DISCARD_PREFIX: &str = "synthetic-workspace.discarding-";
+
+/// Inverse of `write_atomic`'s temporary name (`<target>.tmp`).
+fn atomic_temp_target(file_name: &str) -> Option<&str> {
+    file_name.strip_suffix(".tmp").filter(|t| !t.is_empty())
+}
+
+/// Siblings of the synthetic workspace that recovery may touch.
+#[derive(Debug, Default)]
+struct Siblings {
+    discard: Option<PathBuf>,
+    manifest_temps: Vec<PathBuf>,
+}
+
+/// Classify every data-dir entry whose name mentions the synthetic
+/// workspace (ASCII case-insensitive). Unknown entries refuse; nothing is
+/// changed here (Spec 108 step 4 v3.2, section 2).
+fn scan_siblings(data_dir: &Path, nonce: Option<&str>) -> CmdResult<Siblings> {
+    let io = || {
+        CmdError::unavailable("Unavailable: synthetic vault inspection failed")
+            .with_reason(seed_reason::IO_FAILURE)
+    };
+    let mut found = Siblings::default();
+    let entries = match std::fs::read_dir(data_dir) {
+        Ok(entries) => entries,
+        Err(e) if e.kind() == std::io::ErrorKind::NotFound => return Ok(found),
+        Err(_) => return Err(io()),
+    };
+    for entry in entries {
+        let entry = entry.map_err(|_| io())?;
+        let name = entry.file_name().to_string_lossy().into_owned();
+        if !name.to_ascii_lowercase().contains(VAULT_NAME) {
+            continue;
+        }
+        let kind = entry.file_type().map_err(|_| io())?;
+        let real_dir = kind.is_dir() && !kind.is_symlink();
+        if (name == VAULT_NAME && real_dir) || (name == MANIFEST_NAME && kind.is_file()) {
+            continue;
+        }
+        if let Some(n) = nonce
+            && real_dir
+            && name.strip_prefix(DISCARD_PREFIX) == Some(n)
+        {
+            found.discard = Some(entry.path());
+            continue;
+        }
+        if kind.is_file() && atomic_temp_target(&name) == Some(MANIFEST_NAME) {
+            // A temp that parses as a complete manifest means the commit may
+            // have happened; a torn or pending temp never replaced anything.
+            let complete = std::fs::read(entry.path())
+                .ok()
+                .and_then(|b| serde_json::from_slice::<SeedManifest>(&b).ok())
+                .is_some_and(|m| !m.pending);
+            if complete {
+                return Err(recovery_refused());
+            }
+            found.manifest_temps.push(entry.path());
+            continue;
+        }
+        let lower = name.to_ascii_lowercase();
+        if lower.ends_with(".desktop-packs.json") || lower.ends_with(".desktop-asr.json") {
+            return Err(CmdError::new(
+                "corrupt",
+                "Corrupt: settings from an earlier sample workspace remain; nothing was changed",
+            )
+            .with_reason(seed_reason::STALE_SIDECAR));
+        }
+        return Err(recovery_refused());
+    }
+    Ok(found)
+}
+
+/// Retry transient Windows sharing failures (5, 32, 33) for up to 3 s.
+fn with_fs_retry(mut op: impl FnMut() -> std::io::Result<()>) -> CmdResult<()> {
+    let deadline = std::time::Instant::now() + std::time::Duration::from_secs(3);
+    loop {
+        match op() {
+            Ok(()) => return Ok(()),
+            Err(e)
+                if cfg!(windows)
+                    && matches!(e.raw_os_error(), Some(5 | 32 | 33))
+                    && std::time::Instant::now() < deadline =>
+            {
+                std::thread::sleep(std::time::Duration::from_millis(50));
+            }
+            Err(_) => {
+                return Err(CmdError::unavailable(
+                    "Unavailable: the sample workspace folder is in use; nothing was deleted",
+                )
+                .with_reason(seed_reason::IO_FAILURE));
+            }
+        }
+    }
+}
+
+/// Hold Core's writer lock on an existing real folder and prove it holds
+/// only bundled fixture data. The guard is returned so the caller decides
+/// when exclusion ends.
+fn hold_and_prove_fixture_only(dir: &Path) -> CmdResult<medscale_core::VaultWriterGuard> {
+    use medscale_core::{VaultWriterGuard, VaultWriterGuardError};
+    match std::fs::symlink_metadata(dir) {
+        Ok(m) if m.is_dir() && !m.file_type().is_symlink() => {}
+        _ => return Err(recovery_refused()),
+    }
+    let guard = VaultWriterGuard::try_hold(dir).map_err(|e| match e {
+        VaultWriterGuardError::Held => {
+            CmdError::unavailable("Unavailable: another MedScale process is using this workspace")
+                .with_reason(seed_reason::WRITER_ACTIVE)
+        }
+        VaultWriterGuardError::Refused => recovery_refused(),
+        VaultWriterGuardError::Io => {
+            CmdError::unavailable("Unavailable: the synthetic workspace could not be read")
+                .with_reason(seed_reason::IO_FAILURE)
+        }
+    })?;
+    match seed_only_vault(dir) {
+        SeedOnlyCheck::FixtureOnly => Ok(guard),
+        SeedOnlyCheck::NotFixtureOnly => Err(recovery_refused()),
+        SeedOnlyCheck::Unproven if dir.join("meta.sqlite3-journal").exists() => Err(CmdError::new(
+            "corrupt",
+            "Corrupt: synthetic seed state is incomplete; refusing replay",
+        )
+        .with_reason(seed_reason::LEDGER_INTERRUPTED)),
+        SeedOnlyCheck::Unproven => Err(CmdError::unavailable(
+            "Unavailable: the synthetic workspace could not be read",
+        )
+        .with_reason(seed_reason::IO_FAILURE)),
+    }
+}
+
+/// Delete a folder only after proving it fixture-only under the lock.
+fn delete_proven_fixture_only(dir: &Path) -> CmdResult<()> {
+    let guard = hold_and_prove_fixture_only(dir)?;
+    // Windows: SQLite files open without delete sharing, so release first.
+    if cfg!(windows) {
+        drop(guard);
+        return with_fs_retry(|| std::fs::remove_dir_all(dir));
+    }
+    let result = with_fs_retry(|| std::fs::remove_dir_all(dir));
+    drop(guard);
+    result
+}
+
+/// Spec 108 step 4: recover an interrupted first seed. Every folder that is
+/// deleted is first proven fixture-only under Core's writer lock; nothing
+/// is ever deleted by name. The pending manifest stays and is reused.
+fn recover_interrupted_first_seed(
+    data_dir: &Path,
+    vault_root: &Path,
+    seed: &SeedManifest,
+) -> CmdResult<()> {
+    let Some(nonce) = seed
+        .discard_nonce
+        .as_deref()
+        .filter(|n| valid_discard_nonce(n))
+    else {
+        return Err(recovery_refused());
+    };
+    let siblings = scan_siblings(data_dir, Some(nonce))?;
+    // A discard folder left by an interrupted recovery is resumed first.
+    if let Some(discard) = &siblings.discard {
+        delete_proven_fixture_only(discard)?;
+    }
+    let discard = data_dir.join(format!("{DISCARD_PREFIX}{nonce}"));
+    match std::fs::symlink_metadata(vault_root) {
+        Err(e) if e.kind() == std::io::ErrorKind::NotFound => {}
+        Ok(_) => {
+            let guard = hold_and_prove_fixture_only(vault_root)?;
+            if cfg!(windows) {
+                // Windows: release, rename (fails on any open handle), then
+                // re-prove the renamed folder under a fresh lock.
+                drop(guard);
+                with_fs_retry(|| std::fs::rename(vault_root, &discard))?;
+                crash_point("recovery_after_rename");
+                if let Err(e) = hold_and_prove_fixture_only(&discard).map(drop) {
+                    let _ = with_fs_retry(|| std::fs::rename(&discard, vault_root));
+                    return Err(e);
+                }
+                with_fs_retry(|| std::fs::remove_dir_all(&discard))?;
+            } else {
+                // Unix: keep the lock through the rename and re-prove under
+                // the same guard (a second lock on the same file would be
+                // refused by SQLite's in-process locking).
+                with_fs_retry(|| std::fs::rename(vault_root, &discard))?;
+                crash_point("recovery_after_rename");
+                if seed_only_vault(&discard) != SeedOnlyCheck::FixtureOnly {
+                    let _ = std::fs::rename(&discard, vault_root);
+                    return Err(recovery_refused());
+                }
+                with_fs_retry(|| std::fs::remove_dir_all(&discard))?;
+                drop(guard);
+            }
+        }
+        Err(_) => {
+            return Err(
+                CmdError::unavailable("Unavailable: synthetic vault inspection failed")
+                    .with_reason(seed_reason::IO_FAILURE),
+            );
+        }
+    }
+    for temp in &siblings.manifest_temps {
+        let _ = std::fs::remove_file(temp);
+    }
     Ok(())
 }
+
+/// Test-only crash hook: exit with a sentinel code at a named boundary.
+#[cfg(test)]
+fn crash_requested(boundary: &str) -> bool {
+    std::env::var("MEDSCALE_TEST_SEED_CRASH").as_deref() == Ok(boundary)
+}
+
+#[cfg(test)]
+fn crash_point(boundary: &str) {
+    if crash_requested(boundary) {
+        if let Ok(marker) = std::env::var("MEDSCALE_TEST_SEED_CRASH_MARKER") {
+            let _ = std::fs::write(marker, boundary);
+        }
+        std::process::exit(86);
+    }
+}
+
+#[cfg(not(test))]
+fn crash_point(_boundary: &str) {}
 
 pub fn encrypted_root(state: &State) -> CmdResult<PathBuf> {
     Ok(state.data_dir()?.join("encrypted-workspace"))
@@ -1981,6 +2352,306 @@ mod tests {
         }
     }
 
+    fn crash_scratch(tag: &str) -> PathBuf {
+        let dir = std::env::temp_dir().join(format!(
+            "medscale-crash-{tag}-{}-{}",
+            std::process::id(),
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .expect("clock")
+                .as_nanos()
+        ));
+        std::fs::create_dir_all(&dir).expect("scratch");
+        dir
+    }
+
+    /// Re-run this test binary as a child that opens the synthetic workspace
+    /// and exits with code 86 at `boundary` (no Drop, OS releases handles).
+    fn run_crash_child(data_dir: &Path, boundary: &str) {
+        let marker = std::env::temp_dir().join(format!(
+            "medscale-crash-marker-{}-{}",
+            std::process::id(),
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .expect("clock")
+                .as_nanos()
+        ));
+        let out = std::process::Command::new(std::env::current_exe().expect("test binary"))
+            .args([
+                "host::tests::seed_crash_child",
+                "--exact",
+                "--ignored",
+                "--test-threads=1",
+                "--nocapture",
+            ])
+            .env("MEDSCALE_TEST_SEED_CRASH", boundary)
+            .env("MEDSCALE_TEST_SEED_CRASH_MARKER", &marker)
+            .env("MEDSCALE_TEST_SEED_CRASH_DATA_DIR", data_dir)
+            .output()
+            .expect("spawn crash child");
+        assert_eq!(
+            out.status.code(),
+            Some(86),
+            "{boundary}: child did not stop at the boundary\nstdout: {}\nstderr: {}",
+            String::from_utf8_lossy(&out.stdout),
+            String::from_utf8_lossy(&out.stderr)
+        );
+        assert_eq!(
+            std::fs::read_to_string(&marker).expect("boundary marker"),
+            boundary
+        );
+        let _ = std::fs::remove_file(&marker);
+    }
+
+    /// Child half of the crash tests; a no-op unless the parent set it up.
+    #[test]
+    #[ignore = "re-executed by crash tests only"]
+    fn seed_crash_child() {
+        let Some(dir) = std::env::var_os("MEDSCALE_TEST_SEED_CRASH_DATA_DIR") else {
+            return;
+        };
+        let mut state = State {
+            data_dir: Some(PathBuf::from(dir)),
+            ..State::default()
+        };
+        let _ = open_synthetic(&mut state);
+    }
+
+    fn ledger_counts(vault_root: &Path) -> (i64, i64) {
+        let db = rusqlite::Connection::open(vault_root.join("meta.sqlite3")).expect("db");
+        let count = |class: &str| {
+            db.query_row(
+                "SELECT COUNT(*) FROM authority_objects WHERE object_class = ?1",
+                [class],
+                |r| r.get::<_, i64>(0),
+            )
+            .expect("count")
+        };
+        (count("proposal"), count("assertion"))
+    }
+
+    fn reopen(data_dir: &Path) -> (CmdResult<bool>, State) {
+        let mut state = State {
+            data_dir: Some(data_dir.to_path_buf()),
+            ..State::default()
+        };
+        let result = open_synthetic(&mut state);
+        (result, state)
+    }
+
+    fn assert_complete_sample(state: &State, data_dir: &Path) {
+        let seed = &state.workspace.as_ref().expect("workspace").seed;
+        assert!(!seed.pending, "committed manifest is not pending");
+        assert_eq!(seed.subjects.len(), 2);
+        assert_eq!(
+            ledger_counts(&data_dir.join("synthetic-workspace")),
+            (12, 12),
+            "exactly the bundled 12 proposals and 12 assertions, no duplicates"
+        );
+    }
+
+    #[test]
+    fn interrupted_first_seed_is_recovered_at_every_boundary() {
+        for boundary in [
+            "after_pending_write",
+            "after_core_open",
+            "after_ingest_1",
+            "after_fixture_1",
+            "after_fixture_11",
+            "before_commit",
+        ] {
+            let data_dir = crash_scratch(boundary);
+            run_crash_child(&data_dir, boundary);
+            let (result, state) = reopen(&data_dir);
+            assert!(result.expect(boundary), "{boundary}: recovered");
+            assert_complete_sample(&state, &data_dir);
+            drop(state);
+            let (again, state) = reopen(&data_dir);
+            assert!(!again.expect(boundary), "{boundary}: no second recovery");
+            assert_complete_sample(&state, &data_dir);
+            drop(state);
+            std::fs::remove_dir_all(&data_dir).expect("cleanup");
+        }
+    }
+
+    #[test]
+    fn commit_boundaries_never_discard_a_committed_sample() {
+        // The commit's temporary file exists but was never renamed: refuse.
+        let data_dir = crash_scratch("during-commit");
+        run_crash_child(&data_dir, "during_commit");
+        let (result, _state) = reopen(&data_dir);
+        let err = result.expect_err("a complete manifest temp may mean the commit happened");
+        assert_eq!(err.reason, Some(seed_reason::RECOVERY_REFUSED));
+        assert!(
+            data_dir.join("synthetic-workspace").exists(),
+            "nothing deleted"
+        );
+        std::fs::remove_dir_all(&data_dir).expect("cleanup");
+
+        // Committed but the UI never received it: opens normally.
+        let data_dir = crash_scratch("after-commit");
+        run_crash_child(&data_dir, "after_commit");
+        let (result, state) = reopen(&data_dir);
+        assert!(!result.expect("committed sample opens"));
+        assert_complete_sample(&state, &data_dir);
+        drop(state);
+        std::fs::remove_dir_all(&data_dir).expect("cleanup");
+    }
+
+    #[test]
+    fn interrupted_recovery_is_resumed_after_the_rename() {
+        let data_dir = crash_scratch("resume");
+        run_crash_child(&data_dir, "after_fixture_1");
+        run_crash_child(&data_dir, "recovery_after_rename");
+        assert!(!data_dir.join("synthetic-workspace").exists());
+        let (result, state) = reopen(&data_dir);
+        assert!(result.expect("resumed recovery"));
+        assert_complete_sample(&state, &data_dir);
+        drop(state);
+        let leftovers = std::fs::read_dir(&data_dir)
+            .expect("list")
+            .filter_map(Result::ok)
+            .filter(|e| e.file_name().to_string_lossy().contains("discarding"))
+            .count();
+        assert_eq!(leftovers, 0, "the proven discard folder was deleted");
+        std::fs::remove_dir_all(&data_dir).expect("cleanup");
+    }
+
+    #[test]
+    fn recovery_refuses_anything_it_cannot_prove() {
+        // Legacy missing manifest after a committed sample: never recovered.
+        let data_dir = crash_scratch("legacy");
+        let (result, state) = reopen(&data_dir);
+        result.expect("first seed");
+        drop(state);
+        std::fs::remove_file(manifest_path(&data_dir.join("synthetic-workspace")))
+            .expect("drop manifest");
+        let (result, _state) = reopen(&data_dir);
+        assert_eq!(
+            result.expect_err("legacy").reason,
+            Some(seed_reason::MANIFEST_MISSING)
+        );
+        assert!(
+            data_dir
+                .join("synthetic-workspace")
+                .join("meta.sqlite3")
+                .exists()
+        );
+        std::fs::remove_dir_all(&data_dir).expect("cleanup");
+
+        // A pending seed whose vault also holds a non-fixture proposal.
+        let data_dir = crash_scratch("user-row");
+        run_crash_child(&data_dir, "after_fixture_1");
+        copy_object_row(
+            &data_dir.join("synthetic-workspace"),
+            "proposal",
+            "proposal-user",
+            |b| b["claim_kind"] = serde_json::json!("observation"),
+        );
+        let (result, _state) = reopen(&data_dir);
+        assert_eq!(
+            result.expect_err("user row").reason,
+            Some(seed_reason::RECOVERY_REFUSED)
+        );
+        assert!(
+            data_dir
+                .join("synthetic-workspace")
+                .join("meta.sqlite3")
+                .exists()
+        );
+        std::fs::remove_dir_all(&data_dir).expect("cleanup");
+
+        // A pack sidecar beside a pending seed: the UI may have been reached.
+        let data_dir = crash_scratch("sidecar");
+        run_crash_child(&data_dir, "after_fixture_1");
+        std::fs::write(
+            data_dir.join("synthetic-workspace.desktop-packs.json"),
+            b"{}",
+        )
+        .expect("sidecar");
+        let (result, _state) = reopen(&data_dir);
+        assert_eq!(
+            result.expect_err("sidecar").reason,
+            Some(seed_reason::STALE_SIDECAR)
+        );
+        std::fs::remove_dir_all(&data_dir).expect("cleanup");
+
+        // A complete-manifest temp beside a pending manifest.
+        let data_dir = crash_scratch("complete-temp");
+        run_crash_child(&data_dir, "after_fixture_1");
+        std::fs::write(
+            data_dir.join("synthetic-workspace.desktop-seed.json.tmp"),
+            serde_json::to_vec(&full_seed_manifest_for_test()).expect("json"),
+        )
+        .expect("temp");
+        let (result, _state) = reopen(&data_dir);
+        assert_eq!(
+            result.expect_err("complete temp").reason,
+            Some(seed_reason::RECOVERY_REFUSED)
+        );
+        std::fs::remove_dir_all(&data_dir).expect("cleanup");
+
+        // Another holder of Core's writer lock: refused, then recovered.
+        let data_dir = crash_scratch("writer");
+        run_crash_child(&data_dir, "after_fixture_1");
+        let guard =
+            medscale_core::VaultWriterGuard::try_hold(&data_dir.join("synthetic-workspace"))
+                .expect("hold");
+        let (result, _state) = reopen(&data_dir);
+        assert_eq!(
+            result.expect_err("writer held").reason,
+            Some(seed_reason::WRITER_ACTIVE)
+        );
+        drop(guard);
+        let (result, state) = reopen(&data_dir);
+        assert!(result.expect("recovered after release"));
+        assert_complete_sample(&state, &data_dir);
+        drop(state);
+        std::fs::remove_dir_all(&data_dir).expect("cleanup");
+
+        // An orphan discard folder beside a fresh vault is never touched.
+        let data_dir = crash_scratch("orphan");
+        let orphan = data_dir.join(format!("{DISCARD_PREFIX}{}", "0".repeat(32)));
+        std::fs::create_dir_all(&orphan).expect("orphan");
+        let (result, _state) = reopen(&data_dir);
+        assert_eq!(
+            result.expect_err("orphan").reason,
+            Some(seed_reason::RECOVERY_REFUSED)
+        );
+        assert!(orphan.exists());
+        std::fs::remove_dir_all(&data_dir).expect("cleanup");
+    }
+
+    #[test]
+    fn pending_shape_and_temp_names_are_exact() {
+        assert_eq!(
+            atomic_temp_target("synthetic-workspace.desktop-seed.json.tmp"),
+            Some(MANIFEST_NAME)
+        );
+        assert_eq!(atomic_temp_target(".tmp"), None);
+        assert_eq!(atomic_temp_target("synthetic-workspace"), None);
+        let nonce = new_discard_nonce();
+        assert!(valid_discard_nonce(&nonce));
+        assert!(!valid_discard_nonce("../../../../outside-the-data-dir"));
+        assert!(!valid_discard_nonce(&"A".repeat(32)));
+        let pending = SeedManifest {
+            pending: true,
+            discard_nonce: Some(nonce),
+            ..SeedManifest::default()
+        };
+        let bytes = serde_json::to_vec(&pending).expect("json");
+        assert!(exact_pending_manifest(&bytes).is_some());
+        let mut extra: serde_json::Value = serde_json::from_slice(&bytes).expect("json");
+        extra["sources"] = serde_json::json!([{"source_id": "x"}]);
+        assert!(exact_pending_manifest(extra.to_string().as_bytes()).is_none());
+        let mut unknown: serde_json::Value = serde_json::from_slice(&bytes).expect("json");
+        unknown["unexpected"] = serde_json::json!(1);
+        assert!(exact_pending_manifest(unknown.to_string().as_bytes()).is_none());
+        // A complete manifest is byte-identical to the pre-step-4 format.
+        let complete = serde_json::to_value(full_seed_manifest_for_test()).expect("json");
+        assert!(complete.get("pending").is_none() && complete.get("discard_nonce").is_none());
+    }
+
     #[test]
     fn seed_only_accepts_absent_and_complete_genuine_seed() {
         let (data_dir, vault_root) = seed_only_scratch("complete");
@@ -2143,7 +2814,10 @@ mod tests {
                 .unwrap()
                 .as_nanos()
         ));
-        assert!(preflight_synthetic_seed(&root).unwrap().subjects.is_empty());
+        assert!(matches!(
+            preflight_synthetic_seed(&root),
+            Ok(Preflight::Fresh)
+        ));
         std::fs::create_dir_all(&root).unwrap();
         std::fs::write(root.join("synthetic-core-placeholder"), b"synthetic-only").unwrap();
         assert!(preflight_synthetic_seed(&root).is_err());
@@ -2277,6 +2951,7 @@ mod tests {
                 claim_kind: fixture.claim_kind.to_owned(),
                 subject_ref: subject.to_owned(),
             }],
+            ..SeedManifest::default()
         };
         save_manifest(&vault_root, &partial).expect("write deliberately partial fixture roster");
         let invalid = open_synthetic(&mut restarted).expect_err("partial seed must fail closed");

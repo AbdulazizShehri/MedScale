@@ -1,6 +1,6 @@
 # Spec 108 step 4, increment 3: wire the fixture-only proof into first-seed recovery
 
-**Status:** `v3.2, READY TO IMPLEMENT (pending #410)`. The second Goldfish review confirmed that v3.0's B1, M3, M5 and M6 are resolved. It found one new blocker and four major issues in v3.1, and expected the design to be ready once they were fixed. The v3.2 amendments below resolve all of them and **take precedence over §1–§6 where they differ.**
+**Status:** `v3.2`. Increment **3a** (Rust: pending manifest, recovery, Core guard, API flag and crash-boundary tests) is implemented; **3b** (native Windows E2E and UI notice) is next. Deviation from §3 step 6: recovery does **not** touch `fixture-staging/`. `seed_synthetic` already recreates and removes it, so recovery adds no name-based deletion. The second Goldfish review confirmed that v3.0's B1, M3, M5 and M6 are resolved. It found one new blocker and four major issues in v3.1, and expected the design to be ready once they were fixed. The v3.2 amendments below resolve all of them and **take precedence over §1–§6 where they differ.**
 
 ## v3.2 amendments (second review)
 
