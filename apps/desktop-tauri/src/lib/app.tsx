@@ -13,6 +13,8 @@ export type WorkspaceStatus = {
   open: boolean;
   workspace: WorkspaceInfo | null;
   encrypted_vault_exists: boolean;
+  /** Spec 108 step 5: a set-aside sample copy is stored on this device. */
+  set_aside_exists?: boolean;
   version: string;
   local_only: boolean;
   real_phi_authorized: boolean;

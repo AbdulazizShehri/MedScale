@@ -783,6 +783,27 @@ try {
       await shot(`dark-${route.toLowerCase().replace(/\s+/g, "-")}`);
     }
   });
+  // Spec 108 step 5: an un-openable sample (manifest removed after quit, on
+  // a disposable Windows runner only) is set aside and replaced. The
+  // set-aside copy holds the earlier user FHIR import.
+  if (process.env.GITHUB_ACTIONS === "true" && process.platform === "win32" && process.env.LOCALAPPDATA) {
+    await quit();
+    const appData = path.join(process.env.LOCALAPPDATA, "org.medscale.desktop.preview");
+    fs.rmSync(path.join(appData, "synthetic-workspace.desktop-seed.json"), { force: true });
+    await launch();
+    await journey("unopenable-sample-set-aside", async () => {
+      await click(`//button[${text("Try MedScale with sample data")}]`, 60000);
+      await see("The sample workspace was not finished setting up.", 60000);
+      await click(`//button[${text("Set the sample workspace aside")}]`);
+      await see("not encrypted", 10000);
+      await click(`//button[${text("Set aside and start a new sample")}]`);
+      await find(`//button[contains(@class,'nav') and ${text("Patients")}]`, 180000);
+      const slotRoot = path.join(appData, "synthetic-set-aside");
+      if (!fs.existsSync(slotRoot) || fs.readdirSync(slotRoot).length !== 1) {
+        throw new Error("expected exactly one completed set-aside slot");
+      }
+    });
+  }
 } finally {
   await quit();
   fs.writeFileSync(path.join(shots, "results.json"), JSON.stringify(results, null, 1));

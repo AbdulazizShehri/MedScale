@@ -1,6 +1,9 @@
 # Spec 108 step 5: manual set-aside of a sample workspace that cannot be opened
 
-**Status:** `v2`. A Goldfish review (2026-11-03) found 1 blocker and 7 major issues. The amendments below resolve them and take precedence over the draft. The work ships as three PRs: 5a, 5b and 5c.
+**Status:** `v2`, implemented as 5a (hot-journal settle on the committed path), 5b (Rust set-aside and delete) and 5c (UI and native E2E). Deviations:
+- `webview-audit-compare.mjs` hard-codes three scope labels and cross-checks their sums, so `synthetic-set-aside/` and the `synthetic-workspace.*` siblings are classified as `synthetic_workspace` rather than a new scope.
+- The offer is shown on Welcome. Access keeps its existing error handling, because its error state is shared with encrypted unlock (Minor 4).
+- The release post-sample audit is unchanged, because release QA never exercises set-aside. A Goldfish review (2026-11-03) found 1 blocker and 7 major issues. The amendments below resolve them and take precedence over the draft. The work ships as three PRs: 5a, 5b and 5c.
 
 ## v2 amendments
 

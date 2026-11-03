@@ -135,3 +135,25 @@ export const RECOVERED_SEED_NOTICE = {
   title: "Sample workspace rebuilt",
   detail: "It had not finished setting up the last time MedScale ran, so it was set up again from the bundled sample.",
 } as const;
+
+/** Spec 108 step 5: offer a manual set-aside only for sample-setup states the
+ * backend also re-checks; never for integrity errors or set-aside outcomes. */
+export function setAsideOffered(reason: SeedReason | undefined): boolean {
+  if (!reason || reason === "core_integrity_error" || reason.startsWith("set_aside_")) return false;
+  return seedFailureGuidance(reason)?.category === "incomplete";
+}
+
+export const SET_ASIDE_DIALOG = {
+  title: "Set the sample workspace aside?",
+  body: "MedScale will move the sample workspace and its settings into a folder inside MedScale's own data, then create a new sample. Nothing is deleted. The set-aside copy is not encrypted, cannot be opened in MedScale, may include FHIR files you imported into the sample, and is kept until you delete it. Your original source files elsewhere are untouched. Audio Pack settings for the sample need to be set up again; downloaded models stay.",
+  confirm: "Set aside and start a new sample",
+} as const;
+
+export const DELETE_SET_ASIDE_DIALOG = {
+  title: "Delete the set-aside sample?",
+  body: "This permanently deletes the set-aside copy, including any FHIR files you imported into it. It cannot be undone. Your current sample and your original source files are not affected.",
+  confirm: "Delete permanently",
+} as const;
+
+export const SET_ASIDE_EXISTS_NOTICE =
+  "A set-aside sample workspace is stored on this device. It is not encrypted and cannot be opened in MedScale.";

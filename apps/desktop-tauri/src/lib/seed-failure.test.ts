@@ -1,7 +1,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import fs from "node:fs";
-import { RECOVERED_SEED_NOTICE, SEED_REASONS, parseSeedReason, recoveredInterruptedSeed, seedFailureGuidance } from "./seed-failure.ts";
+import { DELETE_SET_ASIDE_DIALOG, RECOVERED_SEED_NOTICE, SEED_REASONS, SET_ASIDE_DIALOG, parseSeedReason, recoveredInterruptedSeed, seedFailureGuidance, setAsideOffered } from "./seed-failure.ts";
 
 const RETRY = ["workspace_busy", "writer_active", "workspace_io_failure"] as const;
 
@@ -53,4 +53,22 @@ test("the rebuilt notice appears only for an explicit true flag", () => {
     assert.equal(recoveredInterruptedSeed(data), false, JSON.stringify(data));
   }
   assert.doesNotMatch(`${RECOVERED_SEED_NOTICE.title} ${RECOVERED_SEED_NOTICE.detail}`, /corrupt|deleted|lost/i);
+});
+
+test("set-aside is offered only for un-openable sample-setup states", () => {
+  for (const reason of ["seed_manifest_missing", "seed_manifest_invalid", "seed_manifest_incomplete", "core_ledger_incomplete", "seed_recovery_refused", "seed_stale_sidecar", "seed_ledger_interrupted"] as const) {
+    assert.equal(setAsideOffered(reason), true, reason);
+  }
+  for (const reason of ["workspace_busy", "writer_active", "workspace_io_failure", "core_integrity_error", "set_aside_slot_occupied", "set_aside_incomplete", "set_aside_refused"] as const) {
+    assert.equal(setAsideOffered(reason), false, reason);
+  }
+  assert.equal(setAsideOffered(undefined), false);
+});
+
+test("set-aside and delete dialogs disclose what they keep and remove", () => {
+  assert.match(SET_ASIDE_DIALOG.body, /Nothing is deleted/);
+  assert.match(SET_ASIDE_DIALOG.body, /not encrypted/);
+  assert.match(SET_ASIDE_DIALOG.body, /may include FHIR files you imported/);
+  assert.match(DELETE_SET_ASIDE_DIALOG.body, /permanently deletes/);
+  assert.match(DELETE_SET_ASIDE_DIALOG.body, /cannot be undone/);
 });

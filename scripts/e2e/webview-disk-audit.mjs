@@ -45,9 +45,11 @@ function otherStorageHint(parts, filename) {
 function appDataScope(parts, filename) {
   const first = parts[0]?.toLowerCase();
   if (first === "ebwebview") return "webview2_runtime";
+  // Spec 108: the set-aside copy and the workspace's own temp and discard
+  // siblings are synthetic workspace data, never unattributed.
   if (first === "synthetic-workspace" || first === "fixture-staging" ||
-      (parts.length === 0 &&
-       /^synthetic-workspace\.desktop-(?:seed|packs|asr)\.json$/i.test(filename))) {
+      first === "synthetic-set-aside" || /^synthetic-workspace\./i.test(first ?? "") ||
+      (parts.length === 0 && /^synthetic-workspace\./i.test(filename))) {
     return "synthetic_workspace";
   }
   return "other_app_data";
