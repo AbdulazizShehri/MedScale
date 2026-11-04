@@ -233,6 +233,48 @@ impl CliSession {
         Ok(())
     }
 
+    /// Everything crash recovery has kept for the open vault (Spec 109).
+    pub fn vault_recovery_items(
+        &mut self,
+    ) -> Result<Vec<medscale_contracts::envelopes::VaultRecoveryItem>, AuthorityError> {
+        match self.dispatch(
+            Capability::ManageVaultRecovery,
+            RequestBody::ListVaultRecovery,
+        )? {
+            ResponseBody::VaultRecovery { items } => Ok(items),
+            _ => Err(Self::unexpected("vault recovery items")),
+        }
+    }
+
+    pub fn delete_vault_recovery_item(
+        &mut self,
+        kind: medscale_contracts::envelopes::VaultRecoveryKind,
+        id: String,
+    ) -> Result<Vec<medscale_contracts::envelopes::VaultRecoveryItem>, AuthorityError> {
+        match self.dispatch(
+            Capability::ManageVaultRecovery,
+            RequestBody::DeleteVaultRecoveryItem { kind, id },
+        )? {
+            ResponseBody::VaultRecovery { items } => Ok(items),
+            _ => Err(Self::unexpected("vault recovery items")),
+        }
+    }
+
+    /// The vault is closed afterwards, on success. Unlock again to see the result.
+    pub fn restore_vault_recovery_copy(&mut self, id: String) -> Result<(), AuthorityError> {
+        match self.dispatch(
+            Capability::ManageVaultRecovery,
+            RequestBody::RestoreVaultRecoveryCopy { id },
+        )? {
+            ResponseBody::VaultClosed => {
+                self.open = false;
+                self.vault_root = None;
+                Ok(())
+            }
+            _ => Err(Self::unexpected("vault closed")),
+        }
+    }
+
     /// What the last open did with a session that never sealed (Spec 109).
     #[must_use]
     pub fn last_open_outcome(&self) -> Option<medscale_contracts::envelopes::VaultOpenOutcome> {

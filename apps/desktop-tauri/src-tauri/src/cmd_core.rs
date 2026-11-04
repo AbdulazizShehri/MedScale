@@ -208,6 +208,58 @@ fn label_with_outcome(
     label
 }
 
+/// Spec 109: only an open encrypted vault has recovery state.
+fn encrypted_session(state: &mut State) -> CmdResult<&mut CliSession> {
+    let ws = state.workspace()?;
+    if ws.kind != host::VaultKind::Encrypted {
+        return Err(CmdError::invalid(
+            "Invalid: only an encrypted vault keeps recovery copies",
+        ));
+    }
+    Ok(&mut ws.session)
+}
+
+fn recovery_kind(kind: &str) -> CmdResult<medscale_contracts::envelopes::VaultRecoveryKind> {
+    use medscale_contracts::envelopes::VaultRecoveryKind;
+    match kind {
+        "pre_recovery_copy" => Ok(VaultRecoveryKind::PreRecoveryCopy),
+        "discarded_session" => Ok(VaultRecoveryKind::DiscardedSession),
+        _ => Err(CmdError::invalid("Invalid: unknown recovery item kind")),
+    }
+}
+
+#[tauri::command(async)]
+pub fn vault_recovery_items(host: tauri::State<'_, Host>) -> CmdResult<Value> {
+    let mut state = lock(&host)?;
+    Ok(json!(
+        encrypted_session(&mut state)?.vault_recovery_items()?
+    ))
+}
+
+#[tauri::command(async)]
+pub fn vault_recovery_delete(
+    host: tauri::State<'_, Host>,
+    kind: String,
+    id: String,
+) -> CmdResult<Value> {
+    let kind = recovery_kind(&kind)?;
+    let id = host::bounded_id(&id)?.to_owned();
+    let mut state = lock(&host)?;
+    Ok(json!(
+        encrypted_session(&mut state)?.delete_vault_recovery_item(kind, id)?
+    ))
+}
+
+/// Seals this session, keeps that seal, restores the chosen copy, and closes.
+#[tauri::command(async)]
+pub fn vault_recovery_restore(host: tauri::State<'_, Host>, id: String) -> CmdResult<()> {
+    let id = host::bounded_id(&id)?.to_owned();
+    let mut state = lock(&host)?;
+    encrypted_session(&mut state)?.restore_vault_recovery_copy(id)?;
+    state.workspace = None;
+    Ok(())
+}
+
 #[tauri::command(async)]
 pub fn workspace_lock(host: tauri::State<'_, Host>) -> CmdResult<()> {
     let mut state = lock(&host)?;

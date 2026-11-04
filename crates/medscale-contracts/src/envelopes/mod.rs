@@ -111,6 +111,7 @@ pub enum Capability {
     CreateEncryptedVault,
     OpenEncryptedVault,
     CloseEncryptedVault,
+    ManageVaultRecovery,
     NetworkBrokerInvoke,
     SetEgressAllowlist,
     PacksInstallLocal,
@@ -405,6 +406,7 @@ impl Capability {
             Self::CreateEncryptedVault,
             Self::OpenEncryptedVault,
             Self::CloseEncryptedVault,
+            Self::ManageVaultRecovery,
             Self::NetworkBrokerInvoke,
             Self::SetEgressAllowlist,
             Self::PacksInstallLocal,
@@ -675,6 +677,17 @@ pub enum RequestBody {
         discard_leftover: bool,
     },
     CloseEncryptedVault,
+    /// Spec 109: what crash recovery has kept for the open vault.
+    ListVaultRecovery,
+    DeleteVaultRecoveryItem {
+        kind: VaultRecoveryKind,
+        id: String,
+    },
+    /// Seals the open session, keeps that seal as a copy, makes the chosen copy
+    /// the vault's seal, and closes. Unlock again to see it.
+    RestoreVaultRecoveryCopy {
+        id: String,
+    },
     NetworkBrokerInvoke {
         request: NetworkBrokerRequest,
     },
@@ -1751,6 +1764,28 @@ impl RequestBody {
     }
 }
 
+/// Spec 109 Part B: which kind of thing crash recovery kept.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum VaultRecoveryKind {
+    /// An earlier sealed state of the vault, kept before a recovered session or a
+    /// restore replaced it.
+    PreRecoveryCopy,
+    /// A session that could not be verified, moved aside. Cannot be opened here.
+    DiscardedSession,
+}
+
+/// One thing crash recovery kept. Never includes a path or vault contents.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct VaultRecoveryItem {
+    pub kind: VaultRecoveryKind,
+    /// A seal digest, or a generation number.
+    pub id: String,
+    pub bytes: u64,
+    /// Seconds since the Unix epoch; absent if the OS can't say.
+    pub modified_unix: Option<u64>,
+}
+
 /// Spec 109 Part B: what opening an encrypted vault did with an unsealed session.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
@@ -1793,6 +1828,9 @@ pub enum ResponseBody {
         vault_root: String,
     },
     VaultClosed,
+    VaultRecovery {
+        items: Vec<VaultRecoveryItem>,
+    },
     Ingested {
         receipt: IngestReceipt,
     },

@@ -164,6 +164,18 @@ export const DISCARDED_SESSION_NOTICE = {
   detail: "MedScale did not close normally and could not verify that session, so the vault opened from its last locked state.",
 } as const;
 
+export const RESTORE_COPY_DIALOG = {
+  title: "Restore this copy?",
+  confirm: "Restore and lock",
+  body: "The vault returns to how it was when this copy was made. This can bring back deleted data and shorten the audit trail. Your current state is saved first and kept in this list, so you can restore it again, though MedScale keeps only the three newest copies. The vault locks when this finishes.",
+} as const;
+
+export const DELETE_RECOVERY_DIALOG = {
+  title: "Permanently delete this?",
+  confirm: "Delete permanently",
+  body: "This removes it from this device. It cannot be undone. The vault itself is not affected.",
+} as const;
+
 export const MOVE_SESSION_ASIDE_DIALOG = {
   title: "Move that session aside?",
   confirm: "Move aside and open",

@@ -1,6 +1,6 @@
 # Spec 109 Part B: recover a crashed encrypted session
 
-**Status:** `v4`. PRs 1 and 2 are implemented; PR 3 is not. Goldfish reviewers (2026-11-04) rejected v1 and v2. Their failures had one cause, automatic actions on recovery state, which v3 removed. A fresh review of v3 returned READY WITH AMENDMENTS, applied here.
+**Status:** `v4`. Implemented: PRs 1, 2 and 3. Goldfish reviewers (2026-11-04) rejected v1 and v2. Their failures had one cause, automatic actions on recovery state, which v3 removed. A fresh review of v3 returned READY WITH AMENDMENTS, applied here.
 
 **Goal:** a crash, kill or failed seal while unlocked no longer loses committed changes, and nothing in this path can overwrite or destroy the last known-good seal.
 

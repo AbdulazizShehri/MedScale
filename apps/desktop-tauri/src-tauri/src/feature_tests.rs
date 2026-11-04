@@ -658,6 +658,48 @@ fn the_desktop_describes_itself_not_the_legacy_shell() {
 }
 
 #[test]
+fn recovery_commands_list_refuse_bad_ids_and_need_an_encrypted_vault() {
+    let h = Harness::new("recovery-commands");
+    h.ok("workspace_open_synthetic", json!({}));
+    assert_eq!(
+        h.call("vault_recovery_items", json!({})).unwrap_err()["kind"],
+        "invalid",
+        "a sample workspace has no recovery state"
+    );
+    h.ok("workspace_lock", json!({}));
+    h.ok(
+        "workspace_create_encrypted",
+        json!({ "passphrase": "correct horse battery" }),
+    );
+    assert_eq!(h.ok("vault_recovery_items", json!({})), json!([]));
+    assert!(
+        h.call(
+            "vault_recovery_delete",
+            json!({ "kind": "pre_recovery_copy", "id": "../meta.sealed" })
+        )
+        .is_err()
+    );
+    assert!(
+        h.call(
+            "vault_recovery_delete",
+            json!({ "kind": "anything", "id": "1" })
+        )
+        .is_err()
+    );
+    assert!(
+        h.call("vault_recovery_restore", json!({ "id": "a".repeat(64) }))
+            .is_err(),
+        "no such copy"
+    );
+    assert_eq!(
+        h.ok("workspace_status", json!({}))["open"],
+        true,
+        "a refused restore leaves the vault open"
+    );
+    h.ok("workspace_lock", json!({}));
+}
+
+#[test]
 fn encrypted_vault_create_lock_unlock_and_wrong_passphrase() {
     let h = Harness::new("enc");
     assert_eq!(

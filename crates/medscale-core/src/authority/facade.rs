@@ -1825,6 +1825,41 @@ impl CoreFacade {
                 }
                 Ok(ResponseBody::VaultClosed)
             }
+            RequestBody::ListVaultRecovery => {
+                self.require_lease(&req.vault_id)?;
+                let slot = self.encrypted();
+                let vault = slot.as_ref().ok_or(AuthorityError::VaultRequired)?;
+                Ok(ResponseBody::VaultRecovery {
+                    items: vault.recovery_items().map_err(enc_err)?,
+                })
+            }
+            RequestBody::DeleteVaultRecoveryItem { kind, id } => {
+                self.require_lease(&req.vault_id)?;
+                let slot = self.encrypted();
+                let vault = slot.as_ref().ok_or(AuthorityError::VaultRequired)?;
+                vault.delete_recovery_item(kind, &id).map_err(enc_err)?;
+                Ok(ResponseBody::VaultRecovery {
+                    items: vault.recovery_items().map_err(enc_err)?,
+                })
+            }
+            RequestBody::RestoreVaultRecoveryCopy { id } => {
+                self.require_lease(&req.vault_id)?;
+                {
+                    let enc = self.encrypted();
+                    let vault = enc.as_ref().ok_or(AuthorityError::VaultRequired)?;
+                    let store = self.store();
+                    super::durable::sync_store_to_encrypted(vault, &store)?;
+                }
+                let mut slot = self.encrypted();
+                let vault = slot.take().ok_or(AuthorityError::VaultRequired)?;
+                if let Err(failed) = vault.restore_recovery_copy(&id) {
+                    let (vault, error) = *failed;
+                    *slot = Some(vault);
+                    return Err(enc_err(error));
+                }
+                self.store().clear();
+                Ok(ResponseBody::VaultClosed)
+            }
             RequestBody::SetEgressAllowlist { entries } => {
                 self.require_lease(&req.vault_id)?;
                 let count = entries.len() as u32;
@@ -5917,6 +5952,12 @@ fn capability_matches(cap: &Capability, body: &RequestBody) -> bool {
             | (
                 Capability::CloseEncryptedVault,
                 RequestBody::CloseEncryptedVault
+            )
+            | (
+                Capability::ManageVaultRecovery,
+                RequestBody::ListVaultRecovery
+                    | RequestBody::DeleteVaultRecoveryItem { .. }
+                    | RequestBody::RestoreVaultRecoveryCopy { .. }
             )
             | (
                 Capability::NetworkBrokerInvoke,

@@ -908,6 +908,28 @@ try {
       await nav("Projects");
       await see("E2E work from before the kill", 60000);
     }, { screenshot: false });
+    // Spec 109 PR 3: what recovery kept is visible, and restoring it is explicit.
+    // The copy predates the project, so restoring removes it, and the state being
+    // replaced stays listed so the restore can be undone.
+    await journey("encrypted-vault-restore-a-kept-copy", async () => {
+      await nav("Settings");
+      await see("Crash recovery", 30000);
+      await click(`//button[starts-with(@aria-label,'Restore Earlier saved copy')]`, 30000);
+      await see("Restore this copy?", 10000);
+      await see("shorten the audit trail", 10000);
+      await click(`//button[${text("Restore and lock")}]`);
+      await see("Unlock workspace", 120000);
+      await type("//input[@id='pp']", "e2e-disposable-runner-passphrase");
+      await click("//button[@type='submit' and not(@disabled)]");
+      await find(`//button[contains(@class,'nav') and ${text("Patients")}]`, 120000);
+      await nav("Projects");
+      await see("Create project", 60000);
+      if ((await pageText()).includes("E2E work from before the kill")) {
+        throw new Error("the restored vault still shows work newer than the copy");
+      }
+      await nav("Settings");
+      await find(`//button[starts-with(@aria-label,'Restore Earlier saved copy')]`, 30000);
+    }, { screenshot: false });
     await quit();
     const appData = path.join(process.env.LOCALAPPDATA, "org.medscale.desktop.preview");
     const manifest = path.join(appData, "synthetic-workspace.desktop-seed.json");

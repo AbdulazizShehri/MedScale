@@ -100,6 +100,12 @@ export function App() {
   const setDensity = useCallback((d: Density) => { setDensityState(d); writePref("density", d); }, []);
   const setProject = useCallback((id: string | null) => { setProjectState(id); }, []);
   const navigate = useCallback((route: RouteId, subject?: string) => { setNav({ route, subject }); setPalette(false); }, []);
+  const vaultClosed = useCallback(async () => {
+    setProjectState(null);
+    setGate("access");
+    setNav({ route: "Home" });
+    await refreshWorkspace();
+  }, [refreshWorkspace]);
   const lock = useCallback(async () => {
     setLockError(null);
     try {
@@ -110,11 +116,8 @@ export function App() {
       await refreshWorkspace();
       return;
     }
-    setProjectState(null);
-    setGate("access");
-    setNav({ route: "Home" });
-    await refreshWorkspace();
-  }, [refreshWorkspace]);
+    await vaultClosed();
+  }, [refreshWorkspace, vaultClosed]);
 
   // A route change moves focus to the new page and names it, so keyboard and
   // screen-reader users are not left on a control in the previous view.
@@ -140,9 +143,9 @@ export function App() {
   }, [lock, ws?.open]);
 
   const ctx: AppCtx = useMemo(() => ({
-    ws, refreshWorkspace, nav, navigate, project, setProject, theme, setTheme, density, setDensity, lock,
+    ws, refreshWorkspace, vaultClosed, nav, navigate, project, setProject, theme, setTheme, density, setDensity, lock,
     openPalette: () => setPalette(true),
-  }), [ws, refreshWorkspace, nav, navigate, project, setProject, theme, setTheme, density, setDensity, lock]);
+  }), [ws, refreshWorkspace, vaultClosed, nav, navigate, project, setProject, theme, setTheme, density, setDensity, lock]);
 
   const route = routes.find((r) => r.id === nav.route) ?? routes[0];
   const crumbs: string[] = route.area === "Home" || route.area === "Utility" ? [route.label] : [route.area, route.label];
