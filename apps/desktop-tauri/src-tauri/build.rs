@@ -34,6 +34,7 @@ fn main() {
             "workspace_create_encrypted",
             "workspace_unlock",
             "workspace_unlock_with_recovery_code",
+            "workspace_unlock_moving_session_aside",
             "workspace_lock",
             "patients_list",
             "patient_detail",

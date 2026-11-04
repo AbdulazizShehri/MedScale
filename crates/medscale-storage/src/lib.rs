@@ -44,7 +44,7 @@ pub use data_sources::{
     RECEIPT_KIND_TRANSFORMATION, SnapshotRecord, TransformationRecord, list_external_sqlite_tables,
     read_external_sqlite_table, validate_external_identifier,
 };
-pub use encrypted_vault::{EncryptedVault, EncryptedVaultError, default_vault_root};
+pub use encrypted_vault::{EncryptedVault, EncryptedVaultError, WorkSource, default_vault_root};
 pub use extensions::{EXTENSION_TABLES, InstallChange};
 pub use federation::{FEDERATION_TABLES, FederationChange, ImportedItemRow};
 pub use gc::{GcStats, run_gc};
@@ -63,7 +63,9 @@ pub use privacy_probes::{
 pub use r_workspace::{R_WORKSPACE_TABLES, RPublishedTableRow};
 pub use research_packs::{PackChange, RESEARCH_PACK_TABLES};
 pub use sealed_blob::{SealedBlobError, SealedBlobStore};
-pub use sqlite_meta::{AuthorityObjectRow, MetaError, SourceMeta, SqliteMetaStore};
+pub use sqlite_meta::{
+    AuthorityObjectRow, MetaError, SourceMeta, SqliteMetaStore, WorkDatabaseCheck,
+};
 pub use vault::{SyntheticVault, VaultError};
 pub use writer_lock::{WriterLock, WriterLockError};
 

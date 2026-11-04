@@ -2,7 +2,7 @@
 //! copy. Synthetic data only, real SQLCipher.
 
 use medscale_contracts::objects::{AuthorityScopeId, DigestSha256, OpaqueId, RealmId};
-use medscale_storage::{EncryptedVault, EncryptedVaultError, SourceMeta};
+use medscale_storage::{EncryptedVault, EncryptedVaultError, SourceMeta, WorkSource};
 use std::collections::BTreeMap;
 use std::fs;
 use std::path::{Path, PathBuf};
@@ -21,7 +21,8 @@ fn temp_root(name: &str) -> PathBuf {
 fn sealed_vault(name: &str) -> PathBuf {
     let root = temp_root(name);
     let (vault, _) = EncryptedVault::create("v-109", &root, PASS, "holder-a", None).unwrap();
-    assert!(!vault.discarded_interrupted_session());
+    assert_eq!(vault.work_source(), WorkSource::Restored);
+    assert!(!vault.notice_pending());
     vault.close().unwrap();
     root
 }
@@ -112,29 +113,31 @@ fn a_wrong_passphrase_changes_nothing_even_with_a_leftover() {
 }
 
 #[test]
-fn a_crash_discards_the_session_and_says_so() {
+fn a_crash_recovers_the_session_and_says_so() {
     let root = sealed_vault("crash");
     let vault = open(&root).unwrap();
-    assert!(
-        !vault.discarded_interrupted_session(),
-        "a clean close reports nothing"
+    assert_eq!(
+        vault.work_source(),
+        WorkSource::Restored,
+        "a clean close leaves nothing to recover"
     );
     vault.insert_source(&source("unsealed")).unwrap();
     drop(vault);
 
     let reopened = open(&root).unwrap();
-    assert!(reopened.discarded_interrupted_session());
-    assert_eq!(source_count(&reopened), 0, "opened from the last seal");
+    assert_eq!(reopened.work_source(), WorkSource::Adopted);
+    assert_eq!(source_count(&reopened), 1, "the committed write survived");
     reopened.close().unwrap();
 
     let clean = open(&root).unwrap();
-    assert!(!clean.discarded_interrupted_session());
+    assert_eq!(clean.work_source(), WorkSource::Restored);
+    assert_eq!(source_count(&clean), 1);
     clean.close().unwrap();
     fs::remove_dir_all(&root).unwrap();
 }
 
 #[test]
-fn stale_temp_files_and_a_stale_journal_are_ignored() {
+fn stale_temp_files_are_cleared_and_a_stale_journal_is_moved_aside() {
     let root = sealed_vault("stale");
     fs::write(root.join("meta.sealed.tmp"), b"half a seal").unwrap();
     fs::write(root.join("meta.work.sqlite3.tmp"), b"half a copy").unwrap();
@@ -175,7 +178,7 @@ fn a_failed_seal_hands_back_an_open_vault_and_a_retry_succeeds() {
     assert!(!EncryptedVault::leftover_work_present(&root));
 
     let reopened = open(&root).unwrap();
-    assert!(!reopened.discarded_interrupted_session());
+    assert_eq!(reopened.work_source(), WorkSource::Restored);
     assert_eq!(source_count(&reopened), 2, "both writes were sealed");
     reopened.close().unwrap();
     fs::remove_dir_all(&root).unwrap();

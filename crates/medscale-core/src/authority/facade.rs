@@ -5,6 +5,7 @@ use std::sync::{Arc, Mutex};
 use medscale_contracts::AUTHORITY_SCHEMA_VERSION;
 use medscale_contracts::envelopes::{
     AuthorityError, AuthorityRequest, AuthorityResponse, Capability, RequestBody, ResponseBody,
+    VaultOpenOutcome,
 };
 use medscale_contracts::objects::{
     ActionAuditKind, ActionAuditRecord, DerivedSourceArtifact, DigestSha256, EffectState,
@@ -1038,10 +1039,82 @@ impl CoreFacade {
         }
     }
 
+    /// Spec 109 Part B: load an opened vault into the store. Returns the vault and
+    /// whether a recovered session was kept. On any error nothing has changed
+    /// except as the table in `part-b-crash-recovery.md` says: a seal is never
+    /// touched, and a transient failure discards nothing.
+    fn load_opened_vault(
+        &self,
+        vault: EncryptedVault,
+    ) -> Result<(EncryptedVault, bool), AuthorityError> {
+        use medscale_storage::WorkSource;
+        let load = |vault: &EncryptedVault| {
+            let mut store = self.store();
+            let loaded = super::durable::load_store_from_encrypted(vault, &mut store);
+            if loaded.is_err() {
+                store.clear();
+            }
+            loaded
+        };
+        let definitive = |e: &AuthorityError| {
+            matches!(
+                e,
+                AuthorityError::Corrupt { .. } | AuthorityError::DigestMismatch
+            )
+        };
+        match (vault.work_source(), load(&vault)) {
+            (WorkSource::Adopted, Ok(())) => {
+                self.raise_next_seq_after_recovery();
+                Ok((vault, true))
+            }
+            (WorkSource::Restored, Ok(())) => Ok((vault, false)),
+            (WorkSource::Restored, Err(e)) => {
+                vault.remove_restored_work_file();
+                Err(e)
+            }
+            (WorkSource::Adopted, Err(e)) if !definitive(&e) => Err(recovery_check_error(e)),
+            (WorkSource::Adopted, Err(_)) => {
+                // A lock on one blob must not read as loss, so look once more.
+                std::thread::sleep(std::time::Duration::from_millis(250));
+                match load(&vault) {
+                    Ok(()) => {
+                        self.raise_next_seq_after_recovery();
+                        Ok((vault, true))
+                    }
+                    Err(e) if !definitive(&e) => Err(recovery_check_error(e)),
+                    Err(_) => {
+                        let vault = vault
+                            .discard_adopted_and_restore()
+                            .map_err(|failed| enc_err(failed.1))?;
+                        match load(&vault) {
+                            Ok(()) => Ok((vault, false)),
+                            Err(e) => {
+                                vault.remove_restored_work_file();
+                                Err(e)
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    /// A crash can leave a domain row naming an id the snapshot never got, so the
+    /// counter regressed. No request allocates anywhere near this many, so no id
+    /// is reissued and a surviving receipt can't name the wrong artifact.
+    fn raise_next_seq_after_recovery(&self) {
+        const RECOVERY_SEQ_GAP: u64 = 1 << 32;
+        let mut store = self.store();
+        let next = store.next_seq().saturating_add(RECOVERY_SEQ_GAP);
+        store.set_next_seq(next);
+    }
+
     fn persist_open_vault(&self) -> Result<(), AuthorityError> {
         let store = self.store();
-        if let Some(enc) = self.encrypted().as_ref() {
-            return super::durable::sync_store_to_encrypted(enc, &store);
+        if let Some(enc) = self.encrypted().as_mut() {
+            super::durable::sync_store_to_encrypted(enc, &store)?;
+            enc.acknowledge_notice_if_requested();
+            return Ok(());
         }
         let vault = self.vault();
         let Some(vault) = vault.as_ref() else {
@@ -1651,13 +1724,14 @@ impl CoreFacade {
                 Ok(ResponseBody::EncryptedVaultReady {
                     vault_root,
                     recovery_codes: Some(codes.codes),
-                    discarded_interrupted_session: false,
+                    open_outcome: None,
                 })
             }
             RequestBody::OpenEncryptedVault {
                 vault_root,
                 passphrase,
                 recovery_code,
+                discard_leftover,
             } => {
                 self.require_lease(&req.vault_id)?;
                 if self.vault().is_some() {
@@ -1677,7 +1751,14 @@ impl CoreFacade {
                     .holder(&req.vault_id)
                     .ok_or(AuthorityError::LeaseRequired)?;
                 let path = std::path::Path::new(&vault_root);
-                let vault = if let Some(code) = recovery_code {
+                let vault = if discard_leftover {
+                    EncryptedVault::open_moving_leftover_aside(
+                        path,
+                        passphrase.as_deref(),
+                        recovery_code.as_deref(),
+                        holder.as_str(),
+                    )
+                } else if let Some(code) = recovery_code {
                     EncryptedVault::open_with_recovery(path, &code, holder.as_str())
                 } else if let Some(pw) = passphrase {
                     EncryptedVault::open_with_passphrase(path, &pw, holder.as_str())
@@ -1685,16 +1766,39 @@ impl CoreFacade {
                     return Err(AuthorityError::MissingKeyMaterial);
                 }
                 .map_err(enc_err)?;
-                {
-                    let mut store = self.store();
-                    super::durable::load_store_from_encrypted(&vault, &mut store)?;
+                let (mut vault, adopted) = self.load_opened_vault(vault)?;
+                let notified = vault.notice_pending();
+                // Persisted before the vault enters the slot: the raised `next_seq`
+                // must be durable before anything allocates under it.
+                let persisted = {
+                    let store = self.store();
+                    super::durable::sync_store_to_encrypted(&vault, &store)
+                };
+                if let Err(error) = persisted {
+                    self.store().clear();
+                    if !adopted {
+                        vault.remove_restored_work_file();
+                    }
+                    return Err(error);
                 }
-                let discarded_interrupted_session = vault.discarded_interrupted_session();
+                // A recovered session doesn't deliver a discard notice, so that
+                // stays for the next plain open. Otherwise it is cleared after
+                // the dispatch-level persist, so a failure reports it again.
+                if !adopted {
+                    vault.request_notice_acknowledgement();
+                }
                 *slot = Some(vault);
+                let open_outcome = if adopted {
+                    Some(VaultOpenOutcome::RecoveredInterruptedSession)
+                } else if notified {
+                    Some(VaultOpenOutcome::DiscardedInterruptedSession)
+                } else {
+                    None
+                };
                 Ok(ResponseBody::EncryptedVaultReady {
                     vault_root,
                     recovery_codes: None,
-                    discarded_interrupted_session,
+                    open_outcome,
                 })
             }
             RequestBody::CloseEncryptedVault => {
@@ -6403,6 +6507,14 @@ fn capability_matches(cap: &Capability, body: &RequestBody) -> bool {
     )
 }
 
+/// A recovered session that failed to load for a transient reason: the same
+/// family as a failed check, so the confirmed move-aside is offered (Spec 109).
+fn recovery_check_error(error: AuthorityError) -> AuthorityError {
+    AuthorityError::Unavailable {
+        message: format!("the interrupted session could not be checked: {error}"),
+    }
+}
+
 fn enc_err(err: medscale_storage::EncryptedVaultError) -> AuthorityError {
     match err {
         medscale_storage::EncryptedVaultError::Claim(
@@ -6430,6 +6542,12 @@ fn enc_err(err: medscale_storage::EncryptedVaultError) -> AuthorityError {
         )) => AuthorityError::Unavailable {
             message: err.to_string(),
         },
+        err @ (medscale_storage::EncryptedVaultError::WorkFileCheckUnavailable(_)
+        | medscale_storage::EncryptedVaultError::WorkFileBlocked(_)) => {
+            AuthorityError::Unavailable {
+                message: err.to_string(),
+            }
+        }
         medscale_storage::EncryptedVaultError::SealedMetaUnreadable => AuthorityError::Corrupt {
             message: "sealed vault metadata is unreadable; nothing was changed".to_owned(),
         },

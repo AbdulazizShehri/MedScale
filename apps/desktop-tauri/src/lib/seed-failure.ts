@@ -16,6 +16,8 @@ export const SEED_REASONS = [
   "seed_ledger_interrupted",
   "core_integrity_error",
   "seed_recovery_refused",
+  "work_session_check_failed",
+  "work_session_blocked",
   "seed_stale_sidecar",
   "set_aside_slot_occupied",
   "set_aside_incomplete",
@@ -113,6 +115,18 @@ export function seedFailureGuidance(reason: SeedReason | undefined): SeedGuidanc
         title: "The sample workspace was not set aside.",
         detail: "This action only applies to a sample workspace that cannot be opened. Nothing was changed.",
       };
+    case "work_session_check_failed":
+      return {
+        category: "retry",
+        title: "Your last session could not be checked.",
+        detail: "MedScale did not close normally last time, and something is blocking the check, such as another program holding the file. Nothing was changed. Try again in a moment.",
+      };
+    case "work_session_blocked":
+      return {
+        category: "retry",
+        title: "Your last session could not be moved aside.",
+        detail: "Something is holding its file. Nothing was changed. The vault will open once that clears, so close other programs or restart your computer, then try again.",
+      };
     case "core_integrity_error":
       return {
         category: "stopped",
@@ -131,16 +145,29 @@ export function recoveredInterruptedSeed(data: unknown): boolean {
     && (data as { recovered_interrupted_seed?: unknown }).recovered_interrupted_seed === true;
 }
 
-/** Spec 109: true only when `workspace_unlock` reports that it discarded a
- * session that never sealed. */
-export function discardedInterruptedSession(data: unknown): boolean {
-  return typeof data === "object" && data !== null
-    && (data as { discarded_interrupted_session?: unknown }).discarded_interrupted_session === true;
+/** Spec 109: the notice for what an unlock did with a session that never
+ * sealed. Only the two exact values produce one. */
+export function vaultOpenNotice(data: unknown): { kind: "completed" | "blocked"; title: string; detail: string } | null {
+  const outcome = typeof data === "object" && data !== null ? (data as { open_outcome?: unknown }).open_outcome : null;
+  if (outcome === "recovered_interrupted_session") return { kind: "completed", ...RECOVERED_SESSION_NOTICE };
+  if (outcome === "discarded_interrupted_session") return { kind: "blocked", ...DISCARDED_SESSION_NOTICE };
+  return null;
 }
+
+export const RECOVERED_SESSION_NOTICE = {
+  title: "Recovered changes from your last session",
+  detail: "MedScale did not close normally last time. Check that your recent work looks right.",
+} as const;
 
 export const DISCARDED_SESSION_NOTICE = {
   title: "Recent changes may be lost",
-  detail: "MedScale did not close normally last time. The vault opened from its last locked state, so changes made after that may be gone.",
+  detail: "MedScale did not close normally and could not verify that session, so the vault opened from its last locked state.",
+} as const;
+
+export const MOVE_SESSION_ASIDE_DIALOG = {
+  title: "Move that session aside?",
+  confirm: "Move aside and open",
+  body: "MedScale will open the vault from its last locked state. Changes from your last session will not be in the vault. Its file is kept in the vault folder, so nothing is deleted. Try this only if retrying keeps failing.",
 } as const;
 
 export const RECOVERED_SEED_NOTICE = {

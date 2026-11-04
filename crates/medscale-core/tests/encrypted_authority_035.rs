@@ -116,6 +116,7 @@ fn encrypted_vault_authority_survives_reopen_035() {
             vault_root: root_s.to_owned(),
             passphrase: Some(passphrase.to_owned()),
             recovery_code: None,
+            discard_leftover: false,
         },
     ));
     assert!(opened.result.is_ok(), "{opened:?}");

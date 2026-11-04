@@ -7,7 +7,7 @@
 use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex};
 
-use medscale_contracts::envelopes::AuthorityError;
+use medscale_contracts::envelopes::{AuthorityError, VaultOpenOutcome};
 use medscale_core::CliSession;
 use serde::{Deserialize, Serialize};
 
@@ -56,6 +56,10 @@ pub mod seed_reason {
     pub const SET_ASIDE_INCOMPLETE: &str = "set_aside_incomplete";
     /// Step 5: the action does not apply (healthy, open or unknown state).
     pub const SET_ASIDE_REFUSED: &str = "set_aside_refused";
+    /// Spec 109: an unsealed session's check could not finish.
+    pub const SESSION_CHECK_FAILED: &str = "work_session_check_failed";
+    /// Spec 109: a confirmed move-aside could not move the file.
+    pub const SESSION_BLOCKED: &str = "work_session_blocked";
 }
 
 impl CmdError {
@@ -2339,8 +2343,11 @@ pub fn create_encrypted(state: &mut State, passphrase: &str) -> CmdResult<Vec<St
     Ok(codes)
 }
 
-/// Returns true when unlocking discarded a session that never sealed.
-pub fn unlock_encrypted(state: &mut State, passphrase: &str) -> CmdResult<bool> {
+/// Returns what unlocking did with a session that never sealed.
+pub fn unlock_encrypted(
+    state: &mut State,
+    passphrase: &str,
+) -> CmdResult<Option<VaultOpenOutcome>> {
     validate_passphrase(passphrase)?;
     open_encrypted_workspace(state, |session, root| {
         session.open_encrypted_vault(root, passphrase)
@@ -2349,17 +2356,44 @@ pub fn unlock_encrypted(state: &mut State, passphrase: &str) -> CmdResult<bool> 
 
 /// Opens the vault with a recovery code issued at creation. The code is not
 /// consumed and the passphrase does not change.
-pub fn unlock_encrypted_with_recovery_code(state: &mut State, code: &str) -> CmdResult<bool> {
+pub fn unlock_encrypted_with_recovery_code(
+    state: &mut State,
+    code: &str,
+) -> CmdResult<Option<VaultOpenOutcome>> {
     let code = bounded_text(code, 256)?;
     open_encrypted_workspace(state, |session, root| {
         session.open_encrypted_vault_with_recovery_code(root, &code)
     })
 }
 
+/// Spec 109: the user confirmed moving an unsealed session aside, because its
+/// check could not finish. Still requires the key.
+pub fn unlock_encrypted_moving_session_aside(
+    state: &mut State,
+    passphrase: Option<&str>,
+    code: Option<&str>,
+) -> CmdResult<Option<VaultOpenOutcome>> {
+    // Trimmed like an ordinary recovery-code unlock, so stray spaces can't make
+    // a code work there and fail here.
+    let code = code.map(|code| bounded_text(code, 256)).transpose()?;
+    match (passphrase, &code) {
+        (Some(passphrase), None) => validate_passphrase(passphrase)?,
+        (None, Some(_)) => {}
+        _ => {
+            return Err(CmdError::invalid(
+                "Invalid: give a passphrase or a recovery code",
+            ));
+        }
+    }
+    open_encrypted_workspace(state, |session, root| {
+        session.open_encrypted_vault_moving_session_aside(root, passphrase, code.as_deref())
+    })
+}
+
 fn open_encrypted_workspace(
     state: &mut State,
     open: impl FnOnce(&mut CliSession, &str) -> Result<(), AuthorityError>,
-) -> CmdResult<bool> {
+) -> CmdResult<Option<VaultOpenOutcome>> {
     let vault_root = encrypted_root(state)?;
     // The sibling .desktop-seed.json is a UI roster, not encrypted Core
     // material. Stale files must never trigger an attempted vault unlock.
@@ -2382,9 +2416,21 @@ fn open_encrypted_workspace(
             "denied",
             "Denied: that did not open this vault. Check it and try again; nothing was changed",
         ),
+        AuthorityError::Unavailable { message } if message.contains("could not be checked") => {
+            CmdError::unavailable(
+                "Unavailable: the interrupted session could not be checked; nothing was changed",
+            )
+            .with_reason(seed_reason::SESSION_CHECK_FAILED)
+        }
+        AuthorityError::Unavailable { message } if message.contains("could not be moved aside") => {
+            CmdError::unavailable(
+                "Unavailable: the interrupted session could not be moved aside; nothing was changed",
+            )
+            .with_reason(seed_reason::SESSION_BLOCKED)
+        }
         other => CmdError::from(other),
     })?;
-    let discarded = session.discarded_interrupted_session();
+    let outcome = session.last_open_outcome();
     let seed = load_manifest(&vault_root);
     state.workspace = Some(Workspace {
         session,
@@ -2392,7 +2438,7 @@ fn open_encrypted_workspace(
         vault_root,
         seed,
     });
-    Ok(discarded)
+    Ok(outcome)
 }
 
 fn validate_passphrase(passphrase: &str) -> CmdResult<()> {
