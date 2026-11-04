@@ -172,12 +172,31 @@ impl CliSession {
         vault_root: &str,
         passphrase: &str,
     ) -> Result<(), AuthorityError> {
+        self.open_encrypted(vault_root, Some(passphrase.to_owned()), None)
+    }
+
+    /// Opens with a recovery code issued at creation. Using a code neither
+    /// consumes it nor changes the passphrase.
+    pub fn open_encrypted_vault_with_recovery_code(
+        &mut self,
+        vault_root: &str,
+        code: &str,
+    ) -> Result<(), AuthorityError> {
+        self.open_encrypted(vault_root, None, Some(code.to_owned()))
+    }
+
+    fn open_encrypted(
+        &mut self,
+        vault_root: &str,
+        passphrase: Option<String>,
+        recovery_code: Option<String>,
+    ) -> Result<(), AuthorityError> {
         let resp = self.dispatch(
             Capability::OpenEncryptedVault,
             RequestBody::OpenEncryptedVault {
                 vault_root: vault_root.to_owned(),
-                passphrase: Some(passphrase.to_owned()),
-                recovery_code: None,
+                passphrase,
+                recovery_code,
             },
         )?;
         let ResponseBody::EncryptedVaultReady {

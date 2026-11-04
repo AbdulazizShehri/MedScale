@@ -150,6 +150,24 @@ pub fn workspace_unlock(host: tauri::State<'_, Host>, passphrase: String) -> Cmd
 }
 
 #[tauri::command(async)]
+pub fn workspace_unlock_with_recovery_code(
+    host: tauri::State<'_, Host>,
+    code: String,
+) -> CmdResult<Value> {
+    let mut state = lock(&host)?;
+    state.workspace = None;
+    let discarded = host::unlock_encrypted_with_recovery_code(&mut state, &code)?;
+    let mut label = vault_label(&state);
+    if let Some(object) = label.as_object_mut() {
+        object.insert(
+            "discarded_interrupted_session".to_owned(),
+            Value::Bool(discarded),
+        );
+    }
+    Ok(label)
+}
+
+#[tauri::command(async)]
 pub fn workspace_lock(host: tauri::State<'_, Host>) -> CmdResult<()> {
     let mut state = lock(&host)?;
     // Seal first: if Core cannot seal the encrypted vault the workspace stays

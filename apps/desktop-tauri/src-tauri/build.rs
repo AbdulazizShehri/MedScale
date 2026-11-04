@@ -33,6 +33,7 @@ fn main() {
             "workspace_delete_set_aside_synthetic",
             "workspace_create_encrypted",
             "workspace_unlock",
+            "workspace_unlock_with_recovery_code",
             "workspace_lock",
             "patients_list",
             "patient_detail",

@@ -2342,6 +2342,24 @@ pub fn create_encrypted(state: &mut State, passphrase: &str) -> CmdResult<Vec<St
 /// Returns true when unlocking discarded a session that never sealed.
 pub fn unlock_encrypted(state: &mut State, passphrase: &str) -> CmdResult<bool> {
     validate_passphrase(passphrase)?;
+    open_encrypted_workspace(state, |session, root| {
+        session.open_encrypted_vault(root, passphrase)
+    })
+}
+
+/// Opens the vault with a recovery code issued at creation. The code is not
+/// consumed and the passphrase does not change.
+pub fn unlock_encrypted_with_recovery_code(state: &mut State, code: &str) -> CmdResult<bool> {
+    let code = bounded_text(code, 256)?;
+    open_encrypted_workspace(state, |session, root| {
+        session.open_encrypted_vault_with_recovery_code(root, &code)
+    })
+}
+
+fn open_encrypted_workspace(
+    state: &mut State,
+    open: impl FnOnce(&mut CliSession, &str) -> Result<(), AuthorityError>,
+) -> CmdResult<bool> {
     let vault_root = encrypted_root(state)?;
     // The sibling .desktop-seed.json is a UI roster, not encrypted Core
     // material. Stale files must never trigger an attempted vault unlock.
@@ -2358,7 +2376,14 @@ pub fn unlock_encrypted(state: &mut State, passphrase: &str) -> CmdResult<bool> 
         ));
     }
     let mut session = CliSession::connect("desktop-encrypted")?;
-    session.open_encrypted_vault(&vault_root.display().to_string(), passphrase)?;
+    open(&mut session, &vault_root.display().to_string()).map_err(|err| match err {
+        // The key material did not unwrap: the person typed the wrong secret.
+        AuthorityError::MissingKeyMaterial => CmdError::new(
+            "denied",
+            "Denied: that did not open this vault. Check it and try again; nothing was changed",
+        ),
+        other => CmdError::from(other),
+    })?;
     let discarded = session.discarded_interrupted_session();
     let seed = load_manifest(&vault_root);
     state.workspace = Some(Workspace {

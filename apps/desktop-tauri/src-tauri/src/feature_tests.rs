@@ -683,13 +683,37 @@ fn encrypted_vault_create_lock_unlock_and_wrong_passphrase() {
         !vault_root.join("meta.work.sqlite3").exists(),
         "lock must seal and remove the working DB"
     );
-    assert!(
+    assert_eq!(
         h.call(
             "workspace_unlock",
             json!({ "passphrase": "wrong passphrase!" })
         )
-        .is_err()
+        .unwrap_err()["kind"],
+        "denied"
     );
+    // A recovery code issued at creation opens the vault; a wrong one does not.
+    assert_eq!(
+        h.call(
+            "workspace_unlock_with_recovery_code",
+            json!({ "code": "not-a-real-code" })
+        )
+        .unwrap_err()["kind"],
+        "denied"
+    );
+    let code = created["recovery_codes"][0]
+        .as_str()
+        .expect("code")
+        .to_owned();
+    h.ok(
+        "workspace_unlock_with_recovery_code",
+        json!({ "code": code }),
+    );
+    assert_eq!(
+        h.ok("projects_list", json!({})).as_array().unwrap().len(),
+        1,
+        "the recovery code reached the same vault"
+    );
+    h.ok("workspace_lock", json!({}));
     h.ok(
         "workspace_unlock",
         json!({ "passphrase": "correct horse battery" }),

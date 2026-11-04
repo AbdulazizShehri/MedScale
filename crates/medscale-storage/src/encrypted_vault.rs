@@ -86,6 +86,8 @@ impl EncryptedVault {
                 "vault already exists".to_owned(),
             ));
         }
+        // First, so two concurrent creates cannot mix a header with a seal.
+        let session_lock = Self::take_session_lock(&root, holder_id)?;
         Self::acquire_lease(&root, holder_id)?;
 
         let (dek, header, codes) = KeyProvider::create_vault_keys(vault_id, passphrase)
@@ -112,7 +114,6 @@ impl EncryptedVault {
         Self::seal_meta_file(&root, vault_id, &dek)?;
         let meta = SqliteMetaStore::open_at_sqlcipher(&work, dek.as_bytes())?;
         let blobs = SealedBlobStore::open(&root, vault_id)?;
-        let session_lock = Self::take_session_lock(&root, holder_id)?;
 
         Ok((
             Self {
@@ -303,17 +304,10 @@ impl EncryptedVault {
         unseal(dek.as_bytes(), &sealed, &Self::meta_aad(vault_id)).map_err(|_| unreadable())
     }
 
+    /// The caller already holds the session lock, which is what refuses a live
+    /// holder, so anything found here is stale: a crash or a torn write.
     fn acquire_lease(root: &Path, holder_id: &str) -> Result<(), EncryptedVaultError> {
-        let lease = root.join(LEASE_FILE);
-        if lease.exists() {
-            let existing = fs::read_to_string(&lease).unwrap_or_default();
-            // An empty lease is a torn write, not a holder; a live holder is
-            // refused by the session lock regardless of this file.
-            if !existing.trim().is_empty() && existing != holder_id {
-                return Err(EncryptedVaultError::LeaseHeld(existing));
-            }
-        }
-        fs::write(&lease, holder_id)?;
+        fs::write(root.join(LEASE_FILE), holder_id)?;
         Ok(())
     }
 
