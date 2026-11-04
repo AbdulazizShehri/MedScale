@@ -36,16 +36,41 @@ fn vault_label(state: &State) -> Value {
     }
 }
 
-fn doctor(state: &State) -> medscale_contracts::doctor::DoctorReport {
+pub(crate) fn doctor(state: &State) -> medscale_contracts::doctor::DoctorReport {
     let root = state
         .workspace
         .as_ref()
         .map(|ws| ws.vault_root.display().to_string());
-    build_doctor_report(
+    let mut report = build_doctor_report(
         root.as_deref(),
         state.workspace.is_some(),
         medscale_core::privacy_proof_artifact_present(),
-    )
+    );
+    describe_this_desktop(&mut report);
+    report
+}
+
+/// Core's report describes the CLI and the legacy native shell. This process
+/// is the Tauri desktop, which also offers consented Whisper downloads and
+/// allowlisted browsing, so say what is true of it.
+fn describe_this_desktop(report: &mut medscale_contracts::doctor::DoctorReport) {
+    report.desktop_shell = "tauri_webview".to_owned();
+    report.tauri_admitted = true;
+    report.product_runtime_egress =
+        "Default deny, except a Whisper model download you approve and sites you allowlist in Browse"
+            .to_owned();
+    report.packs_runtime.online_download_authorized = true;
+    report.network_broker.http_client = "ureq_https_no_proxy_no_redirect".to_owned();
+    report.notes.retain(|note| {
+        !note.starts_with("Native Slint Desktop shell")
+            && !note.starts_with("Product egress DEFAULT_DENY")
+            && !note.starts_with("Online packs READY_BASE")
+    });
+    report.notes.insert(
+        0,
+        "Tauri desktop: Core in process. Whisper models download only after explicit approval, from pinned revisions, checked against SHA-256 digests in source"
+            .to_owned(),
+    );
 }
 
 // ───────────────────────────── workspace ─────────────────────────────
@@ -89,6 +114,7 @@ pub fn workspace_status(host: tauri::State<'_, Host>) -> CmdResult<Value> {
         "local_only": report.local_only,
         "real_phi_authorized": report.real_phi_authorized,
         "network_default_deny": report.network_broker.default_deny,
+        "egress": report.product_runtime_egress,
     }))
 }
 

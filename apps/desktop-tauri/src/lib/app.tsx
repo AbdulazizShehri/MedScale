@@ -18,6 +18,7 @@ export type WorkspaceStatus = {
   version: string;
   local_only: boolean;
   real_phi_authorized: boolean;
+  egress?: string;
   network_default_deny: boolean;
 };
 

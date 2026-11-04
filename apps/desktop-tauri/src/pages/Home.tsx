@@ -98,7 +98,7 @@ export function Home() {
               ["workspace", <Status kind={ws?.workspace?.kind === "synthetic" ? "synthetic" : "available"} weight="strong">{ws?.workspace?.label ?? "None"}</Status>],
               ["vault", <><span className="mono t-mono-sm">{ws?.workspace?.vault_id}</span><div className="t-sm i3">{ws?.workspace?.kind === "encrypted" ? "Encrypted at rest" : "Synthetic fixtures only"}</div></>],
               ["runtime", <><Status kind={ws?.local_only ? "available" : "unknown"} weight="strong">{ws?.local_only ? "Local" : "Unknown"}</Status><div className="t-sm i3">Core in-process</div></>],
-              ["network", <Status kind={ws?.network_default_deny ? "blocked" : "unknown"}>{ws?.network_default_deny ? "Default deny" : "Not verified"}</Status>],
+              ["network", <><Status kind={ws?.network_default_deny ? "blocked" : "unknown"}>{ws?.network_default_deny ? "Default deny" : "Not verified"}</Status>{ws?.egress && <div className="t-sm i3">{ws.egress}</div>}</>],
               ["real PHI", <Status kind="limited">{ws?.real_phi_authorized ? "Authorized" : "Not authorized"}</Status>],
               ["evidence", corpus.state.status === "ready" ? <><span className="mono t-mono-sm">{corpus.state.data.source_identity}</span><div className="t-sm i3">{corpus.state.data.documents.length} docs · {corpus.state.data.documents.filter((d) => d.status === "retracted").length} retracted</div></> : "…"],
             ]} />
