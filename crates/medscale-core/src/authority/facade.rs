@@ -6417,6 +6417,9 @@ fn enc_err(err: medscale_storage::EncryptedVaultError) -> AuthorityError {
         medscale_storage::EncryptedVaultError::LeaseHeld(holder) => AuthorityError::LeaseHeld {
             holder_id: OpaqueId::new(holder),
         },
+        medscale_storage::EncryptedVaultError::Meta(
+            medscale_storage::MetaError::UnsupportedSchema(message),
+        ) => AuthorityError::UnsupportedSchema { message },
         medscale_storage::EncryptedVaultError::SealedMetaUnreadable => AuthorityError::Corrupt {
             message: "sealed vault metadata is unreadable; nothing was changed".to_owned(),
         },

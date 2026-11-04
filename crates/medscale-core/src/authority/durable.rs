@@ -47,11 +47,22 @@ impl BlobBackend for EncryptedBlobBackend<'_> {
     }
 
     fn get_bytes(&self, digest: &DigestSha256) -> Result<Vec<u8>, AuthorityError> {
-        self.0
-            .get_blob(digest)
-            .map_err(|e| AuthorityError::InvalidArgument {
+        use medscale_storage::{EncryptedVaultError, SealedBlobError};
+        // Spec 109 Part B: only a real absence or a failed check is definitive.
+        // Anything else is transient, and must not read as a damaged vault.
+        self.0.get_blob(digest).map_err(|e| match e {
+            EncryptedVaultError::Sealed(SealedBlobError::DigestMismatch) => {
+                AuthorityError::DigestMismatch
+            }
+            EncryptedVaultError::Sealed(SealedBlobError::NotFound | SealedBlobError::Crypto) => {
+                AuthorityError::Corrupt {
+                    message: e.to_string(),
+                }
+            }
+            _ => AuthorityError::Unavailable {
                 message: e.to_string(),
-            })
+            },
+        })
     }
 }
 
@@ -125,23 +136,27 @@ fn sync_store_to_meta(
     Ok(())
 }
 
+/// A row that won't decode is damage. The default is transient (Spec 109 I3).
+fn load_error(e: medscale_storage::MetaError) -> AuthorityError {
+    match e {
+        medscale_storage::MetaError::CorruptObjectBody(message) => {
+            AuthorityError::Corrupt { message }
+        }
+        other => AuthorityError::Unavailable {
+            message: other.to_string(),
+        },
+    }
+}
+
 fn load_store_from_meta(
     meta: &SqliteMetaStore,
     blobs: &impl BlobBackend,
     store: &mut InMemoryAuthorityStore,
 ) -> Result<(), AuthorityError> {
     store.clear();
-    let next_seq = meta
-        .get_next_seq()
-        .map_err(|e| AuthorityError::InvalidArgument {
-            message: e.to_string(),
-        })?;
+    let next_seq = meta.get_next_seq().map_err(load_error)?;
     store.set_next_seq(next_seq);
-    let rows = meta
-        .list_authority_objects()
-        .map_err(|e| AuthorityError::InvalidArgument {
-            message: e.to_string(),
-        })?;
+    let rows = meta.list_authority_objects().map_err(load_error)?;
     for row in rows {
         let obj = from_row(&row, blobs)?;
         store.insert(obj);
@@ -306,13 +321,13 @@ fn from_row(
     blobs: &impl BlobBackend,
 ) -> Result<StoredObject, AuthorityError> {
     let value: Value =
-        serde_json::from_str(&row.body_json).map_err(|e| AuthorityError::InvalidArgument {
+        serde_json::from_str(&row.body_json).map_err(|e| AuthorityError::Corrupt {
             message: format!("corrupt object body: {e}"),
         })?;
     match row.object_class.as_str() {
         "source" => {
             let mut source: SourceRecord =
-                serde_json::from_value(value).map_err(|e| AuthorityError::InvalidArgument {
+                serde_json::from_value(value).map_err(|e| AuthorityError::Corrupt {
                     message: format!("corrupt source: {e}"),
                 })?;
             let digest = source.content_digest.clone();
@@ -325,7 +340,7 @@ fn from_row(
         }
         "derived" => {
             let mut derived: DerivedSourceArtifact =
-                serde_json::from_value(value).map_err(|e| AuthorityError::InvalidArgument {
+                serde_json::from_value(value).map_err(|e| AuthorityError::Corrupt {
                     message: format!("corrupt derived: {e}"),
                 })?;
             let digest = derived.content_digest.clone();
@@ -337,46 +352,46 @@ fn from_row(
             Ok(StoredObject::Derived(derived))
         }
         "proposal" => Ok(StoredObject::Proposal(
-            serde_json::from_value(value).map_err(|e| AuthorityError::InvalidArgument {
+            serde_json::from_value(value).map_err(|e| AuthorityError::Corrupt {
                 message: e.to_string(),
             })?,
         )),
         "assertion" => Ok(StoredObject::Assertion(
-            serde_json::from_value(value).map_err(|e| AuthorityError::InvalidArgument {
+            serde_json::from_value(value).map_err(|e| AuthorityError::Corrupt {
                 message: e.to_string(),
             })?,
         )),
         "audit" => Ok(StoredObject::Audit(serde_json::from_value(value).map_err(
-            |e| AuthorityError::InvalidArgument {
+            |e| AuthorityError::Corrupt {
                 message: e.to_string(),
             },
         )?)),
         "identity" => Ok(StoredObject::Identity(
-            serde_json::from_value(value).map_err(|e| AuthorityError::InvalidArgument {
+            serde_json::from_value(value).map_err(|e| AuthorityError::Corrupt {
                 message: e.to_string(),
             })?,
         )),
         "merge" => Ok(StoredObject::Merge(serde_json::from_value(value).map_err(
-            |e| AuthorityError::InvalidArgument {
+            |e| AuthorityError::Corrupt {
                 message: e.to_string(),
             },
         )?)),
         "evaluation" => Ok(StoredObject::Evaluation(
-            serde_json::from_value(value).map_err(|e| AuthorityError::InvalidArgument {
+            serde_json::from_value(value).map_err(|e| AuthorityError::Corrupt {
                 message: e.to_string(),
             })?,
         )),
         "projection" => Ok(StoredObject::Projection(
-            serde_json::from_value(value).map_err(|e| AuthorityError::InvalidArgument {
+            serde_json::from_value(value).map_err(|e| AuthorityError::Corrupt {
                 message: e.to_string(),
             })?,
         )),
         "amendment" => Ok(StoredObject::Amendment(
-            serde_json::from_value(value).map_err(|e| AuthorityError::InvalidArgument {
+            serde_json::from_value(value).map_err(|e| AuthorityError::Corrupt {
                 message: e.to_string(),
             })?,
         )),
-        other => Err(AuthorityError::InvalidArgument {
+        other => Err(AuthorityError::Corrupt {
             message: format!("unknown object class {other}"),
         }),
     }

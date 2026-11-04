@@ -225,3 +225,40 @@ fn a_clean_close_leaves_no_session_files() {
     assert!(root.join(SEALED).exists());
     fs::remove_dir_all(&root).unwrap();
 }
+
+#[test]
+fn only_a_real_absence_reads_as_a_missing_blob() {
+    use medscale_storage::SealedBlobError;
+    let root = temp_root("blob-errors");
+    let (vault, _) = EncryptedVault::create("v-109", &root, PASS, "holder-a", None).unwrap();
+    let digest = vault.put_blob(b"synthetic bytes").unwrap();
+    let path = root
+        .join("sealed_blobs")
+        .join(format!("{}.sealed", digest.to_hex()));
+
+    // A directory at the path fails the read without the file being absent,
+    // the shape of an antivirus lock: transient, not lost.
+    fs::remove_file(&path).unwrap();
+    fs::create_dir(&path).unwrap();
+    assert!(matches!(
+        vault.get_blob(&digest),
+        Err(EncryptedVaultError::Sealed(SealedBlobError::Io(_)))
+    ));
+    fs::remove_dir(&path).unwrap();
+    assert!(matches!(
+        vault.get_blob(&digest),
+        Err(EncryptedVaultError::Sealed(SealedBlobError::NotFound))
+    ));
+
+    // A blob that exists is not rewritten, so re-putting costs no fsync.
+    let digest = vault.put_blob(b"synthetic bytes").unwrap();
+    let path = root
+        .join("sealed_blobs")
+        .join(format!("{}.sealed", digest.to_hex()));
+    let modified = fs::metadata(&path).unwrap().modified().unwrap();
+    std::thread::sleep(std::time::Duration::from_millis(20));
+    vault.put_blob(b"synthetic bytes").unwrap();
+    assert_eq!(fs::metadata(&path).unwrap().modified().unwrap(), modified);
+    vault.close().unwrap();
+    fs::remove_dir_all(&root).unwrap();
+}
