@@ -531,6 +531,35 @@ try {
     console.log("E2E synthetic removal feedback", JSON.stringify(removalDiagnostic));
     await see("Recording removed from active vault; receipt recorded", 30000);
   });
+  // A transcript lives in the vault, so leaving the page must not lose it. The
+  // segmentation route needs no model and always records a draft revision.
+  await journey("audio-transcript-reopens-after-leaving-the-page", async () => {
+    await click(`//button[${text("Import synthetic tone sample")}]`);
+    await see("Synthetic tone imported", 60000);
+    const row = "//section[.//*[contains(@class,'sec-t') and normalize-space(.)='Sources']]" +
+      "//div[contains(@class,'lr') and .//button[normalize-space(.)='Open transcript']]";
+    await find(row, 30000);
+    const select = await find("//select[@aria-label='Transcription route']");
+    await wd("POST", `/session/${sid}/execute/sync`, {
+      script: "const s=arguments[0]; Object.getOwnPropertyDescriptor(HTMLSelectElement.prototype,'value').set.call(s,'segmentation_only'); s.dispatchEvent(new Event('change',{bubbles:true}));",
+      args: [{ [ELEMENT]: select }],
+    });
+    await click(`(${row})[last()]//button[normalize-space(.)='Transcribe']`);
+    await see("Transcription recorded", 60000);
+    await nav("Settings");
+    await see("Appearance");
+    await nav("Audio");
+    await find(row, 30000);
+    const transcript = "//section[.//*[contains(@class,'sec-t') and normalize-space(.)='Transcript']]";
+    const gone = await wd("POST", `/session/${sid}/execute/sync`, {
+      script: "return !document.evaluate(arguments[0], document, null, 9, null).singleNodeValue;",
+      args: [transcript],
+    });
+    if (!gone) throw new Error("expected the Transcript section to start closed after returning");
+    await click(`(${row})[last()]//button[normalize-space(.)='Open transcript']`);
+    await see("Latest transcript opened", 30000);
+    await find(`${transcript}//*[contains(@class,'sec-c') and contains(normalize-space(.),'revision 1')]`, 30000);
+  }, { screenshot: false });
   // The real audio journey runs ONLY on an isolated CI host with opt-in inputs.
   // Never screenshot or print genuine voice text, paths, speakers or models.
   const guiModelInstall = process.env.MEDSCALE_E2E_MODEL_GUI_DOWNLOAD === "1";

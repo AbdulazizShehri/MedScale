@@ -1216,6 +1216,59 @@ pub fn audio_transcribe(
     }))
 }
 
+/// Reads back the newest transcript revision of one source, in the same shape
+/// as `audio_transcribe`, so a transcript survives leaving the Audio page and a
+/// restart. Read-only. The decision, engine and limitations come from the
+/// receipt of the engine revision this one descends from; `transcript` is null
+/// when the source has no transcript.
+#[tauri::command(async)]
+pub fn audio_transcript_latest(
+    host: tauri::State<'_, Host>,
+    project_id: String,
+    source_id: String,
+) -> CmdResult<Value> {
+    use medscale_contracts::audio::TranscriptOrigin;
+    let mut state = lock(&host)?;
+    let project_id = host::bounded_id(&project_id)?;
+    let source_id = OpaqueId::new(host::bounded_id(&source_id)?);
+    let session = state.session()?;
+    let source = session.audio_source_get(source_id.clone())?;
+    if source.project_id.as_str() != project_id {
+        return Err(CmdError::invalid(
+            "Audio source does not belong to the selected project",
+        ));
+    }
+    let revisions = session.audio_transcript_list(source_id.clone())?;
+    let Some(latest) = revisions.iter().max_by_key(|r| r.revision_no) else {
+        return Ok(json!({ "transcript": Value::Null }));
+    };
+    // A correction names its parent; revision numbers strictly decrease along
+    // the chain, so this ends even on malformed data.
+    let mut root = latest;
+    while let TranscriptOrigin::HumanCorrection {
+        parent_revision_id, ..
+    } = &root.origin
+    {
+        match revisions
+            .iter()
+            .find(|r| r.header.id == *parent_revision_id && r.revision_no < root.revision_no)
+        {
+            Some(parent) => root = parent,
+            None => break,
+        }
+    }
+    let receipts = session.audio_receipt_list(source_id)?;
+    let receipt = receipts
+        .iter()
+        .find(|r| r.transcript_revision_id.as_ref() == Some(&root.header.id));
+    Ok(json!({
+        "decision": receipt.map_or_else(|| json!({ "outcome": "allow" }), |r| json!(r.decision)),
+        "engine": receipt.and_then(|r| r.engine.as_ref()),
+        "limitations": receipt.map_or_else(|| json!([]), |r| json!(r.limitations)),
+        "transcript": transcript_json(latest),
+    }))
+}
+
 /// Records a person's correction of one segment as a new revision.
 #[tauri::command(async)]
 pub fn audio_correct(

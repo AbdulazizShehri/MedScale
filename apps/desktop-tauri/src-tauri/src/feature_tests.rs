@@ -1176,6 +1176,24 @@ fn medagent_workbench_agent_context_evidence_and_resume() {
     );
     assert_eq!(corrected["revision_no"], 2, "{corrected}");
     assert_eq!(corrected["segments"][0]["text"], "patient has fever");
+    // Reopening returns the newest revision with the engine that produced it,
+    // so a transcript survives leaving the page; a read changes nothing.
+    let reopened = h.ok(
+        "audio_transcript_latest",
+        json!({ "projectId": pid, "sourceId": imported["source_id"] }),
+    );
+    assert_eq!(reopened["transcript"]["revision_no"], 2, "{reopened}");
+    assert_eq!(reopened["transcript"], corrected, "{reopened}");
+    assert_eq!(reopened["engine"], transcribed["engine"], "{reopened}");
+    assert_eq!(reopened["decision"]["outcome"], "allow", "{reopened}");
+    assert!(
+        h.call(
+            "audio_transcript_latest",
+            json!({ "projectId": "project-that-does-not-own-it", "sourceId": imported["source_id"] })
+        )
+        .is_err(),
+        "a source is only readable through its own project"
+    );
     let persisted = h.ok(
         "audio_source_retention_preview",
         json!({ "projectId": pid, "sourceId": imported["source_id"] }),

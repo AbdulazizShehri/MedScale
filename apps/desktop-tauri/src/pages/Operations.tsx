@@ -347,6 +347,12 @@ function AudioBody({ projectId }: { projectId: string }) {
     const r = await run<TranscribeResult>(`t-${id}`, "audio_transcribe", { projectId, sourceId: id, route, language, diarize });
     if (outcome(r, "Transcription recorded · draft")) { setResult(r.data); setEdit(null); setDraft(null); setRetentionPreview(null); }
   }
+  async function openTranscript(id: string) {
+    const r = await run<TranscribeResult | { transcript: null }>(`o-${id}`, "audio_transcript_latest", { projectId, sourceId: id });
+    if (!outcome(r, "Latest transcript opened · draft")) return;
+    if (!r.data.transcript) { toast({ kind: "unavailable", title: "No transcript yet", detail: "Transcribe this recording first." }); return; }
+    setResult(r.data as TranscribeResult); setEdit(null); setDraft(null); setRetentionPreview(null);
+  }
   async function correct(e: FormEvent) {
     e.preventDefault();
     if (!edit || !result?.transcript) return;
@@ -460,7 +466,7 @@ function AudioBody({ projectId }: { projectId: string }) {
           <input type="checkbox" checked={diarize} onChange={(e) => setDiarize(e.target.checked)} />
           Group speakers (acoustic clustering, unvalidated; labels are never identity)
         </label>
-        {v.sources.length ? v.sources.map((s) => <div key={s.id} className="lr" style={{ gridTemplateColumns: "minmax(0,1fr) minmax(0,1.4fr) 120px auto auto auto" }}><span style={{ display: "flex", flexDirection: "column", minWidth: 0 }}><span className="trunc" style={{ fontWeight: 600 }}>{s.label}</span><span className="mono t-mono-sm i3 trunc">{s.id}</span></span><span className="t-sm i3 trunc">{s.kind} · {s.detail}</span><Status kind={glyphFor(s.health)} weight="weak">{s.health}</Status><button type="button" className="btn btn-g" disabled={!!pending} onClick={() => segment(s.id)}>Segment</button><button type="button" className="btn btn-g" disabled={!!pending} onClick={() => inspectStoredData(s.id)}>Stored data</button><button type="button" className="btn btn-s" disabled={!!pending} onClick={() => transcribe(s.id)}>{pending === `t-${s.id}` ? <Glyph kind="running" /> : null}Transcribe</button></div>) : <p className="t-sm i3">No audio sources in this project.</p>}
+        {v.sources.length ? v.sources.map((s) => <div key={s.id} className="lr" style={{ gridTemplateColumns: "minmax(0,1fr) minmax(0,1.2fr) 110px auto auto auto auto" }}><span style={{ display: "flex", flexDirection: "column", minWidth: 0 }}><span className="trunc" style={{ fontWeight: 600 }}>{s.label}</span><span className="mono t-mono-sm i3 trunc">{s.id}</span></span><span className="t-sm i3 trunc">{s.kind} · {s.detail}</span><Status kind={glyphFor(s.health)} weight="weak">{s.health}</Status><button type="button" className="btn btn-g" disabled={!!pending} onClick={() => segment(s.id)}>Segment</button><button type="button" className="btn btn-g" disabled={!!pending} onClick={() => inspectStoredData(s.id)}>Stored data</button><button type="button" className="btn btn-g" disabled={!!pending} onClick={() => openTranscript(s.id)}>Open transcript</button><button type="button" className="btn btn-s" disabled={!!pending} onClick={() => transcribe(s.id)}>{pending === `t-${s.id}` ? <Glyph kind="running" /> : null}Transcribe</button></div>) : <p className="t-sm i3">No audio sources in this project.</p>}
         {retentionPreview?.project_id === projectId && v.sources.some((s) => s.id === retentionPreview.source_id) && (
           <div className="stack" style={{ gap: 8, marginTop: 10 }}>
             <p className="t-sm i2" role="status" aria-live="polite">
