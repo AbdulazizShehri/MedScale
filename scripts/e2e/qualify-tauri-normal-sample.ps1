@@ -110,6 +110,17 @@ function Stop-Tree([int]$ProcessId) {
     Get-CimInstance Win32_Process | Where-Object { $_.ProcessId -eq $ProcessId -or $_.ParentProcessId -eq $ProcessId } | ForEach-Object { Stop-Process -Id $_.ProcessId -Force -ErrorAction SilentlyContinue }
     Start-Sleep -Seconds 3
 }
+# Fixed categories only; never returns a subject, source or path.
+function Get-SeedManifestState([string]$Path) {
+    $item = Get-Item -LiteralPath $Path -Force -ErrorAction SilentlyContinue
+    if ($null -eq $item) { return 'MISSING' }
+    if ($item.PSIsContainer -or $item.LinkType -or $item.Length -eq 0 -or $item.Length -gt 1MB) { return 'INVALID' }
+    try { $m = [System.IO.File]::ReadAllText($Path) | ConvertFrom-Json -ErrorAction Stop } catch { return 'UNREADABLE' }
+    if ($null -eq $m) { return 'INVALID' }
+    if ($m.PSObject.Properties.Name -contains 'pending') { return 'PENDING' }
+    if (@($m.subjects).Count -gt 0 -and @($m.sources).Count -gt 0) { return 'COMPLETE' }
+    return 'INVALID'
+}
 function Get-LaunchEvents([datetime]$Since) {
     @(Get-WinEvent -FilterHashtable @{ LogName = 'Application'; StartTime = $Since } -ErrorAction SilentlyContinue |
         Where-Object { $_.ProviderName -in 'Application Error', 'Windows Error Reporting', 'Application Hang', 'SideBySide' -or $_.Message -match 'medscale|msedgewebview2|WebView2' } |
@@ -199,19 +210,23 @@ if (-not $verifiedForeground) { throw "Normal release app never owned foreground
         if ($d2.alive -and ($d2.child_processes_seen -contains 'msedgewebview2.exe') -and ($d2.window_titles -contains 'MedScale')) { $result.LAUNCH = 'PASS' }
         # Do not declare the synthetic interaction complete merely because
         # SendKeys returned: the Core FHIR fixture seed may still be writing.
-        # Observe only the fixed app-owned manifest's existence, never its
-        # content or the user's files. The later bounded read-only Node audit
-        # still independently validates the full manifest and privacy result.
+        # Issue #386: a fixed 11 s wait once stopped the app mid-seed. Since
+        # Spec 108 step 4 the app writes a *pending* manifest before seeding,
+        # so mere existence is not completion either. Wait for the complete
+        # shape (no `pending`, non-empty subjects and sources) and record only
+        # a fixed category. The later bounded read-only Node audit still
+        # independently validates the full manifest and privacy result.
         $seedManifest = Join-Path $appData 'synthetic-workspace.desktop-seed.json'
-        $seedFileObserved = Test-Path -LiteralPath $seedManifest -PathType Leaf
+        $seedState = Get-SeedManifestState $seedManifest
         $seedWaitSeconds = 0
-        while (-not $seedFileObserved -and $seedWaitSeconds -lt 30 -and
+        while ($seedState -ne 'COMPLETE' -and $seedWaitSeconds -lt 60 -and
             (Get-Process -Id $proc.Id -ErrorAction SilentlyContinue)) {
             Start-Sleep -Seconds 2
             $seedWaitSeconds += 2
-            $seedFileObserved = Test-Path -LiteralPath $seedManifest -PathType Leaf
+            $seedState = Get-SeedManifestState $seedManifest
         }
-        $result.synthetic_seed_file_observed_before_restart = [bool]$seedFileObserved
+        $result.synthetic_seed_manifest_state_before_restart = $seedState
+        $result.synthetic_seed_file_observed_before_restart = ($seedState -eq 'COMPLETE')
         $result.synthetic_seed_wait_seconds = $seedWaitSeconds
         Stop-Tree $proc.Id
         $d2.terminated = -not [bool](Get-Process -Id $proc.Id -ErrorAction SilentlyContinue)

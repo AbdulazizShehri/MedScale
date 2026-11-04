@@ -3,7 +3,7 @@ import { test } from "node:test";
 import { mkdtemp, mkdir, writeFile, rm } from "node:fs/promises";
 import path from "node:path";
 import os from "node:os";
-import { auditProfiles, hasObservedProfileBytes, hasCompleteAuditCoverage } from "./webview-disk-audit.mjs";
+import { auditProfiles, auditProfilesWithTransientRetry, hasObservedProfileBytes, hasCompleteAuditCoverage, sameRegularFileSnapshot } from "./webview-disk-audit.mjs";
 import { compareSyntheticProfilePhases } from "./webview-audit-compare.mjs";
 
 test("bounded scanner emits counts and marker booleans only, no paths or contents", async () => {
@@ -311,4 +311,98 @@ test("app-data ownership scope comparison separates WebView2 from intended synth
   browserMarker.profiles[0].app_data_scopes.synthetic_workspace.synthetic_subject_marker_files = 2;
   assert.equal(compareSyntheticProfilePhases(before, browserMarker).webview2_runtime_marker_assessment,
     "SYNTHETIC_MARKERS_IN_SCANNED_WEBVIEW2_RUNTIME");
+});
+
+
+test("scanner detects UTF-8 and UTF-16LE markers crossing 64 KiB read boundaries", async () => {
+  const root = await mkdtemp(path.join(os.tmpdir(), "medscale-audit-boundary-"));
+  try {
+    const chunk = 64 * 1024;
+    const bytes = Buffer.alloc(chunk * 2 + 128, 0x78);
+    Buffer.from("medscale.project", "utf8").copy(bytes, chunk - 4);
+    Buffer.from("synthetic-subject-", "utf16le").copy(bytes, chunk * 2 - 9);
+    await writeFile(path.join(root, "boundary-fixture"), bytes);
+    const report = await auditProfiles([{ label: "boundary", root }]);
+    const info = report.profiles[0];
+    assert.equal(info.bytes_examined, bytes.length);
+    assert.equal(info.categories.other.key_marker_files, 1);
+    assert.equal(info.categories.other.synthetic_subject_marker_files, 1);
+    assert.equal(hasCompleteAuditCoverage(report), true);
+  } finally { await rm(root, { recursive: true, force: true }); }
+});
+
+test("same-sized changes and replacements invalidate a file scan snapshot", () => {
+  const before = {
+    dev: 3, ino: 17, size: 1024, mtimeMs: 100, ctimeMs: 90,
+    isFile: () => true,
+  };
+  assert.equal(sameRegularFileSnapshot(before, { ...before }), true);
+  for (const changed of [
+    { size: 1025 }, { mtimeMs: 101 }, { ctimeMs: 91 },
+    { ino: 18 }, { dev: 4 }, { isFile: () => false },
+  ]) {
+    assert.equal(sameRegularFileSnapshot(before, { ...before, ...changed }), false);
+  }
+});
+
+function syntheticAuditReport(overrides = {}) {
+  return { profiles: [{
+    exists: true, bytes_examined: 12, bounded: false, unreadable_entries: 0,
+    skipped_large_files: 0, skipped_symlinks: 0, ...overrides,
+  }] };
+}
+
+test("transient unreadable baseline is rescanned and only complete coverage qualifies", async () => {
+  const reports = [syntheticAuditReport({ unreadable_entries: 1 }), syntheticAuditReport()];
+  let calls = 0;
+  let pauses = 0;
+  const result = await auditProfilesWithTransientRetry([], {
+    scan: async () => reports[calls++],
+    pause: async () => { pauses++; },
+    attempts: 3,
+  });
+  assert.equal(result.qualified, true);
+  assert.equal(result.attempts, 2);
+  assert.equal(calls, 2);
+  assert.equal(pauses, 1);
+  assert.equal(hasCompleteAuditCoverage(result.report), true);
+});
+
+test("persistent unreadable baseline stays unqualified after bounded retries", async () => {
+  let calls = 0;
+  const result = await auditProfilesWithTransientRetry([], {
+    scan: async () => { calls++; return syntheticAuditReport({ unreadable_entries: 1 }); },
+    pause: async () => {},
+    attempts: 3,
+  });
+  assert.equal(result.qualified, false);
+  assert.equal(result.attempts, 3);
+  assert.equal(calls, 3);
+  assert.equal(hasCompleteAuditCoverage(result.report), false);
+});
+
+test("bounded, skipped and zero-byte baselines are never rescued by retry", async () => {
+  for (const partial of [
+    { bounded: true }, { skipped_large_files: 1 },
+    { skipped_symlinks: 1 }, { bytes_examined: 0 },
+  ]) {
+    let calls = 0;
+    const result = await auditProfilesWithTransientRetry([], {
+      scan: async () => { calls++; return syntheticAuditReport(partial); },
+      pause: async () => { throw new Error("must not retry non-transient scan"); },
+    });
+    assert.equal(result.qualified, false);
+    assert.equal(calls, 1);
+  }
+});
+
+test("audit scan errors and invalid retry budgets fail closed", async () => {
+  await assert.rejects(
+    auditProfilesWithTransientRetry([], { scan: async () => { throw new Error("scan unavailable"); } }),
+    /scan unavailable/,
+  );
+  await assert.rejects(
+    auditProfilesWithTransientRetry([], { attempts: 0 }),
+    /Invalid bounded audit retry count/,
+  );
 });

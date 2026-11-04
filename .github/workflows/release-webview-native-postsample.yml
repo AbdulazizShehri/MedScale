@@ -1,5 +1,5 @@
 # Synthetic-only normal Windows release GUI sample interaction and WebView2 after-exit residue.
-# Reuse unsigned engineering installer already qualified from PR #385:
+# Reuse the unsigned engineering installer built by the pinned tauri-preview run:
 # never rebuild Rust or handle real patient data or publish a release.
 name: release-webview-native-postsample
 
@@ -17,8 +17,8 @@ jobs:
     runs-on: windows-latest
     timeout-minutes: 25
     env:
-      SOURCE_RUN: "41236416069"
-      SOURCE_SHA: "079543e76aaf9233475c64af506becb81b77001d"
+      SOURCE_RUN: "41743239715"
+      SOURCE_SHA: "bc16eb3d8b0633378c1f476fb315df84324f6272"
       MEDSCALE_RELEASE_WEBVIEW_PROBE: "1"
       MEDSCALE_NORMAL_SAMPLE_PROBE: "1"
     steps:
@@ -67,8 +67,10 @@ jobs:
           }
           Write-Output "RELEASE_WEBVIEW_NATIVE_SEED_OBSERVED_BEFORE_RESTART=$($q.synthetic_seed_file_observed_before_restart)"
           Write-Output "RELEASE_WEBVIEW_NATIVE_SEED_WAIT_SECONDS=$($q.synthetic_seed_wait_seconds)"
+          Write-Output "RELEASE_WEBVIEW_NATIVE_SEED_MANIFEST_STATE=$($q.synthetic_seed_manifest_state_before_restart)"
           if ($q.synthetic_seed_file_observed_before_restart -ne $true -or
-              $q.synthetic_seed_wait_seconds -gt 30) {
+              $q.synthetic_seed_manifest_state_before_restart -ne 'COMPLETE' -or
+              $q.synthetic_seed_wait_seconds -gt 60) {
             throw "Normal-release synthetic seed was not observed before restart"
           }
           Write-Output "RELEASE_WEBVIEW_NATIVE_SYNTHETIC_ACTION=ENTER_SENT_DISPOSABLE_CI"

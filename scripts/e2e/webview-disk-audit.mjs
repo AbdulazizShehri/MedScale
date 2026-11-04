@@ -73,6 +73,13 @@ async function scanNeedles(file, remaining, found) {
   return scanned;
 }
 
+/** A same-sized rewrite or file replacement must not count as stable coverage. */
+export function sameRegularFileSnapshot(before, after) {
+  return after.isFile() && before.dev === after.dev && before.ino === after.ino &&
+    before.size === after.size && before.mtimeMs === after.mtimeMs &&
+    before.ctimeMs === after.ctimeMs;
+}
+
 export async function auditProfiles(roots, limits = defaults) {
   const report = { scope: "synthetic-only-ci-tauri-app-local-data-including-webview2; not a privacy clearance", profiles: [] };
   for (const { label, root } of roots) {
@@ -130,6 +137,11 @@ export async function auditProfiles(roots, limits = defaults) {
         const found = [false, false];
         try {
           const n = await scanNeedles(file, limits.maxBytes - info.bytes_examined, found);
+          // A concurrent WebView2 rewrite can preserve byte length. Re-stat
+          // after reading and refuse full coverage if identity or timestamps
+          // changed, rather than relying on the pre-read size alone.
+          const after = await lstat(file);
+          if (!sameRegularFileSnapshot(metadata, after)) info.bounded = true;
           info.bytes_examined += n;
           info.files_examined++;
           const scope = appDataScope(parts, ent.name);
@@ -169,6 +181,39 @@ export function hasObservedProfileBytes(report) {
 export function hasCompleteAuditCoverage(report) {
   return report.profiles.every(({ bounded, unreadable_entries, skipped_large_files, skipped_symlinks }) =>
     !bounded && unreadable_entries === 0 && skipped_large_files === 0 && skipped_symlinks === 0);
+}
+
+/**
+ * A just-closed WebView2 process may temporarily hold a file while the
+ * disposable-runner baseline is scanned. Retry only that narrow case.
+ * Every attempt remains a full scan: no unreadable, skipped, or bounded
+ * entries can be accepted as complete. Never use on a live user profile.
+ */
+export async function auditProfilesWithTransientRetry(roots, {
+  scan = auditProfiles,
+  attempts = 5,
+  pause = () => new Promise((resolve) => setTimeout(resolve, 750)),
+} = {}) {
+  if (!Number.isSafeInteger(attempts) || attempts < 1 || attempts > 10) {
+    throw new Error("Invalid bounded audit retry count");
+  }
+  let report;
+  for (let n = 1; n <= attempts; n++) {
+    report = await scan(roots);
+    const qualified = hasObservedProfileBytes(report) && hasCompleteAuditCoverage(report);
+    if (qualified) return { report, attempts: n, qualified: true };
+    // Never retry a bounded scan, skipped content, or absent profile as if
+    // they were a transient sharing violation. Persistent unreadability
+    // remains an explicit failed qualification.
+    const transientUnreadable = report.profiles.some((p) => p.unreadable_entries > 0) &&
+      report.profiles.every((p) => !p.bounded && p.skipped_large_files === 0 &&
+        p.skipped_symlinks === 0);
+    if (!transientUnreadable || n === attempts) {
+      return { report, attempts: n, qualified: false };
+    }
+    await pause();
+  }
+  throw new Error("Unreachable bounded audit retry state");
 }
 
 async function main() {

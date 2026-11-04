@@ -12,7 +12,7 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { execFileSync, spawn } from "node:child_process";
-import { auditProfiles, hasObservedProfileBytes, hasCompleteAuditCoverage } from "./webview-disk-audit.mjs";
+import { auditProfiles, auditProfilesWithTransientRetry, hasObservedProfileBytes, hasCompleteAuditCoverage } from "./webview-disk-audit.mjs";
 
 const [app, shots = "target/e2e-shots"] = process.argv.slice(2);
 if (!app) throw new Error("usage: desktop-journey.mjs <app> [shots]");
@@ -330,10 +330,14 @@ try {
       throw new Error("WebView profile baseline requires disposable Windows GitHub Actions");
     }
     await quit();
-    const baseline = await auditProfiles([
+    // A transient file-sharing race immediately after WebView2 exit may
+    // leave one unreadable entry. Retry only that case, with full coverage
+    // required on a fresh scan. No file or category is silently excluded.
+    const baselineAttempt = await auditProfilesWithTransientRetry([
       { label: "tauri_identifier_profile", root: path.join(process.env.LOCALAPPDATA, "org.medscale.desktop.preview") },
       { label: "legacy_medscale_profile", root: path.join(process.env.LOCALAPPDATA, "MedScale") },
     ]);
+    const baseline = baselineAttempt.report;
     // No private paths, file names, values, audio or synthetic subject IDs:
     // save the same category counters as the post-journey scanner only.
     fs.writeFileSync(path.join(shots, "webview-disk-profile-before-workspace.json"),
@@ -346,11 +350,15 @@ try {
     console.log("WEBVIEW_SYNTHETIC_BASELINE=" + JSON.stringify({
       observed_bytes: hasObservedProfileBytes(baseline),
       coverage_complete: hasCompleteAuditCoverage(baseline),
+      scan_attempts: baselineAttempt.attempts,
       profiles: baseline.profiles.map(({ label, exists, files_examined, bytes_examined,
         bounded, unreadable_entries, skipped_large_files, skipped_symlinks }) =>
         ({ label, exists, files_examined, bytes_examined, bounded, unreadable_entries,
           skipped_large_files, skipped_symlinks })),
     }));
+    if (!baselineAttempt.qualified) {
+      throw new Error("Disposable Windows baseline remained incomplete; refusing synthetic journeys");
+    }
     // Reopen the very same app/profile; existing 26 journeys stay unchanged.
     await launch();
   }
