@@ -64,7 +64,7 @@ function PrivacyBody({ projectId }: { projectId: string }) {
         </form>
       </Section>
       <Section n="02" title="Decisions" count={v.decisions.length}>
-        {v.decisions.length ? <table className="tb"><thead><tr><th style={{ width: "34%" }}>Artifact</th><th style={{ width: "14%" }}>Boundary</th><th style={{ width: "16%" }}>Outcome</th><th>Reason</th></tr></thead><tbody>{v.decisions.map((d, i) => <tr key={i}><td><span className="mono t-mono-sm trunc">{d.artifact_id}</span></td><td className="t-sm">{d.boundary}</td><td><Status kind={glyphFor(d.outcome)} weight="strong">{d.outcome}</Status></td><td className="t-sm i2"><span className="trunc">{d.reason}</span></td></tr>)}</tbody></table> : <p className="t-sm i3">No egress decisions recorded.</p>}
+        {v.decisions.length ? <table className="tb"><thead><tr><th style={{ width: "34%" }}>Artifact</th><th style={{ width: "14%" }}>Boundary</th><th style={{ width: "16%" }}>Outcome</th><th>Reason</th></tr></thead><tbody>{v.decisions.map((d, i) => <tr key={i}><td><span className="mono t-mono-sm trunc">{d.artifact_id}</span></td><td className="t-sm">{d.boundary}</td><td><Status kind={glyphFor(d.outcome)} weight="strong">{d.outcome}</Status></td><td className="t-sm i2"><span>{d.reason}</span></td></tr>)}</tbody></table> : <p className="t-sm i3">No egress decisions recorded.</p>}
       </Section>
       <Section n="03" title="Classifications" count={v.classifications.length}>
         {v.classifications.length ? v.classifications.map((c) => <div key={c.artifact_id} className="lr" style={{ gridTemplateColumns: "minmax(0,1fr) 160px minmax(0,1fr)" }}><span className="mono t-mono-sm trunc">{c.artifact_id}</span><span className="t-sm">{c.data_class}</span><span className="t-sm i3 trunc">{c.basis}</span></div>) : <p className="t-sm i3">No artifacts classified in this project.</p>}
@@ -129,7 +129,7 @@ function SubjectExportForm({ onDone }: { onDone: () => void }) {
       {result && <div style={{ marginTop: 12 }}>
         <Ledger items={[{ k: "disclosure", v: result.disclosure.disclosure_id, mono: true }, { k: "resources", v: result.exports.length, mono: true }, { k: "digest", v: result.disclosure.export_digest ?? "—", mono: true }]} />
         <table className="tb"><thead><tr><th style={{ width: "22%" }}>Resource</th><th style={{ width: "14%" }}>Losses</th><th>Lost or unsupported fields</th></tr></thead>
-          <tbody>{result.exports.map((x, i) => <tr key={i}><td className="t-sm">{x.resource_type}</td><td className="mono t-mono-sm">{x.field_losses.length}</td><td className="t-sm i2"><span className="trunc">{[...x.field_losses.map((l) => `${l.fhir_path} (${l.loss_class})`), ...x.unsupported_fields_preserved].join(", ") || "none"}</span></td></tr>)}</tbody></table>
+          <tbody>{result.exports.map((x, i) => <tr key={i}><td className="t-sm">{x.resource_type}</td><td className="mono t-mono-sm">{x.field_losses.length}</td><td className="t-sm i2"><span>{[...x.field_losses.map((l) => `${l.fhir_path} (${l.loss_class})`), ...x.unsupported_fields_preserved].join(", ") || "none"}</span></td></tr>)}</tbody></table>
         <p className="t-sm i3" style={{ marginTop: 6 }}>Full conformance is not claimed. This is a summary of the export: its contents are not displayed or written to disk. The disclosure is in the Audit Trail.</p>
       </div>}
     </Section>

@@ -4,7 +4,7 @@ import { selectedPathOrPrevious } from "../audio-picker";
 import { formatStorage } from "../model-storage";
 import { mayStartModelDownload, modelOptionLabel } from "../model-consent";
 import { visibleRevisionDraft, type RevisionBoundDraft } from "../audio-draft";
-import { transcriptPlainText } from "../transcript-text";
+import { clock, transcriptPlainText } from "../transcript-text";
 import { call, useAction, useCommand } from "../lib/ipc";
 import { ProjectScope } from "../components/project";
 import { Authority, Empty, ErrorState, Glyph, KV, Ledger, Notice, PageHead, Section, Skeleton, Stamp, Status, glyphFor, useOutcome, useToast, type GlyphKind, LoadError } from "../components/ui";
@@ -245,6 +245,8 @@ function AudioBody({ projectId }: { projectId: string }) {
         activatedPack.current === downloadStatus.pack_dir) return;
     const dir = downloadStatus.pack_dir;
     activatedPack.current = dir;
+    // This page remounts on every visit; a Pack already active needs nothing.
+    if (asr.state.status !== "ready" || asr.state.data.asr_pack_dir === dir) return;
     // The signed Pack is already on disk. Surface "Activate saved model"
     // even when Core activation fails, so the user can retry after reopening
     // the vault without downloading the same checkpoint a second time.
@@ -252,7 +254,7 @@ function AudioBody({ projectId }: { projectId: string }) {
     void run("activate-model", "audio_admit_asr_pack", { path: dir }).then(async (r) => {
       if (outcome(r, "Verified Whisper model activated")) await asr.reload();
     });
-  }, [downloadStatus?.state, downloadStatus?.pack_dir, run, outcome, asr.reload]);
+  }, [downloadStatus?.state, downloadStatus?.pack_dir, run, outcome, asr.reload, asr.state]);
   async function startModelDownload() {
     if (!mayStartModelDownload(downloadApproved, chosenModel, storageCheck?.model.id ?? null,
         storageCheck?.enough_space === true, !!pending || downloadStatus?.state === "downloading" ||
@@ -499,7 +501,7 @@ function AudioBody({ projectId }: { projectId: string }) {
         {result.transcript?.segments.map((x) => (
           <div key={x.seq} className="lr" style={{ gridTemplateColumns: "36px 130px minmax(0,1fr) auto", alignItems: "start", padding: "8px 12px" }}>
             <span className="mono t-mono-sm i3">{x.seq}</span>
-            <span className="mono t-mono-sm i3">{x.start_ms}–{x.end_ms} ms{speakerLabel(x.speaker) ? ` · ${speakerLabel(x.speaker)}` : ""}</span>
+            <span className="mono t-mono-sm i3">{clock(x.start_ms)}–{clock(x.end_ms)}{speakerLabel(x.speaker) ? ` · ${speakerLabel(x.speaker)}` : ""}</span>
             <span className="t-sm" dir="auto">{x.text ?? <span className="i3">(untranscribed)</span>}</span>
             <button type="button" className="btn btn-g" onClick={() => setEdit({ seq: x.seq, text: x.text ?? "", reason: "" })}>Correct</button>
           </div>
@@ -508,6 +510,7 @@ function AudioBody({ projectId }: { projectId: string }) {
           <button type="button" className="btn btn-g" onClick={copyTranscript} disabled={!result.transcript.segments.length}>Copy transcript</button>
           <select aria-label="Pack for the draft note" value={notePack} onChange={(e) => setNotePack(e.target.value)}>{runnable.map((m) => <option key={m.id} value={m.id}>{m.id}</option>)}</select>
           <button type="button" className="btn btn-s" disabled={!notePack || !!pending} onClick={draftNote}>{pending === "draft" ? <Glyph kind="running" /> : null}Draft note from this revision</button>
+          {!runnable.length && <span className="t-sm i3">Drafting needs a local Pack that can run. Add one in MedAgent.</span>}
         </div>}
         {visibleDraft && <div style={{ border: "1px dashed var(--line-strong)", borderRadius: "var(--r-2)", padding: "12px 14px", marginTop: 12 }}>
           <Status kind="proposal" weight="strong">Draft note · proposal</Status>

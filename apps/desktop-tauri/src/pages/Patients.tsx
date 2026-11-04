@@ -271,7 +271,7 @@ export function PatientDetail({ subject }: { subject: string }) {
           {tab === "Coverage" && <Section title="Coverage slots" count="SubjectCoverageV1">
             <table className="tb"><thead><tr><th style={{ width: "32%" }}>Concept</th><th style={{ width: "22%" }}>Status</th><th>Values · notes</th></tr></thead>
               <tbody>{slots.map((s) => <tr key={s.concept_key}><td><span className="lk" style={{ fontSize: 11.5 }}>{s.concept_key}</span></td><td><Status kind={cov(s.status).glyph}>{cov(s.status).label}</Status></td>
-                <td className="t-sm i2"><span className="trunc">{s.values.map(value).join(" · ") || s.notes.join(" ") || (s.conflict ? `conflict: ${s.conflict.members.map(value).join(" vs ")}` : "—")}</span></td></tr>)}</tbody></table>
+                <td className="t-sm i2"><span>{s.values.map(value).join(" · ") || s.notes.join(" ") || (s.conflict ? `conflict: ${s.conflict.members.map(value).join(" vs ")}` : "—")}</span></td></tr>)}</tbody></table>
           </Section>}
           {tab === "Sources" && <Section title="Sources" count={d.sources.length}>
             <table className="tb"><thead><tr><th style={{ width: "34%" }}>Source</th><th style={{ width: "18%" }}>Resource</th><th style={{ width: "18%" }}>Claim kind</th><th>Fixture</th></tr></thead>
