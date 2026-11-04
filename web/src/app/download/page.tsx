@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { DownloadCards } from "@/components/DownloadCards";
+import { DownloadCount } from "@/components/DownloadCount";
 import { ArrowUpRight } from "@/components/Icons";
 import { Quickstart } from "@/components/Quickstart";
 import { docs, pageMeta } from "@/lib/site";
@@ -23,6 +24,7 @@ export default function Download() {
       <section className="page-section" aria-labelledby="platforms-title">
         <div className="shell">
           <h2 id="platforms-title" className="sr-only">Platforms</h2>
+          <DownloadCount placement="page" />
           <DownloadCards />
         </div>
       </section>
