@@ -6511,7 +6511,7 @@ fn capability_matches(cap: &Capability, body: &RequestBody) -> bool {
 /// family as a failed check, so the confirmed move-aside is offered (Spec 109).
 fn recovery_check_error(error: AuthorityError) -> AuthorityError {
     AuthorityError::Unavailable {
-        message: format!("the interrupted session could not be checked: {error}"),
+        message: format!("the interrupted session could not be checked: {error:?}"),
     }
 }
 
