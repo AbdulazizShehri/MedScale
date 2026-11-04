@@ -1,4 +1,6 @@
 export const github = "https://github.com/AbdulazizShehri/MedScale";
+/** Official, already enabled GitHub Sponsors profile for the MedScale maintainer. */
+export const sponsors = "https://github.com/sponsors/AbdulazizShehri";
 export const basePath = process.env.NEXT_PUBLIC_SITE_BASE_PATH || "";
 /** Public URL of a file in web/public, honouring the GitHub Pages base path. */
 export const asset = (path: string) => basePath + path;
