@@ -1,0 +1,16 @@
+\section{Design Goals and Threat Model}
+
+The evaluation treats accidental state corruption, malformed or mismatched provenance, scope confusion, replay, unauthorized capabilities, corrupt recovery material, and ambiguous external effects as first-class failure classes. The adversary is not assumed to control the operating system or defeat arbitrary cryptography; those stronger claims would exceed the current qualification evidence.
+
+The design goals are:
+\begin{enumerate}
+  \item preserve one authoritative path for admitted state-changing operations;
+  \item retain immutable source identity and digest-verifiable content where defined by contract;
+  \item prevent derived, model-generated, or projected content from silently becoming source truth;
+  \item preserve explicit uncertainty and failure states rather than coercing them to success;
+  \item deny network-dependent or external-effect behavior when authority/prerequisites are absent;
+  \item make backup, restore, restart, and state reconstruction testable; and
+  \item keep qualification claims narrower than clinical, regulatory, private-data, or production claims.
+\end{enumerate}
+
+The current threat model excludes proof against a compromised host kernel, unrestricted executable extensions, unmanaged external IDE execution, and production institutional transport. These are limitations, not implicit assumptions of safety.

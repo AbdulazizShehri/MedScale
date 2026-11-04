@@ -1,0 +1,19 @@
+\section{Problem Formulation}
+
+We model an auditable clinical/research AI system as a set of typed authorities connected by governed transitions. The central design constraint is that semantically distinct objects must not silently inherit one another's authority:
+
+\begin{equation}
+\text{source} \neq \text{deterministic derivation} \neq \text{model inference} \neq \text{human-reviewed artifact} \neq \text{action proposal} \neq \text{external effect}.
+\end{equation}
+
+This distinction motivates four system properties.
+
+\paragraph{Authority integrity.} A presentation layer, worker, model, projection, or integration must not become an alternate source of truth merely because it can produce or display data.
+
+\paragraph{Provenance integrity.} A derived claim or artifact must retain sufficient typed linkage to determine what source identity and transformation it depends on, and integrity-sensitive bindings must fail when intentionally corrupted.
+
+\paragraph{Epistemic honesty.} Unknown, unsupported, unavailable, denied, partial, conflicting, stale, corrupt, or unmeasured conditions must not be collapsed into a generic success state. The paper distinguishes vocabulary implemented directly in individual subsystems from a broader cross-system taxonomy proposed for analysis; it does not claim that every label is represented by one universal enum.
+
+\paragraph{Effect integrity.} A model recommendation or internal action proposal must not be treated as evidence that an external action occurred. External effects require their own governed transition and evidence.
+
+The paper evaluates these properties under synthetic inputs and an exact repository snapshot. Clinical correctness and patient outcomes are outside the current experimental scope.

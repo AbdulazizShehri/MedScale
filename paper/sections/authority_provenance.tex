@@ -1,0 +1,7 @@
+\section{Authority and Provenance Model}
+
+At the contract level, a \texttt{SourceRecord} is an immutable raw evidence object with an object identity distinct from its content digest. Its digest can be recomputed from exact stored bytes. A \texttt{DerivedSourceArtifact} records a source identifier, transform identifier and version, loss classification, representation kind, output bytes, and output digest. This makes source identity and derived representation structurally distinct.
+
+The research-pack evidence model separately distinguishes citation existence, support relation, applicability, retraction state, evidence quality, and trial criteria. Each axis may retain an explicit unknown value. The conservative verdict becomes supported only when the relevant recorded conditions establish support; absence of evidence is not silently rewritten as evidence of support.
+
+These contracts motivate the paper's provenance-integrity experiments. Mutation cases alter one binding at a time while preserving a known-valid control. The primary outcome is false acceptance of an invalid binding; valid controls are also retained to measure false refusal. The manuscript will not infer whole-system provenance guarantees from a single contract: each tested mutation class must bind to the code path that actually validates it.

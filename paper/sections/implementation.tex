@@ -1,0 +1,7 @@
+\section{System Implementation}
+
+The frozen implementation is a multi-crate Rust system with contract, Core authority, storage, local model/runtime, worker, CLI, and Desktop surfaces. Admitted Core tests route operations through session/capability checks before reaching subsystem authority objects. Projection or view state is treated as rebuildable rather than canonical authority where specified by subsystem contracts.
+
+The implementation also contains deliberately bounded or non-admitted surfaces. Managed R script execution is not admitted; executable extension code is not admitted; medical ASR quality is unmeasured; real institutional network transport is not production-qualified; and worker operating-system memory/CPU sandbox qualification remains an external gate. These distinctions are preserved in both evaluation and discussion.
+
+The paper does not use implementation size or feature count as a primary contribution. Components are described only when needed to explain an invariant or an experiment.

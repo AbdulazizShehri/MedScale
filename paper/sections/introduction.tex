@@ -1,0 +1,21 @@
+\section{Introduction}
+
+Evaluation of medical AI has traditionally emphasized predictive or generative performance: discrimination, benchmark accuracy, clinical question answering, retrieval quality, or task-specific utility. These metrics remain necessary, but they do not by themselves determine whether a multi-component clinical AI system is operationally auditable. Recent work has therefore expanded attention toward deployment monitoring, operational safety, evidence traceability, abstention, and governance \citep{Noori.2025,Kim.2026,Andersen.2024,Cao.2026}.
+
+A systems problem remains underneath these concerns. Once an application combines source records, transformed data, retrieval, model inference, human review, compute workers, extensions, institutional exchange, and external actions, an apparently simple output can hide multiple kinds of authority. A cited model answer is not the same object as its source evidence; a deterministic transform is not a model inference; a human-reviewed artifact is not an external action; and an action proposal is not evidence that an external effect occurred. Collapsing these distinctions weakens auditability even when individual model outputs are accurate.
+
+MedScale investigates the complementary systems question: \emph{how should a clinical and research AI system be structured so that authority, provenance, epistemic state, failure, computation, human review, and external effects remain explicit and testable?} The architecture is local-first and Core-mediated. Immutable source objects retain digest-verifiable content; derived objects retain typed parentage; research evidence assessments preserve explicit unknown values rather than manufacturing certainty; and network-dependent paths are denied or reported unavailable when their governing prerequisites are not admitted. These properties are evaluated as implementation invariants rather than presented as clinical-safety claims.
+
+The paper is bound to repository commit \texttt{1e2b7d94e970256b38bda15fa91f62bc397e825a}. At that snapshot, the admitted repository program is complete, but release readiness, private-data readiness, platform qualification, clinical validation, and regulatory validation remain explicitly false or not performed. This separation is central to the paper's claim discipline.
+
+Our intended contributions are sixfold:
+\begin{enumerate}
+  \item an authority-separated systems architecture with a single admitted Core authority path across surfaces;
+  \item provenance-bearing source and derived artifact contracts whose integrity can be exercised by mutation tests;
+  \item explicit epistemic and failure representations, including first-class unknown evidence state rather than implicit certainty;
+  \item local-first, fail-closed boundaries for network access and external-effect paths;
+  \item bounded computation and integration contracts that distinguish implementation from platform qualification; and
+  \item an exact-revision, whole-platform qualification methodology that treats discovered defects and residual gaps as evidence rather than hiding them.
+\end{enumerate}
+
+The dedicated experiments in this paper are designed to determine how strongly these claims are supported and where they fail. No result is assumed in advance.
