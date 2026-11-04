@@ -139,10 +139,16 @@ fn stale_temp_files_and_a_stale_journal_are_ignored() {
     fs::write(root.join("meta.sealed.tmp"), b"half a seal").unwrap();
     fs::write(root.join("meta.work.sqlite3.tmp"), b"half a copy").unwrap();
     fs::write(root.join("meta.work.sqlite3-journal"), b"stale journal").unwrap();
+    fs::write(
+        root.join("meta.work.sqlite3.tmp-journal"),
+        b"stale temp journal",
+    )
+    .unwrap();
     let vault = open(&root).unwrap();
     assert!(!root.join("meta.sealed.tmp").exists());
     assert!(!root.join("meta.work.sqlite3.tmp").exists());
     assert!(!root.join("meta.work.sqlite3-journal").exists());
+    assert!(!root.join("meta.work.sqlite3.tmp-journal").exists());
     assert_eq!(source_count(&vault), 0);
     vault.close().unwrap();
     fs::remove_dir_all(&root).unwrap();

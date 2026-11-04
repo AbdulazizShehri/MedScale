@@ -257,6 +257,7 @@ impl DataSources<'_> {
             "meta.work.sqlite3-shm",
             "meta.work.sqlite3-journal",
             "meta.work.sqlite3.tmp",
+            "meta.work.sqlite3.tmp-journal",
             "meta.sealed",
             "meta.sealed.tmp",
             ".session.lock",

@@ -936,6 +936,7 @@ fn apply_sqlcipher_key(conn: &Connection, key32: &[u8; 32]) -> Result<(), MetaEr
     // On macOS a commit is otherwise not durable across power loss. No effect
     // on Windows or Linux.
     conn.pragma_update(None, "fullfsync", "ON")?;
+    conn.pragma_update(None, "synchronous", "FULL")?;
     Ok(())
 }
 

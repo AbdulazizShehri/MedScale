@@ -82,13 +82,14 @@ impl EncryptedVault {
     ) -> Result<(Self, RecoveryCodeSet), EncryptedVaultError> {
         let root = assert_claim_path(vault_root)?;
         fs::create_dir_all(&root)?;
+        // First, so two concurrent creates cannot both pass the check below and
+        // overwrite each other's header and seal.
+        let session_lock = Self::take_session_lock(&root, holder_id)?;
         if root.join(HEADER_FILE).exists() {
             return Err(EncryptedVaultError::Invalid(
                 "vault already exists".to_owned(),
             ));
         }
-        // First, so two concurrent creates cannot mix a header with a seal.
-        let session_lock = Self::take_session_lock(&root, holder_id)?;
         Self::acquire_lease(&root, holder_id)?;
 
         let (dek, header, codes) = KeyProvider::create_vault_keys(vault_id, passphrase)
@@ -178,12 +179,13 @@ impl EncryptedVault {
         dek: VaultDek,
         holder_id: &str,
     ) -> Result<Self, EncryptedVaultError> {
-        // Spec 109: nothing is touched until the key proved right and the
-        // replacement is authenticated. A wrong passphrase or a torn or foreign
-        // `meta.sealed` fails here with every file intact.
-        let (plain, seal_digest) = Self::decrypt_sealed_meta(&root, &header.vault_id, &dek)?;
-        // The lock comes first: a refused opener must not rewrite the lease.
+        // The lock comes first. Reading the seal without it could restore a seal
+        // that a closing session has just replaced, and this session's close
+        // would then overwrite the newer one. A refused opener rewrites nothing.
         let session_lock = Self::take_session_lock(&root, holder_id)?;
+        // Spec 109: nothing else is touched until the replacement is
+        // authenticated. A torn or foreign `meta.sealed` fails here.
+        let (plain, seal_digest) = Self::decrypt_sealed_meta(&root, &header.vault_id, &dek)?;
         Self::acquire_lease(&root, holder_id)?;
         let _ = fs::remove_file(root.join(META_SEALED_TMP));
         // Crash leftovers are not treated as sealed (Spec 017 FR-003); the
@@ -217,7 +219,7 @@ impl EncryptedVault {
     /// the marker that binds it to that seal. Legacy rekey and migration happen
     /// on the temp file, which nothing ever adopts. The replacement is durable
     /// before the leftover goes, and a rename replaces it, so a crash or full
-    /// disk here cannot hide a discard from the next open.
+    /// disk cannot hide a discard of a work file from the next open.
     fn restore_work_file(
         root: &Path,
         dek: &VaultDek,
@@ -229,7 +231,7 @@ impl EncryptedVault {
         for stale in [META_WORK_TMP, META_WORK_TMP_JOURNAL] {
             let path = root.join(stale);
             if path.try_exists()? {
-                fs::remove_file(path)?;
+                remove_with_retry(&path)?;
             }
         }
         write_synced(&work_tmp, plain)?;
@@ -246,10 +248,7 @@ impl EncryptedVault {
         crash_point("restore_after_marker");
         Self::remove_sidecars(root)?;
         crash_point("restore_after_sidecars");
-        if work.try_exists()? {
-            scrub(&work);
-        }
-        crash_point("restore_after_scrub");
+        // Not scrubbed first: a failed rename must leave the leftover whole.
         rename_with_retry(&work_tmp, &work)?;
         sync_dir(root)?;
         crash_point("restore_after_rename");
@@ -279,7 +278,7 @@ impl EncryptedVault {
             let side = sqlite_sidecar(&work, suffix);
             if side.exists() {
                 scrub(&side);
-                fs::remove_file(&side)?;
+                remove_with_retry(&side)?;
             }
         }
         Ok(())
@@ -514,10 +513,17 @@ impl EncryptedVault {
     /// Open-work + sealed surfaces must not contain the marker (Spec 023 page encryption).
     pub fn plaintext_marker_absent_on_disk(&self, marker: &[u8]) -> bool {
         let work = self.root.join(META_WORK);
-        if let Ok(bytes) = fs::read(&work)
-            && bytes.windows(marker.len()).any(|w| w == marker)
-        {
-            return false;
+        for path in [
+            work.clone(),
+            self.root.join(META_WORK_TMP),
+            self.root.join(META_WORK_TMP_JOURNAL),
+            self.root.join(META_SEALED_TMP),
+        ] {
+            if let Ok(bytes) = fs::read(&path)
+                && bytes.windows(marker.len()).any(|w| w == marker)
+            {
+                return false;
+            }
         }
         for suffix in ["-wal", "-shm", "-journal"] {
             let side = sqlite_sidecar(&work, suffix);
@@ -581,12 +587,20 @@ fn crash_point(boundary: &str) {
 #[cfg(not(test))]
 fn crash_point(_boundary: &str) {}
 
-/// Renames `tmp` over `dest`. A sharing violation from antivirus or indexing
-/// on Windows is retried briefly.
+/// Renames `tmp` over `dest`.
 pub(crate) fn rename_with_retry(tmp: &Path, dest: &Path) -> std::io::Result<()> {
+    with_sharing_retry(|| fs::rename(tmp, dest))
+}
+
+fn remove_with_retry(path: &Path) -> std::io::Result<()> {
+    with_sharing_retry(|| fs::remove_file(path))
+}
+
+/// A sharing violation from antivirus or indexing on Windows is retried briefly.
+fn with_sharing_retry(mut op: impl FnMut() -> std::io::Result<()>) -> std::io::Result<()> {
     let deadline = std::time::Instant::now() + std::time::Duration::from_secs(3);
     loop {
-        match fs::rename(tmp, dest) {
+        match op() {
             Ok(()) => return Ok(()),
             Err(e)
                 if cfg!(windows)
@@ -615,9 +629,12 @@ fn copy_dir(src: &Path, dest: &Path) -> Result<(), EncryptedVaultError> {
         if ty.is_dir() {
             copy_dir(&entry.path(), &to)?;
         } else {
-            fs::copy(entry.path(), to)?;
+            fs::copy(entry.path(), &to)?;
+            // Blobs must be durable before a restore puts the seal naming them.
+            fs::OpenOptions::new().write(true).open(&to)?.sync_all()?;
         }
     }
+    sync_dir(dest)?;
     Ok(())
 }
 
@@ -754,11 +771,15 @@ mod crash_tests {
             "restore_after_temp",
             "restore_after_marker",
             "restore_after_sidecars",
-            "restore_after_scrub",
             "restore_after_rename",
         ] {
             let root = sealed_with_one_source("restore");
             let seal = fs::read(root.join(META_SEALED)).expect("seal");
+            // A crashed session, so the sidecar and rename steps have work to do.
+            let session = EncryptedVault::open_with_passphrase(&root, PASS, HOLDER).expect("open");
+            session.insert_source(&source("unsealed")).expect("write");
+            drop(session);
+            fs::write(root.join("meta.work.sqlite3-journal"), b"stale").expect("journal");
             run_child(&root, "open", boundary);
             assert_eq!(
                 fs::read(root.join(META_SEALED)).expect("seal"),
@@ -768,6 +789,10 @@ mod crash_tests {
             let vault = EncryptedVault::open_with_passphrase(&root, PASS, HOLDER)
                 .unwrap_or_else(|e| panic!("{boundary}: {e}"));
             assert_eq!(sources(&vault), ["sealed"], "{boundary}");
+            assert!(
+                vault.discarded_interrupted_session(),
+                "{boundary}: the crash did not hide the discard"
+            );
             vault.close().expect("close");
             fs::remove_dir_all(&root).expect("cleanup");
         }
@@ -837,6 +862,60 @@ mod crash_tests {
         );
         drop(store);
         assert!(SqliteMetaStore::open_existing_sqlcipher_no_migrate(&db, &[8_u8; 32]).is_err());
+        fs::remove_dir_all(&root).expect("cleanup");
+    }
+
+    #[test]
+    fn a_legacy_plaintext_seal_is_rekeyed_on_the_temp_file_and_opens() {
+        let root = sealed_with_one_source("legacy");
+        let plain_path = root.join("plain.sqlite3");
+        {
+            let plain = SqliteMetaStore::open_at(&plain_path).expect("plaintext db");
+            plain.insert_source(&source("legacy-row")).expect("write");
+        }
+        let plain_bytes = fs::read(&plain_path).expect("read");
+        assert!(
+            plain_bytes.starts_with(b"SQLite format 3"),
+            "really plaintext"
+        );
+        fs::remove_file(&plain_path).expect("remove");
+        let header = EncryptedVault::load_header(&root).expect("header");
+        let dek = KeyProvider::unlock_passphrase(&header, PASS).expect("key");
+        let sealed = seal(
+            dek.as_bytes(),
+            &plain_bytes,
+            &EncryptedVault::meta_aad(&header.vault_id),
+        )
+        .expect("seal");
+        fs::write(
+            root.join(META_SEALED),
+            serde_json::to_vec(&sealed).expect("encode"),
+        )
+        .expect("write seal");
+
+        let vault = EncryptedVault::open_with_passphrase(&root, PASS, HOLDER).expect("open");
+        assert_eq!(sources(&vault), ["legacy-row"]);
+        assert!(
+            !fs::read(root.join(META_WORK))
+                .expect("work")
+                .starts_with(b"SQLite format 3"),
+            "the work file is encrypted"
+        );
+        vault.close().expect("close");
+        fs::remove_dir_all(&root).expect("cleanup");
+    }
+
+    #[test]
+    fn keyed_connections_stay_at_full_synchronous() {
+        let root = sealed_with_one_source("synchronous");
+        let vault = EncryptedVault::open_with_passphrase(&root, PASS, HOLDER).expect("open");
+        let level: i64 = vault
+            .meta
+            .conn()
+            .query_row("PRAGMA synchronous", [], |row| row.get(0))
+            .expect("pragma");
+        assert_eq!(level, 2, "2 is FULL");
+        vault.close().expect("close");
         fs::remove_dir_all(&root).expect("cleanup");
     }
 

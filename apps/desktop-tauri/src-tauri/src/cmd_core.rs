@@ -173,7 +173,12 @@ pub fn workspace_lock(host: tauri::State<'_, Host>) -> CmdResult<()> {
     // Seal first: if Core cannot seal the encrypted vault the workspace stays
     // open so nothing written since unlock is lost, and the error is shown.
     if let Some(ws) = state.workspace.as_mut() {
-        ws.close()?;
+        ws.close().map_err(|err| match err {
+            medscale_contracts::envelopes::AuthorityError::Unavailable { .. } => CmdError::unavailable(
+                "Unavailable: MedScale could not save the vault. Nothing was lost. Check free disk space and try again",
+            ),
+            other => CmdError::from(other),
+        })?;
     }
     // Dropping the session releases the lease and the in-memory keys.
     state.workspace = None;

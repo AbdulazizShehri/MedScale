@@ -27,7 +27,7 @@
 1. Clear `meta.work.sqlite3.tmp` and `meta.work.sqlite3.tmp-journal`.
 2. Write the decrypted plaintext to the temp file and sync it.
 3. Open the temp file (legacy rekey allowed: the bytes are authenticated), migrate, write the marker, close. `migrate()` autocommits, so these are separate commits. It doesn't matter: nothing adopts a temp file.
-4. Sync the temp file. Move any leftover aside (I6) or remove its sidecars. Rename the temp file over the work file. Sync the directory on Unix, with the Windows sharing retry.
+4. Sync the temp file. Move any leftover aside (I6) or remove its sidecars. Rename the temp file over the work file. The leftover is never scrubbed first, because a failed rename must leave it whole. Sync the directory on Unix, with the Windows sharing retry.
 
 **`create`** ends with a standard restore, so a first-session crash has a marker.
 
@@ -36,7 +36,7 @@
 | Stage | On failure |
 |---|---|
 | Write and sync the seal temp file, then rename it over `meta.sealed` | Nothing changed. The vault stays open, the marker stays correct, and a retry works. |
-| Sync the directory (Unix) | The rename already happened. The close **succeeds with a warning**, and the work file is **not wiped**. If power loss then reverts the rename, the old seal and the work file's marker still match, so the work is recovered. If not, the next open sees `Stale`, whose contents equal the seal. |
+| Sync the directory (Unix) | The rename already happened. The close **succeeds**, and the work file is **not wiped**. The warning is the notice on the next open. If power loss then reverts the rename, the old seal and the work file's marker still match, so the work is recovered. If not, the next open sees `Stale`, whose contents equal the seal. |
 | Wipe | Ignored, as today. Next open sees `Stale`. |
 
 There is no read-closed state and no marker rewrite: after a successful rename the session is over. The close-time `sync_store_to_encrypted` runs before stage one, so a failure there also leaves everything unchanged.
