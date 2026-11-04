@@ -13,7 +13,7 @@ use thiserror::Error;
 
 use crate::claim::{ClaimError, assert_claim_path};
 use crate::sealed_blob::{SealedBlobError, SealedBlobStore};
-use crate::sqlite_meta::{MetaError, SourceMeta, SqliteMetaStore};
+use crate::sqlite_meta::{MetaError, SourceMeta, SqliteMetaStore, WorkDatabaseCheck};
 
 const HEADER_FILE: &str = "vault_header.json";
 const HEADER_TMP: &str = "vault_header.json.tmp";
@@ -25,6 +25,16 @@ const META_WORK_TMP_JOURNAL: &str = "meta.work.sqlite3.tmp-journal";
 const META_WORK_TMP_REKEY: &str = "meta.work.sqlite3.tmp.rekey";
 const LEASE_FILE: &str = ".writer.lock";
 const SESSION_LOCK_FILE: &str = ".session.lock";
+const PRE_RECOVERY_DIR: &str = "pre-recovery";
+const DISCARDED_DIR: &str = "discarded-session";
+const VERDICT_FILE: &str = "verdict";
+const NOTICE_FILE: &str = ".notice-pending";
+const COMPLETE_FILE: &str = ".complete";
+const VERDICT_STALE: &str = "stale";
+const VERDICT_UNVERIFIABLE: &str = "unverifiable";
+/// Kept when evicting. Only stale generations and copies are ever evicted.
+const RECOVERY_RETENTION: usize = 3;
+const MIN_WORK_FILE_BYTES: u64 = 4096;
 
 #[derive(Debug, Error)]
 pub enum EncryptedVaultError {
@@ -46,6 +56,12 @@ pub enum EncryptedVaultError {
     /// authentication. Nothing on disk was changed.
     #[error("sealed vault metadata is unreadable")]
     SealedMetaUnreadable,
+    /// An unsealed session could not be checked. Nothing was changed.
+    #[error("the interrupted session could not be checked: {0}")]
+    WorkFileCheckUnavailable(String),
+    /// A confirmed move-aside could not move the file. Nothing was changed.
+    #[error("the interrupted session could not be moved aside: {0}")]
+    WorkFileBlocked(String),
     #[error("invalid: {0}")]
     Invalid(String),
 }
@@ -69,7 +85,40 @@ pub struct EncryptedVault {
     /// OS lock held for the whole session, so another process can neither
     /// adopt nor wipe this session's live work database (Spec 109).
     _session_lock: fs::File,
-    discarded_interrupted_session: bool,
+    work_source: WorkSource,
+    notice_pending: bool,
+    notice_ack_requested: bool,
+}
+
+/// Where this session's work file came from (Spec 109 Part B). The `next_seq`
+/// raise and every load action key on this, never on the notice.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum WorkSource {
+    /// A fresh copy of the seal.
+    Restored,
+    /// A verified leftover from a session that never sealed.
+    Adopted,
+}
+
+/// How to open: normally, or having confirmed the leftover should be moved aside.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum LeftoverPolicy {
+    Classify,
+    MoveAside,
+}
+
+/// The verdict on a leftover work file.
+enum LeftoverVerdict {
+    Verified {
+        schema: u32,
+    },
+    /// Definitive: damaged, incomplete or unbound.
+    Unverifiable,
+    /// Valid, but it descends from an older seal.
+    Stale,
+    /// The check itself could not finish. Nothing may change.
+    Retryable(String),
+    NewerSchema,
 }
 
 impl EncryptedVault {
@@ -132,7 +181,9 @@ impl EncryptedVault {
                 blobs,
                 lease_holder: holder_id.to_owned(),
                 _session_lock: session_lock,
-                discarded_interrupted_session: false,
+                work_source: WorkSource::Restored,
+                notice_pending: false,
+                notice_ack_requested: false,
             },
             codes,
         ))
@@ -147,7 +198,7 @@ impl EncryptedVault {
         let header = Self::load_header(&root)?;
         let dek = KeyProvider::unlock_passphrase(&header, passphrase)
             .map_err(|_| EncryptedVaultError::MissingKeyMaterial)?;
-        Self::finish_open(root, header, dek, holder_id)
+        Self::finish_open(root, header, dek, holder_id, LeftoverPolicy::Classify)
     }
 
     pub fn open_with_recovery(
@@ -159,7 +210,7 @@ impl EncryptedVault {
         let header = Self::load_header(&root)?;
         let dek = KeyProvider::unlock_recovery(&header, code)
             .map_err(|_| EncryptedVaultError::MissingKeyMaterial)?;
-        Self::finish_open(root, header, dek, holder_id)
+        Self::finish_open(root, header, dek, holder_id, LeftoverPolicy::Classify)
     }
 
     pub fn open_with_keystore(
@@ -171,7 +222,26 @@ impl EncryptedVault {
         let header = Self::load_header(&root)?;
         let dek = KeyProvider::unlock_keystore(store, &header)
             .map_err(|_| EncryptedVaultError::MissingKeyMaterial)?;
-        Self::finish_open(root, header, dek, holder_id)
+        Self::finish_open(root, header, dek, holder_id, LeftoverPolicy::Classify)
+    }
+
+    /// Opens after the user confirmed moving an unsealed session aside, because
+    /// its check could not finish. Requires the key, like any other open.
+    pub fn open_moving_leftover_aside(
+        vault_root: &Path,
+        passphrase: Option<&str>,
+        recovery_code: Option<&str>,
+        holder_id: &str,
+    ) -> Result<Self, EncryptedVaultError> {
+        let root = assert_claim_path(vault_root)?;
+        let header = Self::load_header(&root)?;
+        let dek = match (passphrase, recovery_code) {
+            (_, Some(code)) => KeyProvider::unlock_recovery(&header, code),
+            (Some(passphrase), None) => KeyProvider::unlock_passphrase(&header, passphrase),
+            (None, None) => return Err(EncryptedVaultError::MissingKeyMaterial),
+        }
+        .map_err(|_| EncryptedVaultError::MissingKeyMaterial)?;
+        Self::finish_open(root, header, dek, holder_id, LeftoverPolicy::MoveAside)
     }
 
     fn finish_open(
@@ -179,23 +249,76 @@ impl EncryptedVault {
         header: VaultKeyHeader,
         dek: VaultDek,
         holder_id: &str,
+        policy: LeftoverPolicy,
     ) -> Result<Self, EncryptedVaultError> {
         // The lock comes first. Reading the seal without it could restore a seal
         // that a closing session has just replaced, and this session's close
         // would then overwrite the newer one. A refused opener rewrites nothing.
         let session_lock = Self::take_session_lock(&root, holder_id)?;
-        // Spec 109: nothing else is touched until the replacement is
-        // authenticated. A torn or foreign `meta.sealed` fails here.
+        // Spec 109: nothing else is touched until the seal is authenticated, and
+        // a leftover is never adopted without a seal to compare it with.
         let (plain, seal_digest) = Self::decrypt_sealed_meta(&root, &header.vault_id, &dek)?;
         Self::acquire_lease(&root, holder_id)?;
         let _ = fs::remove_file(root.join(META_SEALED_TMP));
-        // Crash leftovers are not treated as sealed (Spec 017 FR-003); the
-        // caller is told so it can say that recent changes may be lost.
-        let discarded_interrupted_session = Self::leftover_work_present(&root);
-        Self::restore_work_file(&root, &dek, &plain, &seal_digest)?;
         let work = root.join(META_WORK);
-        let meta = SqliteMetaStore::open_at_sqlcipher(&work, dek.as_bytes())?;
+        let leftover = Self::leftover_work_exists(&root)?;
+        let work_source = match (leftover, policy) {
+            (false, _) => {
+                Self::restore_work_file(&root, &dek, &plain, &seal_digest)?;
+                WorkSource::Restored
+            }
+            (true, LeftoverPolicy::MoveAside) => {
+                Self::quarantine(&root, VERDICT_UNVERIFIABLE)
+                    .map_err(|e| EncryptedVaultError::WorkFileBlocked(e.to_string()))?;
+                Self::restore_work_file(&root, &dek, &plain, &seal_digest)?;
+                WorkSource::Restored
+            }
+            (true, LeftoverPolicy::Classify) => {
+                match Self::verify_leftover(&root, &dek, &seal_digest) {
+                    LeftoverVerdict::Retryable(why) => {
+                        return Err(EncryptedVaultError::WorkFileCheckUnavailable(why));
+                    }
+                    LeftoverVerdict::NewerSchema => {
+                        return Err(EncryptedVaultError::Meta(MetaError::UnsupportedSchema(
+                            "the interrupted session is from a newer build".to_owned(),
+                        )));
+                    }
+                    verdict @ (LeftoverVerdict::Unverifiable | LeftoverVerdict::Stale) => {
+                        let label = if matches!(verdict, LeftoverVerdict::Stale) {
+                            VERDICT_STALE
+                        } else {
+                            VERDICT_UNVERIFIABLE
+                        };
+                        Self::quarantine(&root, label).map_err(|e| {
+                            EncryptedVaultError::WorkFileCheckUnavailable(e.to_string())
+                        })?;
+                        Self::restore_work_file(&root, &dek, &plain, &seal_digest)?;
+                        WorkSource::Restored
+                    }
+                    LeftoverVerdict::Verified { schema } => {
+                        Self::keep_pre_recovery_copy(&root, &seal_digest)?;
+                        if schema < crate::CURRENT_META_SCHEMA_VERSION {
+                            Self::migrate_work_on_a_copy(&root, &dek).map_err(|e| {
+                                EncryptedVaultError::WorkFileCheckUnavailable(e.to_string())
+                            })?;
+                        }
+                        crash_point("adopt_before_open");
+                        WorkSource::Adopted
+                    }
+                }
+            }
+        };
+        let meta = match work_source {
+            WorkSource::Restored => SqliteMetaStore::open_at_sqlcipher(&work, dek.as_bytes())?,
+            // Offered the confirmed move-aside like any other failed check, so
+            // a good seal can't stay out of reach.
+            WorkSource::Adopted => {
+                SqliteMetaStore::open_existing_sqlcipher_no_migrate(&work, dek.as_bytes())
+                    .map_err(|e| EncryptedVaultError::WorkFileCheckUnavailable(e.to_string()))?
+            }
+        };
         let blobs = SealedBlobStore::open(&root, &header.vault_id)?;
+        let notice_pending = Self::any_notice_pending(&root)?;
         Ok(Self {
             vault_id: header.vault_id.clone(),
             root,
@@ -205,15 +328,362 @@ impl EncryptedVault {
             blobs,
             lease_holder: holder_id.to_owned(),
             _session_lock: session_lock,
-            discarded_interrupted_session,
+            work_source,
+            notice_pending,
+            notice_ack_requested: false,
         })
     }
 
-    /// True when this open found a work database from a session that never
-    /// sealed, and discarded it. Its unsealed changes are gone.
     #[must_use]
-    pub fn discarded_interrupted_session(&self) -> bool {
-        self.discarded_interrupted_session
+    pub fn work_source(&self) -> WorkSource {
+        self.work_source
+    }
+
+    /// True when a discarded session has not been reported to the user yet.
+    #[must_use]
+    pub fn notice_pending(&self) -> bool {
+        self.notice_pending
+    }
+
+    /// Asks for the notice to be cleared after the next successful persist, once
+    /// it is safe to say it was delivered.
+    pub fn request_notice_acknowledgement(&mut self) {
+        self.notice_ack_requested = true;
+    }
+
+    /// Clears the notice if that was requested. A failed persist never reaches
+    /// this, so the discard is reported again on the next open.
+    pub fn acknowledge_notice_if_requested(&mut self) {
+        if !std::mem::take(&mut self.notice_ack_requested) {
+            return;
+        }
+        self.notice_pending = false;
+        let Ok(entries) = fs::read_dir(self.root.join(DISCARDED_DIR)) else {
+            return;
+        };
+        for entry in entries.flatten() {
+            let _ = fs::remove_file(entry.path().join(NOTICE_FILE));
+        }
+    }
+
+    /// A recovered session failed to load for a definitive reason. Move it aside
+    /// and restore from the seal, keeping the session lock throughout.
+    pub fn discard_adopted_and_restore(mut self) -> Result<Self, Box<(Self, EncryptedVaultError)>> {
+        let plain = match Self::decrypt_sealed_meta(&self.root, &self.vault_id, &self.dek) {
+            Ok(decrypted) => decrypted,
+            Err(e) => return Err(Box::new((self, e))),
+        };
+        // Windows: SQLite opens without delete sharing, so close before moving.
+        let closed = match Self::placeholder_store() {
+            Ok(store) => store,
+            Err(e) => return Err(Box::new((self, EncryptedVaultError::Meta(e)))),
+        };
+        drop(std::mem::replace(&mut self.meta, closed));
+        let result = Self::quarantine(&self.root, VERDICT_UNVERIFIABLE)
+            .and_then(|()| Self::restore_work_file(&self.root, &self.dek, &plain.0, &plain.1))
+            .and_then(|()| {
+                Ok(SqliteMetaStore::open_at_sqlcipher(
+                    &self.root.join(META_WORK),
+                    self.dek.as_bytes(),
+                )?)
+            });
+        match result {
+            Ok(meta) => {
+                self.meta = meta;
+                self.work_source = WorkSource::Restored;
+                self.notice_pending = true;
+                Ok(self)
+            }
+            Err(e) => Err(Box::new((self, e))),
+        }
+    }
+
+    /// A restored copy failed to load. It holds no session, so it is removed and
+    /// the seal is left as it was.
+    pub fn remove_restored_work_file(self) {
+        let EncryptedVault {
+            root,
+            meta,
+            work_source,
+            ..
+        } = self;
+        drop(meta);
+        if work_source == WorkSource::Restored {
+            let _ = Self::wipe_work_sidecars(&root);
+        }
+    }
+
+    /// An in-memory stand-in, so the real connection can close while the vault
+    /// keeps its lock.
+    fn placeholder_store() -> Result<SqliteMetaStore, MetaError> {
+        SqliteMetaStore::open_in_memory_placeholder()
+    }
+
+    /// `try_exists`, so a metadata error can't read as "no session here".
+    fn leftover_work_exists(root: &Path) -> Result<bool, EncryptedVaultError> {
+        let work = root.join(META_WORK);
+        for path in [
+            work.clone(),
+            sqlite_sidecar(&work, "-wal"),
+            sqlite_sidecar(&work, "-shm"),
+            sqlite_sidecar(&work, "-journal"),
+        ] {
+            if path
+                .try_exists()
+                .map_err(|e| EncryptedVaultError::WorkFileCheckUnavailable(e.to_string()))?
+            {
+                return Ok(true);
+            }
+        }
+        Ok(false)
+    }
+
+    /// Spec 109 I3: an unknown result is retryable, and only a result seen twice
+    /// is definitive, because a failed salt read can make a good file report
+    /// "not a database". The connection is closed before this returns.
+    fn verify_leftover(root: &Path, dek: &VaultDek, seal_digest: &str) -> LeftoverVerdict {
+        let work = root.join(META_WORK);
+        match fs::metadata(&work) {
+            Err(e) if e.kind() == std::io::ErrorKind::NotFound => {
+                return LeftoverVerdict::Unverifiable;
+            }
+            Err(e) => return LeftoverVerdict::Retryable(e.to_string()),
+            Ok(meta) if meta.len() < MIN_WORK_FILE_BYTES => return LeftoverVerdict::Unverifiable,
+            Ok(_) => {}
+        }
+        let first = Self::check_work_file(&work, dek);
+        let settled = if first.is_bad() {
+            // Only two matching results are definitive. A good second look wins.
+            let second = Self::confirm_definitive(&work, dek);
+            if second.is_healthy() || second.same_kind_of_bad(&first) {
+                second
+            } else {
+                WorkCheckResult::Retryable("the check gave different results".to_owned())
+            }
+        } else {
+            first
+        };
+        match settled {
+            WorkCheckResult::Retryable(why) => LeftoverVerdict::Retryable(why),
+            WorkCheckResult::Definitive
+            | WorkCheckResult::Done(WorkDatabaseCheck::Damaged | WorkDatabaseCheck::Incomplete) => {
+                LeftoverVerdict::Unverifiable
+            }
+            WorkCheckResult::Done(WorkDatabaseCheck::Healthy { marker, schema }) => {
+                if schema > crate::CURRENT_META_SCHEMA_VERSION {
+                    LeftoverVerdict::NewerSchema
+                } else if marker.is_none() {
+                    LeftoverVerdict::Unverifiable
+                } else if marker.as_deref() == Some(seal_digest) {
+                    LeftoverVerdict::Verified { schema }
+                } else {
+                    LeftoverVerdict::Stale
+                }
+            }
+        }
+    }
+
+    /// Confirms the file reads end to end, waits, and checks once more.
+    fn confirm_definitive(work: &Path, dek: &VaultDek) -> WorkCheckResult {
+        if let Err(e) = fs::read(work) {
+            return WorkCheckResult::Retryable(e.to_string());
+        }
+        std::thread::sleep(std::time::Duration::from_millis(250));
+        Self::check_work_file(work, dek)
+    }
+
+    fn check_work_file(work: &Path, dek: &VaultDek) -> WorkCheckResult {
+        #[cfg(test)]
+        if test_hooks::take_transient_failure() {
+            return WorkCheckResult::Definitive;
+        }
+        let store = match SqliteMetaStore::open_existing_sqlcipher_no_migrate(work, dek.as_bytes())
+        {
+            Ok(store) => store,
+            Err(e) => return WorkCheckResult::from_error(&e),
+        };
+        match store.verify_work_database() {
+            Ok(check) => WorkCheckResult::Done(check),
+            Err(e) => WorkCheckResult::from_error(&e),
+        }
+    }
+
+    /// Moves the leftover to a new generation folder, and never overwrites one
+    /// (I6). A failure moves everything back and leaves no generation.
+    fn quarantine(root: &Path, verdict: &str) -> Result<(), EncryptedVaultError> {
+        let base = root.join(DISCARDED_DIR);
+        fs::create_dir_all(&base)?;
+        let next = Self::generations(&base)?
+            .iter()
+            .map(|(n, _)| n + 1)
+            .max()
+            .unwrap_or(1);
+        let generation = base.join(next.to_string());
+        fs::create_dir(&generation)?;
+        fs::write(generation.join(VERDICT_FILE), verdict)?;
+        fs::write(generation.join(NOTICE_FILE), b"")?;
+        let work = root.join(META_WORK);
+        let mut moved: Vec<(PathBuf, PathBuf)> = Vec::new();
+        for path in [
+            work.clone(),
+            sqlite_sidecar(&work, "-journal"),
+            sqlite_sidecar(&work, "-wal"),
+            sqlite_sidecar(&work, "-shm"),
+        ] {
+            let name = path
+                .file_name()
+                .map(std::ffi::OsStr::to_os_string)
+                .unwrap_or_default();
+            let to = generation.join(name);
+            let attempt = path.try_exists().and_then(|exists| {
+                if exists {
+                    rename_with_retry(&path, &to).map(|()| true)
+                } else {
+                    Ok(false)
+                }
+            });
+            match attempt {
+                Ok(true) => {
+                    moved.push((path, to));
+                    crash_point("quarantine_after_move");
+                }
+                Ok(false) => {}
+                Err(e) => {
+                    let mut all_back = true;
+                    for (from, to) in moved.iter().rev() {
+                        all_back &= rename_with_retry(to, from).is_ok();
+                    }
+                    // A generation that still holds a file is the only copy of
+                    // it, so it stays, however this attempt ended (I6).
+                    if all_back {
+                        let _ = fs::remove_dir_all(&generation);
+                    }
+                    return Err(EncryptedVaultError::Io(e));
+                }
+            }
+        }
+        // The session is out of the way. A failure below can't undo that and
+        // must not read as "nothing changed": an incomplete generation is never
+        // evicted, so nothing is at risk.
+        let _ = fs::write(generation.join(COMPLETE_FILE), b"");
+        let _ = sync_dir(root);
+        let _ = sync_dir(&base);
+        Self::evict_stale_generations(&base);
+        Ok(())
+    }
+
+    fn generations(base: &Path) -> Result<Vec<(u64, PathBuf)>, EncryptedVaultError> {
+        let mut found = Vec::new();
+        for entry in fs::read_dir(base)? {
+            let entry = entry?;
+            if let Some(number) = entry
+                .file_name()
+                .to_str()
+                .and_then(|name| name.parse::<u64>().ok())
+            {
+                found.push((number, entry.path()));
+            }
+        }
+        found.sort();
+        Ok(found)
+    }
+
+    /// Only complete `stale` generations are ever evicted. An `unverifiable` one
+    /// may hold real work, so it stays until the user deletes it.
+    fn evict_stale_generations(base: &Path) {
+        let Ok(generations) = Self::generations(base) else {
+            return;
+        };
+        let stale: Vec<PathBuf> = generations
+            .into_iter()
+            .map(|(_, path)| path)
+            .filter(|path| {
+                path.join(COMPLETE_FILE).exists()
+                    && fs::read_to_string(path.join(VERDICT_FILE))
+                        .is_ok_and(|verdict| verdict == VERDICT_STALE)
+            })
+            .collect();
+        let excess = stale.len().saturating_sub(RECOVERY_RETENTION);
+        for path in stale.into_iter().take(excess) {
+            let _ = fs::remove_dir_all(path);
+        }
+    }
+
+    fn any_notice_pending(root: &Path) -> Result<bool, EncryptedVaultError> {
+        let base = root.join(DISCARDED_DIR);
+        if !base.try_exists()? {
+            return Ok(false);
+        }
+        for (_, generation) in Self::generations(&base)? {
+            if generation.join(NOTICE_FILE).try_exists()? {
+                return Ok(true);
+            }
+        }
+        Ok(false)
+    }
+
+    /// I2: a durable, verified copy of the seal this session descends from. Named
+    /// by digest, and rewritten if an existing file doesn't match its name.
+    fn keep_pre_recovery_copy(root: &Path, seal_digest: &str) -> Result<(), EncryptedVaultError> {
+        let unavailable =
+            |e: std::io::Error| EncryptedVaultError::WorkFileCheckUnavailable(e.to_string());
+        let dir = root.join(PRE_RECOVERY_DIR);
+        fs::create_dir_all(&dir).map_err(unavailable)?;
+        let copy = dir.join(format!("{seal_digest}.sealed"));
+        if let Ok(existing) = fs::read(&copy)
+            && DigestSha256::of(&existing).to_hex() == seal_digest
+        {
+            return Ok(());
+        }
+        let bytes = fs::read(root.join(META_SEALED)).map_err(unavailable)?;
+        if DigestSha256::of(&bytes).to_hex() != seal_digest {
+            return Err(EncryptedVaultError::WorkFileCheckUnavailable(
+                "the sealed file changed during recovery".to_owned(),
+            ));
+        }
+        write_durably(&dir.join(format!("{seal_digest}.tmp")), &copy, &bytes)
+            .map_err(|e| EncryptedVaultError::WorkFileCheckUnavailable(e.to_string()))?;
+        crash_point("adopt_after_copy");
+        Self::evict_old_copies(&dir);
+        Ok(())
+    }
+
+    fn evict_old_copies(dir: &Path) {
+        let Ok(entries) = fs::read_dir(dir) else {
+            return;
+        };
+        let mut copies: Vec<(std::time::SystemTime, PathBuf)> = entries
+            .flatten()
+            .filter(|e| e.path().extension().is_some_and(|x| x == "sealed"))
+            .filter_map(|e| Some((e.metadata().ok()?.modified().ok()?, e.path())))
+            .collect();
+        copies.sort();
+        let excess = copies.len().saturating_sub(RECOVERY_RETENTION);
+        for (_, path) in copies.into_iter().take(excess) {
+            let _ = fs::remove_file(path);
+        }
+    }
+
+    /// `migrate()` is not atomic, so migration runs on a temp copy. A crash leaves
+    /// only that removable file, and the marker survives in the copy.
+    fn migrate_work_on_a_copy(root: &Path, dek: &VaultDek) -> Result<(), EncryptedVaultError> {
+        let work = root.join(META_WORK);
+        let tmp = root.join(META_WORK_TMP);
+        for stale in [META_WORK_TMP, META_WORK_TMP_JOURNAL] {
+            let path = root.join(stale);
+            if path.try_exists()? {
+                remove_with_retry(&path)?;
+            }
+        }
+        fs::copy(&work, &tmp)?;
+        {
+            let _migrated = SqliteMetaStore::open_at_sqlcipher(&tmp, dek.as_bytes())?;
+        }
+        fs::OpenOptions::new().write(true).open(&tmp)?.sync_all()?;
+        crash_point("adopt_after_migrated_copy");
+        rename_with_retry(&tmp, &work)?;
+        sync_dir(root)?;
+        Ok(())
     }
 
     /// Replaces the work file with a copy of the authenticated seal, carrying
@@ -540,7 +1010,103 @@ impl EncryptedVault {
         {
             return false;
         }
+        for dir in [PRE_RECOVERY_DIR, DISCARDED_DIR] {
+            if contains_marker(&self.root.join(dir), marker) {
+                return false;
+            }
+        }
         self.blobs.plaintext_marker_absent(marker)
+    }
+}
+
+/// True if any file under `dir` contains the marker.
+fn contains_marker(dir: &Path, marker: &[u8]) -> bool {
+    let Ok(entries) = fs::read_dir(dir) else {
+        return false;
+    };
+    entries.flatten().any(|entry| {
+        let path = entry.path();
+        if path.is_dir() {
+            contains_marker(&path, marker)
+        } else {
+            fs::read(&path).is_ok_and(|bytes| bytes.windows(marker.len()).any(|w| w == marker))
+        }
+    })
+}
+
+#[cfg(test)]
+mod test_hooks {
+    use std::cell::Cell;
+
+    thread_local! {
+        static TRANSIENT_FAILURES: Cell<u32> = const { Cell::new(0) };
+    }
+
+    /// Makes the next keyed check report "not a database" once, as a failed salt
+    /// read can on a good file.
+    pub(super) fn inject_transient_failure() {
+        TRANSIENT_FAILURES.with(|n| n.set(n.get() + 1));
+    }
+
+    pub(super) fn take_transient_failure() -> bool {
+        TRANSIENT_FAILURES.with(|n| {
+            let left = n.get();
+            n.set(left.saturating_sub(1));
+            left > 0
+        })
+    }
+}
+
+/// One keyed check of a leftover.
+enum WorkCheckResult {
+    Done(WorkDatabaseCheck),
+    /// SQLite said the file itself is bad. Needs confirming.
+    Definitive,
+    Retryable(String),
+}
+
+impl WorkCheckResult {
+    fn is_healthy(&self) -> bool {
+        matches!(self, Self::Done(WorkDatabaseCheck::Healthy { .. }))
+    }
+
+    fn is_bad(&self) -> bool {
+        matches!(
+            self,
+            Self::Definitive
+                | Self::Done(WorkDatabaseCheck::Damaged | WorkDatabaseCheck::Incomplete)
+        )
+    }
+
+    fn same_kind_of_bad(&self, other: &Self) -> bool {
+        matches!(
+            (self, other),
+            (Self::Definitive, Self::Definitive)
+                | (
+                    Self::Done(WorkDatabaseCheck::Damaged),
+                    Self::Done(WorkDatabaseCheck::Damaged)
+                )
+                | (
+                    Self::Done(WorkDatabaseCheck::Incomplete),
+                    Self::Done(WorkDatabaseCheck::Incomplete)
+                )
+        )
+    }
+
+    /// The allowlist. Everything else, including an unknown error, is retryable.
+    fn from_error(error: &MetaError) -> Self {
+        use rusqlite::ErrorCode;
+        match error {
+            MetaError::Sqlite(rusqlite::Error::SqliteFailure(failure, _))
+                if matches!(
+                    failure.code,
+                    ErrorCode::NotADatabase | ErrorCode::DatabaseCorrupt
+                ) =>
+            {
+                Self::Definitive
+            }
+            other => Self::Retryable(other.to_string()),
+        }
     }
 }
 
@@ -767,6 +1333,60 @@ mod crash_tests {
         names
     }
 
+    fn adopted_or_restored(vault: &EncryptedVault) -> (Vec<String>, WorkSource, bool) {
+        (sources(vault), vault.work_source(), vault.notice_pending())
+    }
+
+    fn generation_verdicts(root: &Path) -> Vec<String> {
+        let base = root.join(DISCARDED_DIR);
+        if !base.exists() {
+            return Vec::new();
+        }
+        EncryptedVault::generations(&base)
+            .expect("generations")
+            .iter()
+            .map(|(_, path)| fs::read_to_string(path.join(VERDICT_FILE)).expect("verdict"))
+            .collect()
+    }
+
+    fn open_vault(root: &Path) -> Result<EncryptedVault, EncryptedVaultError> {
+        EncryptedVault::open_with_passphrase(root, PASS, HOLDER)
+    }
+
+    /// A session that wrote and then crashed: a real marker-bound leftover.
+    fn crashed_session(tag: &str) -> PathBuf {
+        let root = sealed_with_one_source(tag);
+        let session = open_vault(&root).expect("open");
+        session.insert_source(&source("committed")).expect("write");
+        drop(session);
+        root
+    }
+
+    #[test]
+    fn a_crash_while_unlocked_recovers_committed_work_and_keeps_the_seal() {
+        let root = crashed_session("recover");
+        let seal = fs::read(root.join(META_SEALED)).expect("seal");
+        let digest = DigestSha256::of(&seal).to_hex();
+        let vault = open_vault(&root).expect("recover");
+        assert_eq!(sources(&vault), ["committed", "sealed"]);
+        assert_eq!(vault.work_source(), WorkSource::Adopted);
+        let copy = root.join(PRE_RECOVERY_DIR).join(format!("{digest}.sealed"));
+        assert_eq!(
+            fs::read(&copy).expect("copy"),
+            seal,
+            "I2: the seal was kept"
+        );
+        assert_eq!(fs::read(root.join(META_SEALED)).expect("seal"), seal);
+        vault.close().expect("close");
+
+        let reopened = open_vault(&root).expect("open");
+        assert_eq!(reopened.work_source(), WorkSource::Restored);
+        assert_eq!(sources(&reopened), ["committed", "sealed"]);
+        assert!(copy.exists(), "a later load purges nothing");
+        reopened.close().expect("close");
+        fs::remove_dir_all(&root).expect("cleanup");
+    }
+
     #[test]
     fn a_crash_during_restore_keeps_the_seal_and_the_next_open_works() {
         for boundary in [
@@ -777,47 +1397,455 @@ mod crash_tests {
         ] {
             let root = sealed_with_one_source("restore");
             let seal = fs::read(root.join(META_SEALED)).expect("seal");
-            // A crashed session, so the sidecar and rename steps have work to do.
-            let session = EncryptedVault::open_with_passphrase(&root, PASS, HOLDER).expect("open");
-            session.insert_source(&source("unsealed")).expect("write");
-            drop(session);
-            fs::write(root.join("meta.work.sqlite3-journal"), b"stale").expect("journal");
+            // An unverifiable leftover, so the restore path is the one taken.
+            fs::write(root.join(META_WORK), b"not a database").expect("leftover");
             run_child(&root, "open", boundary);
             assert_eq!(
                 fs::read(root.join(META_SEALED)).expect("seal"),
                 seal,
                 "{boundary}"
             );
-            let vault = EncryptedVault::open_with_passphrase(&root, PASS, HOLDER)
-                .unwrap_or_else(|e| panic!("{boundary}: {e}"));
-            assert_eq!(sources(&vault), ["sealed"], "{boundary}");
-            assert!(
-                vault.discarded_interrupted_session(),
-                "{boundary}: the crash did not hide the discard"
-            );
+            let vault = open_vault(&root).unwrap_or_else(|e| panic!("{boundary}: {e}"));
+            let (names, _, notice) = adopted_or_restored(&vault);
+            assert_eq!(names, ["sealed"], "{boundary}");
+            assert!(notice, "{boundary}: the crash did not hide the discard");
             vault.close().expect("close");
             fs::remove_dir_all(&root).expect("cleanup");
         }
     }
 
     #[test]
-    fn a_crash_during_close_leaves_either_the_old_seal_or_the_new_one() {
-        // Before the rename the old seal is current; from the rename on, the
-        // new one is. Part A discards the leftover, so this is what opens next.
-        for (boundary, expected) in [
-            ("seal_after_temp", &["sealed"][..]),
-            ("seal_after_rename", &["in-this-session", "sealed"][..]),
-            ("close_before_wipe", &["in-this-session", "sealed"][..]),
-            ("close_after_wipe", &["in-this-session", "sealed"][..]),
+    fn a_crash_during_close_never_loses_the_session() {
+        // Before the rename the work file is recovered; from the rename on, the
+        // new seal already holds it. Either way nothing is lost.
+        for (boundary, source_after) in [
+            ("seal_after_temp", WorkSource::Adopted),
+            ("seal_after_rename", WorkSource::Restored),
+            ("close_before_wipe", WorkSource::Restored),
+            ("close_after_wipe", WorkSource::Restored),
         ] {
             let root = sealed_with_one_source("close");
             run_child(&root, "write_and_close", boundary);
-            let vault = EncryptedVault::open_with_passphrase(&root, PASS, HOLDER)
-                .unwrap_or_else(|e| panic!("{boundary}: {e}"));
-            assert_eq!(sources(&vault), expected, "{boundary}");
+            let vault = open_vault(&root).unwrap_or_else(|e| panic!("{boundary}: {e}"));
+            assert_eq!(sources(&vault), ["in-this-session", "sealed"], "{boundary}");
+            assert_eq!(vault.work_source(), source_after, "{boundary}");
             vault.close().expect("close");
             fs::remove_dir_all(&root).expect("cleanup");
         }
+    }
+
+    #[test]
+    fn a_crash_during_adoption_leaves_a_session_the_next_open_recovers() {
+        for boundary in ["adopt_after_copy", "adopt_before_open"] {
+            let root = sealed_with_one_source("adopt");
+            let session = open_vault(&root).expect("open");
+            session.insert_source(&source("committed")).expect("write");
+            drop(session);
+            run_child(&root, "open", boundary);
+            let vault = open_vault(&root).unwrap_or_else(|e| panic!("{boundary}: {e}"));
+            assert_eq!(sources(&vault), ["committed", "sealed"], "{boundary}");
+            assert_eq!(vault.work_source(), WorkSource::Adopted, "{boundary}");
+            vault.close().expect("close");
+            fs::remove_dir_all(&root).expect("cleanup");
+        }
+    }
+
+    #[test]
+    fn a_crash_mid_quarantine_keeps_the_files_and_the_notice() {
+        let root = sealed_with_one_source("quarantine-crash");
+        fs::write(root.join(META_WORK), b"not a database").expect("work");
+        run_child(&root, "open", "quarantine_after_move");
+        let vault = open_vault(&root).expect("open");
+        assert!(vault.notice_pending());
+        assert_eq!(sources(&vault), ["sealed"]);
+        vault.close().expect("close");
+        let moved = root.join(DISCARDED_DIR).join("1").join(META_WORK);
+        assert_eq!(fs::read(moved).expect("kept"), b"not a database");
+        fs::remove_dir_all(&root).expect("cleanup");
+    }
+
+    #[test]
+    fn what_cannot_be_verified_is_moved_aside_never_adopted() {
+        let random: Vec<u8> = (0..8192_u32)
+            .map(|i| (i.wrapping_mul(31) % 251) as u8)
+            .collect();
+        let plaintext = {
+            let dir = scratch("plain");
+            let path = dir.join("plain.sqlite3");
+            {
+                let _ = SqliteMetaStore::open_at(&path).expect("plain");
+            }
+            let bytes = fs::read(&path).expect("read");
+            fs::remove_dir_all(&dir).expect("cleanup");
+            bytes
+        };
+        for (name, bytes) in [
+            ("empty", Vec::new()),
+            ("short", vec![1_u8; 100]),
+            ("zero-filled", vec![0_u8; 8192]),
+            ("random", random),
+            ("plaintext", plaintext),
+        ] {
+            let root = sealed_with_one_source("garbage");
+            let seal = fs::read(root.join(META_SEALED)).expect("seal");
+            fs::write(root.join(META_WORK), &bytes).expect("plant");
+            let vault = open_vault(&root).unwrap_or_else(|e| panic!("{name}: {e}"));
+            assert_eq!(sources(&vault), ["sealed"], "{name}");
+            assert_eq!(vault.work_source(), WorkSource::Restored, "{name}");
+            assert!(vault.notice_pending(), "{name}");
+            assert_eq!(generation_verdicts(&root), [VERDICT_UNVERIFIABLE], "{name}");
+            assert_eq!(
+                fs::read(root.join(META_SEALED)).expect("seal"),
+                seal,
+                "{name}"
+            );
+            vault.close().expect("close");
+            let kept = root.join(DISCARDED_DIR).join("1").join(META_WORK);
+            assert_eq!(fs::read(kept).expect("kept"), bytes, "{name}: I6");
+            fs::remove_dir_all(&root).expect("cleanup");
+        }
+    }
+
+    #[test]
+    fn a_missing_or_foreign_marker_is_never_adopted() {
+        // Missing: unverifiable.
+        let root = crashed_session("no-marker");
+        {
+            let key = {
+                let header = EncryptedVault::load_header(&root).expect("header");
+                KeyProvider::unlock_passphrase(&header, PASS).expect("key")
+            };
+            let store = SqliteMetaStore::open_existing_sqlcipher_no_migrate(
+                &root.join(META_WORK),
+                key.as_bytes(),
+            )
+            .expect("open");
+            store
+                .conn()
+                .execute("DELETE FROM store_state WHERE key = 'base_seal_digest'", [])
+                .expect("delete");
+        }
+        let vault = open_vault(&root).expect("open");
+        assert_eq!(sources(&vault), ["sealed"]);
+        assert_eq!(generation_verdicts(&root), [VERDICT_UNVERIFIABLE]);
+        vault.close().expect("close");
+        fs::remove_dir_all(&root).expect("cleanup");
+
+        // Naming an older seal: a work file from an earlier session. Not adopted.
+        let root = sealed_with_one_source("old-work");
+        let session = open_vault(&root).expect("open");
+        session.insert_source(&source("older")).expect("write");
+        let old_work = fs::read(root.join(META_WORK)).expect("work");
+        session.close().expect("close");
+        let session = open_vault(&root).expect("open");
+        session.insert_source(&source("newer")).expect("write");
+        session.close().expect("close");
+        fs::write(root.join(META_WORK), old_work).expect("plant");
+        let vault = open_vault(&root).expect("open");
+        assert_eq!(
+            sources(&vault),
+            ["newer", "older", "sealed"],
+            "the seal won"
+        );
+        assert!(vault.notice_pending(), "I7: every mismatch shows a notice");
+        assert_eq!(generation_verdicts(&root), [VERDICT_STALE]);
+        vault.close().expect("close");
+        fs::remove_dir_all(&root).expect("cleanup");
+    }
+
+    #[test]
+    fn a_deleted_seal_never_lets_a_work_file_be_adopted() {
+        let root = crashed_session("no-seal");
+        fs::remove_file(root.join(META_SEALED)).expect("delete");
+        let work = fs::read(root.join(META_WORK)).expect("work");
+        assert!(matches!(
+            open_vault(&root),
+            Err(EncryptedVaultError::SealedMetaUnreadable)
+        ));
+        assert_eq!(fs::read(root.join(META_WORK)).expect("work"), work);
+        fs::remove_dir_all(&root).expect("cleanup");
+    }
+
+    #[test]
+    fn a_held_lock_is_retryable_and_changes_nothing() {
+        let root = crashed_session("busy");
+        let header = EncryptedVault::load_header(&root).expect("header");
+        let key = KeyProvider::unlock_passphrase(&header, PASS).expect("key");
+        let holder = SqliteMetaStore::open_existing_sqlcipher_no_migrate(
+            &root.join(META_WORK),
+            key.as_bytes(),
+        )
+        .expect("holder");
+        holder
+            .conn()
+            .execute_batch("PRAGMA busy_timeout = 0; BEGIN EXCLUSIVE")
+            .expect("lock");
+        let work = fs::read(root.join(META_WORK));
+        let seal = fs::read(root.join(META_SEALED)).expect("seal");
+        let outcome = open_vault(&root);
+        assert!(
+            matches!(
+                outcome,
+                Err(EncryptedVaultError::WorkFileCheckUnavailable(_))
+            ),
+            "{outcome:?}"
+        );
+        assert_eq!(fs::read(root.join(META_SEALED)).expect("seal"), seal);
+        assert!(generation_verdicts(&root).is_empty(), "nothing moved");
+        if let Ok(before) = work {
+            assert_eq!(fs::read(root.join(META_WORK)).expect("work"), before);
+        }
+        drop(holder);
+        let vault = open_vault(&root).expect("recovers once the lock is gone");
+        assert_eq!(sources(&vault), ["committed", "sealed"]);
+        vault.close().expect("close");
+        fs::remove_dir_all(&root).expect("cleanup");
+    }
+
+    #[test]
+    fn a_confirmed_move_aside_opens_the_last_saved_state() {
+        let root = crashed_session("move-aside");
+        let vault = EncryptedVault::open_moving_leftover_aside(&root, Some(PASS), None, HOLDER)
+            .expect("open");
+        assert_eq!(sources(&vault), ["sealed"]);
+        assert!(vault.notice_pending());
+        assert_eq!(generation_verdicts(&root), [VERDICT_UNVERIFIABLE]);
+        vault.close().expect("close");
+        fs::remove_dir_all(&root).expect("cleanup");
+    }
+
+    #[test]
+    fn an_interrupted_migration_or_a_newer_schema_is_never_adopted() {
+        let key_of = |root: &Path| {
+            let header = EncryptedVault::load_header(root).expect("header");
+            KeyProvider::unlock_passphrase(&header, PASS).expect("key")
+        };
+        let root = crashed_session("interrupted");
+        {
+            let key = key_of(&root);
+            let store = SqliteMetaStore::open_existing_sqlcipher_no_migrate(
+                &root.join(META_WORK),
+                key.as_bytes(),
+            )
+            .expect("open");
+            store
+                .conn()
+                .execute(
+                    "INSERT INTO migration_journal(version, state) VALUES (?1, 'started')",
+                    rusqlite::params![crate::CURRENT_META_SCHEMA_VERSION + 5],
+                )
+                .expect("started");
+        }
+        let vault = open_vault(&root).expect("open");
+        assert_eq!(sources(&vault), ["sealed"]);
+        assert_eq!(generation_verdicts(&root), [VERDICT_UNVERIFIABLE]);
+        vault.close().expect("close");
+        fs::remove_dir_all(&root).expect("cleanup");
+
+        let root = crashed_session("newer-leftover");
+        {
+            let key = key_of(&root);
+            let store = SqliteMetaStore::open_existing_sqlcipher_no_migrate(
+                &root.join(META_WORK),
+                key.as_bytes(),
+            )
+            .expect("open");
+            store
+                .conn()
+                .execute(
+                    "INSERT INTO migration_journal(version, state) VALUES (?1, 'finished')",
+                    rusqlite::params![crate::CURRENT_META_SCHEMA_VERSION + 1],
+                )
+                .expect("finished");
+        }
+        assert!(matches!(
+            open_vault(&root),
+            Err(EncryptedVaultError::Meta(MetaError::UnsupportedSchema(_)))
+        ));
+        assert!(generation_verdicts(&root).is_empty(), "nothing moved");
+        fs::remove_dir_all(&root).expect("cleanup");
+    }
+
+    #[test]
+    fn a_hot_journal_keeps_committed_rows_and_drops_uncommitted_ones() {
+        let root = sealed_with_one_source("hot");
+        let vault = open_vault(&root).expect("open");
+        vault.insert_source(&source("committed")).expect("write");
+        let committed_bytes = fs::read(root.join(META_WORK)).expect("work");
+        let conn = vault.meta.conn();
+        conn.execute_batch("PRAGMA cache_size = 1; BEGIN IMMEDIATE")
+            .expect("begin");
+        for i in 0..300 {
+            vault
+                .insert_source(&source(&format!("uncommitted-{i}")))
+                .expect("uncommitted");
+        }
+        let work = fs::read(root.join(META_WORK)).expect("work");
+        assert_ne!(work, committed_bytes, "uncommitted pages reached the file");
+        let journal = fs::read(root.join("meta.work.sqlite3-journal")).expect("a real hot journal");
+        conn.execute_batch("ROLLBACK").expect("rollback");
+        drop(vault);
+        fs::write(root.join(META_WORK), work).expect("work");
+        fs::write(root.join("meta.work.sqlite3-journal"), journal).expect("journal");
+
+        let recovered = open_vault(&root).expect("recover");
+        assert_eq!(sources(&recovered), ["committed", "sealed"]);
+        assert_eq!(recovered.work_source(), WorkSource::Adopted);
+        recovered.close().expect("close");
+        fs::remove_dir_all(&root).expect("cleanup");
+    }
+
+    #[test]
+    fn one_transient_failure_ends_in_adoption_not_discard() {
+        let root = crashed_session("transient");
+        test_hooks::inject_transient_failure();
+        let vault = open_vault(&root).expect("recover");
+        assert_eq!(sources(&vault), ["committed", "sealed"]);
+        assert_eq!(vault.work_source(), WorkSource::Adopted);
+        assert!(generation_verdicts(&root).is_empty(), "nothing was moved");
+        vault.close().expect("close");
+        fs::remove_dir_all(&root).expect("cleanup");
+    }
+
+    #[test]
+    fn a_work_file_under_another_key_is_never_adopted() {
+        let root = sealed_with_one_source("wrong-key");
+        {
+            let other = root.join(META_WORK);
+            let store = SqliteMetaStore::open_at_sqlcipher(&other, &[9_u8; 32]).expect("create");
+            store.insert_source(&source("foreign")).expect("write");
+        }
+        let vault = open_vault(&root).expect("open");
+        assert_eq!(sources(&vault), ["sealed"]);
+        assert_eq!(generation_verdicts(&root), [VERDICT_UNVERIFIABLE]);
+        vault.close().expect("close");
+        fs::remove_dir_all(&root).expect("cleanup");
+    }
+
+    /// SQLCipher's error for a bad page is not documented here, so this asserts
+    /// the guarantee, not the code: damaged work is never adopted, the seal is
+    /// untouched, and nothing is lost whichever way it classifies.
+    #[test]
+    fn a_corrupt_page_is_never_adopted_and_the_seal_survives() {
+        let root = crashed_session("corrupt");
+        let seal = fs::read(root.join(META_SEALED)).expect("seal");
+        let mut work = fs::read(root.join(META_WORK)).expect("work");
+        assert!(work.len() > 8192, "more than one page");
+        let page = 4096;
+        for byte in &mut work[page + 100..page + 200] {
+            *byte ^= 0xFF;
+        }
+        fs::write(root.join(META_WORK), &work).expect("corrupt");
+        match open_vault(&root) {
+            Ok(vault) => {
+                assert_eq!(sources(&vault), ["sealed"], "opened from the seal");
+                assert_eq!(generation_verdicts(&root), [VERDICT_UNVERIFIABLE]);
+                vault.close().expect("close");
+            }
+            Err(e) => {
+                println!("corrupt page classified as: {e}");
+                assert!(
+                    matches!(e, EncryptedVaultError::WorkFileCheckUnavailable(_)),
+                    "{e}"
+                );
+                assert_eq!(fs::read(root.join(META_WORK)).expect("work"), work);
+                assert_eq!(fs::read(root.join(META_SEALED)).expect("seal"), seal);
+                let vault =
+                    EncryptedVault::open_moving_leftover_aside(&root, Some(PASS), None, HOLDER)
+                        .expect("the confirmed way out");
+                assert_eq!(sources(&vault), ["sealed"]);
+                vault.close().expect("close");
+            }
+        }
+        fs::remove_dir_all(&root).expect("cleanup");
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn permission_denied_is_retryable_and_changes_nothing() {
+        use std::os::unix::fs::PermissionsExt;
+        let root = crashed_session("denied");
+        let work = root.join(META_WORK);
+        let before = fs::read(&work).expect("work");
+        fs::set_permissions(&work, fs::Permissions::from_mode(0o000)).expect("chmod");
+        let outcome = open_vault(&root);
+        fs::set_permissions(&work, fs::Permissions::from_mode(0o600)).expect("chmod");
+        assert!(
+            matches!(
+                outcome,
+                Err(EncryptedVaultError::WorkFileCheckUnavailable(_))
+            ),
+            "{outcome:?}"
+        );
+        assert_eq!(fs::read(&work).expect("work"), before);
+        fs::remove_dir_all(&root).expect("cleanup");
+    }
+
+    /// An older schema: remove the newest migration's journal row. Its DDL is
+    /// `CREATE ... IF NOT EXISTS`, so running it again is safe.
+    fn age_work_file_schema(root: &Path) {
+        let header = EncryptedVault::load_header(root).expect("header");
+        let key = KeyProvider::unlock_passphrase(&header, PASS).expect("key");
+        let store = SqliteMetaStore::open_existing_sqlcipher_no_migrate(
+            &root.join(META_WORK),
+            key.as_bytes(),
+        )
+        .expect("open");
+        store
+            .conn()
+            .execute(
+                "DELETE FROM migration_journal WHERE version = ?1",
+                rusqlite::params![crate::CURRENT_META_SCHEMA_VERSION],
+            )
+            .expect("age");
+    }
+
+    #[test]
+    fn an_older_schema_migrates_on_a_copy_and_a_crash_there_loses_nothing() {
+        let root = crashed_session("migrate-crash");
+        age_work_file_schema(&root);
+        run_child(&root, "open", "adopt_after_migrated_copy");
+        // The real work file was not touched: still the older schema.
+        let vault = open_vault(&root).expect("recover");
+        assert_eq!(sources(&vault), ["committed", "sealed"]);
+        assert_eq!(vault.work_source(), WorkSource::Adopted);
+        assert_eq!(
+            vault
+                .meta
+                .migration_journal()
+                .expect("journal")
+                .finished_version,
+            crate::CURRENT_META_SCHEMA_VERSION
+        );
+        vault.close().expect("close");
+        fs::remove_dir_all(&root).expect("cleanup");
+    }
+
+    #[test]
+    fn retention_evicts_only_old_stale_generations() {
+        let root = sealed_with_one_source("retention");
+        let plant = |verdict: &str| {
+            fs::write(root.join(META_WORK), b"x").expect("work");
+            EncryptedVault::quarantine(&root, verdict).expect("quarantine");
+        };
+        plant(VERDICT_UNVERIFIABLE);
+        for _ in 0..5 {
+            plant(VERDICT_STALE);
+        }
+        let verdicts = generation_verdicts(&root);
+        assert_eq!(
+            verdicts.iter().filter(|v| *v == VERDICT_STALE).count(),
+            RECOVERY_RETENTION
+        );
+        assert_eq!(
+            verdicts
+                .iter()
+                .filter(|v| *v == VERDICT_UNVERIFIABLE)
+                .count(),
+            1,
+            "an unverifiable generation stays until the user deletes it"
+        );
+        fs::remove_dir_all(&root).expect("cleanup");
     }
 
     #[test]

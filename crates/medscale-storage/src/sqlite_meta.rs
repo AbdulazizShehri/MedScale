@@ -30,6 +30,20 @@ pub enum MetaError {
     MigrationIncomplete(u32),
 }
 
+/// What `verify_work_database` found. Errors from SQLite are returned as errors,
+/// so the caller can tell a check that failed from a file that failed it.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum WorkDatabaseCheck {
+    Healthy {
+        marker: Option<String>,
+        schema: u32,
+    },
+    /// `cipher_integrity_check` or `integrity_check` reported a problem.
+    Damaged,
+    /// Required tables are missing, or a migration was interrupted.
+    Incomplete,
+}
+
 /// `store_state` key naming the seal a work database descends from.
 const BASE_SEAL_DIGEST_KEY: &str = "base_seal_digest";
 
@@ -112,6 +126,53 @@ impl SqliteMetaStore {
         apply_sqlcipher_key(&conn, key32)?;
         verify_sqlcipher_readable(&conn)?;
         Ok(Self { conn })
+    }
+
+    /// A throwaway in-memory store, so a vault can close its real connection
+    /// while it keeps its session lock.
+    pub(crate) fn open_in_memory_placeholder() -> Result<Self, MetaError> {
+        Ok(Self {
+            conn: Connection::open_in_memory()?,
+        })
+    }
+
+    /// Spec 109 Part B: reads the whole database and reports its health. Writes
+    /// nothing, except SQLite's own rollback of a hot journal on first read.
+    pub fn verify_work_database(&self) -> Result<WorkDatabaseCheck, MetaError> {
+        let mut cipher = self.conn.prepare("PRAGMA cipher_integrity_check")?;
+        if cipher.query([])?.next()?.is_some() {
+            return Ok(WorkDatabaseCheck::Damaged);
+        }
+        drop(cipher);
+        let integrity: String = self
+            .conn
+            .query_row("PRAGMA integrity_check", [], |row| row.get(0))?;
+        if integrity != "ok" {
+            return Ok(WorkDatabaseCheck::Damaged);
+        }
+        for table in [
+            "migration_journal",
+            "sources",
+            "authority_objects",
+            "store_state",
+        ] {
+            let present: i64 = self.conn.query_row(
+                "SELECT count(*) FROM sqlite_master WHERE type = 'table' AND name = ?1",
+                params![table],
+                |row| row.get(0),
+            )?;
+            if present == 0 {
+                return Ok(WorkDatabaseCheck::Incomplete);
+            }
+        }
+        let journal = self.migration_journal()?;
+        if journal.interrupted() {
+            return Ok(WorkDatabaseCheck::Incomplete);
+        }
+        Ok(WorkDatabaseCheck::Healthy {
+            marker: self.base_seal_digest()?,
+            schema: journal.finished_version,
+        })
     }
 
     /// Open work DB under VaultDek key, migrating legacy plaintext sealed work via rekey.

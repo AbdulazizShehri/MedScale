@@ -41,6 +41,7 @@ fn presentation_builder<R: tauri::Runtime>(builder: tauri::Builder<R>) -> tauri:
             cmd_core::workspace_create_encrypted,
             cmd_core::workspace_unlock,
             cmd_core::workspace_unlock_with_recovery_code,
+            cmd_core::workspace_unlock_moving_session_aside,
             cmd_core::workspace_lock,
             cmd_core::patients_list,
             cmd_core::patient_detail,

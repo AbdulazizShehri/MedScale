@@ -19,7 +19,7 @@ pub struct CliSession {
     next_req: u64,
     vault_root: Option<String>,
     open: bool,
-    discarded_interrupted_session: bool,
+    last_open_outcome: Option<medscale_contracts::envelopes::VaultOpenOutcome>,
     /// Spec 079: whether the durable pseudonym key store is installed.
     privacy_keys_installed: bool,
 }
@@ -69,7 +69,7 @@ impl CliSession {
             next_req: 0,
             vault_root: None,
             open: false,
-            discarded_interrupted_session: false,
+            last_open_outcome: None,
             privacy_keys_installed: false,
         };
         let resp = session.dispatch_bootstrap(
@@ -172,7 +172,23 @@ impl CliSession {
         vault_root: &str,
         passphrase: &str,
     ) -> Result<(), AuthorityError> {
-        self.open_encrypted(vault_root, Some(passphrase.to_owned()), None)
+        self.open_encrypted(vault_root, Some(passphrase.to_owned()), None, false)
+    }
+
+    /// Spec 109: the user confirmed moving an unsealed session aside, because
+    /// its check could not finish. Exactly one of the two secrets is used.
+    pub fn open_encrypted_vault_moving_session_aside(
+        &mut self,
+        vault_root: &str,
+        passphrase: Option<&str>,
+        code: Option<&str>,
+    ) -> Result<(), AuthorityError> {
+        self.open_encrypted(
+            vault_root,
+            passphrase.map(str::to_owned),
+            code.map(str::to_owned),
+            true,
+        )
     }
 
     /// Opens with a recovery code issued at creation. Using a code neither
@@ -182,7 +198,7 @@ impl CliSession {
         vault_root: &str,
         code: &str,
     ) -> Result<(), AuthorityError> {
-        self.open_encrypted(vault_root, None, Some(code.to_owned()))
+        self.open_encrypted(vault_root, None, Some(code.to_owned()), false)
     }
 
     fn open_encrypted(
@@ -190,6 +206,7 @@ impl CliSession {
         vault_root: &str,
         passphrase: Option<String>,
         recovery_code: Option<String>,
+        discard_leftover: bool,
     ) -> Result<(), AuthorityError> {
         let resp = self.dispatch(
             Capability::OpenEncryptedVault,
@@ -197,11 +214,12 @@ impl CliSession {
                 vault_root: vault_root.to_owned(),
                 passphrase,
                 recovery_code,
+                discard_leftover,
             },
         )?;
         let ResponseBody::EncryptedVaultReady {
             vault_root,
-            discarded_interrupted_session,
+            open_outcome,
             ..
         } = resp
         else {
@@ -211,24 +229,23 @@ impl CliSession {
         };
         self.vault_root = Some(vault_root);
         self.open = true;
-        self.discarded_interrupted_session = discarded_interrupted_session;
+        self.last_open_outcome = open_outcome;
         Ok(())
     }
 
-    /// True when the last open discarded a session that never sealed, so
-    /// changes made since the previous lock may be lost (Spec 109).
+    /// What the last open did with a session that never sealed (Spec 109).
     #[must_use]
-    pub fn discarded_interrupted_session(&self) -> bool {
-        self.discarded_interrupted_session
+    pub fn last_open_outcome(&self) -> Option<medscale_contracts::envelopes::VaultOpenOutcome> {
+        self.last_open_outcome
     }
 
     /// Closes the open encrypted vault through Core: the working metadata
     /// database is sealed into the encrypted meta file, then the work
     /// database, its SQLite sidecars and the writer lease are removed. If
     /// sealing fails the vault stays open and this can be retried. Dropping a
-    /// session without this discards writes made since open (the next open
-    /// treats the work database as a crash leftover and reports it through
-    /// [`Self::discarded_interrupted_session`]) and leaves those files on disk.
+    /// session without this leaves those files on disk, and the next open checks
+    /// and normally recovers them, reporting it through
+    /// [`Self::last_open_outcome`].
     pub fn close_encrypted_vault(&mut self) -> Result<(), AuthorityError> {
         match self.dispatch(
             Capability::CloseEncryptedVault,

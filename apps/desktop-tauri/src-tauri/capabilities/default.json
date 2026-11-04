@@ -12,6 +12,7 @@
     "allow-workspace-create-encrypted",
     "allow-workspace-unlock",
     "allow-workspace-unlock-with-recovery-code",
+    "allow-workspace-unlock-moving-session-aside",
     "allow-workspace-lock",
     "allow-patients-list",
     "allow-patient-detail",

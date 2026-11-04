@@ -3,7 +3,7 @@ import { useApp } from "../lib/app";
 import { useAction, type CmdError } from "../lib/ipc";
 import { Logo } from "../components/brand";
 import { Glyph, useToast } from "../components/ui";
-import { DELETE_SET_ASIDE_DIALOG, DISCARDED_SESSION_NOTICE, RECOVERED_SEED_NOTICE, SET_ASIDE_DIALOG, SET_ASIDE_EXISTS_NOTICE, discardedInterruptedSession, recoveredInterruptedSeed, seedFailureGuidance, setAsideOffered } from "../lib/seed-failure";
+import { DELETE_SET_ASIDE_DIALOG, MOVE_SESSION_ASIDE_DIALOG, RECOVERED_SEED_NOTICE, SET_ASIDE_DIALOG, SET_ASIDE_EXISTS_NOTICE, recoveredInterruptedSeed, vaultOpenNotice, seedFailureGuidance, setAsideOffered } from "../lib/seed-failure";
 import { ConfirmPanel } from "../components/confirm";
 
 /** Spec 108 step 2: one announced alert per failure. With a known reason the
@@ -149,7 +149,8 @@ export function Access({ onBack }: { onBack: () => void }) {
         : await run<unknown>("unlock", "workspace_unlock", { passphrase: pass });
       if (r.ok) {
         setPass("");
-        if (discardedInterruptedSession(r.data)) toast({ kind: "blocked", ...DISCARDED_SESSION_NOTICE });
+        const notice = vaultOpenNotice(r.data);
+        if (notice) toast(notice);
         await refreshWorkspace();
       } else setError(r.error);
     } else {
@@ -159,6 +160,17 @@ export function Access({ onBack }: { onBack: () => void }) {
   }
 
   const toast = useToast();
+  const [moveAside, setMoveAside] = useState(false);
+  async function moveSessionAside() {
+    setError(null);
+    const r = await run<unknown>("unlock", "workspace_unlock_moving_session_aside", useCode ? { code: pass } : { passphrase: pass });
+    setMoveAside(false);
+    if (!r.ok) { setError(r.error); return; }
+    setPass("");
+    const notice = vaultOpenNotice(r.data);
+    if (notice) toast(notice);
+    await refreshWorkspace();
+  }
   async function synthetic() {
     const r = await run<unknown>("synthetic", "workspace_open_synthetic");
     if (!r.ok) { setError(r.error); return; }
@@ -213,6 +225,13 @@ export function Access({ onBack }: { onBack: () => void }) {
                   </div>
                 )}
                 {error && <FailureAlert error={error} glyph={error.kind === "denied" ? "denied" : "failed"} wrap />}
+                {error?.reason === "work_session_check_failed" && !moveAside && (
+                  <div><button type="button" className="btn btn-g" onClick={() => setMoveAside(true)} disabled={!!pending}>Move that session aside and open…</button></div>
+                )}
+                {moveAside && (
+                  <ConfirmPanel title={MOVE_SESSION_ASIDE_DIALOG.title} confirmLabel={MOVE_SESSION_ASIDE_DIALOG.confirm} busy={!!pending}
+                    onConfirm={moveSessionAside} onCancel={() => setMoveAside(false)}>{MOVE_SESSION_ASIDE_DIALOG.body}</ConfirmPanel>
+                )}
                 <div className="row-gap" style={{ gap: 14 }}>
                   <button type="submit" className="btn btn-p lg" disabled={!!pending || (useCode ? !pass.trim() : pass.length < 8)}>{pending === "unlock" || pending === "create" ? <><Glyph kind="running" />Working…</> : mode === "unlock" ? "Unlock workspace" : "Create vault"}</button>
                   {exists
