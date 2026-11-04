@@ -1,7 +1,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import fs from "node:fs";
-import { DELETE_SET_ASIDE_DIALOG, RECOVERED_SEED_NOTICE, SEED_REASONS, SET_ASIDE_DIALOG, parseSeedReason, recoveredInterruptedSeed, seedFailureGuidance, setAsideOffered } from "./seed-failure.ts";
+import { DELETE_SET_ASIDE_DIALOG, DISCARDED_SESSION_NOTICE, RECOVERED_SEED_NOTICE, SEED_REASONS, SET_ASIDE_DIALOG, discardedInterruptedSession, parseSeedReason, recoveredInterruptedSeed, seedFailureGuidance, setAsideOffered } from "./seed-failure.ts";
 
 const RETRY = ["workspace_busy", "writer_active", "workspace_io_failure"] as const;
 
@@ -71,4 +71,12 @@ test("set-aside and delete dialogs disclose what they keep and remove", () => {
   assert.match(SET_ASIDE_DIALOG.body, /may include FHIR files you imported/);
   assert.match(DELETE_SET_ASIDE_DIALOG.body, /permanently deletes/);
   assert.match(DELETE_SET_ASIDE_DIALOG.body, /cannot be undone/);
+});
+
+test("the discarded-session notice appears only on an explicit true", () => {
+  assert.equal(discardedInterruptedSession({ discarded_interrupted_session: true }), true);
+  for (const data of [{ discarded_interrupted_session: false }, {}, null, "true", { discarded_interrupted_session: "true" }]) {
+    assert.equal(discardedInterruptedSession(data), false);
+  }
+  assert.match(DISCARDED_SESSION_NOTICE.detail, /last locked state/);
 });

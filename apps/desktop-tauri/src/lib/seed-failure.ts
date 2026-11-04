@@ -131,6 +131,18 @@ export function recoveredInterruptedSeed(data: unknown): boolean {
     && (data as { recovered_interrupted_seed?: unknown }).recovered_interrupted_seed === true;
 }
 
+/** Spec 109: true only when `workspace_unlock` reports that it discarded a
+ * session that never sealed. */
+export function discardedInterruptedSession(data: unknown): boolean {
+  return typeof data === "object" && data !== null
+    && (data as { discarded_interrupted_session?: unknown }).discarded_interrupted_session === true;
+}
+
+export const DISCARDED_SESSION_NOTICE = {
+  title: "Recent changes may be lost",
+  detail: "MedScale did not close normally last time. The vault opened from its last locked state, so changes made after that may be gone.",
+} as const;
+
 export const RECOVERED_SEED_NOTICE = {
   title: "Sample workspace rebuilt",
   detail: "It had not finished setting up the last time MedScale ran, so it was set up again from the bundled sample.",

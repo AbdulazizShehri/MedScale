@@ -1,6 +1,7 @@
 //! EncryptedVault: SQLCipher page-encrypted work metadata + AES-GCM sealed at-rest (Specs 005/023).
 
 use std::fs;
+use std::io::Write;
 use std::path::{Path, PathBuf};
 
 use medscale_contracts::objects::DigestSha256;
@@ -16,8 +17,11 @@ use crate::sqlite_meta::{MetaError, SourceMeta, SqliteMetaStore};
 
 const HEADER_FILE: &str = "vault_header.json";
 const META_SEALED: &str = "meta.sealed";
+const META_SEALED_TMP: &str = "meta.sealed.tmp";
 const META_WORK: &str = "meta.work.sqlite3";
+const META_WORK_TMP: &str = "meta.work.sqlite3.tmp";
 const LEASE_FILE: &str = ".writer.lock";
+const SESSION_LOCK_FILE: &str = ".session.lock";
 
 #[derive(Debug, Error)]
 pub enum EncryptedVaultError {
@@ -35,6 +39,10 @@ pub enum EncryptedVaultError {
     LeaseHeld(String),
     #[error("crypto")]
     Crypto,
+    /// The key was right but `meta.sealed` is missing, torn or fails
+    /// authentication. Nothing on disk was changed.
+    #[error("sealed vault metadata is unreadable")]
+    SealedMetaUnreadable,
     #[error("invalid: {0}")]
     Invalid(String),
 }
@@ -55,6 +63,10 @@ pub struct EncryptedVault {
     pub blobs: SealedBlobStore,
     #[allow(dead_code)]
     lease_holder: String,
+    /// OS lock held for the whole session, so another process can neither
+    /// adopt nor wipe this session's live work database (Spec 109).
+    session_lock: fs::File,
+    discarded_interrupted_session: bool,
 }
 
 impl EncryptedVault {
@@ -95,9 +107,9 @@ impl EncryptedVault {
             let _meta = SqliteMetaStore::open_at_sqlcipher(&work, dek.as_bytes())?;
         }
         Self::seal_meta_file(&root, vault_id, &dek)?;
-        Self::unseal_meta_file(&root, vault_id, &dek)?;
         let meta = SqliteMetaStore::open_at_sqlcipher(&work, dek.as_bytes())?;
         let blobs = SealedBlobStore::open(&root, vault_id)?;
+        let session_lock = Self::take_session_lock(&root, holder_id)?;
 
         Ok((
             Self {
@@ -108,6 +120,8 @@ impl EncryptedVault {
                 meta,
                 blobs,
                 lease_holder: holder_id.to_owned(),
+                session_lock,
+                discarded_interrupted_session: false,
             },
             codes,
         ))
@@ -119,7 +133,6 @@ impl EncryptedVault {
         holder_id: &str,
     ) -> Result<Self, EncryptedVaultError> {
         let root = assert_claim_path(vault_root)?;
-        Self::acquire_lease(&root, holder_id)?;
         let header = Self::load_header(&root)?;
         let dek = KeyProvider::unlock_passphrase(&header, passphrase)
             .map_err(|_| EncryptedVaultError::MissingKeyMaterial)?;
@@ -132,7 +145,6 @@ impl EncryptedVault {
         holder_id: &str,
     ) -> Result<Self, EncryptedVaultError> {
         let root = assert_claim_path(vault_root)?;
-        Self::acquire_lease(&root, holder_id)?;
         let header = Self::load_header(&root)?;
         let dek = KeyProvider::unlock_recovery(&header, code)
             .map_err(|_| EncryptedVaultError::MissingKeyMaterial)?;
@@ -145,7 +157,6 @@ impl EncryptedVault {
         holder_id: &str,
     ) -> Result<Self, EncryptedVaultError> {
         let root = assert_claim_path(vault_root)?;
-        Self::acquire_lease(&root, holder_id)?;
         let header = Self::load_header(&root)?;
         let dek = KeyProvider::unlock_keystore(store, &header)
             .map_err(|_| EncryptedVaultError::MissingKeyMaterial)?;
@@ -158,12 +169,23 @@ impl EncryptedVault {
         dek: VaultDek,
         holder_id: &str,
     ) -> Result<Self, EncryptedVaultError> {
-        // Crash leftovers are not treated as sealed; wipe then restore from meta.sealed.
-        if Self::leftover_work_present(&root) {
+        // Spec 109: nothing is touched until the key proved right and the
+        // replacement is authenticated. A wrong passphrase or a torn or foreign
+        // `meta.sealed` fails here with every file intact.
+        let plain = Self::decrypt_sealed_meta(&root, &header.vault_id, &dek)?;
+        Self::acquire_lease(&root, holder_id)?;
+        let session_lock = Self::take_session_lock(&root, holder_id)?;
+        let _ = fs::remove_file(root.join(META_SEALED_TMP));
+        let _ = fs::remove_file(root.join(META_WORK_TMP));
+        // Crash leftovers are not treated as sealed (Spec 017 FR-003); the
+        // caller is told so it can say that recent changes may be lost.
+        let discarded_interrupted_session = Self::leftover_work_present(&root);
+        if discarded_interrupted_session {
             Self::wipe_work_sidecars(&root)?;
         }
-        Self::unseal_meta_file(&root, &header.vault_id, &dek)?;
+        Self::remove_remaining_sidecars(&root)?;
         let work = root.join(META_WORK);
+        write_durably(&root.join(META_WORK_TMP), &work, &plain)?;
         let meta = SqliteMetaStore::open_at_sqlcipher_or_rekey_legacy(&work, dek.as_bytes())?;
         let blobs = SealedBlobStore::open(&root, &header.vault_id)?;
         Ok(Self {
@@ -174,7 +196,44 @@ impl EncryptedVault {
             meta,
             blobs,
             lease_holder: holder_id.to_owned(),
+            session_lock,
+            discarded_interrupted_session,
         })
+    }
+
+    /// True when this open found a work database from a session that never
+    /// sealed, and discarded it. Its unsealed changes are gone.
+    #[must_use]
+    pub fn discarded_interrupted_session(&self) -> bool {
+        self.discarded_interrupted_session
+    }
+
+    fn take_session_lock(root: &Path, holder_id: &str) -> Result<fs::File, EncryptedVaultError> {
+        let file = fs::OpenOptions::new()
+            .read(true)
+            .write(true)
+            .create(true)
+            .truncate(false)
+            .open(root.join(SESSION_LOCK_FILE))?;
+        match file.try_lock() {
+            Ok(()) => Ok(file),
+            Err(fs::TryLockError::WouldBlock) => {
+                Err(EncryptedVaultError::LeaseHeld(holder_id.to_owned()))
+            }
+            Err(fs::TryLockError::Error(e)) => Err(EncryptedVaultError::Io(e)),
+        }
+    }
+
+    /// A stale journal beside a fresh copy could be rolled back into it.
+    fn remove_remaining_sidecars(root: &Path) -> Result<(), EncryptedVaultError> {
+        let work = root.join(META_WORK);
+        for suffix in ["-wal", "-shm", "-journal"] {
+            let side = sqlite_sidecar(&work, suffix);
+            if side.exists() {
+                fs::remove_file(&side)?;
+            }
+        }
+        Ok(())
     }
 
     fn load_header(root: &Path) -> Result<VaultKeyHeader, EncryptedVaultError> {
@@ -202,37 +261,36 @@ impl EncryptedVault {
         let plain = fs::read(&work)?;
         let sealed = seal(dek.as_bytes(), &plain, &Self::meta_aad(vault_id))
             .map_err(|_| EncryptedVaultError::Crypto)?;
-        fs::write(
-            root.join(META_SEALED),
-            serde_json::to_vec(&sealed).map_err(|_| EncryptedVaultError::Crypto)?,
+        // Atomic: a crash or full disk leaves the previous seal intact. The
+        // caller wipes the work file only after this returns.
+        write_durably(
+            &root.join(META_SEALED_TMP),
+            &root.join(META_SEALED),
+            &serde_json::to_vec(&sealed).map_err(|_| EncryptedVaultError::Crypto)?,
         )?;
-        Self::wipe_work_sidecars(root)?;
         Ok(())
     }
 
-    fn unseal_meta_file(
+    /// Authenticates `meta.sealed` into memory without touching any file.
+    fn decrypt_sealed_meta(
         root: &Path,
         vault_id: &str,
         dek: &VaultDek,
-    ) -> Result<(), EncryptedVaultError> {
-        let sealed_path = root.join(META_SEALED);
-        if !sealed_path.exists() {
-            return Err(EncryptedVaultError::MissingKeyMaterial);
-        }
-        let encoded = fs::read(&sealed_path)?;
-        let sealed: medscale_keys::WrappedBlob = serde_json::from_slice(&encoded)
-            .map_err(|_| EncryptedVaultError::MissingKeyMaterial)?;
-        let plain = unseal(dek.as_bytes(), &sealed, &Self::meta_aad(vault_id))
-            .map_err(|_| EncryptedVaultError::MissingKeyMaterial)?;
-        fs::write(root.join(META_WORK), plain)?;
-        Ok(())
+    ) -> Result<Vec<u8>, EncryptedVaultError> {
+        let unreadable = || EncryptedVaultError::SealedMetaUnreadable;
+        let encoded = fs::read(root.join(META_SEALED)).map_err(|_| unreadable())?;
+        let sealed: medscale_keys::WrappedBlob =
+            serde_json::from_slice(&encoded).map_err(|_| unreadable())?;
+        unseal(dek.as_bytes(), &sealed, &Self::meta_aad(vault_id)).map_err(|_| unreadable())
     }
 
     fn acquire_lease(root: &Path, holder_id: &str) -> Result<(), EncryptedVaultError> {
         let lease = root.join(LEASE_FILE);
         if lease.exists() {
             let existing = fs::read_to_string(&lease).unwrap_or_default();
-            if existing != holder_id {
+            // An empty lease is a torn write, not a holder; a live holder is
+            // refused by the session lock regardless of this file.
+            if !existing.trim().is_empty() && existing != holder_id {
                 return Err(EncryptedVaultError::LeaseHeld(existing));
             }
         }
@@ -240,30 +298,44 @@ impl EncryptedVault {
         Ok(())
     }
 
-    /// Persist sealed meta and release lease; zeros DEK via drop.
+    /// Persist sealed meta and release lease; zeros DEK via drop. On failure
+    /// the vault is dropped and its work file stays on disk; use [`Self::try_close`]
+    /// to keep it open.
     pub fn close(self) -> Result<(), EncryptedVaultError> {
+        self.try_close().map_err(|failed| failed.1)
+    }
+
+    /// Seals and closes, or hands the still-open vault back with the error so
+    /// a failed lock loses nothing and can be retried (Spec 109). The store
+    /// uses delete-journal mode and no transaction is open between requests,
+    /// so the work file is complete while its connection stays open.
+    pub fn try_close(self) -> Result<(), Box<(Self, EncryptedVaultError)>> {
+        if let Err(error) = Self::seal_meta_file(&self.root, &self.vault_id, &self.dek) {
+            return Err(Box::new((self, error)));
+        }
         let EncryptedVault {
-            vault_id,
             root,
-            dek,
             meta,
+            session_lock,
             ..
         } = self;
         drop(meta);
-        Self::seal_meta_file(&root, &vault_id, &dek)?;
-        Self::wipe_work_sidecars(&root)?;
+        let _ = Self::wipe_work_sidecars(&root);
         let _ = fs::remove_file(root.join(LEASE_FILE));
+        drop(session_lock);
+        let _ = fs::remove_file(root.join(SESSION_LOCK_FILE));
         Ok(())
     }
 
     /// Remove work DB and SQLite sidecar files if present.
     pub fn wipe_work_sidecars(root: &Path) -> Result<(), EncryptedVaultError> {
         let work = root.join(META_WORK);
+        // Sidecars first: a crash here must not leave a journal with no database.
         for path in [
-            work.clone(),
             sqlite_sidecar(&work, "-wal"),
             sqlite_sidecar(&work, "-shm"),
             sqlite_sidecar(&work, "-journal"),
+            work.clone(),
         ] {
             if path.exists() {
                 // Best-effort overwrite then remove (not a secure OS wipe claim).
@@ -404,6 +476,34 @@ impl EncryptedVault {
         }
         self.blobs.plaintext_marker_absent(marker)
     }
+}
+
+/// Writes `bytes` to `tmp`, syncs it and renames it over `dest`. A sharing
+/// violation from antivirus or indexing on Windows is retried briefly.
+fn write_durably(tmp: &Path, dest: &Path, bytes: &[u8]) -> Result<(), EncryptedVaultError> {
+    let mut file = fs::File::create(tmp)?;
+    file.write_all(bytes)?;
+    file.sync_all()?;
+    drop(file);
+    let deadline = std::time::Instant::now() + std::time::Duration::from_secs(3);
+    loop {
+        match fs::rename(tmp, dest) {
+            Ok(()) => break,
+            Err(e)
+                if cfg!(windows)
+                    && matches!(e.raw_os_error(), Some(5 | 32 | 33))
+                    && std::time::Instant::now() < deadline =>
+            {
+                std::thread::sleep(std::time::Duration::from_millis(100));
+            }
+            Err(e) => return Err(EncryptedVaultError::Io(e)),
+        }
+    }
+    #[cfg(unix)]
+    if let Some(parent) = dest.parent() {
+        fs::File::open(parent)?.sync_all()?;
+    }
+    Ok(())
 }
 
 fn sqlite_sidecar(work: &Path, suffix: &str) -> PathBuf {

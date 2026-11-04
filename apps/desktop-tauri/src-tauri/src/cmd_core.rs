@@ -138,8 +138,15 @@ pub fn workspace_create_encrypted(
 pub fn workspace_unlock(host: tauri::State<'_, Host>, passphrase: String) -> CmdResult<Value> {
     let mut state = lock(&host)?;
     state.workspace = None;
-    host::unlock_encrypted(&mut state, &passphrase)?;
-    Ok(vault_label(&state))
+    let discarded = host::unlock_encrypted(&mut state, &passphrase)?;
+    let mut label = vault_label(&state);
+    if let Some(object) = label.as_object_mut() {
+        object.insert(
+            "discarded_interrupted_session".to_owned(),
+            Value::Bool(discarded),
+        );
+    }
+    Ok(label)
 }
 
 #[tauri::command(async)]

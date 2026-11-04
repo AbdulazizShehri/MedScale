@@ -55,7 +55,12 @@ impl SealedBlobStore {
             seal(dek.as_bytes(), bytes, &self.aad(&digest)).map_err(|_| SealedBlobError::Crypto)?;
         let encoded = serde_json::to_vec(&sealed).map_err(|_| SealedBlobError::Crypto)?;
         let tmp = self.root.join(format!("{}.tmp", digest.to_hex()));
-        fs::write(&tmp, &encoded)?;
+        // Synced before its reference can be sealed, so a power loss cannot
+        // leave a durable row that points at a lost blob.
+        let mut file = fs::File::create(&tmp)?;
+        std::io::Write::write_all(&mut file, &encoded)?;
+        file.sync_all()?;
+        drop(file);
         let dest = self.path_for(&digest);
         fs::rename(&tmp, dest)?;
         Ok(digest)

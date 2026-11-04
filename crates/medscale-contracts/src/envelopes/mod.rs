@@ -1822,6 +1822,10 @@ pub enum ResponseBody {
     EncryptedVaultReady {
         vault_root: String,
         recovery_codes: Option<Vec<String>>,
+        /// Spec 109: this open discarded a work database from a session that
+        /// never sealed, so changes since the last lock may be lost.
+        #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+        discarded_interrupted_session: bool,
     },
     NetworkBroker {
         result: NetworkBrokerResult,

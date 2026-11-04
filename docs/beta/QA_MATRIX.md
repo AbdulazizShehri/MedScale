@@ -46,5 +46,6 @@ user journey, and synthetic data never qualifies real-model accuracy.
 2. Journey 14 file export: deferred by Spec 107 D1 (needs a new Core disclosure capability with provenance-correct `synthetic_only`); founder to confirm whether clipboard copy is acceptable for Beta. Journey 20 is addressed copy-only by Spec 107 D2.
 3. #386: the original intermittent missing-seed GUI observation is not reproduced. Later passes are not root-cause evidence.
 4. Signing, notarisation and publication remain `EXTERNAL` (founder authorisation).
+5. Encrypted vault known limitation (Spec 109 Part B): a crash or kill while unlocked loses changes made since the last unlock. The app now says so on the next unlock, and the last sealed state is never at risk.
 
 `MEDSCALE_RELEASE_READY = FALSE` until items 1–4 are resolved and the founder authorises publication.
