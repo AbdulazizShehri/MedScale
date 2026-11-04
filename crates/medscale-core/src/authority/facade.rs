@@ -6417,6 +6417,19 @@ fn enc_err(err: medscale_storage::EncryptedVaultError) -> AuthorityError {
         medscale_storage::EncryptedVaultError::LeaseHeld(holder) => AuthorityError::LeaseHeld {
             holder_id: OpaqueId::new(holder),
         },
+        medscale_storage::EncryptedVaultError::Meta(
+            medscale_storage::MetaError::UnsupportedSchema(message),
+        ) => AuthorityError::UnsupportedSchema { message },
+        // A full disk or a locked file is transient, not bad input (Spec 109 I3).
+        err @ (medscale_storage::EncryptedVaultError::Io(_)
+        | medscale_storage::EncryptedVaultError::Meta(
+            medscale_storage::MetaError::Sqlite(_) | medscale_storage::MetaError::Io(_),
+        )
+        | medscale_storage::EncryptedVaultError::Sealed(
+            medscale_storage::SealedBlobError::Io(_),
+        )) => AuthorityError::Unavailable {
+            message: err.to_string(),
+        },
         medscale_storage::EncryptedVaultError::SealedMetaUnreadable => AuthorityError::Corrupt {
             message: "sealed vault metadata is unreadable; nothing was changed".to_owned(),
         },

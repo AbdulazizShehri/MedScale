@@ -68,13 +68,24 @@ impl SealedBlobStore {
         std::io::Write::write_all(&mut file, &encoded)?;
         file.sync_all()?;
         drop(file);
-        fs::rename(&tmp, dest)?;
+        crate::encrypted_vault::rename_with_retry(&tmp, &dest)?;
+        // A committed row can reference this blob before any seal happens.
+        #[cfg(unix)]
+        fs::File::open(&self.root)?.sync_all()?;
         Ok(digest)
     }
 
     pub fn get(&self, dek: &VaultDek, digest: &DigestSha256) -> Result<Vec<u8>, SealedBlobError> {
         let path = self.path_for(digest);
-        let encoded = fs::read(&path).map_err(|_| SealedBlobError::NotFound)?;
+        // Only a real absence is NotFound: an antivirus lock or a read error
+        // is transient and must not read as a lost blob.
+        let encoded = fs::read(&path).map_err(|e| {
+            if e.kind() == std::io::ErrorKind::NotFound {
+                SealedBlobError::NotFound
+            } else {
+                SealedBlobError::Io(e)
+            }
+        })?;
         let sealed: medscale_keys::WrappedBlob =
             serde_json::from_slice(&encoded).map_err(|_| SealedBlobError::Crypto)?;
         let plain = unseal(dek.as_bytes(), &sealed, &self.aad(digest))

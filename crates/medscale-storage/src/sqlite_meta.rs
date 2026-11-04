@@ -30,6 +30,9 @@ pub enum MetaError {
     MigrationIncomplete(u32),
 }
 
+/// `store_state` key naming the seal a work database descends from.
+const BASE_SEAL_DIGEST_KEY: &str = "base_seal_digest";
+
 /// Durable authority object row (Spec 016 schema v2).
 #[derive(Debug, Clone)]
 pub struct AuthorityObjectRow {
@@ -95,6 +98,22 @@ impl SqliteMetaStore {
         Ok(store)
     }
 
+    /// Keyed open of an existing database that never creates a file and never
+    /// migrates, so it cannot write to a leftover before it has verified
+    /// (Spec 109 Part B). Only a hot-journal rollback can change the file.
+    pub fn open_existing_sqlcipher_no_migrate(
+        db_path: &Path,
+        key32: &[u8; 32],
+    ) -> Result<Self, MetaError> {
+        let conn = Connection::open_with_flags(
+            db_path,
+            rusqlite::OpenFlags::SQLITE_OPEN_READ_WRITE | rusqlite::OpenFlags::SQLITE_OPEN_NO_MUTEX,
+        )?;
+        apply_sqlcipher_key(&conn, key32)?;
+        verify_sqlcipher_readable(&conn)?;
+        Ok(Self { conn })
+    }
+
     /// Open work DB under VaultDek key, migrating legacy plaintext sealed work via rekey.
     pub fn open_at_sqlcipher_or_rekey_legacy(
         db_path: &Path,
@@ -108,11 +127,23 @@ impl SqliteMetaStore {
                 if verify_sqlcipher_readable(&conn).is_err() {
                     return Err(primary);
                 }
-                apply_sqlcipher_rekey(&conn, key32)?;
-                verify_sqlcipher_readable(&conn)?;
-                let store = Self { conn };
-                store.migrate()?;
-                Ok(store)
+                // `PRAGMA rekey` is refused on a plaintext database, so export
+                // to a new encrypted file and swap it in only once complete.
+                let mut exported = db_path.as_os_str().to_owned();
+                exported.push(".rekey");
+                let exported = std::path::PathBuf::from(exported);
+                if exported.try_exists()? {
+                    std::fs::remove_file(&exported)?;
+                }
+                conn.execute(
+                    "ATTACH DATABASE ?1 AS encrypted KEY ?2",
+                    params![exported.to_string_lossy(), key_material_hex(key32)],
+                )?;
+                conn.query_row("SELECT sqlcipher_export('encrypted')", [], |_| Ok(()))?;
+                conn.execute_batch("DETACH DATABASE encrypted")?;
+                drop(conn);
+                crate::encrypted_vault::rename_with_retry(&exported, db_path)?;
+                Self::open_at_sqlcipher(db_path, key32)
             }
             Err(e) => Err(e),
         }
@@ -169,6 +200,14 @@ impl SqliteMetaStore {
             ",
         )?;
         let journal = self.migration_journal()?;
+        // `migrate()` has no other upper bound: a database from a newer build
+        // would otherwise open and be read with a schema this build can't know.
+        if journal.finished_version > crate::CURRENT_META_SCHEMA_VERSION {
+            return Err(MetaError::UnsupportedSchema(format!(
+                "metadata schema {} is newer than this build",
+                journal.finished_version
+            )));
+        }
         if journal.started_version.is_some()
             && journal
                 .started_version
@@ -471,11 +510,12 @@ impl SqliteMetaStore {
     }
 
     /// Every id sequence in `store_state` except the authority store's own
-    /// `next_seq` (which travels with the authority rows).
+    /// `next_seq` (which travels with the authority rows) and the seal digest,
+    /// which is not a sequence.
     pub fn list_id_sequences(&self) -> Result<Vec<(String, u64)>, MetaError> {
         let mut stmt = self
             .conn
-            .prepare("SELECT key, value FROM store_state WHERE key <> 'next_seq' ORDER BY key")?;
+            .prepare("SELECT key, value FROM store_state WHERE key NOT IN ('next_seq', 'base_seal_digest') ORDER BY key")?;
         let rows = stmt.query_map([], |row| {
             Ok((row.get::<_, String>(0)?, row.get::<_, String>(1)?))
         })?;
@@ -497,7 +537,8 @@ impl SqliteMetaStore {
     ) -> Result<(), MetaError> {
         let tx = self.conn.unchecked_transaction()?;
         for (key, value) in sequences {
-            if key == "next_seq" || key.is_empty() || key.len() > 256 {
+            if key == "next_seq" || key == BASE_SEAL_DIGEST_KEY || key.is_empty() || key.len() > 256
+            {
                 return Err(MetaError::CorruptObjectBody(
                     "tampered backup: invalid id sequence key".to_owned(),
                 ));
@@ -772,7 +813,32 @@ impl SqliteMetaStore {
                 |row| row.get(0),
             )
             .optional()?;
-        Ok(value.unwrap_or_else(|| "0".to_owned()).parse().unwrap_or(0))
+        // A corrupt counter must not read as 0: that would reissue every id.
+        value.map_or(Ok(0), |v| {
+            v.parse()
+                .map_err(|_| MetaError::CorruptObjectBody("next_seq is not numeric".to_owned()))
+        })
+    }
+
+    /// Records the digest of the seal this work database descends from
+    /// (Spec 109 Part B).
+    pub fn set_base_seal_digest(&self, digest_hex: &str) -> Result<(), MetaError> {
+        self.conn.execute(
+            "INSERT OR REPLACE INTO store_state(key, value) VALUES (?1, ?2)",
+            params![BASE_SEAL_DIGEST_KEY, digest_hex],
+        )?;
+        Ok(())
+    }
+
+    pub fn base_seal_digest(&self) -> Result<Option<String>, MetaError> {
+        Ok(self
+            .conn
+            .query_row(
+                "SELECT value FROM store_state WHERE key = ?1",
+                params![BASE_SEAL_DIGEST_KEY],
+                |row| row.get(0),
+            )
+            .optional()?)
     }
 
     pub fn set_next_seq(&self, next_seq: u64) -> Result<(), MetaError> {
@@ -879,11 +945,10 @@ fn key_material_hex(key32: &[u8; 32]) -> String {
 fn apply_sqlcipher_key(conn: &Connection, key32: &[u8; 32]) -> Result<(), MetaError> {
     // Passphrase-style key material (hex of VaultDek). Never logged.
     conn.pragma_update(None, "key", key_material_hex(key32))?;
-    Ok(())
-}
-
-fn apply_sqlcipher_rekey(conn: &Connection, key32: &[u8; 32]) -> Result<(), MetaError> {
-    conn.pragma_update(None, "rekey", key_material_hex(key32))?;
+    // On macOS a commit is otherwise not durable across power loss. No effect
+    // on Windows or Linux.
+    conn.pragma_update(None, "fullfsync", "ON")?;
+    conn.pragma_update(None, "synchronous", "FULL")?;
     Ok(())
 }
 
