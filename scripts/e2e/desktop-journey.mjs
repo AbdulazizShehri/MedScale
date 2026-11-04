@@ -890,6 +890,24 @@ try {
       await click("//button[@type='submit' and not(@disabled)]");
       await find(opened, 120000);
     }, { screenshot: false });
+    // Spec 109 Part B: a real kill while unlocked, with committed work that has
+    // never been sealed. The next unlock must recover it and say so.
+    await journey("encrypted-vault-recovers-after-a-kill", async () => {
+      await nav("Projects");
+      await type(`//input[@id='pn']`, "E2E work from before the kill");
+      await click(`//button[@type='submit' and ${text("Create project")}]`);
+      await see("E2E work from before the kill");
+      execFileSync("taskkill", ["/F", "/T", "/IM", path.basename(app)], { stdio: "ignore" });
+      await quit();
+      await launch();
+      await click(`//button[${text("Set up or unlock encrypted vault")}]`, 60000);
+      await see("Unlock workspace", 60000);
+      await type("//input[@id='pp']", "e2e-disposable-runner-passphrase");
+      await click("//button[@type='submit' and not(@disabled)]");
+      await see("Recovered changes from your last session", 120000);
+      await nav("Projects");
+      await see("E2E work from before the kill", 60000);
+    }, { screenshot: false });
     await quit();
     const appData = path.join(process.env.LOCALAPPDATA, "org.medscale.desktop.preview");
     const manifest = path.join(appData, "synthetic-workspace.desktop-seed.json");
