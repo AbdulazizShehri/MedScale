@@ -636,6 +636,28 @@ fn orphaned_encrypted_seed_marker_is_not_a_vault() {
 }
 
 #[test]
+fn the_desktop_describes_itself_not_the_legacy_shell() {
+    let h = Harness::new("doctor-values");
+    let status = h.ok("workspace_status", json!({}));
+    let egress = status["egress"].as_str().expect("egress");
+    assert!(egress.contains("approve"), "{egress}");
+    assert!(egress.contains("allowlist"), "{egress}");
+
+    let report = crate::cmd_core::doctor(&crate::host::State::default());
+    assert_eq!(report.desktop_shell, "tauri_webview");
+    assert!(report.tauri_admitted);
+    assert!(report.packs_runtime.online_download_authorized);
+    assert!(
+        !report.notes.iter().any(|note| note.contains("Slint")),
+        "{:?}",
+        report.notes
+    );
+    // Still honest about what is not cleared.
+    assert!(!report.real_phi_authorized);
+    assert!(!report.release_qualification.release_ready);
+}
+
+#[test]
 fn encrypted_vault_create_lock_unlock_and_wrong_passphrase() {
     let h = Harness::new("enc");
     assert_eq!(

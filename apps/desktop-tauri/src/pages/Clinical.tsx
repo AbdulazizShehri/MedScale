@@ -126,7 +126,7 @@ export function Evidence() {
     if (!query.trim()) { setResult(null); return; }
     setBusy(true); setErr(null);
     try { setResult(await call<Retrieval>("evidence_search", { query, includeRetracted: retracted })); }
-    catch (x) { setErr(x as CmdError); }
+    catch (x) { setErr(x as CmdError); setResult(null); }
     finally { setBusy(false); }
   }
 
@@ -230,12 +230,16 @@ export function Insights() {
   const [q, setQ] = useState("");
   const [answer, setAnswer] = useState<GroundedAnswer | null>(null);
   const [err, setErr] = useState<CmdError | null>(null);
+  const [asking, setAsking] = useState(false);
 
   async function ask(e: FormEvent) {
     e.preventDefault();
-    if (!q.trim()) return;
+    if (!q.trim() || asking) return;
     setErr(null);
-    try { setAnswer(await call<GroundedAnswer>("insights_ask", { query: q })); } catch (x) { setErr(x as CmdError); }
+    setAsking(true);
+    try { setAnswer(await call<GroundedAnswer>("insights_ask", { query: q })); }
+    catch (x) { setErr(x as CmdError); setAnswer(null); }
+    finally { setAsking(false); }
   }
 
   if (state.status === "loading") return <div className="pane"><Skeleton /></div>;
@@ -305,7 +309,7 @@ export function Insights() {
           <Section title="Ask the evidence">
             <form onSubmit={ask} className="stack" style={{ gap: 8 }}>
               <input type="text" value={q} onChange={(e) => setQ(e.target.value)} placeholder="e.g. what do these documents say about metformin?" maxLength={256} aria-label="Question for the evidence corpus" />
-              <div><button type="submit" className="btn btn-s">Ask</button></div>
+              <div><button type="submit" className="btn btn-s" disabled={asking}>{asking ? <><Glyph kind="running" />Asking</> : "Ask"}</button></div>
             </form>
             {err && <ErrorState error={err} />}
             {!answer && <p className="t-sm i3" style={{ marginTop: 10 }}>Answers are sentences extracted from retrieved documents, each with its citation. When nothing supports a question, MedScale says so.</p>}

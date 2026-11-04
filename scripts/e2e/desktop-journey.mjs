@@ -852,6 +852,44 @@ try {
   // a disposable Windows runner only) is set aside and replaced. The
   // set-aside copy holds the earlier user FHIR import.
   if (process.env.GITHUB_ACTIONS === "true" && process.platform === "win32" && process.env.LOCALAPPDATA) {
+    // Spec 109 Part C through the real screens. A throwaway passphrase on a
+    // disposable runner. The code is read from the page and never printed,
+    // and this journey takes no screenshot because the page shows the codes.
+    await journey("encrypted-vault-recovery-code-unlock", async () => {
+      const passphrase = "e2e-disposable-runner-passphrase";
+      const opened = `//button[contains(@class,'nav') and ${text("Patients")}]`;
+      const lock = `//button[contains(@class,'nav') and ${text("Lock workspace")}]`;
+      await click(lock);
+      await see("Create encrypted vault", 30000);
+      await type("//input[@id='pp']", passphrase);
+      await type("//input[@id='pp2']", passphrase);
+      await click("//button[@type='submit' and not(@disabled)]");
+      await see("Save your recovery codes", 120000);
+      const code = await wd("POST", `/session/${sid}/execute/sync`, {
+        script: "return document.querySelector(\"[aria-label='Recovery codes'] span\").textContent;",
+        args: [],
+      });
+      if (!code || code.length < 8) throw new Error("no recovery code was shown");
+      await click(`//button[${text("I saved them")}]`);
+      await find(opened, 120000);
+
+      await click(lock);
+      await see("Unlock workspace", 60000);
+      await click(`//button[${text("Use a recovery code")}]`);
+      await see("Recovery code", 10000);
+      await type("//input[@id='pp']", "not-a-real-recovery-code");
+      await click("//button[@type='submit' and not(@disabled)]");
+      await see("did not open this vault", 120000);
+      await type("//input[@id='pp']", code);
+      await click("//button[@type='submit' and not(@disabled)]");
+      await find(opened, 120000);
+
+      await click(lock);
+      await see("Unlock workspace", 60000);
+      await type("//input[@id='pp']", passphrase);
+      await click("//button[@type='submit' and not(@disabled)]");
+      await find(opened, 120000);
+    }, { screenshot: false });
     await quit();
     const appData = path.join(process.env.LOCALAPPDATA, "org.medscale.desktop.preview");
     const manifest = path.join(appData, "synthetic-workspace.desktop-seed.json");

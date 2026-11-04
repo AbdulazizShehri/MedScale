@@ -9,7 +9,7 @@ export type TranscriptTextSegment = {
   speaker?: { kind: string; index?: number };
 };
 
-function clock(ms: number): string {
+export function clock(ms: number): string {
   const total = Math.max(0, Math.floor(ms / 1000));
   const m = Math.floor(total / 60);
   const s = total % 60;
