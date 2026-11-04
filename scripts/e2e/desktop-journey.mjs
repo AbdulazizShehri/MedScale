@@ -426,7 +426,7 @@ try {
     await see("4 rows", 60000);
     // The success toast/result can precede the asynchronous receipt reload.
     // Require the visible Core-backed receipt count after the UI settles.
-    await find("//section[.//span[contains(@class,'sec-t') and normalize-space(.)='Receipts']]//span[contains(@class,'sec-c') and number(normalize-space(.)) > 0]", 30000);
+    await find("//section[.//*[contains(@class,'sec-t') and normalize-space(.)='Receipts']]//span[contains(@class,'sec-c') and number(normalize-space(.)) > 0]", 30000);
   });
   await journey("analytics-explains-invalid-bindings", async () => {
     await type(`//input[@aria-label='Bindings']`, "not-a-binding");
@@ -483,13 +483,13 @@ try {
     await see("Synthetic tone imported", 60000);
     // An action toast alone is insufficient; imported synthetic lineage must
     // also become visible in the active project after overview reload.
-    await find("//section[.//span[contains(@class,'sec-t') and normalize-space(.)='Sources']]//span[contains(@class,'sec-c') and number(normalize-space(.)) > 0]", 30000);
+    await find("//section[.//*[contains(@class,'sec-t') and normalize-space(.)='Sources']]//span[contains(@class,'sec-c') and number(normalize-space(.)) > 0]", 30000);
   });
   await journey("audio-source-retention-readonly", async () => {
     // Probe the named Core-through-Tauri read command from the *real* Windows
     // WebView2 surface. No model or data is downloaded and no record is deleted.
     await nav("Audio");
-    const sourceRow = "//section[.//span[contains(@class,'sec-t') and normalize-space(.)='Sources']]" +
+    const sourceRow = "//section[.//*[contains(@class,'sec-t') and normalize-space(.)='Sources']]" +
       "//div[contains(@class,'lr') and .//button[normalize-space(.)='Stored data']]";
     await find(sourceRow, 30000);
     await click("(" + sourceRow + ")[1]//button[normalize-space(.)='Stored data']");
@@ -563,13 +563,13 @@ try {
       await click("//form[.//input[@id='wp1']]//button[@type='submit']");
       await see("Recording imported", 60000);
       const quotedFile = JSON.stringify(path.basename(process.env.MEDSCALE_E2E_REAL_WAV_PATH));
-      const realSource = "//section[.//span[contains(@class,'sec-t') and normalize-space(.)='Sources']]" +
+      const realSource = "//section[.//*[contains(@class,'sec-t') and normalize-space(.)='Sources']]" +
         "//div[contains(@class,'lr') and .//span[contains(normalize-space(.), " + quotedFile + ")]]";
       await find(realSource, 60000);
       await click(realSource + "//button[normalize-space(.)='Transcribe']", 60000);
       await see("Transcription recorded", 240000);
       await find(
-        "//section[.//span[contains(@class,'sec-t') and normalize-space(.)='Transcript']]" +
+        "//section[.//*[contains(@class,'sec-t') and normalize-space(.)='Transcript']]" +
           "//div[contains(@class,'lr')]/span[3]" +
           "[string-length(normalize-space(.)) > 8]" +
           "[not(contains(., '(untranscribed)'))]" +
@@ -590,7 +590,7 @@ try {
       // transcript, source identifier or screenshot in public CI output.
       await nav("Audio");
       const name = JSON.stringify(path.basename(process.env.MEDSCALE_E2E_REAL_WAV_PATH));
-      const source = "//section[.//span[contains(@class,'sec-t') and normalize-space(.)='Sources']]" +
+      const source = "//section[.//*[contains(@class,'sec-t') and normalize-space(.)='Sources']]" +
         "//div[contains(@class,'lr') and .//span[contains(normalize-space(.), " + name + ")]]";
       await find(source, 30000);
       await click(source + "//button[normalize-space(.)='Stored data']");
@@ -705,6 +705,34 @@ try {
     await see("Privacy & network", 60000);
     const handles = await wd("GET", `/session/${sid}/window/handles`);
     if (handles.length !== 1) throw new Error(`Settings unexpectedly opened ${handles.length} WebView windows`);
+  });
+  // Keyboard and screen-reader basics that unit tests cannot prove: focus moves
+  // to the new page, real sub-headings exist, a search hit responds to a real
+  // key press, and changing a setting does not drop focus to the document body.
+  await journey("keyboard-focus-and-page-headings", async () => {
+    const evalJs = (script, args = []) => wd("POST", `/session/${sid}/execute/sync`, { script, args });
+    const poll = async (script, what) => {
+      for (let i = 0; i < 40; i++) {
+        if (await evalJs(script)) return;
+        await new Promise((r) => setTimeout(r, 250));
+      }
+      throw new Error(`Keyboard journey: ${what}`);
+    };
+    await nav("Evidence");
+    await poll("return document.activeElement && document.activeElement.id === 'main';", "focus did not move to main after navigating");
+    await poll("return document.title === 'Evidence · MedScale';", "page title did not name the route");
+    await poll("return document.querySelectorAll('main h1').length === 1 && document.querySelectorAll('main h2').length > 0;", "page has no h1 and h2 structure");
+    await type(`//input[@aria-label='Search corpus text']`, "asthma");
+    await click(`//button[@type='submit' and ${text("Search")}]`);
+    const hit = await find(`//div[@role='button' and starts-with(@aria-label,'Open ')]`, 30000);
+    await wd("POST", `/session/${sid}/element/${hit}/value`, { text: "" });
+    await poll(`return !!document.querySelector("div[role='button'][aria-label^='Open '].sel");`, "Enter on a search hit did not select it");
+    await nav("Settings");
+    const radio = await find(`//div[@role='radiogroup' and @aria-label='Theme']/button[@aria-checked='false']`);
+    const label = await evalJs("arguments[0].focus(); arguments[0].click(); return arguments[0].textContent;", [{ [ELEMENT]: radio }]);
+    await poll(`const a = document.activeElement; return a && a.getAttribute('role') === 'radio' && a.textContent === ${JSON.stringify(label)} && a.getAttribute('aria-checked') === 'true';`, "changing the theme dropped keyboard focus");
+    const back = await find(`//div[@role='radiogroup' and @aria-label='Theme']/button[@aria-checked='false']`);
+    await evalJs("arguments[0].click();", [{ [ELEMENT]: back }]);
   });
   await journey("about-doctor", async () => {
     await nav("About");

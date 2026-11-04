@@ -1,11 +1,11 @@
-import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
-import { call } from "./lib/ipc";
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import { call, type CmdError } from "./lib/ipc";
 import { parseDensity, parseTheme } from "./lib/ui-preferences";
 import { App as AppContext, readPref, writePref, type AppCtx, type Density, type Nav, type Theme, type WorkspaceStatus } from "./lib/app";
 import { isRouteId, routes, type RouteId } from "./routes";
 import { Header, Palette, Sidebar } from "./components/shell";
 import { Mark } from "./components/brand";
-import { ToastHost } from "./components/ui";
+import { ErrorState, ToastHost } from "./components/ui";
 import { Access, Welcome } from "./pages/Gate";
 import { Home } from "./pages/Home";
 import { PatientDetail, Patients } from "./pages/Patients";
@@ -77,6 +77,7 @@ export function App() {
   const [theme, setThemeState] = useState<Theme>(initialTheme);
   const [density, setDensityState] = useState<Density>(parseDensity(hash.get("density")) ?? parseDensity(readPref("density")) ?? "standard");
   const [palette, setPalette] = useState(false);
+  const [lockError, setLockError] = useState<CmdError | null>(null);
 
   const refreshWorkspace = useCallback(async () => {
     try {
@@ -100,13 +101,32 @@ export function App() {
   const setProject = useCallback((id: string | null) => { setProjectState(id); }, []);
   const navigate = useCallback((route: RouteId, subject?: string) => { setNav({ route, subject }); setPalette(false); }, []);
   const lock = useCallback(async () => {
-    try { await call("workspace_lock"); } finally {
-      setProjectState(null);
-      setGate("access");
-      setNav({ route: "Home" });
+    setLockError(null);
+    try {
+      await call("workspace_lock");
+    } catch (e) {
+      // The vault is still open and unsealed: stay here and say so.
+      setLockError(e as CmdError);
       await refreshWorkspace();
+      return;
     }
+    setProjectState(null);
+    setGate("access");
+    setNav({ route: "Home" });
+    await refreshWorkspace();
   }, [refreshWorkspace]);
+
+  // A route change moves focus to the new page and names it, so keyboard and
+  // screen-reader users are not left on a control in the previous view.
+  const routeKey = ws?.open ? `${nav.route}:${nav.subject ?? ""}` : null;
+  const lastRouteKey = useRef(routeKey);
+  useEffect(() => {
+    document.title = ws?.open ? `${nav.route} · MedScale` : "MedScale";
+    if (lastRouteKey.current === routeKey) return;
+    const entered = lastRouteKey.current !== null;
+    lastRouteKey.current = routeKey;
+    if (entered && routeKey) document.getElementById("main")?.focus();
+  }, [routeKey, ws?.open, nav.route]);
 
   useEffect(() => {
     function onKey(e: KeyboardEvent) {
@@ -138,10 +158,12 @@ export function App() {
   } else {
     body = (
       <div className="app">
+        <button type="button" className="btn btn-s skip-link" onClick={() => document.getElementById("main")?.focus()}>Skip to main content</button>
         <Sidebar />
         <div className="main">
           <Header crumbs={crumbs} />
-          <main id="main" className="split" tabIndex={-1} style={{ outline: "none" }}>
+          {lockError && <div style={{ padding: "12px 24px 0" }}><ErrorState error={{ ...lockError, message: `The workspace is still open: it could not be locked. ${lockError.message}` }} onRetry={() => void lock()} /></div>}
+          <main id="main" className="split" tabIndex={-1} aria-label={nav.route} style={{ outline: "none" }}>
             {(nav.route === "Patients" && nav.subject) ? <PatientDetail subject={nav.subject} /> : PAGES[nav.route]()}
           </main>
         </div>

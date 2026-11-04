@@ -2,7 +2,7 @@ import { useEffect, useState, type FormEvent } from "react";
 import { formatDecimalMegabytes } from "../model-storage";
 import { useAction, useCommand } from "../lib/ipc";
 import { ProjectScope } from "../components/project";
-import { Authority, Empty, ErrorState, Glyph, Icon, KV, Ledger, Notice, PageHead, Section, Skeleton, Status, glyphFor, useOutcome } from "../components/ui";
+import { Authority, Empty, ErrorState, Glyph, Icon, KV, Ledger, Notice, PageHead, Section, Skeleton, Status, glyphFor, useOutcome, LoadError } from "../components/ui";
 
 /* ───────────────────────────── Models ───────────────────────────── */
 type ModelsVm = {
@@ -49,7 +49,7 @@ export function Models() {
         {tab === "evaluate" && <EvaluateTab />}
         <Section n="02" title="How model output is treated">
           <div className="grid-2">
-            <Notice kind="proposal" title="Proposal.">Every output stays an outline-triangle proposal until a person accepts it.</Notice>
+            <Notice kind="proposal" title="Proposal.">Every output stays an outline-triangle proposal. Desktop has no step that accepts one into a record.</Notice>
             <Notice kind="unknown" title="Confidence.">Shown only when the task defines it. Raw logits are never presented as probability.</Notice>
           </div>
           <p className="t-sm i3" style={{ marginTop: 10 }}>{v.model_runtime_boundary}</p>
@@ -365,6 +365,7 @@ function MedAgentBody({ projectId }: { projectId: string }) {
             ))}
           </Section>
           <Section title="Turns" count={turns.state.status === "ready" ? turns.state.data.length : "…"}>
+            <LoadError cmd={turns} />
             {turns.state.status === "ready" && (turns.state.data.length ? turns.state.data.map((t) => (
               <div key={t.seq} className="lr" style={{ gridTemplateColumns: "36px 140px minmax(0,1fr)", alignItems: "start", padding: "8px 12px" }}><span className="mono t-mono-sm i3">{t.seq}</span><span className="t-sm i2">{t.kind}</span><TurnPayload payload={t.payload} /></div>
             )) : <p className="t-sm i3">No turns yet. Start, then execute the run.</p>)}
@@ -375,7 +376,7 @@ function MedAgentBody({ projectId }: { projectId: string }) {
               <pre className="pre" style={{ marginTop: 10, border: 0, background: "transparent", padding: 0 }}>{JSON.stringify(proposal, null, 2)}</pre>
             </div>
           </Section>}
-          <Authority>Proposal, not accepted. Nothing is written to a record; a person decides through review. Runs, turns and evidence persist in the vault and resume after a restart.</Authority>
+          <Authority>Proposal, not accepted. Nothing is written to a record. Runs, turns and evidence persist in the vault and resume after a restart.</Authority>
         </> : <Empty icon="medagent" title="No run selected">Choose an agent and the sources its context binds, then create a run.</Empty>}
       </div>
     </div>

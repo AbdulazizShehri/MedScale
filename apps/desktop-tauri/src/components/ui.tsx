@@ -103,7 +103,7 @@ export function Section({ n, title, count, actions, children }: { n?: string; ti
     <section className="section">
       <div className="sec">
         {n && <span className="sec-n">{n}</span>}
-        <span className="sec-t">{title}</span>
+        <h2 className="sec-t">{title}</h2>
         {count !== undefined && <span className="sec-c">{count}</span>}
         <span className="sec-rule" />
         {actions && <span className="sec-a">{actions}</span>}
@@ -180,6 +180,11 @@ const ERROR_GLYPH: Record<CmdError["kind"], GlyphKind> = {
 };
 
 /** Explicit error state. The Core message is shown verbatim. */
+/** The failure of a secondary read, which would otherwise render as nothing. */
+export function LoadError({ cmd }: { cmd: { state: { status: string; error?: CmdError }; reload: () => void } }) {
+  return cmd.state.status === "error" && cmd.state.error ? <ErrorState error={cmd.state.error} onRetry={cmd.reload} /> : null;
+}
+
 export function ErrorState({ error, onRetry }: { error: CmdError; onRetry?: () => void }) {
   const retryable = error.kind === "unavailable" || error.kind === "disconnected" || error.kind === "stale" || error.kind === "conflict";
   return (

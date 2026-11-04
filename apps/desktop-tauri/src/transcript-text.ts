@@ -18,8 +18,11 @@ function clock(ms: number): string {
 
 export function transcriptPlainText(
   revision: { revision_no: number; state: string; segments: readonly TranscriptTextSegment[] },
+  engine?: { is_fixture?: boolean } | null,
 ): string {
-  const header = `MedScale draft transcript · revision ${revision.revision_no} · ${revision.state} · not clinically verified`;
+  // Fixture output is not speech recognition; a pasted copy must say so.
+  const fixture = engine?.is_fixture ? " · fixture engine output, not speech recognition" : "";
+  const header = `MedScale draft transcript · revision ${revision.revision_no} · ${revision.state}${fixture} · not clinically verified`;
   const lines = [...revision.segments]
     .sort((a, b) => a.seq - b.seq)
     .map((s) => {
