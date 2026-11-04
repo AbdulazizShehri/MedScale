@@ -98,11 +98,15 @@ fn a_torn_seal_keeps_the_work_database_it_could_not_replace() {
 
 #[test]
 fn a_wrong_passphrase_changes_nothing_even_with_a_leftover() {
-    let root = temp_root("wrong-pass");
-    let (vault, _) = EncryptedVault::create("v-109", &root, PASS, "holder-a", None).unwrap();
-    drop(vault);
+    // After a clean close no lease exists, so a lease taken before the key is
+    // checked would be caught here as a new file.
+    let root = sealed_vault("wrong-pass");
+    fs::write(root.join(WORK), b"leftover").unwrap();
     let before = snapshot(&root);
-    assert!(EncryptedVault::open_with_passphrase(&root, "not-the-pass", "holder-b").is_err());
+    assert!(matches!(
+        EncryptedVault::open_with_passphrase(&root, "not-the-pass", "holder-b"),
+        Err(EncryptedVaultError::MissingKeyMaterial)
+    ));
     assert_eq!(snapshot(&root), before);
     fs::remove_dir_all(&root).unwrap();
 }
@@ -153,7 +157,7 @@ fn a_failed_seal_hands_back_an_open_vault_and_a_retry_succeeds() {
 
     // A directory at the temp path makes the seal fail like a full disk would.
     fs::create_dir(root.join("meta.sealed.tmp")).unwrap();
-    let failed = vault.try_close().err().expect("seal must fail");
+    let failed = vault.try_close().expect_err("seal must fail");
     let (vault, _error) = *failed;
     assert_eq!(fs::read(root.join(SEALED)).unwrap(), seal_before);
     assert!(root.join(WORK).exists(), "the work file was not wiped");
@@ -196,11 +200,19 @@ fn an_empty_lease_left_by_a_torn_write_does_not_strand_the_vault() {
 }
 
 #[test]
+fn the_session_lock_file_survives_close_and_is_empty() {
+    let root = sealed_vault("lock-file");
+    assert_eq!(fs::read(root.join(".session.lock")).unwrap(), b"");
+    let vault = open(&root).unwrap();
+    vault.close().unwrap();
+    fs::remove_dir_all(&root).unwrap();
+}
+
+#[test]
 fn a_clean_close_leaves_no_session_files() {
     let root = sealed_vault("clean");
     let names: Vec<String> = snapshot(&root).into_keys().collect();
     for gone in [
-        ".session.lock",
         ".writer.lock",
         "meta.sealed.tmp",
         WORK,

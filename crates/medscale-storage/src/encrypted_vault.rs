@@ -16,6 +16,7 @@ use crate::sealed_blob::{SealedBlobError, SealedBlobStore};
 use crate::sqlite_meta::{MetaError, SourceMeta, SqliteMetaStore};
 
 const HEADER_FILE: &str = "vault_header.json";
+const HEADER_TMP: &str = "vault_header.json.tmp";
 const META_SEALED: &str = "meta.sealed";
 const META_SEALED_TMP: &str = "meta.sealed.tmp";
 const META_WORK: &str = "meta.work.sqlite3";
@@ -65,7 +66,7 @@ pub struct EncryptedVault {
     lease_holder: String,
     /// OS lock held for the whole session, so another process can neither
     /// adopt nor wipe this session's live work database (Spec 109).
-    session_lock: fs::File,
+    _session_lock: fs::File,
     discarded_interrupted_session: bool,
 }
 
@@ -97,9 +98,11 @@ impl EncryptedVault {
         let on_disk = OnDiskHeader {
             keys: header.clone(),
         };
-        fs::write(
-            root.join(HEADER_FILE),
-            serde_json::to_vec_pretty(&on_disk).map_err(|_| EncryptedVaultError::Crypto)?,
+        // Durable before anything is sealed under the keys it wraps.
+        write_durably(
+            &root.join(HEADER_TMP),
+            &root.join(HEADER_FILE),
+            &serde_json::to_vec_pretty(&on_disk).map_err(|_| EncryptedVaultError::Crypto)?,
         )?;
 
         let work = root.join(META_WORK);
@@ -120,7 +123,7 @@ impl EncryptedVault {
                 meta,
                 blobs,
                 lease_holder: holder_id.to_owned(),
-                session_lock,
+                _session_lock: session_lock,
                 discarded_interrupted_session: false,
             },
             codes,
@@ -173,19 +176,25 @@ impl EncryptedVault {
         // replacement is authenticated. A wrong passphrase or a torn or foreign
         // `meta.sealed` fails here with every file intact.
         let plain = Self::decrypt_sealed_meta(&root, &header.vault_id, &dek)?;
-        Self::acquire_lease(&root, holder_id)?;
+        // The lock comes first: a refused opener must not rewrite the lease.
         let session_lock = Self::take_session_lock(&root, holder_id)?;
+        Self::acquire_lease(&root, holder_id)?;
         let _ = fs::remove_file(root.join(META_SEALED_TMP));
         let _ = fs::remove_file(root.join(META_WORK_TMP));
         // Crash leftovers are not treated as sealed (Spec 017 FR-003); the
         // caller is told so it can say that recent changes may be lost.
         let discarded_interrupted_session = Self::leftover_work_present(&root);
-        if discarded_interrupted_session {
-            Self::wipe_work_sidecars(&root)?;
-        }
-        Self::remove_remaining_sidecars(&root)?;
         let work = root.join(META_WORK);
-        write_durably(&root.join(META_WORK_TMP), &work, &plain)?;
+        let work_tmp = root.join(META_WORK_TMP);
+        // The replacement is durable before the leftover goes, and a rename
+        // replaces it, so a crash or full disk here cannot hide the discard
+        // from the next open.
+        write_synced(&work_tmp, &plain)?;
+        Self::remove_sidecars(&root)?;
+        if work.exists() {
+            scrub(&work);
+        }
+        rename_durably(&work_tmp, &work)?;
         let meta = SqliteMetaStore::open_at_sqlcipher_or_rekey_legacy(&work, dek.as_bytes())?;
         let blobs = SealedBlobStore::open(&root, &header.vault_id)?;
         Ok(Self {
@@ -196,7 +205,7 @@ impl EncryptedVault {
             meta,
             blobs,
             lease_holder: holder_id.to_owned(),
-            session_lock,
+            _session_lock: session_lock,
             discarded_interrupted_session,
         })
     }
@@ -225,11 +234,12 @@ impl EncryptedVault {
     }
 
     /// A stale journal beside a fresh copy could be rolled back into it.
-    fn remove_remaining_sidecars(root: &Path) -> Result<(), EncryptedVaultError> {
+    fn remove_sidecars(root: &Path) -> Result<(), EncryptedVaultError> {
         let work = root.join(META_WORK);
         for suffix in ["-wal", "-shm", "-journal"] {
             let side = sqlite_sidecar(&work, suffix);
             if side.exists() {
+                scrub(&side);
                 fs::remove_file(&side)?;
             }
         }
@@ -261,6 +271,15 @@ impl EncryptedVault {
         let plain = fs::read(&work)?;
         let sealed = seal(dek.as_bytes(), &plain, &Self::meta_aad(vault_id))
             .map_err(|_| EncryptedVaultError::Crypto)?;
+        // A sealed row must not outlive its blob after power loss. `create`
+        // seals before this folder exists.
+        #[cfg(unix)]
+        {
+            let blobs = root.join("sealed_blobs");
+            if blobs.is_dir() {
+                fs::File::open(&blobs)?.sync_all()?;
+            }
+        }
         // Atomic: a crash or full disk leaves the previous seal intact. The
         // caller wipes the work file only after this returns.
         write_durably(
@@ -313,17 +332,12 @@ impl EncryptedVault {
         if let Err(error) = Self::seal_meta_file(&self.root, &self.vault_id, &self.dek) {
             return Err(Box::new((self, error)));
         }
-        let EncryptedVault {
-            root,
-            meta,
-            session_lock,
-            ..
-        } = self;
+        let EncryptedVault { root, meta, .. } = self;
         drop(meta);
         let _ = Self::wipe_work_sidecars(&root);
         let _ = fs::remove_file(root.join(LEASE_FILE));
-        drop(session_lock);
-        let _ = fs::remove_file(root.join(SESSION_LOCK_FILE));
+        // `.session.lock` stays: unlinking it would let one opener lock the
+        // removed file while another locks a new one. It is always empty.
         Ok(())
     }
 
@@ -338,11 +352,7 @@ impl EncryptedVault {
             work.clone(),
         ] {
             if path.exists() {
-                // Best-effort overwrite then remove (not a secure OS wipe claim).
-                if let Ok(meta) = fs::metadata(&path) {
-                    let len = meta.len() as usize;
-                    let _ = fs::write(&path, vec![0_u8; len.min(1024 * 1024)]);
-                }
+                scrub(&path);
                 let _ = fs::remove_file(&path);
             }
         }
@@ -478,13 +488,29 @@ impl EncryptedVault {
     }
 }
 
-/// Writes `bytes` to `tmp`, syncs it and renames it over `dest`. A sharing
-/// violation from antivirus or indexing on Windows is retried briefly.
+/// Best-effort overwrite before removal (not a secure OS wipe claim).
+fn scrub(path: &Path) {
+    if let Ok(meta) = fs::metadata(path) {
+        let len = meta.len() as usize;
+        let _ = fs::write(path, vec![0_u8; len.min(1024 * 1024)]);
+    }
+}
+
 fn write_durably(tmp: &Path, dest: &Path, bytes: &[u8]) -> Result<(), EncryptedVaultError> {
+    write_synced(tmp, bytes)?;
+    rename_durably(tmp, dest)
+}
+
+fn write_synced(tmp: &Path, bytes: &[u8]) -> Result<(), EncryptedVaultError> {
     let mut file = fs::File::create(tmp)?;
     file.write_all(bytes)?;
     file.sync_all()?;
-    drop(file);
+    Ok(())
+}
+
+/// Renames `tmp` over `dest`. A sharing violation from antivirus or indexing
+/// on Windows is retried briefly.
+fn rename_durably(tmp: &Path, dest: &Path) -> Result<(), EncryptedVaultError> {
     let deadline = std::time::Instant::now() + std::time::Duration::from_secs(3);
     loop {
         match fs::rename(tmp, dest) {

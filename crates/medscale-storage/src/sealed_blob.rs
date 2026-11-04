@@ -51,6 +51,13 @@ impl SealedBlobStore {
     /// Put plaintext bytes; returns content digest of plaintext.
     pub fn put(&self, dek: &VaultDek, bytes: &[u8]) -> Result<DigestSha256, SealedBlobError> {
         let digest = DigestSha256::of(bytes);
+        // Content-addressed and renamed into place only when complete. Core
+        // re-puts every blob on each snapshot, so this also avoids an fsync
+        // per blob per request.
+        let dest = self.path_for(&digest);
+        if dest.exists() {
+            return Ok(digest);
+        }
         let sealed =
             seal(dek.as_bytes(), bytes, &self.aad(&digest)).map_err(|_| SealedBlobError::Crypto)?;
         let encoded = serde_json::to_vec(&sealed).map_err(|_| SealedBlobError::Crypto)?;
@@ -61,7 +68,6 @@ impl SealedBlobStore {
         std::io::Write::write_all(&mut file, &encoded)?;
         file.sync_all()?;
         drop(file);
-        let dest = self.path_for(&digest);
         fs::rename(&tmp, dest)?;
         Ok(digest)
     }

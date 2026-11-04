@@ -31,7 +31,7 @@ fn native_desktop_shell_is_pinned_non_webview_and_branded() {
 
     assert!(workspace.contains("slint = { version = \"=1.16.1\""));
     assert!(workspace.contains("\"accessibility\""));
-    assert!(workspace.contains("rust-version = \"1.88\""));
+    assert!(workspace.contains("rust-version = \"1.89\""));
     assert!(workspace.contains("\"renderer-femtovg\""));
     assert!(desktop.contains("slint = { workspace = true }"));
     assert!(
