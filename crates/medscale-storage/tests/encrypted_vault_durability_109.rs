@@ -191,11 +191,13 @@ fn a_second_open_of_a_live_session_is_refused_and_wipes_nothing() {
 }
 
 #[test]
-fn an_empty_lease_left_by_a_torn_write_does_not_strand_the_vault() {
+fn a_lease_left_by_a_crash_or_torn_write_does_not_strand_the_vault() {
     let root = sealed_vault("lease");
-    fs::write(root.join(".writer.lock"), b"").unwrap();
-    let vault = EncryptedVault::open_with_passphrase(&root, PASS, "holder-z").unwrap();
-    vault.close().unwrap();
+    for stale in [&b""[..], b"holder-that-crashed", b"holder-tha"] {
+        fs::write(root.join(".writer.lock"), stale).unwrap();
+        let vault = EncryptedVault::open_with_passphrase(&root, PASS, "holder-z").unwrap();
+        vault.close().unwrap();
+    }
     fs::remove_dir_all(&root).unwrap();
 }
 

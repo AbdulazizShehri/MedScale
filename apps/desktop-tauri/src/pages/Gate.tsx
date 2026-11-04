@@ -134,6 +134,7 @@ export function Access({ onBack }: { onBack: () => void }) {
   const [pass, setPass] = useState("");
   const [confirm, setConfirm] = useState("");
   const [show, setShow] = useState(false);
+  const [useCode, setUseCode] = useState(false);
   const [error, setError] = useState<CmdError | null>(null);
   const [codes, setCodes] = useState<string[] | null>(null);
   const { pending, run } = useAction();
@@ -143,7 +144,9 @@ export function Access({ onBack }: { onBack: () => void }) {
     setError(null);
     if (mode === "create" && pass !== confirm) { setError({ kind: "invalid", message: "Invalid: passphrases do not match" }); return; }
     if (mode === "unlock") {
-      const r = await run<unknown>("unlock", "workspace_unlock", { passphrase: pass });
+      const r = useCode
+        ? await run<unknown>("unlock", "workspace_unlock_with_recovery_code", { code: pass })
+        : await run<unknown>("unlock", "workspace_unlock", { passphrase: pass });
       if (r.ok) {
         setPass("");
         if (discardedInterruptedSession(r.data)) toast({ kind: "blocked", ...DISCARDED_SESSION_NOTICE });
@@ -174,7 +177,7 @@ export function Access({ onBack }: { onBack: () => void }) {
             {codes ? (
               <div className="stack" style={{ width: 420, maxWidth: "100%", gap: 18 }}>
                 <h1 style={{ margin: 0, fontSize: 32, lineHeight: "36px", fontWeight: 600, letterSpacing: "-0.025em" }}>Save your recovery codes</h1>
-                <p className="t-body i2">These replace a lost passphrase. They are shown once and are not stored anywhere MedScale can show them again.</p>
+                <p className="t-body i2">Each code opens this vault if you lose your passphrase. They are shown once and are not stored anywhere MedScale can show them again. Keep them somewhere safe and separate.</p>
                 <div className="codes" aria-label="Recovery codes">{codes.length ? codes.map((c) => <span key={c}>{c}</span>) : <span className="i3">Core issued no recovery codes for this vault.</span>}</div>
                 <div><button type="button" className="btn btn-p lg" onClick={() => void refreshWorkspace()}>I saved them · continue</button></div>
               </div>
@@ -195,12 +198,13 @@ export function Access({ onBack }: { onBack: () => void }) {
                   </div>
                 </div>
                 <div>
-                  <label className="lbl" htmlFor="pp">Passphrase</label>
+                  <label className="lbl" htmlFor="pp">{useCode ? "Recovery code" : "Passphrase"}</label>
                   <div className="field-row">
-                    <input id="pp" type={show ? "text" : "password"} value={pass} onChange={(e) => setPass(e.target.value)} autoComplete={mode === "unlock" ? "current-password" : "new-password"} aria-invalid={error?.kind === "invalid" || error?.kind === "denied"} style={{ flex: 1, height: 40 }} autoFocus />
+                    <input id="pp" type={show ? "text" : "password"} value={pass} onChange={(e) => setPass(e.target.value)} autoComplete={useCode ? "off" : mode === "unlock" ? "current-password" : "new-password"} aria-invalid={error?.kind === "invalid" || error?.kind === "denied"} style={{ flex: 1, height: 40 }} autoFocus />
                     <button type="button" className="btn btn-g" onClick={() => setShow((s) => !s)}>{show ? "Hide" : "Show"}</button>
                   </div>
-                  <span className="t-sm i3" style={{ display: "block", marginTop: 6 }}>8–256 characters. Held in memory only while the vault is open.</span>
+                  <span className="t-sm i3" style={{ display: "block", marginTop: 6 }}>{useCode ? "A code from when this vault was created. It opens the vault and stays valid; the passphrase cannot be changed in this version." : "8–256 characters. Held in memory only while the vault is open."}</span>
+                  {mode === "unlock" && <button type="button" className="link t-sm" style={{ marginTop: 6 }} onClick={() => { setUseCode((c) => !c); setPass(""); setError(null); }}>{useCode ? "Use my passphrase" : "Use a recovery code"}</button>}
                 </div>
                 {mode === "create" && (
                   <div>
@@ -210,7 +214,7 @@ export function Access({ onBack }: { onBack: () => void }) {
                 )}
                 {error && <FailureAlert error={error} glyph={error.kind === "denied" ? "denied" : "failed"} wrap />}
                 <div className="row-gap" style={{ gap: 14 }}>
-                  <button type="submit" className="btn btn-p lg" disabled={!!pending || pass.length < 8}>{pending === "unlock" || pending === "create" ? <><Glyph kind="running" />Working…</> : mode === "unlock" ? "Unlock workspace" : "Create vault"}</button>
+                  <button type="submit" className="btn btn-p lg" disabled={!!pending || (useCode ? !pass.trim() : pass.length < 8)}>{pending === "unlock" || pending === "create" ? <><Glyph kind="running" />Working…</> : mode === "unlock" ? "Unlock workspace" : "Create vault"}</button>
                   {exists
                     ? <button type="button" className="link t-sm" onClick={() => { setMode(mode === "unlock" ? "create" : "unlock"); setError(null); }} disabled={mode === "unlock"} title={mode === "unlock" ? "A vault already exists at the default location" : undefined}>{mode === "unlock" ? "One vault per device in this build" : "Unlock existing vault"}</button>
                     : null}
@@ -229,9 +233,9 @@ export function Access({ onBack }: { onBack: () => void }) {
           <div className="sec" style={{ margin: 0 }}><span className="sec-n">01</span><span className="sec-t">What unlocking does</span><span className="sec-rule" /></div>
           <div className="stack" style={{ gap: 0 }}>
             {[
-              ["present", "Decrypts on this device", "The vault key is derived from your passphrase. Nothing leaves the machine."],
+              ["present", "Decrypts on this device", "The vault key is derived from your passphrase. The passphrase and key are never sent anywhere."],
               ["unavailable", "Does not identify you", "MedScale has no organizational sign-in. Anyone with the passphrase can open this vault."],
-              ["absent", "Recovery codes, not resets", "A lost passphrase can only be replaced with a recovery code issued at creation."],
+              ["absent", "Recovery codes, not resets", "If you lose your passphrase, a recovery code issued at creation opens the vault. Without either, the vault cannot be opened. The passphrase cannot be changed in this version."],
               [ws?.real_phi_authorized ? "available" : "limited", "Real PHI is not authorized", "Use synthetic or permitted fixtures until private-data authorization is granted."],
             ].map(([k, t, d]) => (
               <div key={t} style={{ display: "grid", gridTemplateColumns: "20px minmax(0,1fr)", gap: 12, padding: "12px 0", borderBottom: "1px solid var(--line-subtle)" }}>
