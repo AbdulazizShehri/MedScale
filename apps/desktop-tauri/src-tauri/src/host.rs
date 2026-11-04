@@ -3223,6 +3223,17 @@ mod tests {
                 )
                 .expect("delete");
             assert!(removed > 0, "the boundary had promoted an assertion");
+            // The promotion's audit row goes with it. Core persists after each
+            // request, so this is the state a crash between propose and promote
+            // leaves. An assertion's audit row without the assertion is
+            // refused, correctly, because it looks forged.
+            let removed = db
+                .execute(
+                    "DELETE FROM authority_objects WHERE object_class = 'audit'                      AND body_json LIKE '%promote_proposal%'",
+                    [],
+                )
+                .expect("delete audit");
+            assert!(removed > 0, "the promotion left an audit row");
             let proposals: i64 = db
                 .query_row(
                     "SELECT COUNT(*) FROM authority_objects WHERE object_class = 'proposal'",
