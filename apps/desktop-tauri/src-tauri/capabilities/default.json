@@ -98,6 +98,7 @@
     "allow-audio-admit-asr-pack",
     "allow-audio-import-wav",
     "allow-audio-transcribe",
+    "allow-audio-transcript-latest",
     "allow-audio-correct",
     "allow-audio-draft-note"
   ]

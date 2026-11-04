@@ -119,6 +119,7 @@ fn main() {
             "audio_admit_asr_pack",
             "audio_import_wav",
             "audio_transcribe",
+            "audio_transcript_latest",
             "audio_correct",
             "audio_draft_note",
         ]));
