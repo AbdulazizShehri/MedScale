@@ -130,7 +130,7 @@ function SubjectExportForm({ onDone }: { onDone: () => void }) {
         <Ledger items={[{ k: "disclosure", v: result.disclosure.disclosure_id, mono: true }, { k: "resources", v: result.exports.length, mono: true }, { k: "digest", v: result.disclosure.export_digest ?? "—", mono: true }]} />
         <table className="tb"><thead><tr><th style={{ width: "22%" }}>Resource</th><th style={{ width: "14%" }}>Losses</th><th>Lost or unsupported fields</th></tr></thead>
           <tbody>{result.exports.map((x, i) => <tr key={i}><td className="t-sm">{x.resource_type}</td><td className="mono t-mono-sm">{x.field_losses.length}</td><td className="t-sm i2"><span className="trunc">{[...x.field_losses.map((l) => `${l.fhir_path} (${l.loss_class})`), ...x.unsupported_fields_preserved].join(", ") || "none"}</span></td></tr>)}</tbody></table>
-        <p className="t-sm i3" style={{ marginTop: 6 }}>Full conformance is not claimed. The export is shown here, not written to disk; the disclosure is in the Audit Trail.</p>
+        <p className="t-sm i3" style={{ marginTop: 6 }}>Full conformance is not claimed. This is a summary of the export: its contents are not displayed or written to disk. The disclosure is in the Audit Trail.</p>
       </div>}
     </Section>
   );
@@ -171,25 +171,29 @@ export function Integrations() {
 }
 
 /* ───────────────────────────── Settings ───────────────────────────── */
-export function Settings() {
-  const { theme, setTheme, density, setDensity, ws, lock } = useApp();
-  const gov = useCommand<Gov>(ws?.open ? "governance_overview" : null);
-
-  const Seg = <T extends string>({ value, options, onChange, label }: { value: T; options: T[]; onChange: (v: T) => void; label: string }) => (
-    <div role="radiogroup" aria-label={label} className="seg">{options.map((o) => <button key={o} type="button" role="radio" aria-checked={value === o} onClick={() => onChange(o)}>{o[0]!.toUpperCase() + o.slice(1)}</button>)}</div>
-  );
-  const SettingRow = ({ label, detail, children }: { label: string; detail: string; children: ReactNode }) => (
+// Module scope: a component defined during render remounts on every state
+// change, which drops keyboard focus to the document body.
+function Seg<T extends string>({ value, options, onChange, label }: { value: T; options: T[]; onChange: (v: T) => void; label: string }) {
+  return <div role="radiogroup" aria-label={label} className="seg">{options.map((o) => <button key={o} type="button" role="radio" aria-checked={value === o} onClick={() => onChange(o)}>{o[0]!.toUpperCase() + o.slice(1)}</button>)}</div>;
+}
+function SettingRow({ label, detail, children }: { label: string; detail: string; children: ReactNode }) {
+  return (
     <div style={{ display: "grid", gridTemplateColumns: "minmax(0,1fr) 280px", gap: 24, alignItems: "center", minHeight: 56, borderBottom: "1px solid var(--line-subtle)" }}>
       <div><div style={{ fontSize: 13, fontWeight: 500 }}>{label}</div><div className="t-sm i3" style={{ marginTop: 2 }}>{detail}</div></div><div>{children}</div>
     </div>
   );
+}
+
+export function Settings() {
+  const { theme, setTheme, density, setDensity, ws, lock } = useApp();
+  const gov = useCommand<Gov>(ws?.open ? "governance_overview" : null);
 
   return (
     <div className="pane">
       <div style={{ maxWidth: 860 }}>
         <PageHead title="Settings" sub="Read-only facts are shown as status. Anything you can change is a control." />
         <Section n="01" title="Appearance">
-          <SettingRow label="Theme" detail="Applies until MedScale restarts; this preference is not saved. Also available from the command palette."><Seg label="Theme" value={theme} options={["dark", "light"]} onChange={setTheme} /></SettingRow>
+          <SettingRow label="Theme" detail="Saved on this device. Also available from the command palette."><Seg label="Theme" value={theme} options={["dark", "light"]} onChange={setTheme} /></SettingRow>
           <SettingRow label="Density" detail="Compact tightens rows, padding and gaps. Type size does not change."><Seg label="Density" value={density} options={["standard", "compact"]} onChange={setDensity} /></SettingRow>
           <SettingRow label="Reduce motion" detail="Follows the operating system. State changes stay immediate."><Status kind="available">Follows system</Status></SettingRow>
         </Section>
@@ -226,6 +230,7 @@ export function About() {
   return (
     <div className="pane">
       <div style={{ maxWidth: 980 }} className="stack">
+        <h1 className="sr-only">About MedScale</h1>
         <div className="row-gap" style={{ alignItems: "flex-end", gap: 40, paddingBottom: 32, borderBottom: "1px solid var(--line)", marginBottom: 28 }}>
           <Mark height={96} />
           <div className="stack" style={{ gap: 6, flex: 1, minWidth: 260 }}><Wordmark height={34} title={a.product} /><span style={{ fontSize: 15, color: "var(--ink-2)" }}>{a.tagline}</span></div>

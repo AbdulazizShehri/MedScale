@@ -22,3 +22,10 @@ test("orders segments, labels draft status and keeps untranscribed gaps", () => 
 test("empty revision still states provenance", () => {
   assert.match(transcriptPlainText({ revision_no: 1, state: "partial", segments: [] }), /^MedScale draft transcript · revision 1/);
 });
+
+test("a fixture engine's output is labelled in the copied text; a real engine adds nothing", () => {
+  const revision = { revision_no: 1, state: "draft", segments: [] };
+  assert.match(transcriptPlainText(revision, { is_fixture: true }), /fixture engine output, not speech recognition/);
+  assert.doesNotMatch(transcriptPlainText(revision, { is_fixture: false }), /fixture/);
+  assert.doesNotMatch(transcriptPlainText(revision), /fixture/);
+});

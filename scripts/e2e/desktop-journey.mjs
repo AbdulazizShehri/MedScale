@@ -706,6 +706,34 @@ try {
     const handles = await wd("GET", `/session/${sid}/window/handles`);
     if (handles.length !== 1) throw new Error(`Settings unexpectedly opened ${handles.length} WebView windows`);
   });
+  // Keyboard and screen-reader basics that unit tests cannot prove: focus moves
+  // to the new page, real sub-headings exist, a search hit responds to a real
+  // key press, and changing a setting does not drop focus to the document body.
+  await journey("keyboard-focus-and-page-headings", async () => {
+    const evalJs = (script, args = []) => wd("POST", `/session/${sid}/execute/sync`, { script, args });
+    const poll = async (script, what) => {
+      for (let i = 0; i < 40; i++) {
+        if (await evalJs(script)) return;
+        await new Promise((r) => setTimeout(r, 250));
+      }
+      throw new Error(`Keyboard journey: ${what}`);
+    };
+    await nav("Evidence");
+    await poll("return document.activeElement && document.activeElement.id === 'main';", "focus did not move to main after navigating");
+    await poll("return document.title === 'Evidence · MedScale';", "page title did not name the route");
+    await poll("return document.querySelectorAll('main h1').length === 1 && document.querySelectorAll('main h2').length > 0;", "page has no h1 and h2 structure");
+    await type(`//input[@aria-label='Search corpus text']`, "asthma");
+    await click(`//button[@type='submit' and ${text("Search")}]`);
+    const hit = await find(`//div[@role='button' and starts-with(@aria-label,'Open ')]`, 30000);
+    await wd("POST", `/session/${sid}/element/${hit}/value`, { text: "" });
+    await poll(`return !!document.querySelector("div[role='button'][aria-label^='Open '].sel");`, "Enter on a search hit did not select it");
+    await nav("Settings");
+    const radio = await find(`//div[@role='radiogroup' and @aria-label='Theme']/button[@aria-checked='false']`);
+    const label = await evalJs("arguments[0].focus(); arguments[0].click(); return arguments[0].textContent;", [{ [ELEMENT]: radio }]);
+    await poll(`const a = document.activeElement; return a && a.getAttribute('role') === 'radio' && a.textContent === ${JSON.stringify(label)} && a.getAttribute('aria-checked') === 'true';`, "changing the theme dropped keyboard focus");
+    const back = await find(`//div[@role='radiogroup' and @aria-label='Theme']/button[@aria-checked='false']`);
+    await evalJs("arguments[0].click();", [{ [ELEMENT]: back }]);
+  });
   await journey("about-doctor", async () => {
     await nav("About");
     await see("Tauri 2", 60000);

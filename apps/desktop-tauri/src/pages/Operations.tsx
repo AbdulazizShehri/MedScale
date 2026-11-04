@@ -7,7 +7,7 @@ import { visibleRevisionDraft, type RevisionBoundDraft } from "../audio-draft";
 import { transcriptPlainText } from "../transcript-text";
 import { call, useAction, useCommand } from "../lib/ipc";
 import { ProjectScope } from "../components/project";
-import { Authority, Empty, ErrorState, Glyph, KV, Ledger, Notice, PageHead, Section, Skeleton, Stamp, Status, glyphFor, useOutcome, useToast, type GlyphKind } from "../components/ui";
+import { Authority, Empty, ErrorState, Glyph, KV, Ledger, Notice, PageHead, Section, Skeleton, Stamp, Status, glyphFor, useOutcome, useToast, type GlyphKind, LoadError } from "../components/ui";
 
 type WorkflowVm = {
   synthetic_only: boolean; workflow_name: string; workflow_state: string; outbox_summary: string;
@@ -80,7 +80,7 @@ export function Tasks() {
               <td>{t.reconcile_required ? <Status kind="blocked">Required</Status> : <Status kind="present" weight="weak">No</Status>}</td></tr>
           ))}</tbody></table>
       ) : <Empty icon="tasks" title="No review tasks">Nothing is waiting for a person. Tasks appear when a workflow prepares an action in the Core Host outbox; this desktop never creates external actions itself.</Empty>)}
-      <Section n="02" title="Safe actions only"><KV keyWidth={88} rows={[["review", "Opens evidence and the payload"], ["approve", "Writes intent to Core Host; Desktop sends nothing itself"], ["retry", "Never automatic. Not offered while the effect is UNKNOWN."]]} /></Section>
+      <Section n="02" title="Safe actions only"><KV keyWidth={88} rows={[["review", "Read the state and payload digest here; Desktop has no approve control"], ["approve", "Not available in Desktop. It belongs to Core Host, and Desktop sends nothing itself"], ["retry", "Never automatic. Not offered while the effect is UNKNOWN."]]} /></Section>
     </div>
   );
 }
@@ -160,6 +160,7 @@ function CollabBody({ projectId }: { projectId: string }) {
       </div>
       <div>
         {thread ? <Section title="Messages" count={msgs.state.status === "ready" ? msgs.state.data.length : "…"}>
+          <LoadError cmd={msgs} />
           {msgs.state.status === "ready" && msgs.state.data.map((m) => <div key={m.seq} style={{ padding: "8px 0", borderBottom: "1px solid var(--line-subtle)" }}><span className="mono t-mono-sm i3">{m.author} · #{m.seq}</span><p className="t-sm" style={{ marginTop: 2 }}>{m.body}</p></div>)}
           {msgs.state.status === "ready" && !msgs.state.data.length && <p className="t-sm i3">No messages yet.</p>}
           <form onSubmit={post} className="stack" style={{ gap: 8, marginTop: 10 }}><textarea value={body} onChange={(e) => setBody(e.target.value)} placeholder="Write a message" maxLength={4000} style={{ minHeight: 64 }} aria-label="Message" /><div><button type="submit" className="btn btn-p" disabled={!body.trim() || !!pending}>Post</button></div></form>
@@ -303,7 +304,7 @@ function AudioBody({ projectId }: { projectId: string }) {
     if (!result?.transcript) return;
     try {
       // Write-only Web Clipboard API on an explicit click; no clipboard read permission.
-      await navigator.clipboard.writeText(transcriptPlainText(result.transcript));
+      await navigator.clipboard.writeText(transcriptPlainText(result.transcript, result.engine));
       toast({ kind: "completed", title: "Transcript copied", detail: "Draft text only · not clinically verified." });
     } catch {
       toast({ kind: "blocked", title: "Cannot copy transcript", detail: "Select the segment text and copy it manually." });
@@ -417,8 +418,9 @@ function AudioBody({ projectId }: { projectId: string }) {
         )}
       </Section>
       <Section title="Local speech recognition" count={local?.available ? "on" : "off"}>
+        <LoadError cmd={asr} />
         <div className="row-gap" style={{ gap: 10, marginBottom: 8 }}>
-          <Status kind={local?.available ? "available" : "unavailable"} weight="strong">{local?.available ? "Local Whisper engine installed" : (local?.reason ?? "Not installed")}</Status>
+          <Status kind={local?.available ? "available" : "unavailable"} weight="strong">{local?.available ? "Local Whisper engine installed" : (local?.reason ?? (asr.state.status === "error" ? "Status unavailable" : "Not installed"))}</Status>
           {asr.state.status === "ready" && asr.state.data.asr_pack_dir && <span className="mono t-mono-sm i3 trunc">{asr.state.data.asr_pack_dir}</span>}
         </div>
         <div className="grid-2">
@@ -492,7 +494,7 @@ function AudioBody({ projectId }: { projectId: string }) {
           <div key={x.seq} className="lr" style={{ gridTemplateColumns: "36px 130px minmax(0,1fr) auto", alignItems: "start", padding: "8px 12px" }}>
             <span className="mono t-mono-sm i3">{x.seq}</span>
             <span className="mono t-mono-sm i3">{x.start_ms}–{x.end_ms} ms{speakerLabel(x.speaker) ? ` · ${speakerLabel(x.speaker)}` : ""}</span>
-            <span className="t-sm">{x.text ?? <span className="i3">(untranscribed)</span>}</span>
+            <span className="t-sm" dir="auto">{x.text ?? <span className="i3">(untranscribed)</span>}</span>
             <button type="button" className="btn btn-g" onClick={() => setEdit({ seq: x.seq, text: x.text ?? "", reason: "" })}>Correct</button>
           </div>
         ))}
@@ -513,7 +515,7 @@ function AudioBody({ projectId }: { projectId: string }) {
         </div>}
         {edit && <form onSubmit={correct} className="stack" style={{ gap: 6, marginTop: 10, maxWidth: 640 }}>
           <label className="lbl" htmlFor="ct">Segment {edit.seq} text</label>
-          <input id="ct" value={edit.text} maxLength={2000} onChange={(e) => setEdit({ ...edit, text: e.target.value })} />
+          <input id="ct" dir="auto" value={edit.text} maxLength={2000} onChange={(e) => setEdit({ ...edit, text: e.target.value })} />
           <label className="lbl" htmlFor="cr">Reason</label>
           <input id="cr" value={edit.reason} maxLength={200} placeholder="For example: reviewed against the recording" onChange={(e) => setEdit({ ...edit, reason: e.target.value })} />
           <div className="row-gap" style={{ gap: 8 }}><button type="submit" className="btn btn-p" disabled={!edit.text.trim() || !edit.reason.trim() || !!pending}>Record correction</button><button type="button" className="btn btn-g" onClick={() => setEdit(null)}>Cancel</button></div>
@@ -522,7 +524,7 @@ function AudioBody({ projectId }: { projectId: string }) {
       <Section title="Captures" count={v.captures.length}>
         {v.captures.length ? v.captures.map((c) => <div key={c.id} className="lr" style={{ gridTemplateColumns: "minmax(0,1fr) 140px minmax(0,1.4fr)" }}><span className="trunc">{c.label}</span><Status kind={glyphFor(c.state)}>{c.state}</Status><span className="t-sm i3 trunc">{c.detail}</span></div>) : <p className="t-sm i3">No captures. Native capture requires an admitted backend.</p>}
       </Section>
-      <Notice kind="proposal" title="Drafts only.">Segments and transcripts carry a receipt and stay drafts until a person corrects and accepts them. Medical accuracy is unmeasured.</Notice>
+      <Notice kind="proposal" title="Drafts only.">Segments and transcripts carry a receipt and stay drafts. You can correct a segment, but Desktop has no step that accepts a transcript as final. Medical accuracy is unmeasured.</Notice>
       <Authority>Audio never becomes a clinical fact on its own. Lineage is kept for every derived artifact.</Authority>
     </>
   );

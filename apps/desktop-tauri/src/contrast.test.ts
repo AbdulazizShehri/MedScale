@@ -63,3 +63,33 @@ test("raw accents are never used as light-mode text (they are below 3:1 on white
   assert.notEqual(token(light, "--accent-text").toUpperCase(), "#70B8C7");
   assert.notEqual(token(light, "--signal-text").toUpperCase(), "#FB905A");
 });
+
+// WCAG 1.4.11: an input's outline must reach 3:1 against what surrounds it.
+function over(rgbaCss: string, background: string): string {
+  const m = rgbaCss.match(/rgba\((\d+),\s*(\d+),\s*(\d+),\s*([\d.]+)\)/);
+  assert.ok(m, `not rgba: ${rgbaCss}`);
+  const [r, g, b, a] = [Number(m[1]), Number(m[2]), Number(m[3]), Number(m[4])];
+  const mix = (fg: number, i: number) => Math.round(fg * a + parseInt(background.slice(i, i + 2), 16) * (1 - a));
+  return "#" + [mix(r, 1), mix(g, 3), mix(b, 5)].map((v) => v.toString(16).padStart(2, "0")).join("");
+}
+function lineControl(themeHeader: string): string {
+  const start = css.indexOf(themeHeader);
+  assert.ok(start >= 0, `missing ${themeHeader}`);
+  const m = css.slice(start, css.indexOf("}", start)).match(/--line-control:\s*(rgba\([^)]*\))/);
+  assert.ok(m?.[1], `missing --line-control in ${themeHeader}`);
+  return m[1];
+}
+
+test("input outlines reach 3:1 on surface and raised backgrounds", () => {
+  const dark = lineControl(':root, [data-theme="dark"] {');
+  const light = lineControl('[data-theme="light"] {\n  --bg-app');
+  for (const bg of ["#161616", "#1C1C1C"]) assert.ok(contrast(over(dark, bg), bg) >= 3, `dark on ${bg}`);
+  for (const bg of ["#FFFFFF", "#FAFAF9"]) assert.ok(contrast(over(light, bg), bg) >= 3, `light on ${bg}`);
+});
+
+test("meta text is AA on a selected row in both themes", () => {
+  // Selected rows use --ink-2 for meta text (.sel .i3); --ink-3 fails on --bg-active.
+  assert.ok(contrast("#BDBDBD", "#292929") >= 4.5);
+  assert.ok(contrast("#474747", "#EAEAE8") >= 4.5);
+  assert.ok(css.includes(".ms .sel .i3, .ms .sel .t-mono-sm { color: var(--ink-2); }"));
+});

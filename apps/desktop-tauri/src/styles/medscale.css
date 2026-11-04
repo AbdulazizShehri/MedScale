@@ -19,6 +19,7 @@
   --line-subtle: rgba(255,255,255,0.07);  /* row dividers */
   --line: rgba(255,255,255,0.11);         /* structural rules */
   --line-strong: rgba(255,255,255,0.22);  /* control outlines */
+  --line-control: rgba(255,255,255,0.38); /* input outlines: 3:1 against the surface */
 
   --ink-1: #FFFFFF;   /* primary */
   --ink-2: #BDBDBD;   /* secondary  · 9.9:1 on surface */
@@ -49,6 +50,7 @@
   --line-subtle: rgba(10,10,10,0.07);
   --line: rgba(10,10,10,0.12);
   --line-strong: rgba(10,10,10,0.24);
+  --line-control: rgba(10,10,10,0.46);
 
   --ink-1: #0A0A0A;
   --ink-2: #474747;   /* 9.3:1 on white */
@@ -158,9 +160,8 @@
 
 /* ---------- 7. Section heading (signature) ---------- */
 .sec { display: flex; align-items: center; gap: 10px; height: 28px; margin: 0 0 6px; }
-.sec-n { font-family: var(--font-mono); font-size: 10.5px; color: var(--ink-4); }
-[data-theme="light"] .sec-n { color: var(--ink-3); }
-.sec-t { font-size: 10.5px; font-weight: 600; letter-spacing: 0.12em; text-transform: uppercase; color: var(--ink-2); white-space: nowrap; }
+.sec-n { font-family: var(--font-mono); font-size: 10.5px; color: var(--ink-3); }
+.sec-t { margin: 0; font-size: 10.5px; font-weight: 600; letter-spacing: 0.12em; text-transform: uppercase; color: var(--ink-2); white-space: nowrap; }
 .sec-c { font-family: var(--font-mono); font-size: 10.5px; color: var(--ink-3); }
 .sec-rule { flex: 1 1 auto; height: 1px; background: var(--line); }
 .sec-a { display: flex; gap: 4px; }
@@ -173,6 +174,11 @@
 .ms .btn-s { border: 1px solid var(--line-strong); color: var(--ink-1); }
 .ms .btn-s:hover { background: var(--bg-hover); }
 .ms .btn-g { color: var(--ink-2); }
+.ms .btn-d { border: 1px solid var(--signal-text, var(--line-strong)); color: var(--signal-text, var(--ink-1)); }
+.ms .btn-d:hover:not(:disabled) { background: var(--bg-hover); }
+.ms .btn-d:disabled { color: var(--ink-4); border-color: var(--line); background: transparent; }
+/* Meta text on a selected row stays AA against --bg-active. */
+.ms .sel .i3, .ms .sel .t-mono-sm { color: var(--ink-2); }
 .ms .btn-g:hover { background: var(--bg-hover); color: var(--ink-1); }
 .ms .btn[disabled], .ms .btn.is-disabled { opacity: 1; color: var(--ink-4); border-color: var(--line); background: transparent; cursor: not-allowed; }
 .ms .btn-p.is-disabled { background: var(--bg-active); color: var(--ink-4); }
@@ -359,8 +365,8 @@ body { font-family: var(--font-ui); }
 .skip-link:focus { top: 8px; }
 
 /* Form controls (real inputs; never div-buttons) */
-.ms input[type="text"], .ms input[type="password"], .ms input[type="search"], .ms textarea, .ms select {
-  font: inherit; color: var(--ink-1); background: var(--bg-raised); border: 1px solid var(--line); border-radius: var(--r-2);
+.ms input:not([type]), .ms input[type="text"], .ms input[type="password"], .ms input[type="search"], .ms textarea, .ms select {
+  font: inherit; color: var(--ink-1); background: var(--bg-raised); border: 1px solid var(--line-control); border-radius: var(--r-2);
   height: 32px; padding: 0 10px; outline: none; min-width: 0;
 }
 .ms textarea { height: auto; min-height: 96px; padding: 8px 10px; resize: vertical; line-height: 20px; }

@@ -59,7 +59,7 @@ export function Home() {
         </div>
 
         <Section n="01" title="Needs review" count={loadingQueue ? "…" : queue.length}>
-          {loadingQueue && !queue.length ? <Skeleton rows={3} /> : queue.length === 0 ? <p className="t-sm i3" style={{ padding: "12px 0" }}>Nothing is waiting for a person.</p> : (
+          {loadingQueue && !queue.length ? <Skeleton rows={3} /> : queue.length === 0 ? <p className="t-sm i3" style={{ padding: "12px 0" }}>{[subjects, corpus, models, workflow].some((c) => c.state.status === "error") ? "Some sources could not be read, so this list may be incomplete." : "Nothing is waiting for a person."}</p> : (
             <div style={{ borderTop: "1px solid var(--line-subtle)" }}>
               {queue.map((r) => (
                 <div key={r.key} className="lr" style={{ gridTemplateColumns: "16px minmax(150px, 1fr) minmax(0, 1.6fr) minmax(0, 200px) 72px", minHeight: "var(--row-2)" }}>

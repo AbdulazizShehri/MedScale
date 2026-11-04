@@ -2,7 +2,7 @@ import { useEffect, useState, type FormEvent } from "react";
 import { useApp } from "../lib/app";
 import { useAction, useCommand } from "../lib/ipc";
 import { ProjectScope, type ProjectRow } from "../components/project";
-import { Authority, Empty, ErrorState, Glyph, KV, Ledger, Notice, PageHead, Section, Skeleton, Stamp, Status, glyphFor, useOutcome, useToast } from "../components/ui";
+import { Authority, Empty, ErrorState, Glyph, KV, Ledger, Notice, PageHead, Section, Skeleton, Stamp, Status, glyphFor, useOutcome, useToast, LoadError } from "../components/ui";
 
 /* ───────────────────────────── Projects ───────────────────────────── */
 type ProjectDetail = {
@@ -154,6 +154,7 @@ function DataBody({ projectId }: { projectId: string }) {
               </button>
             ))}
           </Section>
+          <LoadError cmd={snaps} />
           {snaps.state.status === "ready" && <Section title="Snapshots" count={snaps.state.data.length}>
             {snaps.state.data.length ? snaps.state.data.map((s) => (
               <button type="button" key={s.id} className={`lr clickable ${snap === s.id ? "sel" : ""}`} style={{ gridTemplateColumns: "minmax(0,1fr) auto", width: "100%", textAlign: "left" }} onClick={() => setSnap(s.id)}>
@@ -172,9 +173,9 @@ function DataBody({ projectId }: { projectId: string }) {
             <p className="note" style={{ marginTop: 6 }}>{page.state.data.detail}{page.state.data.next_cursor ? ` · next cursor ${page.state.data.next_cursor}` : ""}</p>
             <Section n="02" title="Transform" count="creates a new snapshot">
               <form onSubmit={transform} className="stack" style={{ gap: 10 }}>
-                <div className="field-row"><label className="t-sm i3" style={{ width: 70 }}>Columns</label><input type="text" value={cols} onChange={(e) => setCols(e.target.value)} placeholder="comma-separated, empty = all" style={{ flex: 1 }} /></div>
-                <div className="field-row"><label className="t-sm i3" style={{ width: 70 }}>Filter</label><input type="text" value={fc} onChange={(e) => setFc(e.target.value)} placeholder="column" style={{ width: 140 }} /><select value={fo} onChange={(e) => setFo(e.target.value)} aria-label="Filter operator"><option value="equals">equals</option><option value="contains">contains</option><option value="regex">regex</option></select><input type="text" value={fv} onChange={(e) => setFv(e.target.value)} placeholder="value" style={{ flex: 1 }} /></div>
-                <div className="field-row"><label className="t-sm i3" style={{ width: 70 }}>Sort</label><input type="text" value={sort} onChange={(e) => setSort(e.target.value)} placeholder="column:asc or column:desc" style={{ flex: 1 }} /></div>
+                <div className="field-row"><label htmlFor="tf-cols" className="t-sm i3" style={{ width: 70 }}>Columns</label><input id="tf-cols" type="text" value={cols} onChange={(e) => setCols(e.target.value)} placeholder="comma-separated, empty = all" style={{ flex: 1 }} /></div>
+                <div className="field-row"><label htmlFor="tf-filter" className="t-sm i3" style={{ width: 70 }}>Filter</label><input id="tf-filter" type="text" value={fc} onChange={(e) => setFc(e.target.value)} placeholder="column" style={{ width: 140 }} /><select value={fo} onChange={(e) => setFo(e.target.value)} aria-label="Filter operator"><option value="equals">equals</option><option value="contains">contains</option><option value="regex">regex</option></select><input type="text" value={fv} onChange={(e) => setFv(e.target.value)} placeholder="value" style={{ flex: 1 }} /></div>
+                <div className="field-row"><label htmlFor="tf-sort" className="t-sm i3" style={{ width: 70 }}>Sort</label><input id="tf-sort" type="text" value={sort} onChange={(e) => setSort(e.target.value)} placeholder="column:asc or column:desc" style={{ flex: 1 }} /></div>
                 <div><button type="submit" className="btn btn-s" disabled={!!pending}>Apply transform</button></div>
               </form>
             </Section>

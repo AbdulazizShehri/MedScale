@@ -74,7 +74,7 @@ export function Documents() {
             <table className="tb" aria-label="Sources">
               <thead><tr><th style={{ width: "30%" }}>Source</th><th style={{ width: "14%" }}>Resource</th><th style={{ width: "15%" }}>Extraction</th><th className="col-p3" style={{ width: "27%" }}>Subject</th><th>Origin</th></tr></thead>
               <tbody>{rows.map((s, i) => (
-                <tr key={s.source_id + i} className={`r2 clickable ${cur === s ? "sel" : ""}`} tabIndex={0} onClick={() => setSel(i)} onKeyDown={(e) => e.key === "Enter" && navigate("Patients", s.subject_ref)}>
+                <tr key={s.source_id + i} className={`r2 clickable ${cur === s ? "sel" : ""}`} tabIndex={0} aria-selected={cur === s} onClick={() => setSel(i)} onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); setSel(i); } }}>
                   <td><div style={{ display: "flex", flexDirection: "column", minWidth: 0 }}><span className="mono trunc" style={{ fontSize: 12 }}>{s.source_id}</span><span className="t-sm i3">FHIR R4 · {s.fixture}</span></div></td>
                   <td className="t-sm">{s.resource_type}</td>
                   <td><Status kind="present">Structured</Status> <span className="mono t-mono-sm i3">{s.claim_kind}</span></td>
@@ -160,7 +160,7 @@ export function Evidence() {
         {result ? (
           <Section title="Retrieval matches" count={`${result.hits.length} · ${result.corpus_source_identity}`}>
             {result.hits.length === 0 ? <p className="t-sm i3">No document matched “{result.query}”.</p> : result.hits.map((h) => (
-              <div key={h.doc_id} className="lr clickable" style={{ gridTemplateColumns: "170px minmax(0,1fr) 120px 70px", minHeight: "var(--row-2)" }} onClick={() => setSel(h.doc_id)}>
+              <div key={h.doc_id} className={`lr clickable ${sel === h.doc_id ? "sel" : ""}`} style={{ gridTemplateColumns: "170px minmax(0,1fr) 120px 70px", minHeight: "var(--row-2)" }} role="button" tabIndex={0} aria-label={`Open ${h.doc_id}`} onClick={() => setSel(h.doc_id)} onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); setSel(h.doc_id); } }}>
                 <span className={`mono ${h.retracted ? "i3" : ""}`} style={{ fontSize: 12 }}>{h.doc_id}</span>
                 <span className={`trunc ${h.retracted ? "i3" : ""}`} style={{ fontSize: 13 }}>{h.snippet}</span>
                 <span>{h.conflict_marker ? <Status kind="needs-review" weight="strong">Conflict</Status> : h.retracted ? <Status kind="cancelled" weight="weak">Retracted</Status> : <Status kind="proposal" weight="weak">Relevance only</Status>}</span>
@@ -304,7 +304,7 @@ export function Insights() {
           </Section>
           <Section title="Ask the evidence">
             <form onSubmit={ask} className="stack" style={{ gap: 8 }}>
-              <input type="text" value={q} onChange={(e) => setQ(e.target.value)} placeholder="e.g. metformin dose in diabetes" maxLength={256} aria-label="Question for the evidence corpus" />
+              <input type="text" value={q} onChange={(e) => setQ(e.target.value)} placeholder="e.g. what do these documents say about metformin?" maxLength={256} aria-label="Question for the evidence corpus" />
               <div><button type="submit" className="btn btn-s">Ask</button></div>
             </form>
             {err && <ErrorState error={err} />}
@@ -324,7 +324,7 @@ export function Insights() {
                 </div>)}
             {answer && <p className="t-sm i3" style={{ marginTop: 6 }}>{answer.answer.note}</p>}
           </Section>
-          <Authority>Evidence-context only. Answers come from the trusted projection; they are not clinical advice.</Authority>
+          <Authority>Evidence-context only. Answers quote the documents in this workspace's corpus; they are not clinical advice.</Authority>
         </div>
       </aside>
     </>

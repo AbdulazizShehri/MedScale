@@ -13,10 +13,15 @@ export function ConfirmPanel({ title, children, confirmLabel, onConfirm, onCance
 }) {
   const ref = useRef<HTMLDivElement>(null);
   const titleId = useId();
+  const bodyId = useId();
   useEffect(() => {
     const returnTo = document.activeElement instanceof HTMLElement ? document.activeElement : null;
     ref.current?.querySelector<HTMLButtonElement>("button")?.focus();
-    return () => returnTo?.focus();
+    // The trigger may be gone once the action succeeds; fall back to the page.
+    return () => {
+      if (returnTo?.isConnected) returnTo.focus();
+      else document.getElementById("main")?.focus();
+    };
   }, []);
   function onKeyDown(e: KeyboardEvent<HTMLDivElement>) {
     if (e.key === "Escape") { e.preventDefault(); if (!busy) onCancel(); return; }
@@ -28,10 +33,10 @@ export function ConfirmPanel({ title, children, confirmLabel, onConfirm, onCance
     else if (!e.shiftKey && document.activeElement === last) { e.preventDefault(); first.focus(); }
   }
   return (
-    <div ref={ref} role="group" aria-labelledby={titleId} className="notice" onKeyDown={onKeyDown}
+    <div ref={ref} role="group" aria-labelledby={titleId} aria-describedby={bodyId} className="notice" onKeyDown={onKeyDown}
       style={{ display: "block", whiteSpace: "normal", marginTop: 12 }}>
       <b id={titleId}>{title}</b>
-      <div className="t-sm" style={{ margin: "6px 0 10px" }}>{children}</div>
+      <div id={bodyId} className="t-sm" style={{ margin: "6px 0 10px" }}>{children}</div>
       <div className="row-gap" style={{ gap: 8 }}>
         <button type="button" className="btn btn-g" onClick={onCancel} disabled={busy}>Cancel</button>
         <button type="button" className="btn btn-p" onClick={onConfirm} disabled={busy}>{confirmLabel}</button>
