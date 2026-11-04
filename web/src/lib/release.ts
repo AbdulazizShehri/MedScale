@@ -18,6 +18,33 @@ export interface ReleaseAsset { name: string; browser_download_url: string; size
 export const QUALIFIED_RELEASE_TAGS: readonly string[] = [];
 export const releaseQualified = QUALIFIED_RELEASE_TAGS.length > 0;
 
+/**
+ * Separate, unqualified download channel for synthetic-only engineering
+ * testers. A preview never satisfies QUALIFIED_RELEASE_TAGS.
+ */
+export interface UnsignedPreviewAsset { name: string; browser_download_url: string; size: number }
+export interface UnsignedPreviewRelease {
+  tag_name: string;
+  prerelease: boolean;
+  draft: boolean;
+  assets: UnsignedPreviewAsset[];
+}
+export type UnsignedPreview = { tag: string; windows?: UnsignedPreviewAsset; macos?: UnsignedPreviewAsset };
+
+export function selectUnsignedPreview(releases: readonly UnsignedPreviewRelease[]): UnsignedPreview | undefined {
+  for (const release of releases) {
+    if (!release || !release.prerelease || release.draft || !/^engineering-preview-[0-9a-f]{12}$/.test(release.tag_name)) continue;
+    const prefix = `https://github.com/AbdulazizShehri/MedScale/releases/download/${release.tag_name}/`;
+    const find = (filename: string): UnsignedPreviewAsset | undefined => release.assets?.find(
+      (asset) => asset.name === filename && asset.browser_download_url === prefix + filename && Number.isFinite(asset.size) && asset.size > 0
+    );
+    const windows = find("MedScale-engineering-preview-windows-x64.exe");
+    const macos = find("MedScale-engineering-preview-macos.dmg");
+    if (windows || macos) return { tag: release.tag_name, windows, macos };
+  }
+  return undefined;
+}
+
 export function detectPlatform(platform: string): Platform {
   const p = platform.toLowerCase();
   // macOS first: "darwin" contains "win".

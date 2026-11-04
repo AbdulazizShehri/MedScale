@@ -2,7 +2,7 @@
 // Cases follow TheHalfMoon/CommunityFinance-CoFi tests/site-release-selector.test.cjs, plus MedScale's gate.
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { assetArch, detectPlatform, formatSize, pickInstaller, platformLabel, releaseQualified, scoreAsset, type ReleaseAsset } from "./release.ts";
+import { assetArch, detectPlatform, formatSize, pickInstaller, platformLabel, releaseQualified, scoreAsset, selectUnsignedPreview, type ReleaseAsset } from "./release.ts";
 
 const a = (name: string): ReleaseAsset => ({ name, browser_download_url: `https://example.test/${name}`, size: 50 * 1024 * 1024 });
 
@@ -41,4 +41,20 @@ test("installer selection never guesses between architectures", () => {
   assert.equal(pickInstaller(mac, "macos", "arm64")?.name, "MedScale_0.1.0_aarch64.dmg");
   assert.equal(pickInstaller([...mac, a("MedScale_0.1.0_universal.dmg")], "macos")?.name, "MedScale_0.1.0_universal.dmg");
   assert.equal(pickInstaller([a("MedScale_0.1.0_x64-setup.exe")], "linux"), undefined, "no Linux desktop build");
+});
+
+test("unsigned preview is strictly distinct from qualified signed release and authenticated downloads", () => {
+  assert.equal(releaseQualified, false);
+  const tag = "engineering-preview-012345abcdef";
+  const base = `https://github.com/AbdulazizShehri/MedScale/releases/download/${tag}/`;
+  const win = { name: "MedScale-engineering-preview-windows-x64.exe", size: 100, browser_download_url: base + "MedScale-engineering-preview-windows-x64.exe" };
+  const mac = { name: "MedScale-engineering-preview-macos.dmg", size: 100, browser_download_url: base + "MedScale-engineering-preview-macos.dmg" };
+  const release = { tag_name: tag, prerelease: true, draft: false, assets: [win, mac] };
+  assert.equal(selectUnsignedPreview([release])?.windows?.name, win.name);
+  assert.equal(selectUnsignedPreview([release])?.macos?.name, mac.name);
+  assert.equal(selectUnsignedPreview([{ ...release, prerelease: false }]), undefined);
+  assert.equal(selectUnsignedPreview([{ ...release, draft: true }]), undefined);
+  assert.equal(selectUnsignedPreview([{ ...release, tag_name: "v1.0.0" }]), undefined);
+  assert.equal(selectUnsignedPreview([{ ...release, assets: [{ ...win, browser_download_url: "https://example.com/file.exe" }] }]), undefined);
+  assert.equal(selectUnsignedPreview([{ ...release, assets: [{ ...win, size: 0 }] }]), undefined);
 });
