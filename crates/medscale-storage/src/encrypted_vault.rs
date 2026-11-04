@@ -22,6 +22,7 @@ const META_SEALED_TMP: &str = "meta.sealed.tmp";
 const META_WORK: &str = "meta.work.sqlite3";
 const META_WORK_TMP: &str = "meta.work.sqlite3.tmp";
 const META_WORK_TMP_JOURNAL: &str = "meta.work.sqlite3.tmp-journal";
+const META_WORK_TMP_REKEY: &str = "meta.work.sqlite3.tmp.rekey";
 const LEASE_FILE: &str = ".writer.lock";
 const SESSION_LOCK_FILE: &str = ".session.lock";
 
@@ -228,7 +229,7 @@ impl EncryptedVault {
     ) -> Result<(), EncryptedVaultError> {
         let work = root.join(META_WORK);
         let work_tmp = root.join(META_WORK_TMP);
-        for stale in [META_WORK_TMP, META_WORK_TMP_JOURNAL] {
+        for stale in [META_WORK_TMP, META_WORK_TMP_JOURNAL, META_WORK_TMP_REKEY] {
             let path = root.join(stale);
             if path.try_exists()? {
                 remove_with_retry(&path)?;
@@ -517,6 +518,7 @@ impl EncryptedVault {
             work.clone(),
             self.root.join(META_WORK_TMP),
             self.root.join(META_WORK_TMP_JOURNAL),
+            self.root.join(META_WORK_TMP_REKEY),
             self.root.join(META_SEALED_TMP),
         ] {
             if let Ok(bytes) = fs::read(&path)

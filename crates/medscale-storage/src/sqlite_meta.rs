@@ -127,11 +127,23 @@ impl SqliteMetaStore {
                 if verify_sqlcipher_readable(&conn).is_err() {
                     return Err(primary);
                 }
-                apply_sqlcipher_rekey(&conn, key32)?;
-                verify_sqlcipher_readable(&conn)?;
-                let store = Self { conn };
-                store.migrate()?;
-                Ok(store)
+                // `PRAGMA rekey` is refused on a plaintext database, so export
+                // to a new encrypted file and swap it in only once complete.
+                let mut exported = db_path.as_os_str().to_owned();
+                exported.push(".rekey");
+                let exported = std::path::PathBuf::from(exported);
+                if exported.try_exists()? {
+                    std::fs::remove_file(&exported)?;
+                }
+                conn.execute(
+                    "ATTACH DATABASE ?1 AS encrypted KEY ?2",
+                    params![exported.to_string_lossy(), key_material_hex(key32)],
+                )?;
+                conn.query_row("SELECT sqlcipher_export('encrypted')", [], |_| Ok(()))?;
+                conn.execute_batch("DETACH DATABASE encrypted")?;
+                drop(conn);
+                crate::encrypted_vault::rename_with_retry(&exported, db_path)?;
+                Self::open_at_sqlcipher(db_path, key32)
             }
             Err(e) => Err(e),
         }
@@ -937,11 +949,6 @@ fn apply_sqlcipher_key(conn: &Connection, key32: &[u8; 32]) -> Result<(), MetaEr
     // on Windows or Linux.
     conn.pragma_update(None, "fullfsync", "ON")?;
     conn.pragma_update(None, "synchronous", "FULL")?;
-    Ok(())
-}
-
-fn apply_sqlcipher_rekey(conn: &Connection, key32: &[u8; 32]) -> Result<(), MetaError> {
-    conn.pragma_update(None, "rekey", key_material_hex(key32))?;
     Ok(())
 }
 
