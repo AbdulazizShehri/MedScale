@@ -213,6 +213,20 @@ fn safe_relative(path: &str) -> Result<&Path, SnapshotError> {
     Ok(p)
 }
 
+/// Streaming SHA-256 of a file, so a large checkpoint is not read into memory.
+pub fn sha256_file_hex(path: &std::path::Path) -> std::io::Result<String> {
+    let mut file = std::fs::File::open(path)?;
+    let mut hasher = Sha256::new();
+    let mut buffer = vec![0u8; 1024 * 1024];
+    loop {
+        let read = std::io::Read::read(&mut file, &mut buffer)?;
+        if read == 0 {
+            return Ok(hex(&hasher.finalize()));
+        }
+        hasher.update(&buffer[..read]);
+    }
+}
+
 /// Only formats that carry no executable code are admitted.
 fn admitted_artifact(name: &str) -> bool {
     let lower = name.to_ascii_lowercase();

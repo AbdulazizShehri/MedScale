@@ -284,8 +284,10 @@ pub fn documents_import_fhir(
     let path = host::bounded_text(&path, 1024)?;
     let subject = host::bounded_id(&subject_ref)?.to_owned();
     let file = std::path::Path::new(&path);
-    if !file.is_absolute() {
-        return Err(CmdError::invalid("Invalid: choose an absolute file path"));
+    if !host::is_local_absolute(file) {
+        return Err(CmdError::invalid(
+            "Invalid: choose a file on this computer by its absolute path",
+        ));
     }
     let mut state = lock(&host)?;
     let source = host::import_fhir(state.workspace()?, file, &subject)?;

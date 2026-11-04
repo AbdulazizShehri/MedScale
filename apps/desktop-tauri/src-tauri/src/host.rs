@@ -1366,6 +1366,7 @@ pub fn save_asr_pack(vault_root: &Path, dir: &str) -> CmdResult<()> {
 /// manifest, digests and signature); a failure leaves the route unavailable.
 fn restore_asr(workspace: &mut Workspace) {
     if let Some(dir) = load_asr_pack(&workspace.vault_root)
+        && is_local_absolute(Path::new(&dir))
         && workspace
             .session
             .packs_install_local(&dir)
@@ -1663,7 +1664,13 @@ const DISCARD_PREFIX: &str = "synthetic-workspace.discarding-";
 /// One predicate for every entry that belongs to the synthetic workspace;
 /// the step 4 scan and the step 5 set-aside must agree exactly.
 fn is_synthetic_sibling(name: &str) -> bool {
-    name.to_ascii_lowercase().contains(VAULT_NAME)
+    // Exact or `<vault>.<suffix>`, which is every name this app creates. A
+    // lookalike such as `synthetic-workspace-backup` is not ours to move.
+    let lower = name.to_ascii_lowercase();
+    lower == VAULT_NAME
+        || lower
+            .strip_prefix(VAULT_NAME)
+            .is_some_and(|rest| rest.starts_with('.'))
 }
 
 /// Inverse of `write_atomic`'s temporary name (`<target>.tmp`).
@@ -2388,6 +2395,27 @@ pub fn bounded_id(raw: &str) -> CmdResult<&str> {
     }
 }
 
+/// An absolute path on this computer. A UNC or device path is refused, because
+/// merely opening one makes Windows contact the named server.
+pub fn is_local_absolute(path: &Path) -> bool {
+    if !path.is_absolute() {
+        return false;
+    }
+    #[cfg(windows)]
+    {
+        use std::path::{Component, Prefix};
+        matches!(
+            path.components().next(),
+            Some(Component::Prefix(p))
+                if matches!(p.kind(), Prefix::Disk(_) | Prefix::VerbatimDisk(_))
+        )
+    }
+    #[cfg(not(windows))]
+    {
+        true
+    }
+}
+
 pub fn bounded_text(raw: &str, max: usize) -> CmdResult<String> {
     let text = raw.trim();
     if text.is_empty() || text.chars().count() > max {
@@ -2401,6 +2429,62 @@ pub fn bounded_text(raw: &str, max: usize) -> CmdResult<String> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[cfg(windows)]
+    #[test]
+    fn network_and_device_paths_are_not_local() {
+        for local in [r"C:\audio\a.wav", r"\\?\C:\audio\a.wav"] {
+            assert!(is_local_absolute(Path::new(local)), "{local}");
+        }
+        for remote in [
+            r"\\server\share\a.wav",
+            r"\\?\UNC\server\share\a.wav",
+            r"\\.\COM1",
+            r"a.wav",
+        ] {
+            assert!(!is_local_absolute(Path::new(remote)), "{remote}");
+        }
+    }
+
+    #[test]
+    fn only_exact_or_dotted_names_belong_to_the_sample() {
+        for ours in [
+            "synthetic-workspace",
+            "Synthetic-Workspace",
+            "synthetic-workspace.desktop-seed.json",
+            "synthetic-workspace.desktop-seed.json.tmp",
+            "synthetic-workspace.discarding-abc",
+        ] {
+            assert!(is_synthetic_sibling(ours), "{ours}");
+        }
+        for not_ours in [
+            "synthetic-workspace-backup",
+            "my-synthetic-workspace",
+            "synthetic-workspaces",
+            "encrypted-workspace",
+        ] {
+            assert!(!is_synthetic_sibling(not_ours), "{not_ours}");
+        }
+    }
+
+    #[test]
+    fn set_aside_leaves_a_lookalike_folder_alone() {
+        let data_dir = unopenable_legacy_sample("lookalike");
+        let lookalike = data_dir.join("synthetic-workspace-backup");
+        std::fs::create_dir(&lookalike).expect("lookalike");
+        std::fs::write(lookalike.join("mine.txt"), b"keep").expect("file");
+        let mut state = State {
+            data_dir: Some(data_dir.clone()),
+            ..State::default()
+        };
+        set_aside_synthetic(&mut state).expect("set aside");
+        delete_set_aside_synthetic(&state).expect("delete");
+        assert_eq!(
+            std::fs::read(lookalike.join("mine.txt")).expect("still here"),
+            b"keep"
+        );
+        std::fs::remove_dir_all(&data_dir).expect("cleanup");
+    }
 
     fn sqlite_failure(code: rusqlite::ErrorCode, message: Option<&str>) -> rusqlite::Error {
         rusqlite::Error::SqliteFailure(
