@@ -162,6 +162,24 @@ pub fn data_transform(
     filter_value: Option<String>,
     sort: Option<String>,
 ) -> CmdResult<String> {
+    if columns
+        .as_ref()
+        .is_some_and(|c| c.len() > 512 || c.iter().any(|name| name.chars().count() > 256))
+    {
+        return Err(CmdError::invalid(
+            "Invalid: too many or too long column names",
+        ));
+    }
+    for (text, max) in [
+        (&filter_column, 256),
+        (&filter_op, 32),
+        (&filter_value, 4096),
+        (&sort, 512),
+    ] {
+        if text.as_ref().is_some_and(|t| t.chars().count() > max) {
+            return Err(CmdError::invalid("Invalid: transform input is too long"));
+        }
+    }
     let filter = match (filter_column, filter_op, filter_value) {
         (Some(c), Some(o), Some(v)) if !c.trim().is_empty() => {
             data_workbench::parse_filter_input(&c, &o, &v).map_err(CmdError::invalid)?

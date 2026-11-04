@@ -18,6 +18,10 @@ struct Model {
     revision: &'static str,
     languages: &'static str,
     max_snapshot_bytes: u64,
+    /// SHA-256 of `config.json`, `tokenizer.json` and `model.safetensors` at
+    /// `revision`, pinned in source. The Hub's own metadata cannot vouch for
+    /// the Hub's files if the Hub or a CA is compromised.
+    sha256: [&'static str; 3],
 }
 
 const MODELS: [Model; 5] = [
@@ -28,6 +32,11 @@ const MODELS: [Model; 5] = [
         revision: "87c7102498dcde7456f24cfd30239ca606ed9063",
         languages: "English",
         max_snapshot_bytes: 200 * MIB,
+        sha256: [
+            "b5366317df280f79e6cc366f259f379674f81a8721d458acf2e00680ccb10b1d",
+            "5eb60cec1e77aeeb6869a2bb5a8e01a84c3fe5d072d75369343021fe6f5310d0",
+            "db59695928ded6043adaef491a53ef4e12da9611184d77c53baa691a60b958ad",
+        ],
     },
     Model {
         id: "whisper-tiny-multilingual",
@@ -36,6 +45,11 @@ const MODELS: [Model; 5] = [
         revision: "169d4a4341b33bc18d8881c4b69c2e104e1cc0af",
         languages: "Multilingual · English and Arabic",
         max_snapshot_bytes: 200 * MIB,
+        sha256: [
+            "ffdccec4f3211f4c63310f2b7098f309fe70f3952cedc5e4d11e43f5b2379b98",
+            "27fc476bfe7f17299480be2273fc0608e4d5a99aba2ab5dec5374b4482d1a566",
+            "7ebd0e69e78190ffe1438491fa05cc1f5c1aa3a4c4db3bc1723adbb551ea2395",
+        ],
     },
     Model {
         id: "whisper-base-en",
@@ -44,6 +58,11 @@ const MODELS: [Model; 5] = [
         revision: "911407f4214e0e1d82085af863093ec0b66f9cd6",
         languages: "English",
         max_snapshot_bytes: 384 * MIB,
+        sha256: [
+            "160c1df40a60d4ef5a6014d536fd845c33aabfd1f318458ac7f87cfe91ebbe76",
+            "5eb60cec1e77aeeb6869a2bb5a8e01a84c3fe5d072d75369343021fe6f5310d0",
+            "d4dd5542fd6a1d35639e21384238f3bfe6c557c849d392b5905d33ee29e71db5",
+        ],
     },
     Model {
         id: "whisper-base-multilingual",
@@ -52,6 +71,11 @@ const MODELS: [Model; 5] = [
         revision: "e37978b90ca9030d5170a5c07aadb050351a65bb",
         languages: "Multilingual · English and Arabic",
         max_snapshot_bytes: 384 * MIB,
+        sha256: [
+            "a153c53883a6799b6f056b4a8d1a515c9926d03994682ba88a7616618d7da0c1",
+            "27fc476bfe7f17299480be2273fc0608e4d5a99aba2ab5dec5374b4482d1a566",
+            "07cadb9f25677c8d50df603e66a98fbd842cce45047139baeb16e6219a1e807b",
+        ],
     },
     Model {
         id: "whisper-small-multilingual",
@@ -60,6 +84,11 @@ const MODELS: [Model; 5] = [
         revision: "973afd24965f72e36ca33b3055d56a652f456b4d",
         languages: "Multilingual · English and Arabic · higher storage",
         max_snapshot_bytes: 1200 * MIB,
+        sha256: [
+            "e6a2b489da1b5aed65a8eb8d1e7466fa867ad5643a8bc138ba708bd56b2875c4",
+            "27fc476bfe7f17299480be2273fc0608e4d5a99aba2ab5dec5374b4482d1a566",
+            "1d7734884874f1a1513ed9aa760a4f8e97aaa02fd6d93a3a85d27b2ae9ca596b",
+        ],
     },
 ];
 
@@ -178,6 +207,22 @@ fn require_download_space(status: &Value) -> CmdResult<()> {
 
 #[cfg(test)]
 mod tests {
+    #[test]
+    fn every_model_pins_three_full_sha256_digests() {
+        for entry in MODELS {
+            for digest in entry.sha256 {
+                assert_eq!(digest.len(), 64, "{}", entry.id);
+                assert!(
+                    digest
+                        .chars()
+                        .all(|c| c.is_ascii_digit() || ('a'..='f').contains(&c)),
+                    "{}",
+                    entry.id
+                );
+            }
+        }
+    }
+
     use super::*;
 
     #[test]
@@ -597,6 +642,13 @@ fn acquire(
             return Err("Download cancelled".into());
         }
         set_progress(shared, "verifying", downloaded, total);
+        for (name, pinned) in names.iter().zip(entry.sha256) {
+            let digest = medscale_pack::sha256_file_hex(&snapshot.join(name))
+                .map_err(|_| "Cannot read the downloaded model files")?;
+            if digest != pinned {
+                return Err("Downloaded files do not match the pinned model digests".into());
+            }
+        }
         // This verifies the three files against the immutable Hub metadata
         // (LFS SHA-256 or Git blob hash) before signing the Pack. No weights
         // are loaded as executable code.

@@ -73,6 +73,7 @@ pub use gliner_runtime::{
     PreparedGlinerSpanModel, ZeroShotEntity, is_gliner_span_export, pack_is_gliner_span,
     prepare_gliner_span_model,
 };
+pub use hf_snapshot::sha256_file_hex;
 pub use hf_snapshot::{
     HfRepoMetadata, HfSibling, SnapshotError, TextGenerationSnapshot, TokenClassifierSnapshot,
     TokenizerSource, build_asr_pack, build_text_generation_pack, build_token_classifier_pack,

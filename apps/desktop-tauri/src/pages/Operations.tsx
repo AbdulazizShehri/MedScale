@@ -293,7 +293,7 @@ function AudioBody({ projectId }: { projectId: string }) {
   async function browsePack() {
     setChoosing("pack");
     try {
-      const selected = await open({ multiple: false, directory: true, title: "Choose a verified MedScale Audio Pack folder" });
+      const selected = await open({ multiple: false, directory: true, title: "Choose a MedScale Audio Pack folder you trust" });
       setPackPath((previous) => selectedPathOrPrevious(previous, selected));
     } catch {
       toast({ kind: "blocked", title: "Cannot open folder chooser", detail: "You can still enter an absolute Audio Pack path." });
@@ -412,7 +412,7 @@ function AudioBody({ projectId }: { projectId: string }) {
               {downloadStatus.message ? ` ${downloadStatus.message}` : ""}
               {downloadStatus.state === "ready" ? " Verified Pack is ready for Core activation." : ""}
             </div>}
-            <p className="t-sm i3">Already have a verified Audio Pack? Select its folder below to admit it offline. Downloads remain local, and only the dedicated in-progress cache is deleted on cancellation.</p>
+            <p className="t-sm i3">Already have an Audio Pack from a source you trust? Select its folder below to admit it offline. MedScale checks the Pack's internal digests, which do not prove who made it. Downloads remain local, and only the dedicated in-progress cache is deleted on cancellation.</p>
           </div>
         )}
       </Section>

@@ -304,9 +304,9 @@ pub fn medagent_models(host: tauri::State<'_, Host>) -> CmdResult<Value> {
 pub fn medagent_admit_pack(host: tauri::State<'_, Host>, path: String) -> CmdResult<Value> {
     let path = host::bounded_text(&path, 1024)?;
     let dir = std::path::Path::new(&path);
-    if !dir.is_absolute() || !dir.is_dir() {
+    if !host::is_local_absolute(dir) || !dir.is_dir() {
         return Err(CmdError::invalid(
-            "Invalid: choose an existing absolute Pack folder",
+            "Invalid: choose an existing Pack folder on this computer",
         ));
     }
     let mut state = lock(&host)?;
@@ -1111,9 +1111,9 @@ pub fn audio_model_activate_existing(
 pub fn audio_admit_asr_pack(host: tauri::State<'_, Host>, path: String) -> CmdResult<Value> {
     let path = host::bounded_text(&path, 1024)?;
     let dir = std::path::Path::new(&path);
-    if !dir.is_absolute() || !dir.is_dir() {
+    if !host::is_local_absolute(dir) || !dir.is_dir() {
         return Err(CmdError::invalid(
-            "Invalid: choose an existing absolute Audio Pack folder",
+            "Invalid: choose an existing Audio Pack folder on this computer",
         ));
     }
     let mut state = lock(&host)?;
@@ -1144,9 +1144,9 @@ pub fn audio_import_wav(
     let project_id = host::bounded_id(&project_id)?.to_owned();
     let path = host::bounded_text(&path, 1024)?;
     let file = std::path::Path::new(&path);
-    if !file.is_absolute() || !path.to_ascii_lowercase().ends_with(".wav") {
+    if !host::is_local_absolute(file) || !path.to_ascii_lowercase().ends_with(".wav") {
         return Err(CmdError::invalid(
-            "Invalid: choose an absolute .wav file of at most 32 MiB",
+            "Invalid: choose a .wav file on this computer of at most 32 MiB",
         ));
     }
     let wav = host::read_bounded(file, WAV_IMPORT_MAX_BYTES)?;

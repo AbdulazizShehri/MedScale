@@ -62,6 +62,9 @@ const MAX_TOKEN_REPEAT: usize = 4;
 // A full 30-second window may still use the whole window budget.
 const _: () = assert!(TOKEN_MARGIN + TOKENS_PER_SECOND * 31 >= MAX_WINDOW_TOKENS);
 
+/// Real Whisper vocabularies are below 52,000 tokens.
+const MAX_WHISPER_VOCAB: usize = 100_000;
+
 #[derive(Debug, Error)]
 pub enum AsrRuntimeError {
     #[error("pack runtime requirement does not admit the candle Whisper ASR runtime")]
@@ -223,6 +226,13 @@ pub fn prepare_whisper_from_bytes(
     }
     let tokenizer = Tokenizer::from_bytes(tokenizer_bytes)
         .map_err(|e| AsrRuntimeError::Tokenizer(e.to_string()))?;
+    // Pack signatures are not a trust boundary yet (`pack_trust.rs`), and this
+    // value sizes model allocations, so a forged config must not exhaust memory.
+    if !(1..=MAX_WHISPER_VOCAB).contains(&config.vocab_size) {
+        return Err(AsrRuntimeError::InvalidConfig(
+            "vocab_size is out of range".to_owned(),
+        ));
+    }
     let multilingual = config.vocab_size >= 51865;
     if multilingual {
         // Fail closed if a purported multilingual checkpoint cannot prompt en.
