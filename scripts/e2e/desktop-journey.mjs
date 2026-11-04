@@ -426,7 +426,7 @@ try {
     await see("4 rows", 60000);
     // The success toast/result can precede the asynchronous receipt reload.
     // Require the visible Core-backed receipt count after the UI settles.
-    await find("//section[.//span[contains(@class,'sec-t') and normalize-space(.)='Receipts']]//span[contains(@class,'sec-c') and number(normalize-space(.)) > 0]", 30000);
+    await find("//section[.//*[contains(@class,'sec-t') and normalize-space(.)='Receipts']]//span[contains(@class,'sec-c') and number(normalize-space(.)) > 0]", 30000);
   });
   await journey("analytics-explains-invalid-bindings", async () => {
     await type(`//input[@aria-label='Bindings']`, "not-a-binding");
@@ -483,13 +483,13 @@ try {
     await see("Synthetic tone imported", 60000);
     // An action toast alone is insufficient; imported synthetic lineage must
     // also become visible in the active project after overview reload.
-    await find("//section[.//span[contains(@class,'sec-t') and normalize-space(.)='Sources']]//span[contains(@class,'sec-c') and number(normalize-space(.)) > 0]", 30000);
+    await find("//section[.//*[contains(@class,'sec-t') and normalize-space(.)='Sources']]//span[contains(@class,'sec-c') and number(normalize-space(.)) > 0]", 30000);
   });
   await journey("audio-source-retention-readonly", async () => {
     // Probe the named Core-through-Tauri read command from the *real* Windows
     // WebView2 surface. No model or data is downloaded and no record is deleted.
     await nav("Audio");
-    const sourceRow = "//section[.//span[contains(@class,'sec-t') and normalize-space(.)='Sources']]" +
+    const sourceRow = "//section[.//*[contains(@class,'sec-t') and normalize-space(.)='Sources']]" +
       "//div[contains(@class,'lr') and .//button[normalize-space(.)='Stored data']]";
     await find(sourceRow, 30000);
     await click("(" + sourceRow + ")[1]//button[normalize-space(.)='Stored data']");
@@ -563,13 +563,13 @@ try {
       await click("//form[.//input[@id='wp1']]//button[@type='submit']");
       await see("Recording imported", 60000);
       const quotedFile = JSON.stringify(path.basename(process.env.MEDSCALE_E2E_REAL_WAV_PATH));
-      const realSource = "//section[.//span[contains(@class,'sec-t') and normalize-space(.)='Sources']]" +
+      const realSource = "//section[.//*[contains(@class,'sec-t') and normalize-space(.)='Sources']]" +
         "//div[contains(@class,'lr') and .//span[contains(normalize-space(.), " + quotedFile + ")]]";
       await find(realSource, 60000);
       await click(realSource + "//button[normalize-space(.)='Transcribe']", 60000);
       await see("Transcription recorded", 240000);
       await find(
-        "//section[.//span[contains(@class,'sec-t') and normalize-space(.)='Transcript']]" +
+        "//section[.//*[contains(@class,'sec-t') and normalize-space(.)='Transcript']]" +
           "//div[contains(@class,'lr')]/span[3]" +
           "[string-length(normalize-space(.)) > 8]" +
           "[not(contains(., '(untranscribed)'))]" +
@@ -590,7 +590,7 @@ try {
       // transcript, source identifier or screenshot in public CI output.
       await nav("Audio");
       const name = JSON.stringify(path.basename(process.env.MEDSCALE_E2E_REAL_WAV_PATH));
-      const source = "//section[.//span[contains(@class,'sec-t') and normalize-space(.)='Sources']]" +
+      const source = "//section[.//*[contains(@class,'sec-t') and normalize-space(.)='Sources']]" +
         "//div[contains(@class,'lr') and .//span[contains(normalize-space(.), " + name + ")]]";
       await find(source, 30000);
       await click(source + "//button[normalize-space(.)='Stored data']");
