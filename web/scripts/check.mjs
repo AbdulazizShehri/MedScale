@@ -48,7 +48,7 @@ for (const f of files) {
   check(!/href="https?:\/\/[^"]+\.(exe|msi|dmg|pkg|appimage|deb|rpm)"/i.test(html), `${rel}: links an installer`);
   for (const [, href] of html.matchAll(/(?:href|src)="([^"]+)"/g)) {
     if (/^(https?:|mailto:|#|data:)/.test(href)) {
-      if (/^https?:/.test(href)) check(/^https:\/\/(github\.com\/AbdulazizShehri\/MedScale|abdulazizshehri\.github\.io\/MedScale|medscale\.si)/.test(href), `${rel}: unexpected external link ${href}`);
+      if (/^https?:/.test(href)) check(/^https:\/\/(github\.com\/AbdulazizShehri\/MedScale|github\.com\/sponsors\/AbdulazizShehri(?:[\/#?]|$)|abdulazizshehri\.github\.io\/MedScale|medscale\.si)/.test(href), `${rel}: unexpected external link ${href}`);
       continue;
     }
     if (!href.startsWith("/")) continue;

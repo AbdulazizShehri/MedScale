@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import { ArrowUpRight, GitHub } from "@/components/Icons";
-import { docs, github, pageMeta } from "@/lib/site";
+import { docs, github, pageMeta, sponsors } from "@/lib/site";
 
 export const metadata: Metadata = pageMeta("/community/", "Community", "Contribute to MedScale: issues, pull requests, discussions and the rules for synthetic data.");
 
@@ -31,6 +31,8 @@ export default function Community() {
             <li>Accessibility and keyboard issues in the desktop app</li>
           </ul>
           <p>Security problems go through the <a className="text-link" href={docs.security}>security policy</a>, not public issues. Everyone follows the <a className="text-link" href={docs.conduct}>code of conduct</a>.</p>
+          <h2>Support independent development</h2>
+          <p>MedScale remains free and Apache-2.0 open source. Voluntary sponsorship helps sustain cross-platform testing, security review and accessible releases; it does not buy product access or change the licence. <a className="text-link" href={sponsors}>Sponsor the maintainer on GitHub</a>.</p>
         </div>
       </section>
     </main>

@@ -3179,6 +3179,139 @@ mod tests {
         std::fs::remove_dir_all(&data_dir).expect("cleanup");
     }
 
+    /// Every file under `root` and its digest, except Core's writer lock files,
+    /// the one permitted side effect of a refusal.
+    fn tree_digests(root: &Path) -> std::collections::BTreeMap<String, String> {
+        fn walk(dir: &Path, root: &Path, out: &mut std::collections::BTreeMap<String, String>) {
+            for entry in std::fs::read_dir(dir).expect("list").filter_map(Result::ok) {
+                let path = entry.path();
+                let name = entry.file_name().to_string_lossy().into_owned();
+                if name.starts_with("writer.lock.sqlite3") {
+                    continue;
+                }
+                if entry.file_type().expect("type").is_dir() {
+                    walk(&path, root, out);
+                } else {
+                    let rel = path.strip_prefix(root).expect("relative");
+                    out.insert(rel.display().to_string(), file_digest(&path));
+                }
+            }
+        }
+        let mut out = std::collections::BTreeMap::new();
+        walk(root, root, &mut out);
+        out
+    }
+
+    fn discard_folder(data_dir: &Path) -> PathBuf {
+        std::fs::read_dir(data_dir)
+            .expect("list")
+            .filter_map(Result::ok)
+            .map(|e| e.path())
+            .find(|p| p.to_string_lossy().contains("discarding"))
+            .expect("a discard folder")
+    }
+
+    #[test]
+    fn a_crash_part_way_through_deleting_the_discard_folder_resumes() {
+        // `remove_dir_all` stops anywhere: the ledger may be gone or still there.
+        for delete_ledger in [true, false] {
+            let data_dir = crash_scratch("mid-delete");
+            run_crash_child(&data_dir, "after_fixture_1");
+            run_crash_child(&data_dir, "recovery_after_rename");
+            let discard = discard_folder(&data_dir);
+            if delete_ledger {
+                std::fs::remove_file(discard.join("meta.sqlite3")).expect("ledger");
+            } else {
+                let blob = std::fs::read_dir(discard.join("blobs"))
+                    .expect("blobs")
+                    .filter_map(Result::ok)
+                    .find(|e| e.file_type().expect("type").is_file())
+                    .expect("a blob");
+                std::fs::remove_file(blob.path()).expect("blob");
+            }
+            let (result, state) = reopen(&data_dir);
+            assert!(result.expect("resumed"), "delete_ledger={delete_ledger}");
+            assert_complete_sample(&state, &data_dir);
+            drop(state);
+            std::fs::remove_dir_all(&data_dir).expect("cleanup");
+        }
+    }
+
+    #[test]
+    fn a_discard_folder_that_stops_proving_is_kept_byte_for_byte() {
+        // Also the state a crash during the rename-back path would leave.
+        let data_dir = crash_scratch("discard-refused");
+        run_crash_child(&data_dir, "after_fixture_1");
+        run_crash_child(&data_dir, "recovery_after_rename");
+        let discard = discard_folder(&data_dir);
+        std::fs::write(discard.join("not-from-the-seed.txt"), b"keep me").expect("foreign");
+        let before = tree_digests(&discard);
+        let (result, _state) = reopen(&data_dir);
+        assert_eq!(
+            result.expect_err("refused").reason,
+            Some(seed_reason::RECOVERY_REFUSED)
+        );
+        assert_eq!(tree_digests(&discard), before, "nothing was deleted");
+        std::fs::remove_dir_all(&data_dir).expect("cleanup");
+    }
+
+    #[test]
+    fn a_proposal_persisted_without_its_assertion_is_recovered() {
+        let data_dir = crash_scratch("no-assertion");
+        run_crash_child(&data_dir, "after_fixture_1");
+        let vault = data_dir.join("synthetic-workspace");
+        {
+            let db = rusqlite::Connection::open(vault.join("meta.sqlite3")).expect("db");
+            let removed = db
+                .execute(
+                    "DELETE FROM authority_objects WHERE object_class = 'assertion'",
+                    [],
+                )
+                .expect("delete");
+            assert!(removed > 0, "the boundary had promoted an assertion");
+            // The promotion's audit row goes with it. Core persists after each
+            // request, so this is the state a crash between propose and promote
+            // leaves. An assertion's audit row without the assertion is
+            // refused, correctly, because it looks forged.
+            let removed = db
+                .execute(
+                    "DELETE FROM authority_objects WHERE object_class = 'audit'                      AND body_json LIKE '%promote_proposal%'",
+                    [],
+                )
+                .expect("delete audit");
+            assert!(removed > 0, "the promotion left an audit row");
+            let proposals: i64 = db
+                .query_row(
+                    "SELECT COUNT(*) FROM authority_objects WHERE object_class = 'proposal'",
+                    [],
+                    |r| r.get(0),
+                )
+                .expect("count");
+            assert!(proposals > 0, "the proposal stayed");
+        }
+        let (result, state) = reopen(&data_dir);
+        assert!(result.expect("recovered"));
+        assert_complete_sample(&state, &data_dir);
+        drop(state);
+        std::fs::remove_dir_all(&data_dir).expect("cleanup");
+    }
+
+    #[test]
+    fn a_refused_recovery_leaves_the_whole_tree_unchanged() {
+        let data_dir = crash_scratch("tree");
+        run_crash_child(&data_dir, "after_fixture_1");
+        let vault = data_dir.join("synthetic-workspace");
+        std::fs::write(vault.join("not-from-the-seed.txt"), b"keep me").expect("foreign");
+        let before = tree_digests(&data_dir);
+        let (result, _state) = reopen(&data_dir);
+        assert_eq!(
+            result.expect_err("refused").reason,
+            Some(seed_reason::RECOVERY_REFUSED)
+        );
+        assert_eq!(tree_digests(&data_dir), before);
+        std::fs::remove_dir_all(&data_dir).expect("cleanup");
+    }
+
     #[test]
     fn recovery_refuses_anything_it_cannot_prove() {
         // Legacy missing manifest after a committed sample: never recovered.

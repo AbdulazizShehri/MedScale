@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { asset, docs, github } from "@/lib/site";
+import { asset, docs, github, sponsors } from "@/lib/site";
 
 export function Footer() {
   return (
@@ -30,6 +30,7 @@ export function Footer() {
             <a href={github}>GitHub</a>
             <a href={docs.contributing}>Contributing</a>
             <a href={docs.discussions}>Discussions</a>
+            <a href={sponsors}>Sponsor development</a>
             <a href={docs.security}>Security</a>
           </div>
         </div>
