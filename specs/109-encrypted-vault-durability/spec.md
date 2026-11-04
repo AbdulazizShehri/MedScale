@@ -40,18 +40,9 @@ Two narrower limits remain, both found in the final review:
 - A crash during creation can leave a header with no seal, which neither create nor unlock accepts. No data exists yet at that point, and the folder has to be removed by hand.
 - A blob torn by power loss **before** this fix is not healed, because an existing blob is not rewritten. Later unlocks could then fail. Blobs written after this fix are synced first.
 
-## Part B: recover a crashed session (not implemented)
+## Part B: recover a crashed session
 
-This is the fix for D2's data loss. It must meet every requirement below, and it needs its own Goldfish review of its own design:
-
-1. **Verify without writing.** `open_at_sqlcipher` creates missing files and runs `migrate()` first, so a zero-byte file gains an empty schema, "verifies", and then replaces the good seal at the next close. A new opener needs no create flag, must reject empty and short files, must run `cipher_integrity_check` and `integrity_check`, and must check the schema before any migration. An interrupted migration counts as unverifiable.
-2. **"Could not check" is not "bad".** BUSY, disk full and sharing violations return a retryable error and wipe nothing. Only authenticated corruption or a wrong-key result may discard.
-3. **Prove loadability.** A verified row can reference a lost blob, and `load_store_from_encrypted` would then fail on every unlock. Include the load in verification, or give a typed recoverable error.
-4. **Bind to the seal.** `integrity_check` does not catch structurally valid rollback, and an old whole work file would beat a newer seal. Store `base_seal_digest` in the work database, and adopt it only on a match or an unreadable seal.
-5. **Consistency.** Domain writes run before the authority snapshot (`facade.rs`), so a crash can leave them ahead of it. Wrap dispatch and snapshot in one transaction, or show that each handler tolerates this.
-6. **Durability.** Set `fullfsync` on macOS, since SQLite's commit is otherwise not durable there.
-
-Dropping `meta.sealed` for a single SQLCipher file at rest would remove most of this, at the cost of amending Spec 017 FR-002, the probes and the backup format. Part B's design must weigh that option.
+Designed in [part-b-crash-recovery.md](part-b-crash-recovery.md).
 
 ### Rejected: seal after every request
 
