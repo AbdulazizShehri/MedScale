@@ -1,6 +1,7 @@
 import Link from "next/link";
 import type { Metadata } from "next";
 import { DownloadCards } from "@/components/DownloadCards";
+import { PerformanceHighlights } from "@/components/PerformanceHighlights";
 import { EvidenceExample } from "@/components/EvidenceExample";
 import { ArrowRight, ArrowUpRight, Check, GitHub, Monitor, Plus, Terminal } from "@/components/Icons";
 import { ProductTour } from "@/components/ProductTour";
@@ -56,6 +57,8 @@ export default function Home() {
           </div>
         </div>
       </section>
+
+      <PerformanceHighlights />
 
       <section className="section" aria-labelledby="tour-title">
         <div className="shell">
