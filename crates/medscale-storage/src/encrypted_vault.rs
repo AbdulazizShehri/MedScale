@@ -380,6 +380,7 @@ impl EncryptedVault {
         };
         drop(std::mem::replace(&mut self.meta, closed));
         let result = Self::quarantine(&self.root, VERDICT_UNVERIFIABLE)
+            .map_err(|e| EncryptedVaultError::WorkFileBlocked(e.to_string()))
             .and_then(|()| Self::restore_work_file(&self.root, &self.dek, &plain.0, &plain.1))
             .and_then(|()| {
                 Ok(SqliteMetaStore::open_at_sqlcipher(
@@ -810,7 +811,15 @@ impl EncryptedVault {
         dek: &VaultDek,
     ) -> Result<(Vec<u8>, String), EncryptedVaultError> {
         let unreadable = || EncryptedVaultError::SealedMetaUnreadable;
-        let encoded = fs::read(root.join(META_SEALED)).map_err(|_| unreadable())?;
+        // An antivirus lock is transient, not a damaged seal (I3). Only absence
+        // and a failed check read as unreadable.
+        let encoded = fs::read(root.join(META_SEALED)).map_err(|e| {
+            if e.kind() == std::io::ErrorKind::NotFound {
+                unreadable()
+            } else {
+                EncryptedVaultError::Io(e)
+            }
+        })?;
         let sealed: medscale_keys::WrappedBlob =
             serde_json::from_slice(&encoded).map_err(|_| unreadable())?;
         let plain =

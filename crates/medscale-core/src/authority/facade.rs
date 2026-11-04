@@ -1776,9 +1776,13 @@ impl CoreFacade {
                 };
                 if let Err(error) = persisted {
                     self.store().clear();
-                    if !adopted {
-                        vault.remove_restored_work_file();
+                    if adopted {
+                        // A write-protected work file verifies and loads, then
+                        // can't be written. The vault is still reachable by
+                        // moving that session aside, so offer that.
+                        return Err(recovery_check_error(error));
                     }
+                    vault.remove_restored_work_file();
                     return Err(error);
                 }
                 // A recovered session doesn't deliver a discard notice, so that

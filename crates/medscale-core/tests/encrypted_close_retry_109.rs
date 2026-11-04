@@ -326,6 +326,70 @@ fn a_discard_notice_survives_until_it_is_delivered() {
 }
 
 #[test]
+fn a_write_protected_session_can_still_be_moved_aside() {
+    let root = tmp_dir("read-only");
+    {
+        let facade = connected();
+        create_vault(&facade, &root);
+        add_intent(&facade, b"sealed");
+        assert!(close(&facade));
+        open(&facade, &root);
+        add_intent(&facade, b"unsealed");
+    }
+    let work = root.join("meta.work.sqlite3");
+    let mut permissions = fs::metadata(&work).unwrap().permissions();
+    permissions.set_readonly(true);
+    fs::set_permissions(&work, permissions.clone()).unwrap();
+
+    let open_with = |discard_leftover| {
+        let facade = connected();
+        let opened = facade.dispatch(req(
+            Capability::OpenEncryptedVault,
+            RequestBody::OpenEncryptedVault {
+                vault_root: root.display().to_string(),
+                passphrase: Some(PASS.to_owned()),
+                recovery_code: None,
+                discard_leftover,
+            },
+        ));
+        (facade, opened.result)
+    };
+    let (_facade, refused) = open_with(false);
+    match refused {
+        Err(AuthorityError::Unavailable { message }) => assert!(
+            message.contains("could not be checked"),
+            "this wording is what offers the way out: {message}"
+        ),
+        other => panic!("expected the retryable family: {other:?}"),
+    }
+    drop(_facade);
+
+    let (facade, opened) = open_with(true);
+    let ResponseBody::EncryptedVaultReady { open_outcome, .. } = opened.expect("the way out works")
+    else {
+        panic!("expected ready");
+    };
+    assert_eq!(
+        open_outcome,
+        Some(VaultOpenOutcome::DiscardedInterruptedSession)
+    );
+    let listed = facade.dispatch(req(Capability::ListOutbox, RequestBody::ListOutbox));
+    let ResponseBody::Outbox { entries } = listed.result.unwrap() else {
+        panic!("expected outbox");
+    };
+    assert_eq!(entries.len(), 1, "the sealed write is what opened");
+    assert!(close(&facade));
+    let moved = root
+        .join("discarded-session")
+        .join("1")
+        .join("meta.work.sqlite3");
+    #[allow(clippy::permissions_set_readonly_false)]
+    permissions.set_readonly(false);
+    fs::set_permissions(&moved, permissions).unwrap();
+    fs::remove_dir_all(&root).unwrap();
+}
+
+#[test]
 fn a_wrong_key_for_a_move_aside_changes_nothing() {
     let root = tmp_dir("move-aside-key");
     {
