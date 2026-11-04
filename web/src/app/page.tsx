@@ -1,6 +1,7 @@
 import Link from "next/link";
 import type { Metadata } from "next";
 import { DownloadCards } from "@/components/DownloadCards";
+import { ModelCatalogScale } from "@/components/ModelCatalogScale";
 import { EvidenceExample } from "@/components/EvidenceExample";
 import { ArrowRight, ArrowUpRight, Check, GitHub, Monitor, Plus, Terminal } from "@/components/Icons";
 import { ProductTour } from "@/components/ProductTour";
@@ -41,6 +42,7 @@ export default function Home() {
               <Link className="btn btn-primary" href="/download/">Get MedScale <ArrowRight /></Link>
               <a className="btn btn-secondary" href={github}><GitHub size={16} /> View on GitHub</a>
             </div>
+            <ModelCatalogScale />
             <div className="hero-meta">
               <span><Monitor /> Desktop for Windows and macOS</span>
               <span><Terminal /> CLI for Windows, macOS and Linux</span>
