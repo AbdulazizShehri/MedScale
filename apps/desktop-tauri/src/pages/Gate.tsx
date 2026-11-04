@@ -3,7 +3,7 @@ import { useApp } from "../lib/app";
 import { useAction, type CmdError } from "../lib/ipc";
 import { Logo } from "../components/brand";
 import { Glyph, useToast } from "../components/ui";
-import { DELETE_SET_ASIDE_DIALOG, RECOVERED_SEED_NOTICE, SET_ASIDE_DIALOG, SET_ASIDE_EXISTS_NOTICE, recoveredInterruptedSeed, seedFailureGuidance, setAsideOffered } from "../lib/seed-failure";
+import { DELETE_SET_ASIDE_DIALOG, DISCARDED_SESSION_NOTICE, RECOVERED_SEED_NOTICE, SET_ASIDE_DIALOG, SET_ASIDE_EXISTS_NOTICE, discardedInterruptedSession, recoveredInterruptedSeed, seedFailureGuidance, setAsideOffered } from "../lib/seed-failure";
 import { ConfirmPanel } from "../components/confirm";
 
 /** Spec 108 step 2: one announced alert per failure. With a known reason the
@@ -143,8 +143,12 @@ export function Access({ onBack }: { onBack: () => void }) {
     setError(null);
     if (mode === "create" && pass !== confirm) { setError({ kind: "invalid", message: "Invalid: passphrases do not match" }); return; }
     if (mode === "unlock") {
-      const r = await run("unlock", "workspace_unlock", { passphrase: pass });
-      if (r.ok) { setPass(""); await refreshWorkspace(); } else setError(r.error);
+      const r = await run<unknown>("unlock", "workspace_unlock", { passphrase: pass });
+      if (r.ok) {
+        setPass("");
+        if (discardedInterruptedSession(r.data)) toast({ kind: "blocked", ...DISCARDED_SESSION_NOTICE });
+        await refreshWorkspace();
+      } else setError(r.error);
     } else {
       const r = await run<{ recovery_codes: string[] }>("create", "workspace_create_encrypted", { passphrase: pass });
       if (r.ok) { setPass(""); setConfirm(""); setCodes(r.data.recovery_codes); } else setError(r.error);

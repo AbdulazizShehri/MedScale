@@ -1651,6 +1651,7 @@ impl CoreFacade {
                 Ok(ResponseBody::EncryptedVaultReady {
                     vault_root,
                     recovery_codes: Some(codes.codes),
+                    discarded_interrupted_session: false,
                 })
             }
             RequestBody::OpenEncryptedVault {
@@ -1688,10 +1689,12 @@ impl CoreFacade {
                     let mut store = self.store();
                     super::durable::load_store_from_encrypted(&vault, &mut store)?;
                 }
+                let discarded_interrupted_session = vault.discarded_interrupted_session();
                 *slot = Some(vault);
                 Ok(ResponseBody::EncryptedVaultReady {
                     vault_root,
                     recovery_codes: None,
+                    discarded_interrupted_session,
                 })
             }
             RequestBody::CloseEncryptedVault => {
@@ -1704,8 +1707,13 @@ impl CoreFacade {
                     }
                 }
                 let mut slot = self.encrypted();
-                if let Some(vault) = slot.take() {
-                    vault.close().map_err(enc_err)?;
+                if let Some(vault) = slot.take()
+                    && let Err(failed) = vault.try_close()
+                {
+                    // Spec 109: still open and writable, so a retry can seal.
+                    let (vault, error) = *failed;
+                    *slot = Some(vault);
+                    return Err(enc_err(error));
                 }
                 Ok(ResponseBody::VaultClosed)
             }
@@ -6408,6 +6416,9 @@ fn enc_err(err: medscale_storage::EncryptedVaultError) -> AuthorityError {
         }
         medscale_storage::EncryptedVaultError::LeaseHeld(holder) => AuthorityError::LeaseHeld {
             holder_id: OpaqueId::new(holder),
+        },
+        medscale_storage::EncryptedVaultError::SealedMetaUnreadable => AuthorityError::Corrupt {
+            message: "sealed vault metadata is unreadable; nothing was changed".to_owned(),
         },
         other => AuthorityError::InvalidArgument {
             message: other.to_string(),

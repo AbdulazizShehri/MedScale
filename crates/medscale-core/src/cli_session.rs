@@ -19,6 +19,7 @@ pub struct CliSession {
     next_req: u64,
     vault_root: Option<String>,
     open: bool,
+    discarded_interrupted_session: bool,
     /// Spec 079: whether the durable pseudonym key store is installed.
     privacy_keys_installed: bool,
 }
@@ -68,6 +69,7 @@ impl CliSession {
             next_req: 0,
             vault_root: None,
             open: false,
+            discarded_interrupted_session: false,
             privacy_keys_installed: false,
         };
         let resp = session.dispatch_bootstrap(
@@ -153,6 +155,7 @@ impl CliSession {
         let ResponseBody::EncryptedVaultReady {
             vault_root,
             recovery_codes,
+            ..
         } = resp
         else {
             return Err(AuthorityError::InvalidArgument {
@@ -177,22 +180,36 @@ impl CliSession {
                 recovery_code: None,
             },
         )?;
-        let ResponseBody::EncryptedVaultReady { vault_root, .. } = resp else {
+        let ResponseBody::EncryptedVaultReady {
+            vault_root,
+            discarded_interrupted_session,
+            ..
+        } = resp
+        else {
             return Err(AuthorityError::InvalidArgument {
                 message: "expected encrypted vault ready".to_owned(),
             });
         };
         self.vault_root = Some(vault_root);
         self.open = true;
+        self.discarded_interrupted_session = discarded_interrupted_session;
         Ok(())
+    }
+
+    /// True when the last open discarded a session that never sealed, so
+    /// changes made since the previous lock may be lost (Spec 109).
+    #[must_use]
+    pub fn discarded_interrupted_session(&self) -> bool {
+        self.discarded_interrupted_session
     }
 
     /// Closes the open encrypted vault through Core: the working metadata
     /// database is sealed into the encrypted meta file, then the work
-    /// database, its SQLite sidecars and the writer lease are removed.
-    /// Dropping a session without this discards writes made since open (the
-    /// next open treats the work database as a crash leftover) and leaves
-    /// those files on disk.
+    /// database, its SQLite sidecars and the writer lease are removed. If
+    /// sealing fails the vault stays open and this can be retried. Dropping a
+    /// session without this discards writes made since open (the next open
+    /// treats the work database as a crash leftover and reports it through
+    /// [`Self::discarded_interrupted_session`]) and leaves those files on disk.
     pub fn close_encrypted_vault(&mut self) -> Result<(), AuthorityError> {
         match self.dispatch(
             Capability::CloseEncryptedVault,

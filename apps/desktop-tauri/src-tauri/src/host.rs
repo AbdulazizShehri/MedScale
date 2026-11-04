@@ -2332,7 +2332,8 @@ pub fn create_encrypted(state: &mut State, passphrase: &str) -> CmdResult<Vec<St
     Ok(codes)
 }
 
-pub fn unlock_encrypted(state: &mut State, passphrase: &str) -> CmdResult<()> {
+/// Returns true when unlocking discarded a session that never sealed.
+pub fn unlock_encrypted(state: &mut State, passphrase: &str) -> CmdResult<bool> {
     validate_passphrase(passphrase)?;
     let vault_root = encrypted_root(state)?;
     // The sibling .desktop-seed.json is a UI roster, not encrypted Core
@@ -2351,6 +2352,7 @@ pub fn unlock_encrypted(state: &mut State, passphrase: &str) -> CmdResult<()> {
     }
     let mut session = CliSession::connect("desktop-encrypted")?;
     session.open_encrypted_vault(&vault_root.display().to_string(), passphrase)?;
+    let discarded = session.discarded_interrupted_session();
     let seed = load_manifest(&vault_root);
     state.workspace = Some(Workspace {
         session,
@@ -2358,7 +2360,7 @@ pub fn unlock_encrypted(state: &mut State, passphrase: &str) -> CmdResult<()> {
         vault_root,
         seed,
     });
-    Ok(())
+    Ok(discarded)
 }
 
 fn validate_passphrase(passphrase: &str) -> CmdResult<()> {
