@@ -18,9 +18,17 @@ bounded() { perl -e 'alarm shift; exec @ARGV' "$@"; }
 
 process_count() { pgrep -f "$app/Contents/MacOS/" | wc -l | tr -d ' '; }
 
+window_query() {
+  local pid
+  pid="$(pgrep -f "$app/Contents/MacOS/" | head -1)"
+  [ -n "$pid" ] || { echo "no process"; return 0; }
+  bounded 20 osascript -e "tell application \"System Events\" to return count of windows of (first application process whose unix id is $pid)" 2>&1 | tr '\n' ' ' | cut -c1-200
+}
+
 window_count() {
-  bounded 20 osascript -e 'tell application "System Events" to count (windows of every process whose bundle identifier is "'"$identifier"'")' 2>/dev/null \
-    | tr -d ', ' || echo 0
+  local answer
+  answer="$(window_query | tr -d ' ')"
+  case "$answer" in ''|*[!0-9]*) echo 0 ;; *) echo "$answer" ;; esac
 }
 
 wait_for_window() {
@@ -93,7 +101,7 @@ if wait_for_window; then
 else
   say "LAUNCH_FROM_APPLICATIONS=FAIL"
   say "PROCESSES=$(process_count)"
-  say "WINDOW_QUERY=$(bounded 20 osascript -e 'tell application "System Events" to get name of every process whose bundle identifier is "'"$identifier"'"' 2>&1 | tr '\n' ' ' | cut -c1-200)"
+  say "WINDOW_QUERY=$(window_query)"
   exit 1
 fi
 sleep 5
