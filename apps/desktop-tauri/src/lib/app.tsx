@@ -30,6 +30,8 @@ export type Nav = { route: RouteId; subject?: string };
 export type AppCtx = {
   ws: WorkspaceStatus | null;
   refreshWorkspace: () => Promise<void>;
+  /** The vault was closed some other way than Lock: go to the unlock screen. */
+  vaultClosed: () => Promise<void>;
   nav: Nav;
   navigate: (route: RouteId, subject?: string) => void;
   project: string | null;

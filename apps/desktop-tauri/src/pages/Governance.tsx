@@ -7,7 +7,8 @@ import { Mark, Wordmark } from "../components/brand";
 import { Authority, Empty, ErrorState, Glyph, KV, Ledger, Notice, PageHead, Section, Skeleton, Status, glyphFor, useOutcome } from "../components/ui";
 import { SUPPORT_DATA_RULE, SUPPORT_ISSUES_URL, supportDiagnostics } from "../support";
 import { ConfirmPanel } from "../components/confirm";
-import { DELETE_SET_ASIDE_DIALOG, SET_ASIDE_EXISTS_NOTICE } from "../lib/seed-failure";
+import { DELETE_RECOVERY_DIALOG, DELETE_SET_ASIDE_DIALOG, RESTORE_COPY_DIALOG, SET_ASIDE_EXISTS_NOTICE } from "../lib/seed-failure";
+import { formatStorage } from "../model-storage";
 import { useToast } from "../components/ui";
 
 type Row = { label: string; value: string; detail: string; status: string };
@@ -184,8 +185,66 @@ function SettingRow({ label, detail, children }: { label: string; detail: string
   );
 }
 
+type RecoveryItem = { kind: "pre_recovery_copy" | "discarded_session"; id: string; bytes: number; modified_unix: number | null };
+
+/** Spec 109 PR 3: what crash recovery kept for this vault, so it is never hidden. */
+function recoveryLabel(item: RecoveryItem): string {
+  return item.kind === "pre_recovery_copy" ? "Earlier saved copy" : "Discarded session";
+}
+
+function recoveryDate(item: RecoveryItem): string {
+  return item.modified_unix ? new Date(item.modified_unix * 1000).toLocaleString() : "Date unknown";
+}
+
+function RecoveryKept({ onRestored }: { onRestored: () => void }) {
+  const list = useCommand<RecoveryItem[]>("vault_recovery_items");
+  const { pending, run } = useAction();
+  const outcome = useOutcome();
+  const [confirming, setConfirming] = useState<{ action: "restore" | "delete"; item: RecoveryItem } | null>(null);
+  async function confirm() {
+    if (!confirming) return;
+    const { action, item } = confirming;
+    if (action === "restore") {
+      const r = await run<null>("recovery", "vault_recovery_restore", { id: item.id });
+      setConfirming(null);
+      if (outcome(r, "Copy restored · unlock to see it")) onRestored();
+      else void list.reload();
+    } else {
+      const r = await run<unknown>("recovery", "vault_recovery_delete", { kind: item.kind, id: item.id });
+      setConfirming(null);
+      if (outcome(r, "Deleted")) {
+        void list.reload();
+        // The row that opened this is gone, so focus needs somewhere to go.
+        document.getElementById("main")?.focus();
+      }
+    }
+  }
+  return (
+    <Section n="03" title="Crash recovery" count={list.state.status === "ready" ? list.state.data.length : "…"}>
+      <p className="t-sm i3" style={{ marginBottom: 8 }}>What MedScale kept after it did not close normally. These stay in the vault folder until you delete them, except that only the three newest copies and stale sessions are kept. Copies are encrypted. A discarded session could not be verified and cannot be opened here.</p>
+      {list.state.status === "error" && <ErrorState error={list.state.error} onRetry={list.reload} />}
+      {list.state.status === "ready" && !list.state.data.length && <p className="t-sm i3">Nothing kept.</p>}
+      {list.state.status === "ready" && list.state.data.map((item) => (
+        <div key={item.kind + item.id} className="lr" style={{ gridTemplateColumns: "minmax(0,1fr) 170px 90px auto auto" }}>
+          <span className="t-sm">{recoveryLabel(item)}</span>
+          <span className="t-sm i3">{recoveryDate(item)}</span>
+          <span className="mono t-mono-sm i3">{formatStorage(item.bytes)}</span>
+          {item.kind === "pre_recovery_copy"
+            ? <button type="button" className="btn btn-g" aria-label={`Restore ${recoveryLabel(item)}, ${recoveryDate(item)}`} disabled={!!pending} onClick={() => setConfirming({ action: "restore", item })}>Restore…</button>
+            : <span />}
+          <button type="button" className="btn btn-g" aria-label={`Delete ${recoveryLabel(item)}, ${recoveryDate(item)}`} disabled={!!pending} onClick={() => setConfirming({ action: "delete", item })}>Delete…</button>
+        </div>
+      ))}
+      {confirming && (() => {
+        const dialog = confirming.action === "restore" ? RESTORE_COPY_DIALOG : DELETE_RECOVERY_DIALOG;
+        return <ConfirmPanel title={dialog.title} confirmLabel={dialog.confirm} busy={!!pending} onConfirm={confirm} onCancel={() => setConfirming(null)}><b>{recoveryLabel(confirming.item)}, {recoveryDate(confirming.item)}, {formatStorage(confirming.item.bytes)}.</b> {dialog.body}</ConfirmPanel>;
+      })()}
+    </Section>
+  );
+}
+
 export function Settings() {
-  const { theme, setTheme, density, setDensity, ws, lock } = useApp();
+  const { theme, setTheme, density, setDensity, ws, lock, vaultClosed } = useApp();
   const gov = useCommand<Gov>(ws?.open ? "governance_overview" : null);
 
   return (
@@ -206,12 +265,13 @@ export function Settings() {
             <span className="row-gap" style={{ gap: 8 }}><button type="button" className="btn btn-s" onClick={() => void lock()} disabled={!ws?.open}>Lock now</button><span className="kbd">{MOD} Shift L</span></span>
           </SettingRow>
         </Section>
+        {ws?.workspace?.kind === "encrypted" && <RecoveryKept onRestored={() => void vaultClosed()} />}
         {gov.state.status === "ready" && <>
-          <Section n="03" title="Privacy & network"><RowList rows={gov.state.data.settings_rows.filter((r) => !/release|accessib/i.test(r.label))} /></Section>
-          <Section n="04" title="Qualification" count="read-only"><RowList rows={gov.state.data.settings_rows.filter((r) => /release|accessib/i.test(r.label))} /><p className="t-sm i3" style={{ marginTop: 10 }}>{gov.state.data.missing_release_evidence}</p></Section>
+          <Section title="Privacy & network"><RowList rows={gov.state.data.settings_rows.filter((r) => !/release|accessib/i.test(r.label))} /></Section>
+          <Section title="Qualification" count="read-only"><RowList rows={gov.state.data.settings_rows.filter((r) => /release|accessib/i.test(r.label))} /><p className="t-sm i3" style={{ marginTop: 10 }}>{gov.state.data.missing_release_evidence}</p></Section>
         </>}
         {gov.state.status === "error" && <ErrorState error={gov.state.error} onRetry={gov.reload} />}
-        <Section n="05" title="Keyboard">
+        <Section title="Keyboard">
           <KV keyWidth={150} rows={[[`${MOD} K`, "Search or run a command"], [`${MOD} ,`, "Settings"], [`${MOD} Shift L`, "Lock workspace"], ["Enter", "Open the focused row"], ["Space", "Preview the focused row"], ["Esc", "Close the palette or dialog"]]} />
         </Section>
       </div>

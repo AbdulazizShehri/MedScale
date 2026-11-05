@@ -4,6 +4,7 @@ use std::fs;
 use std::io::Write;
 use std::path::{Path, PathBuf};
 
+use medscale_contracts::envelopes::{VaultRecoveryItem, VaultRecoveryKind};
 use medscale_contracts::objects::DigestSha256;
 use medscale_keys::{
     KeyProvider, KeyStore, RecoveryCodeSet, VaultDek, VaultKeyHeader, seal, unseal,
@@ -297,6 +298,7 @@ impl EncryptedVault {
                     }
                     LeftoverVerdict::Verified { schema } => {
                         Self::keep_pre_recovery_copy(&root, &seal_digest)?;
+                        Self::evict_old_copies(&root.join(PRE_RECOVERY_DIR), &[&seal_digest]);
                         if schema < crate::CURRENT_META_SCHEMA_VERSION {
                             Self::migrate_work_on_a_copy(&root, &dek).map_err(|e| {
                                 EncryptedVaultError::WorkFileCheckUnavailable(e.to_string())
@@ -364,6 +366,145 @@ impl EncryptedVault {
         for entry in entries.flatten() {
             let _ = fs::remove_file(entry.path().join(NOTICE_FILE));
         }
+    }
+
+    /// Everything crash recovery has kept for this vault, newest first.
+    pub fn recovery_items(&self) -> Result<Vec<VaultRecoveryItem>, EncryptedVaultError> {
+        let mut items = Vec::new();
+        let copies = self.root.join(PRE_RECOVERY_DIR);
+        if copies.try_exists()? {
+            for entry in fs::read_dir(&copies)? {
+                let entry = entry?;
+                let path = entry.path();
+                let Some(id) = path
+                    .file_name()
+                    .and_then(|name| name.to_str())
+                    .and_then(|name| name.strip_suffix(".sealed"))
+                else {
+                    continue;
+                };
+                let meta = entry.metadata()?;
+                items.push(VaultRecoveryItem {
+                    kind: VaultRecoveryKind::PreRecoveryCopy,
+                    id: id.to_owned(),
+                    bytes: meta.len(),
+                    modified_unix: modified_unix(&meta),
+                });
+            }
+        }
+        let discarded = self.root.join(DISCARDED_DIR);
+        if discarded.try_exists()? {
+            for (number, generation) in Self::generations(&discarded)? {
+                let mut bytes = 0;
+                for entry in fs::read_dir(&generation)? {
+                    bytes += entry?.metadata()?.len();
+                }
+                items.push(VaultRecoveryItem {
+                    kind: VaultRecoveryKind::DiscardedSession,
+                    id: number.to_string(),
+                    bytes,
+                    modified_unix: modified_unix(&fs::metadata(&generation)?),
+                });
+            }
+        }
+        items.sort_by_key(|item| std::cmp::Reverse(item.modified_unix));
+        Ok(items)
+    }
+
+    /// Permanently removes one kept item, by an id checked to be only that: a seal
+    /// digest or a generation number, so it can't name anything else.
+    pub fn delete_recovery_item(
+        &self,
+        kind: VaultRecoveryKind,
+        id: &str,
+    ) -> Result<(), EncryptedVaultError> {
+        match kind {
+            VaultRecoveryKind::PreRecoveryCopy => {
+                // I2: a recovered session must keep the way back to its seal.
+                if self.work_source == WorkSource::Adopted {
+                    let current = fs::read(self.root.join(META_SEALED))?;
+                    if DigestSha256::of(&current).to_hex() == id {
+                        return Err(EncryptedVaultError::Invalid(
+                            "this copy is the way back from the recovered session; lock the vault first".to_owned(),
+                        ));
+                    }
+                }
+                let path = self
+                    .root
+                    .join(PRE_RECOVERY_DIR)
+                    .join(format!("{}.sealed", checked_digest_id(id)?));
+                remove_with_retry(&path)?;
+            }
+            VaultRecoveryKind::DiscardedSession => {
+                let number: u64 = id.parse().map_err(|_| {
+                    EncryptedVaultError::Invalid("not a discarded session id".to_owned())
+                })?;
+                fs::remove_dir_all(self.root.join(DISCARDED_DIR).join(number.to_string()))?;
+            }
+        }
+        Ok(())
+    }
+
+    /// Spec 109 PR 3: the user's explicit restore. The copy is authenticated
+    /// before anything changes. This session is sealed first and that seal is kept
+    /// as a copy, so a restore never destroys anything and can itself be undone.
+    /// On success the session is over. On failure the vault stays open.
+    pub fn restore_recovery_copy(self, id: &str) -> Result<(), Box<(Self, EncryptedVaultError)>> {
+        if let Err(error) = self.swap_in_recovery_copy(id) {
+            return Err(Box::new((self, error)));
+        }
+        let EncryptedVault { root, meta, .. } = self;
+        drop(meta);
+        // The marker no longer matches, so a leftover here can never be adopted.
+        let _ = Self::wipe_work_sidecars(&root);
+        let _ = fs::remove_file(root.join(LEASE_FILE));
+        Ok(())
+    }
+
+    fn swap_in_recovery_copy(&self, id: &str) -> Result<(), EncryptedVaultError> {
+        let digest = checked_digest_id(id)?;
+        let bytes = fs::read(
+            self.root
+                .join(PRE_RECOVERY_DIR)
+                .join(format!("{digest}.sealed")),
+        )?;
+        if DigestSha256::of(&bytes).to_hex() != digest {
+            return Err(EncryptedVaultError::Invalid(
+                "the copy is damaged and was not restored".to_owned(),
+            ));
+        }
+        let damaged =
+            || EncryptedVaultError::Invalid("the copy is damaged and was not restored".to_owned());
+        let sealed: medscale_keys::WrappedBlob =
+            serde_json::from_slice(&bytes).map_err(|_| damaged())?;
+        unseal(
+            self.dek.as_bytes(),
+            &sealed,
+            &Self::meta_aad(&self.vault_id),
+        )
+        .map_err(|_| damaged())?;
+        Self::seal_meta_file(&self.root, &self.vault_id, &self.dek)?;
+        let (_, displaced) = Self::decrypt_sealed_meta(&self.root, &self.vault_id, &self.dek)?;
+        // This work file now descends from that seal. A failure below leaves the
+        // vault open on it, and a crash must recover it, not read it as stale.
+        self.meta.set_base_seal_digest(&displaced)?;
+        Self::keep_pre_recovery_copy(&self.root, &displaced)?;
+        crash_point("restore_copy_before_swap");
+        #[cfg(test)]
+        if test_hooks::take_swap_failure() {
+            return Err(EncryptedVaultError::Invalid("injected".to_owned()));
+        }
+        write_durably(
+            &self.root.join(META_SEALED_TMP),
+            &self.root.join(META_SEALED),
+            &bytes,
+        )?;
+        crash_point("restore_copy_after_swap");
+        Self::evict_old_copies(
+            &self.root.join(PRE_RECOVERY_DIR),
+            &[digest, displaced.as_str()],
+        );
+        Ok(())
     }
 
     /// A recovered session failed to load for a definitive reason. Move it aside
@@ -645,17 +786,23 @@ impl EncryptedVault {
         write_durably(&dir.join(format!("{seal_digest}.tmp")), &copy, &bytes)
             .map_err(|e| EncryptedVaultError::WorkFileCheckUnavailable(e.to_string()))?;
         crash_point("adopt_after_copy");
-        Self::evict_old_copies(&dir);
         Ok(())
     }
 
-    fn evict_old_copies(dir: &Path) {
+    /// Keeps the newest few, and never one named in `protect`. Runs only after the
+    /// operation that needs those copies has finished with them.
+    fn evict_old_copies(dir: &Path, protect: &[&str]) {
         let Ok(entries) = fs::read_dir(dir) else {
             return;
         };
         let mut copies: Vec<(std::time::SystemTime, PathBuf)> = entries
             .flatten()
             .filter(|e| e.path().extension().is_some_and(|x| x == "sealed"))
+            .filter(|e| {
+                let path = e.path();
+                let stem = path.file_stem().and_then(|stem| stem.to_str());
+                !stem.is_some_and(|stem| protect.contains(&stem))
+            })
             .filter_map(|e| Some((e.metadata().ok()?.modified().ok()?, e.path())))
             .collect();
         copies.sort();
@@ -1028,6 +1175,29 @@ impl EncryptedVault {
     }
 }
 
+/// A copy's id is exactly a lowercase SHA-256, so it can't name another path.
+fn checked_digest_id(id: &str) -> Result<&str, EncryptedVaultError> {
+    if id.len() == 64
+        && id
+            .bytes()
+            .all(|b| b.is_ascii_digit() || (b'a'..=b'f').contains(&b))
+    {
+        Ok(id)
+    } else {
+        Err(EncryptedVaultError::Invalid(
+            "not a recovery copy id".to_owned(),
+        ))
+    }
+}
+
+fn modified_unix(meta: &fs::Metadata) -> Option<u64> {
+    meta.modified()
+        .ok()?
+        .duration_since(std::time::UNIX_EPOCH)
+        .ok()
+        .map(|elapsed| elapsed.as_secs())
+}
+
 /// True if any file under `dir` contains the marker.
 fn contains_marker(dir: &Path, marker: &[u8]) -> bool {
     let Ok(entries) = fs::read_dir(dir) else {
@@ -1049,6 +1219,15 @@ mod test_hooks {
 
     thread_local! {
         static TRANSIENT_FAILURES: Cell<u32> = const { Cell::new(0) };
+        static SWAP_FAILURE: Cell<bool> = const { Cell::new(false) };
+    }
+
+    pub(super) fn inject_swap_failure() {
+        SWAP_FAILURE.with(|f| f.set(true));
+    }
+
+    pub(super) fn take_swap_failure() -> bool {
+        SWAP_FAILURE.with(Cell::take)
     }
 
     /// Makes the next keyed check report "not a database" once, as a failed salt
@@ -1316,6 +1495,14 @@ mod crash_tests {
                     .insert_source(&source("in-this-session"))
                     .expect("write");
                 let _ = vault.close();
+            }
+            Ok(action) if action.starts_with("restore:") => {
+                let vault =
+                    EncryptedVault::open_with_passphrase(&root, PASS, HOLDER).expect("open");
+                vault
+                    .insert_source(&source("before-restore"))
+                    .expect("write");
+                let _ = vault.restore_recovery_copy(&action["restore:".len()..]);
             }
             other => panic!("unknown action {other:?}"),
         }
@@ -1827,6 +2014,216 @@ mod crash_tests {
             crate::CURRENT_META_SCHEMA_VERSION
         );
         vault.close().expect("close");
+        fs::remove_dir_all(&root).expect("cleanup");
+    }
+
+    #[test]
+    fn restoring_a_copy_keeps_the_displaced_seal_and_can_be_undone() {
+        let root = crashed_session("restore-copy");
+        let original_seal = fs::read(root.join(META_SEALED)).expect("seal");
+        let original_id = DigestSha256::of(&original_seal).to_hex();
+        let vault = open_vault(&root).expect("recover");
+        vault.close().expect("close");
+        let vault = open_vault(&root).expect("open");
+        let copies: Vec<_> = vault.recovery_items().expect("list");
+        assert_eq!(copies.len(), 1, "{copies:?}");
+        assert_eq!(copies[0].kind, VaultRecoveryKind::PreRecoveryCopy);
+        assert_eq!(copies[0].id, original_id);
+        vault.insert_source(&source("after")).expect("write");
+        assert!(vault.restore_recovery_copy(&original_id).is_ok());
+        assert!(!root.join(META_WORK).exists());
+        assert_eq!(
+            fs::read(root.join(META_SEALED)).expect("seal"),
+            original_seal
+        );
+
+        let vault = open_vault(&root).expect("open");
+        assert_eq!(sources(&vault), ["sealed"], "the older state");
+        let displaced = vault
+            .recovery_items()
+            .expect("list")
+            .into_iter()
+            .map(|item| item.id)
+            .find(|id| *id != original_id)
+            .expect("the newer seal was kept");
+        // Restoring is itself reversible.
+        assert!(vault.restore_recovery_copy(&displaced).is_ok());
+        let vault = open_vault(&root).expect("open");
+        assert_eq!(sources(&vault), ["after", "committed", "sealed"]);
+        vault.close().expect("close");
+        fs::remove_dir_all(&root).expect("cleanup");
+    }
+
+    #[test]
+    fn a_crash_during_a_restore_loses_nothing() {
+        let root = crashed_session("restore-crash");
+        let original = DigestSha256::of(&fs::read(root.join(META_SEALED)).expect("seal")).to_hex();
+        open_vault(&root).expect("recover").close().expect("close");
+        let out = std::process::Command::new(std::env::current_exe().expect("test binary"))
+            .args([
+                "encrypted_vault::crash_tests::crash_child",
+                "--exact",
+                "--ignored",
+                "--test-threads=1",
+                "--nocapture",
+            ])
+            .env("MEDSCALE_TEST_VAULT_DIR", &root)
+            .env("MEDSCALE_TEST_VAULT_ACTION", format!("restore:{original}"))
+            .env("MEDSCALE_TEST_VAULT_CRASH", "restore_copy_before_swap")
+            .output()
+            .expect("child");
+        assert_eq!(out.status.code(), Some(86));
+        let vault = open_vault(&root).expect("open");
+        assert!(
+            sources(&vault).contains(&"before-restore".to_owned()),
+            "the seal taken before the swap holds it"
+        );
+        vault.close().expect("close");
+        fs::remove_dir_all(&root).expect("cleanup");
+    }
+
+    #[test]
+    fn a_crash_right_after_a_restore_does_not_undo_it() {
+        // Restoring an adopted session's own copy: the old marker would match the
+        // restored seal, and a crash would silently adopt the leftover.
+        let root = crashed_session("restore-own-copy");
+        let original = DigestSha256::of(&fs::read(root.join(META_SEALED)).expect("seal")).to_hex();
+        let out = std::process::Command::new(std::env::current_exe().expect("test binary"))
+            .args([
+                "encrypted_vault::crash_tests::crash_child",
+                "--exact",
+                "--ignored",
+                "--test-threads=1",
+                "--nocapture",
+            ])
+            .env("MEDSCALE_TEST_VAULT_DIR", &root)
+            .env("MEDSCALE_TEST_VAULT_ACTION", format!("restore:{original}"))
+            .env("MEDSCALE_TEST_VAULT_CRASH", "restore_copy_after_swap")
+            .output()
+            .expect("child");
+        assert_eq!(out.status.code(), Some(86));
+        let vault = open_vault(&root).expect("open");
+        assert_eq!(
+            sources(&vault),
+            ["sealed"],
+            "the restored state, not the leftover"
+        );
+        assert_ne!(vault.work_source(), WorkSource::Adopted);
+        vault.close().expect("close");
+        fs::remove_dir_all(&root).expect("cleanup");
+    }
+
+    #[test]
+    fn a_failed_restore_stays_open_and_a_crash_then_recovers_its_work() {
+        let root = crashed_session("failed-restore");
+        let original = DigestSha256::of(&fs::read(root.join(META_SEALED)).expect("seal")).to_hex();
+        open_vault(&root).expect("recover").close().expect("close");
+        let vault = open_vault(&root).expect("open");
+        vault.insert_source(&source("kept")).expect("write");
+        // Fails after this session has sealed, just before the swap.
+        test_hooks::inject_swap_failure();
+        let result = vault.restore_recovery_copy(&original);
+        let (vault, _) = *result.expect_err("the swap failed");
+        vault
+            .insert_source(&source("after-failure"))
+            .expect("still open");
+        drop(vault);
+        let reopened = open_vault(&root).expect("recover");
+        assert_eq!(reopened.work_source(), WorkSource::Adopted);
+        assert!(sources(&reopened).contains(&"after-failure".to_owned()));
+        reopened.close().expect("close");
+        fs::remove_dir_all(&root).expect("cleanup");
+    }
+
+    #[test]
+    fn retention_never_evicts_the_copy_being_restored() {
+        let root = crashed_session("protect");
+        let original = DigestSha256::of(&fs::read(root.join(META_SEALED)).expect("seal")).to_hex();
+        open_vault(&root).expect("recover").close().expect("close");
+        let copies = root.join(PRE_RECOVERY_DIR);
+        let chosen = copies.join(format!("{original}.sealed"));
+        // Make the chosen copy the oldest, with enough newer ones to evict it.
+        fs::File::options()
+            .write(true)
+            .open(&chosen)
+            .expect("open")
+            .set_modified(std::time::SystemTime::UNIX_EPOCH + std::time::Duration::from_secs(1000))
+            .expect("age");
+        for i in 0..RECOVERY_RETENTION {
+            let bytes = format!("newer-{i}");
+            fs::write(
+                copies.join(format!(
+                    "{}.sealed",
+                    DigestSha256::of(bytes.as_bytes()).to_hex()
+                )),
+                bytes,
+            )
+            .expect("plant");
+        }
+        let vault = open_vault(&root).expect("open");
+        assert!(vault.restore_recovery_copy(&original).is_ok());
+        assert!(chosen.exists(), "the chosen copy survived its own restore");
+        let vault = open_vault(&root).expect("open");
+        assert_eq!(sources(&vault), ["sealed"]);
+        vault.close().expect("close");
+        fs::remove_dir_all(&root).expect("cleanup");
+    }
+
+    #[test]
+    fn a_recovered_session_cannot_delete_its_way_back() {
+        let root = crashed_session("way-back");
+        let original = DigestSha256::of(&fs::read(root.join(META_SEALED)).expect("seal")).to_hex();
+        let vault = open_vault(&root).expect("recover");
+        assert!(
+            vault
+                .delete_recovery_item(VaultRecoveryKind::PreRecoveryCopy, &original)
+                .is_err()
+        );
+        vault.close().expect("close");
+        let vault = open_vault(&root).expect("open");
+        assert!(
+            vault
+                .delete_recovery_item(VaultRecoveryKind::PreRecoveryCopy, &original)
+                .is_ok(),
+            "fine once the vault has sealed and loaded again"
+        );
+        vault.close().expect("close");
+        fs::remove_dir_all(&root).expect("cleanup");
+    }
+
+    #[test]
+    fn a_recovery_id_can_only_name_a_recovery_item() {
+        let root = crashed_session("bad-ids");
+        let vault = open_vault(&root).expect("open");
+        let seal = fs::read(root.join(META_SEALED)).expect("seal");
+        for id in ["../meta", "..", "", "ABC", &"g".repeat(64)] {
+            assert!(
+                vault
+                    .delete_recovery_item(VaultRecoveryKind::PreRecoveryCopy, id)
+                    .is_err(),
+                "{id}"
+            );
+            assert!(
+                vault
+                    .delete_recovery_item(VaultRecoveryKind::DiscardedSession, id)
+                    .is_err(),
+                "{id}"
+            );
+        }
+        assert!(
+            vault
+                .delete_recovery_item(VaultRecoveryKind::DiscardedSession, "../..")
+                .is_err()
+        );
+        assert_eq!(fs::read(root.join(META_SEALED)).expect("seal"), seal);
+        let wrong_key_copy = root
+            .join(PRE_RECOVERY_DIR)
+            .join(format!("{}.sealed", DigestSha256::of(b"forged").to_hex()));
+        fs::write(&wrong_key_copy, b"forged").expect("plant");
+        let id = DigestSha256::of(b"forged").to_hex();
+        let failed = vault.restore_recovery_copy(&id).expect_err("refused");
+        assert_eq!(fs::read(root.join(META_SEALED)).expect("seal"), seal);
+        failed.0.close().expect("the vault stayed open");
         fs::remove_dir_all(&root).expect("cleanup");
     }
 
