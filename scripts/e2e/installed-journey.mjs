@@ -227,6 +227,32 @@ async function main() {
     await nav("Patients");
     await waitForText(/subject/i, 30000);
   });
+  await step("inprivate-storage-probe", async () => {
+    // InPrivate keeps no browser storage on disk. A saved preference is the
+    // direct test: does it reach the profile, on the first launch and the next?
+    const setTheme = async (name) => {
+      await nav("Settings");
+      await click(button(name), 30000);
+      await sleep(1500);
+    };
+    await setTheme("Light");
+    await closeWindow();
+    report.pref_on_disk_after_first_launch = webViewResidue(["medscale.theme"]);
+    await launch(installed.exe);
+    await find(SAMPLE, 60000);
+    await recordInPrivate("second");
+    await click(SAMPLE, 60000);
+    await find(OPENED, 180000);
+    await setTheme("Dark");
+    await closeWindow();
+    report.pref_on_disk_after_second_launch = webViewResidue(["medscale.theme"]);
+    await launch(installed.exe);
+    await find(SAMPLE, 60000);
+    await recordInPrivate("third");
+    await click(SAMPLE, 60000);
+    await find(OPENED, 180000);
+    console.log(`PREF_ON_DISK first=${report.pref_on_disk_after_first_launch.hits} second=${report.pref_on_disk_after_second_launch.hits}`);
+  });
   await step("create-project", async () => {
     await nav("Projects");
     await type("pn", "Installed build study");
