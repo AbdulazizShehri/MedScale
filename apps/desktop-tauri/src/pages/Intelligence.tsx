@@ -113,7 +113,7 @@ function CatalogTab() {
       {page.state.status === "loading" && <Skeleton />}
       {page.state.status === "error" && <ErrorState error={page.state.error} onRetry={page.reload} />}
       {p && <>
-        <table className="tb"><thead><tr><th style={{ width: "32%" }}>Model</th><th style={{ width: "17%" }}>Task</th><th className="col-p3" style={{ width: "12%" }}>Formats</th><th style={{ width: "9%" }}>Disk</th><th style={{ width: "15%" }}>Expectation</th><th>Status</th></tr></thead>
+        <table className="tb"><thead><tr><th style={{ width: "31%" }}>Model</th><th style={{ width: "16%" }}>Task</th><th className="col-p3" style={{ width: "12%" }}>Formats</th><th style={{ width: "12%" }}>Disk</th><th style={{ width: "15%" }}>Expectation</th><th>Status</th></tr></thead>
           <tbody>{p.rows.map((r) => (
             <tr key={r.repo_id} className="r2">
               <td><div style={{ display: "flex", flexDirection: "column", minWidth: 0 }}><span className="mono trunc" style={{ fontSize: 12.5 }} title={r.repo_id}>{catalogDisplayName(r.repo_id)}</span><span className="t-sm i3 trunc">{[r.family, r.tier, r.license_claim].filter(Boolean).join(" · ")}</span><span className="t-sm i3 mono trunc" title="MedScale catalog entry ID (not an assertion of model authorship)">{r.medscale_id}</span></div></td>

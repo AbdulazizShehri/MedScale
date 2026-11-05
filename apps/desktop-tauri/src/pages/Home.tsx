@@ -53,7 +53,7 @@ export function Home() {
             <h1 className="t-h1">Workspace</h1>
             <p className="ph-sub">What needs a person, what changed, and what this workspace can and cannot assert.</p>
           </div>
-          <button type="button" className="btn btn-g" onClick={openPalette}>Search or run <span className="kbd">{MOD} K</span></button>
+          <button type="button" className="btn btn-s" onClick={openPalette}>Search or run <span className="kbd">{MOD} K</span></button>
         </div>
 
         <Section n="01" title="Needs review" count={loadingQueue ? "…" : queue.length}>
