@@ -923,7 +923,8 @@ try {
       await click("//button[@type='submit' and not(@disabled)]");
       await find(`//button[contains(@class,'nav') and ${text("Patients")}]`, 120000);
       await nav("Projects");
-      await see("Create project", 60000);
+      await find("//input[@id='pn']", 60000);
+      await see("No projects", 60000);
       if ((await pageText()).includes("E2E work from before the kill")) {
         throw new Error("the restored vault still shows work newer than the copy");
       }
