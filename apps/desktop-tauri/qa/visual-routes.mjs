@@ -32,6 +32,13 @@ const mock = () => {
     documents_list: { document_understanding: "Structured extraction from synthetic FHIR fixtures.", sources: [["Patient", "patient-golden.json"], ["MedicationRequest", "unsupported-medicationrequest.json"]].map(([resource_type, fixture], i) => ({ source_id: `src-${i + 1}`, resource_type, fixture, claim_kind: "structured", subject_ref: "synthetic-subject-ada" })) },
     insights_overview: { cohort_size: 2, review_attention_count: 2, evidence_gap_count: 4, present_count: 7, synthetic_only: true, condition_distribution: [{ label: "active", value: "2", detail: "" }], coverage_distribution: [{ label: "Present", value: "7", detail: "Supported trusted presentation" }, { label: "Conflict", value: "5", detail: "Unresolved conflicting evidence" }], cohorts: [{ subject_ref: "synthetic-subject-ada", display_name: "Ada Synthetic", condition: "active", evidence_state: "Conflict, unresolved", review_attention: "Review required" }], evidence: [], risk_state: "not computed", trend_state: "not computed", gap_state: "listed", recommendation_state: "none", assistant_default: "abstain" },
     governance_overview: { synthetic_only: true, audit_boundary: "Read-only", export_boundary: "Disclosed", settings_boundary: "Local", integrations_boundary: "Default deny", audit_rows: [{ record_id: "disclosure-1", action: "sample interchange", subject: "synthetic-subject-ada", detail: "7 resources", status: "Synthetic disclosure" }], export_rows: [], settings_rows: [{ label: "Real PHI", value: "Not authorized", detail: "Synthetic fixtures only.", status: "Fail closed" }], integration_rows: [], missing_release_evidence: "Release evidence is not complete.", fhir_support: null },
+    audio_overview: { sources: [{ id: "audio-source-1", label: "Sample tone", kind: "imported_file", detail: "2100 ms · 16000 Hz · 1 ch", health: "ok" }], captures: [], routes: "segmentation_only available · fixture_asr available · local_asr_pack unavailable", native_capture: "no admitted native capture backend" },
+    audio_asr_status: { routes: [{ route: "local_asr_pack", available: false, reason: "no admitted local ASR Audio Pack" }], asr_pack_dir: null },
+    audio_model_catalog: [{ id: "whisper-tiny-en", name: "Whisper Tiny", repository: "openai/whisper-tiny.en", revision: "87c7102498dcde74", languages: "English", download_budget_bytes: 209715200, required_space_bytes: 956301312, installed: false, pack_files_present: false, cache_entry_exists: false }],
+    audio_model_download_status: { state: "idle", model_id: null, bytes_downloaded: 0, bytes_total: 0, pack_dir: null, message: null },
+    medagent_models: [{ id: "pack-tiny-token-classifier-v0", runnable: true, fixture: true }],
+    audio_source_retention_preview: { project_id: "p1", source_id: "audio-source-1", source_kind: "imported_file", recording_bytes: 128000, revision_count: 1, receipt_count: 2, expected_digest: "abc", imported_file: true, has_transcript_revisions: true, has_audit_receipts: true, has_huddle_media_link: false, has_capture_reference: false, unreferenced_imported_file: true, delete_available: true, active_vault_only: true, older_backups_may_retain_recording: true, linked_evidence_requires_separate_retention_policy: true, message: "" },
+    audio_transcribe: { decision: { outcome: "transcribed", reason: null }, engine: { engine_id: "fixture_asr", is_fixture: true }, limitations: ["Fixture engine, not recognition"], transcript: { revision_id: "rev-1", revision_no: 1, state: "draft", segments: [0, 1].map((seq) => ({ seq, start_ms: seq * 2000, end_ms: seq * 2000 + 1800, status: "draft", text: `Sample segment ${seq}`, speaker: { kind: "anonymous", index: seq } })) } },
     about_info: { product: "MedScale", tagline: "Clinical Intelligence OS", version: "0.1.0", shell: "Tauri 2", core: "Rust Core Host, in-process", local_only: true, network_default_deny: true, license: "Apache-2.0", build_profile: "release", target: "windows-x86_64", release_ready: false },
   };
   window.__TAURI_INTERNALS__ = { metadata: { currentWindow: { label: "main" }, currentWebview: { label: "main", windowLabel: "main" } }, transformCallback: () => 0, invoke: async (cmd) => { if (cmd in R) return R[cmd]; throw { kind: "unavailable", message: `Layout check has no data for ${cmd}` }; } };
@@ -74,6 +81,14 @@ for (const theme of ["dark", "light"]) for (const [width, height] of [[1440, 900
     failures += misses.length;
     for (const miss of misses.slice(0, 4)) console.error(`${route} ${theme} ${width}: ${miss}`);
     if (outDir) await page.screenshot({ path: path.join(outDir, `${route.replace(/ /g, "_")}-${theme}-${width}.jpg`), type: "jpeg", quality: 82 });
+    if (route === "Audio" && outDir) {
+      await page.getByRole("button", { name: "Stored data" }).click();
+      await page.getByText("Stored audio:", { exact: false }).waitFor();
+      await page.screenshot({ path: path.join(outDir, `Audio_stored_data-${theme}-${width}.jpg`), type: "jpeg", quality: 82 });
+      await page.getByRole("button", { name: "Transcribe", exact: true }).click();
+      await page.getByText("Sample segment 0").waitFor();
+      await page.screenshot({ path: path.join(outDir, `Audio_transcript-${theme}-${width}.jpg`), type: "jpeg", quality: 82 });
+    }
   }
   await context.close();
 }
