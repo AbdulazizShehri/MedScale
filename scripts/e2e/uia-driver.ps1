@@ -26,6 +26,14 @@ function Find-Control($c) {
         if (-not $c.kind) { return $e }
         if ($e.Current.ControlType.ProgrammaticName -eq "ControlType.$($c.kind)") { return $e }
     }
+    # An accessible name can carry more than the visible label.
+    if ($c.name -and $c.kind) {
+        $kind = [System.Windows.Automation.ControlType]::$($c.kind)
+        $byKind = New-Object System.Windows.Automation.PropertyCondition($ae::ControlTypeProperty, $kind)
+        foreach ($e in $script:window.FindAll($scope::Descendants, $byKind)) {
+            if ($e.Current.Name.Contains([string]$c.name)) { return $e }
+        }
+    }
     return $null
 }
 

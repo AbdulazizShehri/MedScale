@@ -173,7 +173,7 @@ async function step(name, fn) {
     report.steps.push({ name, result: "FAIL", seconds: Math.round((Date.now() - started) / 1000) });
     console.log(`STEP ${name} FAIL: ${String(error.message).slice(0, 300)}`);
     if (driver) console.log(`SHAPE: ${JSON.stringify((await driver.send({ op: "shape" }).catch(() => ({}))).shape ?? {})}`);
-    if (pageIsLoggable && driver) console.log(`PAGE: ${String(await pageText().catch(() => "")).slice(0, 1500)}`);
+    if (pageIsLoggable && driver) console.log(`PAGE: ${String(await pageText().catch(() => "")).replaceAll("\n", " | ").slice(0, 2500)}`);
     throw error;
   }
 }
