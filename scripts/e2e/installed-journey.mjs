@@ -6,7 +6,7 @@
 //
 // Logs carry step names and fixed values only: never audio, transcript text,
 // passphrases or recovery codes.
-import { execFileSync, spawn } from "node:child_process";
+import { execFileSync, spawn, spawnSync } from "node:child_process";
 import { createHash } from "node:crypto";
 import fs from "node:fs";
 import os from "node:os";
@@ -166,8 +166,11 @@ const findInstall = () => pwsh(`
   exit 0`);
 
 function install() {
-  const code = pwsh(`(Start-Process -FilePath '${installer}' -ArgumentList '/S' -Wait -PassThru).ExitCode`);
-  if (code !== "0") throw new Error(`installer exited ${code}`);
+  // Launched directly: going through the shell, a marked file can stop at a
+  // security prompt that nobody can answer here. Bounded either way.
+  const run = spawnSync(installer, ["/S"], { timeout: 300000, stdio: "ignore" });
+  if (run.error) throw new Error(`installer: ${run.error.code ?? run.error.message}`);
+  if (run.status !== 0) throw new Error(`installer exited ${run.status}`);
   const found = findInstall();
   if (!found) throw new Error("the installer registered nothing");
   const { location, uninstall } = JSON.parse(found);
@@ -178,8 +181,9 @@ function install() {
 }
 
 async function uninstall(installed) {
-  const code = pwsh(`(Start-Process -FilePath '${installed.uninstall}' -ArgumentList '/S' -Wait -PassThru).ExitCode`);
-  if (code !== "0") throw new Error(`uninstaller exited ${code}`);
+  const run = spawnSync(installed.uninstall, ["/S"], { timeout: 300000, stdio: "ignore" });
+  if (run.error) throw new Error(`uninstaller: ${run.error.code ?? run.error.message}`);
+  if (run.status !== 0) throw new Error(`uninstaller exited ${run.status}`);
   await sleep(6000); // NSIS uninstallers relaunch from a temp copy.
   if (findInstall()) throw new Error("still registered after uninstall");
   if (fs.existsSync(installed.exe)) throw new Error("program left behind after uninstall");
@@ -229,8 +233,8 @@ async function main() {
     report.version = manifest.version;
   });
   await step("install-with-mark-of-the-web", async () => {
-    // As a browser would mark a download. /S doesn't go through SmartScreen, so
-    // this doesn't measure what SmartScreen shows a person.
+    // As a browser would mark a download. This doesn't measure what SmartScreen
+    // shows a person: a direct, silent launch doesn't pass through it.
     pwsh(`Set-Content -LiteralPath '${installer}' -Stream Zone.Identifier -Value "[ZoneTransfer]\`r\`nZoneId=3"`);
     if (findInstall()) throw new Error("already installed");
     if (fs.existsSync(appData)) throw new Error("app data already exists on this runner");
