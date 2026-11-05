@@ -31,6 +31,8 @@ Every multi-column layout sits on one 12-column grid with a 24 px gap, defined b
 - **Text on the axis, not inside a tint.** Eyebrows have no leading mark. Tour tabs and model states are marked by a rule above them, so their labels start on column lines. The first header nav label sits on column line 3.
 - **Splits:** text and media use 5 + 7 columns, always with the copy on the left; section heads and the evidence panel use 7 + 5; the tour uses 3 + 9; the footer uses 6 + 2 + 2 + 2. The evidence panel's right-hand text lands on column line 8, under the section head's paragraph.
 - **Repeats:** three-up rows span 4 columns each and four-up rows span 3. Cards, pillars, states, strip items and tour points use `grid-template-rows: subgrid`, so titles and text share lines across a row even when one title wraps.
+- **Tables:** column text lands on column lines (3 + 4 + 5 on Models, 3 + 2 + 2 + 5 on Download). Table cells ignore `calc()` with percentages, so these widths use container units.
+- **Buttons in cards:** the button comes last in every platform card, including one that shows a checksum, so buttons line up across a row.
 - **Baselines:** in a split section head, the headline's last line and the right column's last line share a baseline (`align-items: last baseline`).
 - **Column caps go inside `.shell`.** Never put `max-width: var(--span-*)` or any narrower width on `.shell` itself: the percentage resolves against the full-bleed section and the shell's auto margins centre it off the axis.
 - **Panels:** one radius (14 px) and 24 px padding. In a row of cards, buttons line up along the bottom.
@@ -49,7 +51,7 @@ Every multi-column layout sits on one 12-column grid with a 24 px gap, defined b
 | Body | 15 px / 1.65 | 400 | 0 |
 | Eyebrow, captions, data | JetBrains Mono 12 px, uppercase eyebrows with 0.04em tracking | 400 | |
 
-Text uses 12, 13, 14, 15, 17, 19, 20 and 24 px and the weights 400, 500 and 600. Don't add in-between values. Labels inside the home page's small illustrations may use 11 px.
+Inter's `cv11` and `ss01` features apply to Inter only; display type turns them off. Text uses 12, 13, 14, 15, 17, 19, 20 and 24 px and the weights 400, 500 and 600. Don't add in-between values. Labels inside the home page's small illustrations may use 11 px.
 
 ## Components
 

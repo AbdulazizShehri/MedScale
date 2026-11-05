@@ -226,6 +226,11 @@ page's left edge. Section 17 of `apps/desktop-tauri/src/styles/medscale.css` hol
 these rules, because sections 1-14 stay verbatim. Running text in a section stops
 at a 76ch measure, and a wrapped ledger row starts on the page edge.
 
+Buttons, inputs and selects share one control height: 32px standard, 28px compact.
+Table and list row text sits on the page edge with the headings and rules; hover and
+selection bleed 12px outward without moving anything. The first inspector heading
+shares a line with the page title. A field draws one frame around its input.
+
 Welcome has one left axis at the layout padding. Its decorative dot field stays
 right of the copy, and it is hidden below 1000px so that it never sits under text.
 
