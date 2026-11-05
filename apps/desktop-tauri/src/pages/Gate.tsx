@@ -258,7 +258,7 @@ export function Access({ onBack }: { onBack: () => void }) {
                 )}
                 <div className="row-gap" style={{ gap: 14 }}>
                   <button type="submit" className="btn btn-p lg" disabled={!!pending || (useCode ? !pass.trim() : pass.length < 8)}>{pending === "unlock" || pending === "create" ? <><Glyph kind="running" />Working…</> : mode === "unlock" ? "Unlock workspace" : "Create vault"}</button>
-                  {exists
+                  {exists && !compact
                     ? <button type="button" className="link t-sm" onClick={() => { setMode(mode === "unlock" ? "create" : "unlock"); setError(null); }} disabled={mode === "unlock"} title={mode === "unlock" ? "A vault already exists at the default location" : undefined}>{mode === "unlock" ? "One vault per device in this build" : "Unlock existing vault"}</button>
                     : null}
                 </div>
@@ -267,7 +267,7 @@ export function Access({ onBack }: { onBack: () => void }) {
                     <button type="button" className="link t-sm access-sample" onClick={onBack} disabled={!!pending}>Explore sample data instead</button>
                     <details className="access-details">
                       <summary>How unlocking works</summary>
-                      <div className="stack" style={{ gap: 16, marginTop: 12 }}>{vault}{explain}</div>
+                      <div className="stack" style={{ gap: 16, marginTop: 12 }}>{vault}{explain}<p className="t-sm i3">This build keeps one vault per device.</p></div>
                     </details>
                   </>
                 ) : (
