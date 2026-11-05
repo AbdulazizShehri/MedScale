@@ -125,11 +125,19 @@ export function PageHead({ title, sub, children }: { title: string; sub?: ReactN
   );
 }
 
+/** "content_digest" reads as "Content digest". The raw key stays on hover, and labels
+ * that aren't plain keys, such as "real PHI" or "Ctrl K", pass through unchanged. */
+export function humanKey(key: string): string {
+  if (!/^[a-z][a-z0-9_ ]*$/.test(key)) return key;
+  const words = key.replace(/_/g, " ");
+  return words[0]!.toUpperCase() + words.slice(1);
+}
+
 export function Ledger({ items }: { items: Array<{ k: string; v: ReactNode; mono?: boolean }> }) {
   return (
     <div className="ledger" style={{ padding: "12px 0", borderTop: "1px solid var(--line-subtle)", borderBottom: "1px solid var(--line-subtle)", marginBottom: 16, rowGap: 10 }}>
       {items.map((item) => (
-        <div key={item.k}><span className="lk">{item.k}</span><span className={`lv ${item.mono ? "mono" : ""}`}>{item.v}</span></div>
+        <div key={item.k}><span className="lk" title={item.k}>{humanKey(item.k)}</span><span className={`lv ${item.mono ? "mono" : ""}`}>{item.v}</span></div>
       ))}
     </div>
   );
@@ -138,7 +146,7 @@ export function Ledger({ items }: { items: Array<{ k: string; v: ReactNode; mono
 export function KV({ rows, keyWidth = 140 }: { rows: Array<[string, ReactNode]>; keyWidth?: number }) {
   return (
     <div className="kv" style={{ gridTemplateColumns: `${keyWidth}px minmax(0, 1fr)` }}>
-      {rows.map(([k, v]) => [<div key={`${k}-k`}>{k}</div>, <div key={`${k}-v`} className="t-sm">{v}</div>])}
+      {rows.map(([k, v]) => [<div key={`${k}-k`} title={k}>{humanKey(k)}</div>, <div key={`${k}-v`} className="t-sm">{v}</div>])}
     </div>
   );
 }
