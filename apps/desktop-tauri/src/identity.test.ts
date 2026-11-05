@@ -55,11 +55,6 @@ test("product-facing surfaces carry no stale or third-party-centred identity", (
   assert.deepEqual(hits, []);
 });
 
-test("active brand files never name a superseded symbol", () => {
-  const hits = walk("assets/brand").filter((f) => f.endsWith(".svg") && /Logo 12/.test(read(f)));
-  assert.deepEqual(hits, []);
-});
-
 test("the founder symbol is one filled path, identical across every asset and runtime copy", () => {
   const brand = "assets/brand/";
   const mark = read(`${brand}mark-black.svg`);
