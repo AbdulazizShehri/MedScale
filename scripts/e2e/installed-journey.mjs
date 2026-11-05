@@ -162,7 +162,8 @@ async function waitForExit(timeout) {
 const findInstall = () => pwsh(`
   $keys = 'HKCU:\\Software\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\*'
   $i = Get-ItemProperty $keys -ErrorAction SilentlyContinue | Where-Object DisplayName -eq 'MedScale' | Select-Object -First 1
-  if ($i) { @{ location = $i.InstallLocation; uninstall = $i.UninstallString } | ConvertTo-Json -Compress }`);
+  if ($i) { @{ location = $i.InstallLocation; uninstall = $i.UninstallString } | ConvertTo-Json -Compress }
+  exit 0`);
 
 function install() {
   const code = pwsh(`(Start-Process -FilePath '${installer}' -ArgumentList '/S' -Wait -PassThru).ExitCode`);
