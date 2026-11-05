@@ -84,6 +84,13 @@ jobs:
       - name: Install pinned dependencies
         working-directory: web
         run: npm ci --no-audit --no-fund
+      - name: The closed site builds with no network
+        working-directory: web
+        env:
+          NEXT_TELEMETRY_DISABLED: "1"
+        run: |
+          sudo unshare --net sudo -E -u "$USER" env "PATH=$PATH" sh -c 'npm run build && npm run check'
+          rm -rf out .next
       - name: Swap in the fixture release
         working-directory: web
         run: |
@@ -100,7 +107,12 @@ jobs:
       - name: The normal check refuses the fixture
         working-directory: web
         run: |
-          if node --experimental-strip-types scripts/check.mjs; then
-            echo "::error::check.mjs accepted the fixture release"
+          set +e
+          output="$(node --experimental-strip-types scripts/check.mjs 2>&1)"
+          code=$?
+          set -e
+          echo "$output"
+          if [ "$code" -ne 1 ] || ! grep -q 'the fixture release must never ship' <<<"$output"; then
+            echo "::error::check.mjs did not refuse the fixture release"
             exit 1
           fi

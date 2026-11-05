@@ -3,16 +3,15 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { QUALIFIED_RELEASE_TAGS, assetArch, detectPlatform, formatSize, installerFor, pickInstaller, platformLabel, publicRelease, scoreAsset, signingNote, validateRelease, type PublicRelease, type ReleaseAsset } from "./release.ts";
-import { verifyPlatformAssets } from "./release-verify.ts";
+import { QUALIFICATION_WORKFLOW, verifyPlatformAssets, verifyReleaseRecords } from "./release-verify.ts";
 import { createHash } from "node:crypto";
 import fs from "node:fs";
 
 const a = (name: string): ReleaseAsset => ({ name, browser_download_url: `https://example.test/${name}`, size: 50 * 1024 * 1024 });
 
-test("no release is qualified for public download", () => {
-  assert.deepEqual(QUALIFIED_RELEASE_TAGS, []);
-  assert.equal(publicRelease, undefined);
-  assert.equal(installerFor(publicRelease, "windows"), undefined);
+test("the gate and the built-in manifest agree", () => {
+  assert.equal(QUALIFIED_RELEASE_TAGS.length > 0, publicRelease !== undefined);
+  assert.equal(QUALIFIED_RELEASE_TAGS.length > 0, installerFor(publicRelease, "windows") !== undefined || installerFor(publicRelease, "macos") !== undefined);
 });
 
 test("platform detection", () => {
@@ -156,6 +155,7 @@ test("release-level gaps refuse everything", () => {
     [(r: Record<string, unknown>) => { r.notes = []; }, /release notes/],
     [(r: Record<string, unknown>) => { r.version = "9.9.9"; }, /version differs/],
     [(r: Record<string, unknown>) => { r.tag = "latest"; }, /tag is malformed/],
+    [(r: Record<string, unknown>) => { r.tag = "v0.0.0"; r.version = "0.0.0"; }, /tag is malformed/],
   ] as const) {
     const m = fixture();
     change(m.release);
@@ -169,7 +169,7 @@ test("release-level gaps refuse everything", () => {
 });
 
 // A published release as the network would serve it.
-function served(over: { bytes?: Buffer; sums?: string; source?: string; redirect?: string; missing?: string } = {}) {
+function served(over: { bytes?: Buffer; sums?: string; source?: string; redirect?: string; missing?: string; pkg?: Record<string, unknown>; sbom?: string; hugeNotice?: boolean } = {}) {
   const bytes = Buffer.from("installer bytes");
   const sha256 = createHash("sha256").update(bytes).digest("hex");
   const m = fixture().release;
@@ -180,9 +180,12 @@ function served(over: { bytes?: Buffer; sums?: string; source?: string; redirect
   const files: Record<string, BodyInit> = {
     [w.fileName]: new Uint8Array(over.bytes ?? bytes),
     [w.companions.checksums]: over.sums ?? `${sha256}  windows/${w.fileName}\n`,
-    [w.companions.packageManifest]: "\uFEFF" + JSON.stringify({ source_sha: over.source ?? sourceSha, installer: { sha256 } }),
-    [w.companions.sbom]: "{}",
-    [w.companions.notices]: "notice",
+    [w.companions.packageManifest]: "\uFEFF" + JSON.stringify({
+      source_sha: over.source ?? sourceSha, installer: { sha256 }, platform: "windows", version: "0.0.0", signed: false, notarized: false,
+      sbom_sha256: createHash("sha256").update("{}").digest("hex"), notice_sha256: createHash("sha256").update("notice").digest("hex"), ...over.pkg,
+    }),
+    [w.companions.sbom]: over.sbom ?? "{}",
+    [w.companions.notices]: over.hugeNotice ? new Uint8Array(65 * 1024 * 1024) : "notice",
   };
   const seen: RequestInit[] = [];
   const fetcher = async (url: string, init: RequestInit) => {
@@ -219,6 +222,19 @@ test("published bytes must match the manifest", async () => {
   const noSbom = served({ missing: "windows-SBOM.cdx.json" });
   assert.match((await verifyPlatformAssets(noSbom.release, "windows", noSbom.fetcher)).join(), /SBOM: HTTP 404/);
 
+  const wrongSbom = served({ sbom: "another file" });
+  assert.match((await verifyPlatformAssets(wrongSbom.release, "windows", wrongSbom.fetcher)).join(), /SBOM digest disagrees/);
+
+  const huge = served({ hugeNotice: true });
+  assert.match((await verifyPlatformAssets(huge.release, "windows", huge.fetcher)).join(), /larger than a companion/);
+
+  const lookalike = served({ sums: `${"c".repeat(64)}  x-MedScale_0.0.0_x64-setup.exe\n` });
+  assert.match((await verifyPlatformAssets(lookalike.release, "windows", lookalike.fetcher)).join(), /no entry/, "a longer name isn't this file");
+
+  const same = served();
+  same.release.platforms.windows!.companions.notices = same.release.platforms.windows!.companions.sbom;
+  assert.match((await verifyPlatformAssets(same.release, "windows", same.fetcher)).join(), /must be distinct/);
+
   assert.match((await verifyPlatformAssets(good.release, "macos", good.fetcher)).join(), /not in the release/);
 });
 
@@ -229,4 +245,57 @@ test("redirects are followed only to GitHub's download hosts", async () => {
   assert.match((await verifyPlatformAssets(evil.release, "windows", evil.fetcher)).join(), /refused host evil\.example/);
   const plain = served({ redirect: "http://release-assets.githubusercontent.com/x" });
   assert.match((await verifyPlatformAssets(plain.release, "windows", plain.fetcher)).join(), /refused host/);
+});
+
+test("the signing claim must match what was packaged", async () => {
+  const claimed = served();
+  claimed.release.platforms.windows!.signing = "authenticode";
+  assert.match((await verifyPlatformAssets(claimed.release, "windows", claimed.fetcher)).join(), /signed=false, release says authenticode/);
+
+  const notarized = served({ pkg: { notarized: true } });
+  assert.match((await verifyPlatformAssets(notarized.release, "windows", notarized.fetcher)).join(), /notarized=true/);
+
+  const platform = served({ pkg: { platform: "macos" } });
+  assert.match((await verifyPlatformAssets(platform.release, "windows", platform.fetcher)).join(), /package manifest is for macos/);
+
+  const version = served({ pkg: { version: "9.9.9" } });
+  assert.match((await verifyPlatformAssets(version.release, "windows", version.fetcher)).join(), /package manifest version/);
+});
+
+// The GitHub records behind a release.
+function records(over: { release?: object; tagSha?: string; approvalBy?: string; approvalBody?: string; decisionBody?: string; run?: object } = {}) {
+  const { release } = served();
+  const w = release.platforms.windows!;
+  const API = "https://api.github.com/repos/AbdulazizShehri/MedScale/";
+  const routes: Record<string, unknown> = {
+    [`releases/tags/${TAG}`]: { draft: false, immutable: true, ...over.release },
+    [`commits/${TAG}`]: { sha: over.tagSha ?? release.sourceSha },
+    "issues/comments/1": { user: { login: over.approvalBy ?? "AbdulazizShehri" }, body: over.approvalBody ?? `GO for ${w.sha256}, unsigned` },
+    "actions/runs/1": { conclusion: "success", name: QUALIFICATION_WORKFLOW, ...over.run },
+  };
+  if (over.decisionBody !== undefined) {
+    release.platforms.windows!.signingDecision = "https://github.com/AbdulazizShehri/MedScale/issues/436#issuecomment-2";
+    routes["issues/comments/2"] = { user: { login: "AbdulazizShehri" }, body: over.decisionBody };
+  }
+  const fetcher = async (url: string) => {
+    const route = url.startsWith(API) ? url.slice(API.length) : "";
+    return route in routes ? Response.json(routes[route]) : new Response("gone", { status: 404 });
+  };
+  return { release, fetcher };
+}
+
+test("approval and qualification are checked against GitHub, not by URL shape", async () => {
+  const check = async (over: Parameters<typeof records>[0]) => {
+    const r = records(over);
+    return (await verifyReleaseRecords(r.release, r.fetcher)).join();
+  };
+  assert.equal(await check({}), "");
+  assert.match(await check({ release: { draft: true } }), /still a draft/);
+  assert.match(await check({ release: { immutable: false } }), /not immutable/);
+  assert.match(await check({ tagSha: "2".repeat(40) }), /the tag is at/);
+  assert.match(await check({ approvalBy: "someone-else" }), /founder approval: written by someone-else/);
+  assert.match(await check({ approvalBody: "GO for something else" }), /doesn't name the windows installer/);
+  assert.match(await check({ decisionBody: "signed" }), /doesn't name the state unsigned/);
+  assert.match(await check({ run: { conclusion: "failure" } }), /concluded failure/);
+  assert.match(await check({ run: { name: "other" } }), /run is from other/);
 });

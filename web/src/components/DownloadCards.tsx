@@ -6,7 +6,8 @@ import { ArrowUpRight, PlatformIcon, type PlatformName } from "./Icons";
 
 const order: PlatformName[] = ["windows", "macos", "linux"];
 const titles: Record<PlatformName, string> = { windows: "Windows", macos: "macOS", linux: "Linux" };
-const fileKind: Record<string, string> = { windows: ".exe", macos: ".dmg" };
+const cta: Record<string, string> = { windows: "Download for Windows (.exe)", macos: "Download for Mac, Apple silicon (.dmg)" };
+const kindNote: Record<string, string> = { windows: "NSIS installer", macos: "macOS 10.15 or later, Apple silicon only. Intel Macs aren\u2019t supported" };
 const guide: Record<PlatformName, { href: string; label: string }> = {
   windows: { href: docs.desktop, label: "Build the desktop app" },
   macos: { href: docs.desktop, label: "Build the desktop app" },
@@ -41,12 +42,12 @@ export function DownloadCards() {
               {current && <span className="platform-you">Your platform</span>}
             </div>
             <h3>{titles[key]}</h3>
-            <div className="platform-sub">{s.surface} · {s.arch}</div>
+            <div className="platform-sub">{installer ? "Desktop app" : s.surface} · {s.arch}</div>
             {installer && publicRelease ? (
               <>
                 <span className="platform-state" data-available="true">MedScale {publicRelease.version} Beta · {formatSize(installer.size)}</span>
-                <p className="platform-note">{signingNote(installer.signing)}</p>
-                <a className={"btn " + (current ? "btn-primary" : "btn-secondary")} href={installer.url}>Download for {titles[key]} ({fileKind[key]})</a>
+                <p className="platform-note">{kindNote[key]}. {signingNote(installer.signing)}</p>
+                <a className={"btn " + (current ? "btn-primary" : "btn-secondary")} href={installer.url}>{cta[key]}</a>
                 <div className="platform-hash"><span>SHA-256</span><code>{installer.sha256}</code></div>
               </>
             ) : (

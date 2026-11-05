@@ -11,8 +11,8 @@ export const metadata: Metadata = pageMeta("/download/", "Download", "MedScale d
 const windows = installerFor(publicRelease, "windows");
 const macos = installerFor(publicRelease, "macos");
 const status = [
-  ["Windows x64", "Desktop app + CLI", windows ? "Download" : "Build from source", windows ? "Per-user NSIS installer. Checksum, SBOM and notices are published with it." : "CI builds an unsigned per-user NSIS installer to test packaging. It is not qualified or published."],
-  ["macOS (Apple silicon)", "Desktop app + CLI", macos ? "Download" : "Build from source", macos ? "DMG installer. Checksum, SBOM and notices are published with it." : "CI builds an ad-hoc signed DMG to test packaging. It is not notarized, qualified or published."],
+  ["Windows x64", windows ? "Desktop app" : "Desktop app + CLI", windows ? "Download" : "Build from source", windows ? "Per-user NSIS installer. Checksum, SBOM and notices are published with it." : "CI builds an unsigned per-user NSIS installer to test packaging. It is not qualified or published."],
+  ["macOS (Apple silicon)", macos ? "Desktop app" : "Desktop app + CLI", macos ? "Download" : "Build from source", macos ? "DMG installer. Checksum, SBOM and notices are published with it." : "CI builds an ad-hoc signed DMG to test packaging. It is not notarized, qualified or published."],
   ["Linux x86_64", "CLI", "CLI from source", "The Rust Core and CLI are tested on Ubuntu. A Linux desktop app is deferred."],
 ];
 

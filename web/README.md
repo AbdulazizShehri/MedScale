@@ -128,9 +128,9 @@ The site words the signing status from the state, so an ad-hoc DMG can't be desc
 To enable a download, in this order:
 
 1. Pass qualification on the exact installer, and get the founder's approval for those artifacts.
-2. Publish the GitHub Release. Name the companion files per platform, such as `windows-SHA256SUMS`, because each platform's set uses the same file names.
+2. Turn on immutable releases for the repository, then publish the GitHub Release. Name the companion files per platform, such as `windows-SHA256SUMS`, because each platform's set uses the same file names.
 3. In one reviewed pull request, fill in `release-manifest.json` and add the tag to `QUALIFIED_RELEASE_TAGS`.
-4. Run `npm run verify-release`. It downloads with no login and compares the published bytes with the manifest. CI runs it too, so a pull request can't advertise assets that don't exist.
+4. Run `npm run verify-release`. It downloads with no login and compares the published bytes with the manifest, including the SBOM, notices and signing state. It also checks GitHub's records: the release is immutable, the tag is at the source commit, the qualification runs succeeded, and the founder's approval names each installer's SHA-256. CI runs it too, so a pull request can't advertise assets that don't exist.
 5. Deploying the site is a separate step that needs its own decision. See the deployment notes above.
 
 `npm run check` refuses a manifest and gate that disagree, an unapproved installer link, and the test fixture in `release.fixture.json`.

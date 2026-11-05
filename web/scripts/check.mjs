@@ -4,7 +4,7 @@
 // base path (NEXT_PUBLIC_SITE_BASE_PATH, "" for a root domain).
 import fs from "node:fs";
 import path from "node:path";
-import { QUALIFIED_RELEASE_TAGS, formatSize, validateRelease } from "../src/lib/release.ts";
+import { QUALIFIED_RELEASE_TAGS, formatSize, releaseAssetUrl, validateRelease } from "../src/lib/release.ts";
 
 const root = process.cwd();
 const out = path.join(root, "out");
@@ -33,7 +33,22 @@ if (!fixture) {
   check(raw.release === null || !String(raw.release.tag).startsWith("v0.0.0"), "the fixture release must never ship");
   check((raw.release === null) === (QUALIFIED_RELEASE_TAGS.length === 0), "release gate and manifest must change together");
 }
-const allowedInstallers = new Set(offered.map((p) => p.url));
+const allowedAssets = new Set(offered.flatMap((p) => [p.url, ...Object.values(p.companions).map((f) => releaseAssetUrl(verdict.release.tag, f))]));
+
+// Exact host and repository: a prefix match would accept medscale.si.evil.example.
+const INSTALLER = /\.(exe|msi|dmg|pkg|appimage|deb|rpm)$/i;
+function checkExternal(rel, href) {
+  let url;
+  try { url = new URL(href); } catch { check(false, `${rel}: unparsable link ${href}`); return; }
+  const repo = /^\/AbdulazizShehri\/MedScale(\/|$)/.test(url.pathname);
+  const allowed = url.protocol === "https:" && (
+    (url.hostname === "github.com" && (repo || /^\/sponsors\/AbdulazizShehri(\/|$)/.test(url.pathname))) ||
+    (url.hostname === "abdulazizshehri.github.io" && /^\/MedScale(\/|$)/.test(url.pathname)) ||
+    url.hostname === "medscale.si");
+  check(allowed, `${rel}: unexpected external link ${href}`);
+  const isAsset = url.pathname.includes("/releases/download/") || url.pathname.includes("/releases/latest") || INSTALLER.test(url.pathname);
+  if (isAsset && !allowedAssets.has(href)) check(false, `${rel}: links an unapproved release asset ${href}`);
+}
 
 const files = [];
 (function walk(d) { for (const e of fs.readdirSync(d, { withFileTypes: true })) { const f = path.join(d, e.name); e.isDirectory() ? walk(f) : f.endsWith(".html") && files.push(f); } })(out);
@@ -54,11 +69,9 @@ for (const f of files) {
   check(!/<script[^>]+src="https?:/i.test(html), `${rel}: loads a remote script`);
   check(![...html.matchAll(/<link[^>]+>/gi)].some(([tag]) => /rel="(stylesheet|preload|modulepreload|preconnect)"/i.test(tag) && /href="https?:/i.test(tag)), `${rel}: loads a remote stylesheet or preload`);
   check(!/fonts\.googleapis|fonts\.gstatic/i.test(html), `${rel}: uses a remote font service`);
-  for (const [, href] of html.matchAll(/href="(https?:\/\/[^"]+\.(?:exe|msi|dmg|pkg|appimage|deb|rpm))"/gi)) check(allowedInstallers.has(href), `${rel}: links an unapproved installer ${href}`);
-  check(!/api\.github\.com|releases\/latest/i.test(html), `${rel}: depends on a mutable release lookup`);
   for (const [, href] of html.matchAll(/(?:href|src)="([^"]+)"/g)) {
     if (/^(https?:|mailto:|#|data:)/.test(href)) {
-      if (/^https?:/.test(href)) check(/^https:\/\/(github\.com\/AbdulazizShehri\/MedScale|github\.com\/sponsors\/AbdulazizShehri(?:[\/#?]|$)|abdulazizshehri\.github\.io\/MedScale|medscale\.si)/.test(href), `${rel}: unexpected external link ${href}`);
+      if (/^https?:/.test(href)) checkExternal(rel, href.replaceAll("&amp;", "&"));
       continue;
     }
     if (!href.startsWith("/")) continue;
@@ -66,9 +79,22 @@ for (const f of files) {
   }
 }
 
+// Client code can link too, and URLs also sit in the bundles.
+const scripts = [];
+(function walk(d) { for (const e of fs.readdirSync(d, { withFileTypes: true })) { const f = path.join(d, e.name); e.isDirectory() ? walk(f) : /\.(js|txt)$/.test(f) && scripts.push(f); } })(out);
+for (const f of scripts) {
+  const rel = path.relative(out, f);
+  const body = read(f);
+  check(!/api\.github\.com|releases\/latest/i.test(body), `${rel}: depends on a mutable release lookup`);
+  for (const [href] of body.matchAll(/https:\/\/[A-Za-z0-9.-]+\/[^\s"'`\\<>]*\/releases\/download\/[^\s"'`\\<>]*/g)) {
+    check(allowedAssets.has(href), `${rel}: names an unapproved release asset ${href}`);
+  }
+}
+
 const home = read(path.join(out, "index.html"));
 const product = read(path.join(out, "product/index.html"));
-const dl = read(path.join(out, "download/index.html"));
+// React separates adjacent text with comment markers in the export.
+const dl = read(path.join(out, "download/index.html")).replaceAll("<!-- -->", "");
 check(home.includes("synthetic workspaces + licensed nonpatient audio"), "home: accurate preview data scope missing");
 check(home.includes("real patient records, clinical decisions and production deployments are not authorized"), "home: patient/clinical restriction missing");
 check(product.includes("Synthetic workspaces and user-approved licensed nonpatient audio"), "product: supported nonpatient audio disclosure missing");
@@ -78,14 +104,14 @@ check(home.includes("Real screenshot"), "home: screenshot provenance label missi
 check(home.includes("Interactive example"), "home: interactive example label missing");
 if (offered.length === 0) {
   check(dl.includes("There is no qualified public installer yet"), "download: release status missing");
-  check(!/Download for (Windows|macOS)/.test(dl), "download: offers an installer with no release");
+  check(!/Download for (Windows|Mac)/.test(dl), "download: offers an installer with no release");
 } else {
   for (const p of offered) {
     check(dl.includes(p.url), `download: missing link to ${p.fileName}`);
     check(dl.includes(p.sha256), `download: missing SHA-256 for ${p.fileName}`);
     check(dl.includes(formatSize(p.size)), `download: missing size for ${p.fileName}`);
   }
-  check(dl.includes(verdict.release.version), "download: version missing");
+  check(dl.includes(`MedScale ${verdict.release.version} Beta`), "download: version label missing");
   check(dl.includes(verdict.release.sourceSha), "download: source commit missing");
   check(dl.includes("Report a problem"), "download: support link missing");
   check(dl.includes("Real patient records and clinical decisions aren"), "download: patient data restriction missing");

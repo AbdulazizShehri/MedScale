@@ -134,7 +134,7 @@ const INSTALLERS: Record<InstallerPlatform, { name: RegExp; arch: Arch; signing:
   windows: { name: /^MedScale_(\d+\.\d+\.\d+)_x64-setup\.exe$/, arch: "x64", signing: ["authenticode", "unsigned"] },
   macos: { name: /^MedScale_(\d+\.\d+\.\d+)_aarch64\.dmg$/, arch: "arm64", signing: ["developer-id-notarized", "ad-hoc"] },
 };
-const TAG = /^v(\d+\.\d+\.\d+)(-beta\.\d+)?$/;
+const TAG = /^v(\d+\.\d+\.\d+)-beta\.\d+$/;
 const SAFE_FILE = /^[A-Za-z0-9][A-Za-z0-9._-]*$/;
 const COMMENT = new RegExp(`^https://github\\.com/${REPOSITORY}/(issues|pull)/\\d+#issuecomment-\\d+$`);
 const RUN = new RegExp(`^https://github\\.com/${REPOSITORY}/actions/runs/\\d+$`);
@@ -207,6 +207,8 @@ export function validateRelease(raw: unknown, qualifiedTags: readonly string[] =
 
 /** The reviewed release built into this site, if any part of it is valid. */
 export const publicRelease: PublicRelease | undefined = validateRelease(manifest).release;
+/** What to call the product today. */
+export const productStage = publicRelease ? "Beta" : "Engineering preview";
 
 export function installerFor(release: PublicRelease | undefined, platform: Platform): PlatformRelease | undefined {
   return platform === "windows" || platform === "macos" ? release?.platforms[platform] : undefined;

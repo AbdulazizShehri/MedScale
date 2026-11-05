@@ -1,3 +1,4 @@
+import { productStage } from "@/lib/release";
 import type { Metadata, Viewport } from "next";
 import localFont from "next/font/local";
 import "./globals.css";
@@ -13,7 +14,7 @@ const mono = localFont({ src: "../fonts/JetBrainsMonoNL-latin.woff2", variable: 
 
 const site = process.env.NEXT_PUBLIC_SITE_URL || "https://abdulazizshehri.github.io/MedScale";
 const title = "MedScale — Your health AI. One open workspace.";
-const description = "Open-source, local-first workspace for health records, evidence and AI models. Engineering preview for synthetic data.";
+const description = "Open-source, local-first workspace for health records, evidence and AI models. " + productStage + " for synthetic data.";
 
 export const metadata: Metadata = {
   metadataBase: new URL(site.endsWith("/") ? site : site + "/"),
