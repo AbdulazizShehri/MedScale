@@ -708,6 +708,7 @@ impl EncryptedVault {
         // must not read as "nothing changed": an incomplete generation is never
         // evicted, so nothing is at risk.
         let _ = fs::write(generation.join(COMPLETE_FILE), b"");
+        let _ = sync_dir(&generation);
         let _ = sync_dir(root);
         let _ = sync_dir(&base);
         Self::evict_stale_generations(&base);
@@ -771,6 +772,7 @@ impl EncryptedVault {
             |e: std::io::Error| EncryptedVaultError::WorkFileCheckUnavailable(e.to_string());
         let dir = root.join(PRE_RECOVERY_DIR);
         fs::create_dir_all(&dir).map_err(unavailable)?;
+        sync_dir(root).map_err(unavailable)?;
         let copy = dir.join(format!("{seal_digest}.sealed"));
         if let Ok(existing) = fs::read(&copy)
             && DigestSha256::of(&existing).to_hex() == seal_digest

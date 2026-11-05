@@ -111,6 +111,7 @@ pub fn workspace_status(host: tauri::State<'_, Host>) -> CmdResult<Value> {
             .unwrap_or(false),
         "set_aside_exists": state.data_dir().map(host::set_aside_exists).unwrap_or(false),
         "version": medscale_contracts::MEDSCALE_VERSION,
+        "external_packs_allowed": host::EXTERNAL_PACKS_ALLOWED,
         "local_only": report.local_only,
         "real_phi_authorized": report.real_phi_authorized,
         "network_default_deny": report.network_broker.default_deny,

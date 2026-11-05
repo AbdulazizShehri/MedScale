@@ -12,13 +12,13 @@ if os.getenv("GITHUB_ACTIONS") != "true" or os.getenv("RUNNER_OS") != "macOS":
 root = Path("apps/desktop-tauri/src-tauri")
 cargo = root / "Cargo.toml"
 source = cargo.read_text()
-feature_anchor = 'e2e-webdriver = []\n'
+feature_anchor = 'external-packs = []\n'
 dep_anchor = 'tauri-plugin-dialog = "=2.6.0"\n'
 assert source.count(feature_anchor) == 1
 assert source.count(dep_anchor) == 1
 assert "macos-webdriver-ci" not in source
 source = source.replace(feature_anchor,
-                        feature_anchor + 'macos-webdriver-ci = ["dep:tauri-plugin-webdriver"]\n')
+                        feature_anchor + 'macos-webdriver-ci = ["external-packs", "dep:tauri-plugin-webdriver"]\n')
 source = source.replace(dep_anchor,
                         dep_anchor + 'tauri-plugin-webdriver = { version = "=0.2.3", optional = true }\n')
 cargo.write_text(source)

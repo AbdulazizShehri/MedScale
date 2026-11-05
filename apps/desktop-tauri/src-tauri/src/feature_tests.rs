@@ -1597,3 +1597,41 @@ fn verified_public_human_wav_transcribes_via_native_tauri() {
     // Only aggregate proof; do not print voice, transcript, speaker or paths.
     println!("MAC_NATIVE_REAL_HUMAN_ASR_OK clips=1 model=whisper-tiny-en restart=true");
 }
+
+#[test]
+fn a_packaged_build_admits_packs_only_from_its_own_model_folder() {
+    use crate::host::pack_dir_allowed;
+    let root = std::env::temp_dir().join(format!("medscale-pack-dir-{}", std::process::id()));
+    let _ = std::fs::remove_dir_all(&root);
+    let data = root.join("data");
+    let inside = data.join("audio-models").join("whisper-tiny-en");
+    let outside = root.join("elsewhere");
+    std::fs::create_dir_all(&inside).unwrap();
+    std::fs::create_dir_all(&outside).unwrap();
+
+    assert!(pack_dir_allowed(&inside, &data, false));
+    assert!(!pack_dir_allowed(&outside, &data, false));
+    assert!(
+        !pack_dir_allowed(&data.join("audio-models"), &data, false),
+        "the folder itself is not a Pack"
+    );
+    assert!(
+        !pack_dir_allowed(
+            &inside.join("..").join("..").join("..").join("elsewhere"),
+            &data,
+            false
+        ),
+        "parent steps can't climb out"
+    );
+    assert!(!pack_dir_allowed(
+        &data.join("audio-models").join("missing"),
+        &data,
+        false
+    ));
+    assert!(!pack_dir_allowed(&outside, &root.join("no-data"), false));
+    assert!(
+        pack_dir_allowed(&outside, &data, true),
+        "test builds may admit any folder"
+    );
+    let _ = std::fs::remove_dir_all(&root);
+}

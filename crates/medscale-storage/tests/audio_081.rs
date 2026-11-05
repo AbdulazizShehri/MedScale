@@ -1345,3 +1345,51 @@ fn audio_removal_refuses_mismatched_stored_project_column() {
         .unwrap();
     assert_eq!(count, 1);
 }
+
+#[test]
+fn an_encrypted_store_limits_recordings_and_removal_makes_room() {
+    let root = temp_root("budget");
+    let path = root.join("keyed.sqlite3");
+    let mut meta = SqliteMetaStore::open_at_sqlcipher(&path, &[7u8; 32]).unwrap();
+    assert_eq!(
+        meta.audio_budget(),
+        Some(medscale_storage::ENCRYPTED_VAULT_AUDIO_BUDGET_BYTES)
+    );
+    assert_eq!(
+        open_meta(&root).audio_budget(),
+        None,
+        "plaintext has no seal"
+    );
+    populate_pre_081(&meta);
+
+    meta.set_audio_budget(Some(2 * 1024 * 1024));
+    let first = bytes(1_500_000, 1);
+    let second = bytes(1_500_000, 2);
+    let src_1 = imported("src-1", &first);
+    let src_2 = imported("src-2", &second);
+    meta.insert_imported_audio_source(&src_1, &first).unwrap();
+
+    let refused = meta.insert_imported_audio_source(&src_2, &second);
+    match refused {
+        Err(MetaError::Conflict(message)) => assert!(message.contains("2 MiB limit"), "{message}"),
+        other => panic!("expected the limit to refuse this: {other:?}"),
+    }
+    assert!(
+        meta.get_audio_source(&id("src-2")).is_err(),
+        "a refused recording left nothing behind"
+    );
+    assert_eq!(
+        meta.get_audio_source(&id("src-1")).unwrap().1,
+        first,
+        "the refusal didn't touch what was there"
+    );
+
+    meta.remove_unreferenced_imported_audio_source(
+        &id("proj-1"),
+        &id("src-1"),
+        &src_1.content_digest,
+    )
+    .unwrap();
+    meta.insert_imported_audio_source(&src_2, &second).unwrap();
+    assert_eq!(meta.get_audio_source(&id("src-2")).unwrap().1, second);
+}
