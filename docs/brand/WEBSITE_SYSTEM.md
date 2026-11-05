@@ -7,7 +7,7 @@
 | Area | Shared MedScale contract (desktop, CLI, website) | Website-only decision |
 |---|---|---|
 | Logo | The 2026-11-05 symbol plus the 2026-10-22 wordmark, from `assets/brand/` only. Monochrome, never recoloured, never retyped. | Header lockup at 18 px high; footer at 17 px; closing mark at 40 px. No opacity or effects on the logo. |
-| Color | Black and warm white. Sky blue `#70B8C7` for interaction and support; orange `#FB905A` for attention, review, conflict and preview state. Status never relies on color alone. | Near-black page `#08090A` with three raised surfaces. No glows or gradients: surfaces are flat and hairlines separate them. |
+| Color | Black and warm white. Sky blue `#70B8C7` for interaction and support; orange `#FB905A` for attention, review, conflict and preview state. Status never relies on color alone. | Near-black page `#08090A` with three raised surfaces. No glows or gradients. Colour comes in flat areas of the approved hues: one deep sky-blue band per page (`--band` `#0B2127`) and a sky-blue closing section with black text and the black logo. |
 | Type | Inter and JetBrains Mono NL, unchanged OFL files from `assets/brand/fonts/`. | Latin WOFF2 subsets of the same files, self-hosted, with the OFL texts in `/fonts/`. No font service. |
 | Voice | `VOICE_AND_COPY.md`. Evidence first. No clinical claims. | Two-tone headlines: a gray lead-in, then a white statement. |
 | Imagery | Real product screenshots use the synthetic workspace only. | Screens sit in a single hairline with one radius, unaltered: no window chrome, overlays or fades. A caption names them as real screenshots. |
@@ -36,6 +36,7 @@ Every multi-column layout sits on one 12-column grid with a 24 px gap, defined b
 - **Baselines:** in a split section head, the headline's last line and the right column's last line share a baseline (`align-items: last baseline`).
 - **Column caps go inside `.shell`.** Never put `max-width: var(--span-*)` or any narrower width on `.shell` itself: the percentage resolves against the full-bleed section and the shell's auto margins centre it off the axis.
 - **Panels:** one radius (14 px) and 24 px padding. In a row of cards, buttons line up along the bottom.
+- **Layout audit:** `npm run audit:layout` measures these rules in `web/out` and fails on any miss.
 - **Rhythm:** every section uses `--section-y` top and bottom, and every hero uses it on top.
 - **Below 860 px:** two-column repeats stay on the grid (6 + 6, or 4 + 4 + 4 in the footer) and column caps are released.
 
