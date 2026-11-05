@@ -79,13 +79,11 @@ export function Welcome({ onContinue }: { onContinue: () => void }) {
   return (
     <main className="gate">
       <Topology />
-      <div className="gate-fade" />
       <div className="gate-welcome-layout">
         <Logo height={28} />
-        <div className="stack" style={{ gap: 28 }}>
+        <div className="stack" style={{ gap: 24 }}>
           <h1 className="gate-welcome-title">Your local AI<br />workspace</h1>
-          <span className="brand-rule" aria-hidden="true" />
-          <div style={{ display: "flex", flexDirection: "column", gap: 2, fontSize: 22, lineHeight: "30px", fontWeight: 500, letterSpacing: "-0.015em", color: "var(--ink-2)" }}>
+          <div className="gate-welcome-tag">
             <span>Evidence.</span><span>Privacy.</span><span>Scale.</span>
           </div>
           <p className="gate-welcome-hint">Start with two fictional subjects. No sign-in, payment, or patient data needed.</p>
@@ -117,10 +115,10 @@ export function Welcome({ onContinue }: { onContinue: () => void }) {
               onConfirm={deleteSetAside} onCancel={() => setConfirming(null)}>{DELETE_SET_ASIDE_DIALOG.body}</ConfirmPanel>
           )}
         </div>
-        <div className="row-gap" style={{ gap: 20, fontSize: 12, color: "var(--ink-3)" }}>
+        <div className="gate-welcome-foot">
           <span className="st weak"><Glyph kind="available" />Beta · synthetic data only · runs on this device</span>
           <span>{ws?.network_default_deny ? "Network egress off by default" : "Network posture unknown"}</span>
-          <span className="mono" style={{ fontSize: 11 }}>v{ws?.version}</span>
+          <span className="mono">v{ws?.version}</span>
         </div>
       </div>
     </main>
