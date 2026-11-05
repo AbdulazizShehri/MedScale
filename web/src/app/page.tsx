@@ -1,6 +1,7 @@
 import Link from "next/link";
 import type { Metadata } from "next";
 import { DownloadCards } from "@/components/DownloadCards";
+import { productStage, publicRelease } from "@/lib/release";
 import { EvidenceExample } from "@/components/EvidenceExample";
 import { ArrowRight, ArrowUpRight, Check, GitHub, Monitor, Plus, Terminal } from "@/components/Icons";
 import { ProductTour } from "@/components/ProductTour";
@@ -8,7 +9,7 @@ import { Quickstart } from "@/components/Quickstart";
 import { Shot } from "@/components/Shot";
 import { asset, docs, github, pageMeta } from "@/lib/site";
 
-const homeMeta = pageMeta("/", "Your health AI. One open workspace.", "Open-source, local-first workspace for health records, evidence and AI models. Engineering preview: synthetic workspaces and user-approved licensed nonpatient audio.");
+const homeMeta = pageMeta("/", "Your health AI. One open workspace.", "Open-source, local-first workspace for health records, evidence and AI models. " + productStage + ": synthetic workspaces and user-approved licensed nonpatient audio.");
 const homeTitle = "MedScale — Your health AI. One open workspace.";
 export const metadata: Metadata = { ...homeMeta, title: { absolute: homeTitle }, openGraph: { ...homeMeta.openGraph, title: homeTitle }, twitter: { ...homeMeta.twitter, title: homeTitle } };
 
@@ -20,8 +21,8 @@ const strip = [
 ];
 
 const faq = [
-  ["Can I use MedScale with real patient records?", "No. MedScale is an open-source engineering preview. Synthetic workspace fixtures and user-approved licensed nonpatient audio are supported for local testing and transcription. MedScale is not clinically validated; real patient records, clinical decisions and production deployments are not authorized until external qualification gates are met."],
-  ["Is there an installer I can download?", "Not a public one yet. CI builds unsigned engineering-preview packages for Windows and macOS to test the release process, but they are not signed, notarized or qualified for public use. You can build the desktop app from source on Windows and macOS today, and the CLI on Windows, macOS and Linux."],
+  ["Can I use MedScale with real patient records?", `No. MedScale is an open-source ${productStage.toLowerCase()}. Synthetic workspace fixtures and user-approved licensed nonpatient audio are supported for local testing and transcription. MedScale is not clinically validated; real patient records, clinical decisions and production deployments are not authorized until external qualification gates are met.`],
+  ["Is there an installer I can download?", publicRelease ? "Yes. The Download page offers each qualified installer with its checksum and signing status. You don't need an account, an app store or a GitHub login." : "Not a public one yet. CI builds unsigned engineering-preview packages for Windows and macOS to test the release process, but they are not qualified for public use. You can build the desktop app from source on Windows and macOS today, and the CLI on Windows, macOS and Linux."],
   ["Does MedScale need the cloud or an account?", "No. The Rust Core runs locally and network access is denied by default; browsing and egress are explicit, governed actions. Local workspace access is not organizational sign-in, and a full privacy qualification is still an open gate."],
   ["Which AI models does it run?", "Models run locally through MedScale's own runtime, from admitted model packs. The desktop app includes a browsable catalog of models with their source, task, format and size. A model being listed in the catalog does not mean it is qualified for any clinical task."],
   ["What does 'all your health AI in one place' mean today?", "One workspace for records, evidence, local models and agents, sharing one Core. It is the direction of the project, not a claim that every model or workflow is supported. The product page lists what exists now."],
@@ -34,7 +35,7 @@ export default function Home() {
       <section className="hero" aria-labelledby="hero-title">
         <div className="shell">
           <div className="hero-copy">
-            <a className="status-pill" href={docs.qualification}><b>Preview</b><span>Open source · local first</span><ArrowRight size={14} /></a>
+            <a className="status-pill" href={docs.qualification}><b>{publicRelease ? "Beta" : "Preview"}</b><span>Open source · local first</span><ArrowRight size={14} /></a>
             <h1 id="hero-title" className="display">Your health AI.<br /><span className="mute">One open workspace.</span></h1>
             <p className="lede">MedScale brings records, evidence and local AI models into one source-aware desktop workspace. Open source, local-first, and built so a person stays in charge of every decision.</p>
             <div className="actions">
@@ -170,10 +171,10 @@ export default function Home() {
           <div className="download-hero">
             <span className="eyebrow">Download</span>
             <h2 id="download-title" className="h2">Get MedScale.</h2>
-            <p className="lede">The source is open today. A signed public installer is not released yet, so each platform shows exactly what you can run now.</p>
+            <p className="lede">{publicRelease ? "Download the installer for your computer. No account, app store or GitHub login." : "The source is open today. A public installer is not released yet, so each platform shows exactly what you can run now."}</p>
           </div>
           <DownloadCards />
-          <div className="download-foot"><span>Engineering preview · synthetic workspaces + licensed nonpatient audio · not for clinical use</span><Link className="text-link" href="/download/" style={{ fontSize: 13 }}>Full release status</Link></div>
+          <div className="download-foot"><span>{productStage} · synthetic workspaces + licensed nonpatient audio · not for clinical use</span><Link className="text-link" href="/download/" style={{ fontSize: 13 }}>Full release status</Link></div>
         </div>
       </section>
 

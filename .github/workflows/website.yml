@@ -62,3 +62,57 @@ jobs:
           NEXT_PUBLIC_SITE_URL: https://medscale.si
           NEXT_TELEMETRY_DISABLED: "1"
         run: npm run build && npm run check
+      - name: No release, or the published bytes match it
+        working-directory: web
+        run: npm run verify-release
+
+  # Proves the open state renders, without any real release: the fixture is only
+  # swapped in on this runner, and this workflow has no way to deploy.
+  download-flow:
+    name: Verify download page with a fixture release
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Checkout
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - name: Node.js 24
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: "24"
+          cache: npm
+          cache-dependency-path: web/package-lock.json
+      - name: Install pinned dependencies
+        working-directory: web
+        run: npm ci --no-audit --no-fund
+      - name: The closed site builds with no network
+        working-directory: web
+        env:
+          NEXT_TELEMETRY_DISABLED: "1"
+        run: |
+          sudo unshare --net sudo -E -u "$USER" env "PATH=$PATH" sh -c 'npm run build && npm run check'
+          rm -rf out .next
+      - name: Swap in the fixture release
+        working-directory: web
+        run: |
+          cp src/lib/release.fixture.json src/lib/release-manifest.json
+          sed -i 's/QUALIFIED_RELEASE_TAGS: readonly string\[\] = \[\];/QUALIFIED_RELEASE_TAGS: readonly string[] = ["v0.0.0-beta.0"];/' src/lib/release.ts
+          grep -q 'v0.0.0-beta.0' src/lib/release.ts
+      - name: Build and check the open state
+        working-directory: web
+        env:
+          NEXT_PUBLIC_SITE_BASE_PATH: ""
+          NEXT_PUBLIC_SITE_URL: https://medscale.si
+          NEXT_TELEMETRY_DISABLED: "1"
+        run: npm run build && node --experimental-strip-types scripts/check.mjs --fixture
+      - name: The normal check refuses the fixture
+        working-directory: web
+        run: |
+          set +e
+          output="$(node --experimental-strip-types scripts/check.mjs 2>&1)"
+          code=$?
+          set -e
+          echo "$output"
+          if [ "$code" -ne 1 ] || ! grep -q 'the fixture release must never ship' <<<"$output"; then
+            echo "::error::check.mjs did not refuse the fixture release"
+            exit 1
+          fi
