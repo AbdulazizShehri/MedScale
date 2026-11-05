@@ -1,5 +1,6 @@
 import { useMemo, useState, type FormEvent } from "react";
-import { useApp } from "../lib/app";
+import { readPref, useApp, writePref } from "../lib/app";
+import { SAMPLE_OPENED_PREF, isReturningToSample } from "../lib/first-launch";
 import { useAction, type CmdError } from "../lib/ipc";
 import { Logo } from "../components/brand";
 import { Glyph, useToast } from "../components/ui";
@@ -52,9 +53,11 @@ export function Welcome({ onContinue }: { onContinue: () => void }) {
 
   const toast = useToast();
   const [confirming, setConfirming] = useState<null | "set-aside" | "delete">(null);
+  const returning = isReturningToSample(readPref(SAMPLE_OPENED_PREF));
   async function openSynthetic() {
     const r = await run<unknown>("synthetic", "workspace_open_synthetic");
     if (!r.ok) { setError(r.error); return; }
+    writePref(SAMPLE_OPENED_PREF, "1");
     if (recoveredInterruptedSeed(r.data)) toast({ kind: "completed", ...RECOVERED_SEED_NOTICE });
     await refreshWorkspace();
   }
@@ -82,16 +85,17 @@ export function Welcome({ onContinue }: { onContinue: () => void }) {
       <div className="gate-welcome-layout">
         <Logo height={28} />
         <div className="stack" style={{ gap: 24 }}>
-          <h1 className="gate-welcome-title">Your local AI<br />workspace</h1>
+          <h1 className="gate-welcome-title">{returning ? <>Your sample<br />workspace is ready</> : <>Your local AI<br />workspace</>}</h1>
           <div className="gate-welcome-tag">
             <span>Evidence.</span><span>Privacy.</span><span>Scale.</span>
           </div>
-          <p className="gate-welcome-hint">Start with two fictional subjects. No sign-in, payment, or patient data needed.</p>
+          <p className="gate-welcome-hint">{returning ? "Pick up with the same two fictional subjects. There is nothing to sign in to." : "Start with two fictional subjects. No sign-in, payment, or patient data needed."}</p>
+          <p className="gate-welcome-hint">Your workspace stays on this computer unless you choose to export it or connect something.</p>
           <div className="gate-welcome-actions">
             <button type="button" className="btn btn-p lg" onClick={openSynthetic} disabled={!!pending} autoFocus>
               {pending ? <Glyph kind="running" /> : <span className="g g-synthetic" />}{pending ? "Opening sample workspace…" : "Try MedScale with sample data"}
             </button>
-            <button type="button" className="btn btn-s lg" onClick={onContinue} disabled={!!pending}>Set up or unlock encrypted vault</button>
+            <button type="button" className="btn btn-s lg" onClick={onContinue} disabled={!!pending}>{ws?.encrypted_vault_exists ? "Unlock your encrypted workspace" : "Create an encrypted workspace"}</button>
           </div>
           {pending && <p className="t-sm i3">First open ingests the synthetic FHIR fixtures through Core. This takes a few seconds once.</p>}
           {error && <FailureAlert error={error} />}
@@ -117,7 +121,7 @@ export function Welcome({ onContinue }: { onContinue: () => void }) {
         </div>
         <div className="gate-welcome-foot">
           <span className="st weak"><Glyph kind="available" />Beta · synthetic data only · runs on this device</span>
-          <span>{ws?.network_default_deny ? "Network egress off by default" : "Network posture unknown"}</span>
+          <span>{ws?.network_default_deny ? "No network access unless you allow it" : "Network status unknown"}</span>
           <span className="mono">v{ws?.version}</span>
         </div>
       </div>
@@ -136,6 +140,8 @@ export function Access({ onBack }: { onBack: () => void }) {
   const [error, setError] = useState<CmdError | null>(null);
   const [codes, setCodes] = useState<string[] | null>(null);
   const { pending, run } = useAction();
+  // Unlocking is a short, familiar task: the explanation waits behind a disclosure.
+  const compact = exists && mode === "unlock" && !codes;
 
   async function submit(e: FormEvent) {
     e.preventDefault();
@@ -172,13 +178,42 @@ export function Access({ onBack }: { onBack: () => void }) {
   async function synthetic() {
     const r = await run<unknown>("synthetic", "workspace_open_synthetic");
     if (!r.ok) { setError(r.error); return; }
+    writePref(SAMPLE_OPENED_PREF, "1");
     if (recoveredInterruptedSeed(r.data)) toast({ kind: "completed", ...RECOVERED_SEED_NOTICE });
     await refreshWorkspace();
   }
 
+  const vault = (
+    <div>
+      <span className="lbl" style={{ display: "block", fontSize: 10.5, fontWeight: 600, letterSpacing: "0.12em", textTransform: "uppercase", color: "var(--ink-3)", marginBottom: 6 }}>Vault</span>
+      <div style={{ display: "flex", alignItems: "center", gap: 10, minHeight: 52, padding: "0 12px", border: "1px solid var(--line)", borderRadius: "var(--r-2)" }}>
+        <Glyph kind={exists ? "present" : "absent"} />
+        <div style={{ display: "flex", flexDirection: "column", minWidth: 0 }}>
+          <span className="mono" style={{ fontSize: 12.5 }}>desktop-encrypted</span>
+          <span style={{ fontSize: 11.5, color: "var(--ink-3)" }}>{exists ? "Found in this app's data folder" : "Not created yet"}</span>
+        </div>
+      </div>
+    </div>
+  );
+  const explain = (
+    <div className="stack" style={{ gap: 0 }}>
+      {[
+        ["present", "Decrypts on this device", "The vault key is derived from your passphrase. The passphrase and key are never sent anywhere."],
+        ["unavailable", "Does not identify you", "MedScale has no organizational sign-in. Anyone with the passphrase can open this vault."],
+        ["absent", "Recovery codes, not resets", "If you lose your passphrase, a recovery code issued at creation opens the vault. Without either, the vault cannot be opened. The passphrase cannot be changed in this version."],
+        [ws?.real_phi_authorized ? "available" : "limited", "Real PHI is not authorized", "Use synthetic or permitted fixtures until private-data authorization is granted."],
+      ].map(([k, t, d]) => (
+        <div key={t} style={{ display: "grid", gridTemplateColumns: "20px minmax(0,1fr)", gap: 12, padding: "12px 0", borderBottom: "1px solid var(--line-subtle)" }}>
+          <span style={{ marginTop: 5 }}><Glyph kind={k as "present"} /></span>
+          <div><div style={{ fontSize: 13, fontWeight: 600 }}>{t}</div><div className="t-sm i2" style={{ lineHeight: "18px" }}>{d}</div></div>
+        </div>
+      ))}
+    </div>
+  );
+
   return (
     <main className="gate">
-      <div className="access">
+      <div className={compact ? "access access-compact" : "access"}>
         <section>
           <button type="button" onClick={onBack} style={{ display: "flex", alignItems: "center", gap: 12, width: "max-content" }} aria-label="Back to Welcome">
             <Logo height={18} />
@@ -195,18 +230,9 @@ export function Access({ onBack }: { onBack: () => void }) {
               <form onSubmit={submit} className="stack" style={{ width: 420, maxWidth: "100%", gap: 22 }}>
                 <div className="stack" style={{ gap: 8 }}>
                   <h1 style={{ margin: 0, fontSize: 32, lineHeight: "36px", fontWeight: 600, letterSpacing: "-0.025em" }}>{mode === "unlock" ? "Unlock workspace" : "Create encrypted vault"}</h1>
-                  <p className="t-body i2">Your passphrase decrypts this vault on this device. It is not an account and it is never sent anywhere.</p>
+                  <p className="t-body i2">{compact ? "Enter your passphrase to open this workspace on this device." : "Your passphrase decrypts this vault on this device. It is not an account and it is never sent anywhere."}</p>
                 </div>
-                <div>
-                  <span className="lbl" style={{ display: "block", fontSize: 10.5, fontWeight: 600, letterSpacing: "0.12em", textTransform: "uppercase", color: "var(--ink-3)", marginBottom: 6 }}>Vault</span>
-                  <div style={{ display: "flex", alignItems: "center", gap: 10, minHeight: 52, padding: "0 12px", border: "1px solid var(--line)", borderRadius: "var(--r-2)" }}>
-                    <Glyph kind={exists ? "present" : "absent"} />
-                    <div style={{ display: "flex", flexDirection: "column", minWidth: 0 }}>
-                      <span className="mono" style={{ fontSize: 12.5 }}>desktop-encrypted</span>
-                      <span style={{ fontSize: 11.5, color: "var(--ink-3)" }}>{exists ? "Found in this app's data folder" : "Not created yet"}</span>
-                    </div>
-                  </div>
-                </div>
+                {!compact && vault}
                 <div>
                   <label className="lbl" htmlFor="pp">{useCode ? "Recovery code" : "Passphrase"}</label>
                   <div className="field-row">
@@ -236,32 +262,34 @@ export function Access({ onBack }: { onBack: () => void }) {
                     ? <button type="button" className="link t-sm" onClick={() => { setMode(mode === "unlock" ? "create" : "unlock"); setError(null); }} disabled={mode === "unlock"} title={mode === "unlock" ? "A vault already exists at the default location" : undefined}>{mode === "unlock" ? "One vault per device in this build" : "Unlock existing vault"}</button>
                     : null}
                 </div>
-                <div style={{ display: "flex", alignItems: "center", gap: 12 }}><span style={{ flex: 1, height: 1, background: "var(--line)" }} /><span className="t-sm i3">or</span><span style={{ flex: 1, height: 1, background: "var(--line)" }} /></div>
-                <button type="button" className="btn btn-s lg" style={{ justifyContent: "flex-start" }} onClick={synthetic} disabled={!!pending}>
-                  {pending === "synthetic" ? <Glyph kind="running" /> : <span className="g g-synthetic" />}Open synthetic workspace
-                  <span style={{ marginLeft: "auto", fontSize: 11.5, color: "var(--ink-3)", fontWeight: 400 }}>fixtures only · no passphrase</span>
-                </button>
+                {compact ? (
+                  <>
+                    <button type="button" className="link t-sm access-sample" onClick={onBack} disabled={!!pending}>Explore sample data instead</button>
+                    <details className="access-details">
+                      <summary>How unlocking works</summary>
+                      <div className="stack" style={{ gap: 16, marginTop: 12 }}>{vault}{explain}</div>
+                    </details>
+                  </>
+                ) : (
+                  <>
+                    <div style={{ display: "flex", alignItems: "center", gap: 12 }}><span style={{ flex: 1, height: 1, background: "var(--line)" }} /><span className="t-sm i3">or</span><span style={{ flex: 1, height: 1, background: "var(--line)" }} /></div>
+                    <button type="button" className="btn btn-s lg" style={{ justifyContent: "flex-start" }} onClick={synthetic} disabled={!!pending}>
+                      {pending === "synthetic" ? <Glyph kind="running" /> : <span className="g g-synthetic" />}Open synthetic workspace
+                      <span style={{ marginLeft: "auto", fontSize: 11.5, color: "var(--ink-3)", fontWeight: 400 }}>fixtures only · no passphrase</span>
+                    </button>
+                  </>
+                )}
               </form>
             )}
           </div>
-          <div className="row-gap" style={{ gap: 20, fontSize: 12, color: "var(--ink-3)" }}><span>No sign-in · no accounts · no cloud</span><span className="mono" style={{ fontSize: 11 }}>v{ws?.version}</span></div>
+          <div className="row-gap" style={{ gap: 20, fontSize: 12, color: "var(--ink-3)" }}><span>No sign-in · no accounts · no cloud</span>{compact && !ws?.real_phi_authorized && <span>Real patient data is not authorized</span>}<span className="mono" style={{ fontSize: 11 }}>v{ws?.version}</span></div>
         </section>
-        <aside>
-          <div className="sec" style={{ margin: 0 }}><span className="sec-n">01</span><span className="sec-t">What unlocking does</span><span className="sec-rule" /></div>
-          <div className="stack" style={{ gap: 0 }}>
-            {[
-              ["present", "Decrypts on this device", "The vault key is derived from your passphrase. The passphrase and key are never sent anywhere."],
-              ["unavailable", "Does not identify you", "MedScale has no organizational sign-in. Anyone with the passphrase can open this vault."],
-              ["absent", "Recovery codes, not resets", "If you lose your passphrase, a recovery code issued at creation opens the vault. Without either, the vault cannot be opened. The passphrase cannot be changed in this version."],
-              [ws?.real_phi_authorized ? "available" : "limited", "Real PHI is not authorized", "Use synthetic or permitted fixtures until private-data authorization is granted."],
-            ].map(([k, t, d]) => (
-              <div key={t} style={{ display: "grid", gridTemplateColumns: "20px minmax(0,1fr)", gap: 12, padding: "12px 0", borderBottom: "1px solid var(--line-subtle)" }}>
-                <span style={{ marginTop: 5 }}><Glyph kind={k as "present"} /></span>
-                <div><div style={{ fontSize: 13, fontWeight: 600 }}>{t}</div><div className="t-sm i2" style={{ lineHeight: "18px" }}>{d}</div></div>
-              </div>
-            ))}
-          </div>
-        </aside>
+        {!compact && (
+          <aside>
+            <div className="sec" style={{ margin: 0 }}><span className="sec-n">01</span><span className="sec-t">What unlocking does</span><span className="sec-rule" /></div>
+            {explain}
+          </aside>
+        )}
       </div>
     </main>
   );
