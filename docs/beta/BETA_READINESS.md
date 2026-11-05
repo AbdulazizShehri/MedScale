@@ -1,6 +1,6 @@
 # MedScale Beta readiness report
 
-**Evidence commit:** `main@80c937aa96ee2251294ded601379313700d0d366`. All product code in this report is at that commit. Later commits on `main` change documentation only.
+**Evidence commit:** `main@80c937aa96ee2251294ded601379313700d0d366`. Evidence is scoped to that commit; subsequent commits require fresh qualification.
 
 **Date:** 2026-11-05.
 
@@ -8,7 +8,7 @@
 
 **Not released, and not ready to release today.** `RELEASE_READY=false`, `REAL_PHI_AUTHORIZATION=NOT_AUTHORIZED`, `TAURI_WEBVIEW_PRIVACY_QUALIFICATION=OPEN`.
 
-The engineering work planned for Beta is done and verified on the commit above. What remains is listed under [Blockers](#blockers-to-a-public-beta). Most of it can't be done from engineering: signing, a tester's report, and your decisions.
+The automated journeys listed in this report pass on the commit above. That isn't a claim that engineering is complete or that the product is secure: [Known risks](#known-risks) lists open engineering gaps, including the Pack trust root, passphrase zeroization, divergence after a crash, the intermittent macOS keyboard result and untested power loss. What blocks a public Beta is listed under [Blockers](#blockers-to-a-public-beta). Most of that can't be done from engineering: signing, a tester's report, and your decisions.
 
 Passing CI here is not clinical validation, and it is not a full privacy assurance. Everything below uses fictional data or lawful public non-patient recordings.
 
@@ -43,7 +43,7 @@ Passing CI here is not clinical validation, and it is not a full privacy assuran
 | macOS native picker, offline failure, low storage | Pass | [41976979573](https://github.com/AbdulazizShehri/MedScale/actions/runs/41976979573), [41976979487](https://github.com/AbdulazizShehri/MedScale/actions/runs/41976979487), [41976979451](https://github.com/AbdulazizShehri/MedScale/actions/runs/41976979451) |
 | macOS keyboard and accessibility | **1 fail, 1 pass, same code.** See risks | [41976979537](https://github.com/AbdulazizShehri/MedScale/actions/runs/41976979537) |
 
-**Installer evidence.** The unsigned Windows NSIS and macOS DMG builds come from run 41976839962. The source SHA is bound in `package-manifest.json`, and the release workflow checks it. The Windows release runs above install, launch, use and uninstall that build. Neither is signed or notarized. **None has been published.**
+**Installer evidence.** The unsigned Windows NSIS and macOS DMG builds come from run 41976839962. The source SHA is bound in `package-manifest.json`, and the release workflow checks it. The Windows release runs above install, launch, use and uninstall that build. The macOS app was launched and used natively, but installing from the DMG was not exercised. Neither is signed or notarized. **None has been published.**
 
 **Accuracy limits.** Those figures are clean, read public speech with the smallest model. They say nothing about clinical speech. Arabic at 65% word error is not useful for dictation with this model.
 
