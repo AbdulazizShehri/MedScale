@@ -1364,13 +1364,34 @@ pub fn save_asr_pack(vault_root: &Path, dir: &str) -> CmdResult<()> {
         .map_err(|_| CmdError::unavailable("Unavailable: audio pack record not writable"))
 }
 
+/// Whether this build admits a Pack from any folder. Test builds only: a Pack
+/// signature doesn't prove who made it, so a packaged build uses only the
+/// models it downloaded and verified against pinned digests.
+pub const EXTERNAL_PACKS_ALLOWED: bool = cfg!(any(test, feature = "external-packs"));
+
+/// Whether a Pack folder may be admitted: inside MedScale's own model folder,
+/// after resolving links, unless external Packs are allowed.
+pub fn pack_dir_allowed(dir: &Path, data_dir: &Path, allow_external: bool) -> bool {
+    if allow_external {
+        return true;
+    }
+    match (
+        dir.canonicalize(),
+        data_dir.join("audio-models").canonicalize(),
+    ) {
+        (Ok(dir), Ok(models)) => dir != models && dir.starts_with(models),
+        _ => false,
+    }
+}
+
 /// Reinstalls the remembered Audio Pack engine after the vault opens, so
 /// local speech recognition resumes after a restart. Core's Pack registry is
 /// per session, so the folder is admitted again first (Core re-verifies the
 /// manifest, digests and signature); a failure leaves the route unavailable.
-fn restore_asr(workspace: &mut Workspace) {
+fn restore_asr(workspace: &mut Workspace, data_dir: &Path) {
     if let Some(dir) = load_asr_pack(&workspace.vault_root)
         && is_local_absolute(Path::new(&dir))
+        && pack_dir_allowed(Path::new(&dir), data_dir, EXTERNAL_PACKS_ALLOWED)
         && workspace
             .session
             .packs_install_local(&dir)
@@ -1609,7 +1630,7 @@ pub fn open_synthetic(state: &mut State) -> CmdResult<bool> {
     };
     seed_synthetic(&mut workspace, &data_dir)?;
     crash_point("after_commit");
-    restore_asr(&mut workspace);
+    restore_asr(&mut workspace, &data_dir);
     state.workspace = Some(workspace);
     Ok(recovered)
 }

@@ -215,7 +215,7 @@ export function Access({ onBack }: { onBack: () => void }) {
                     <input id="pp" type={show ? "text" : "password"} value={pass} onChange={(e) => setPass(e.target.value)} autoComplete={useCode ? "off" : mode === "unlock" ? "current-password" : "new-password"} aria-invalid={error?.kind === "invalid" || error?.kind === "denied"} style={{ flex: 1, height: 40 }} autoFocus />
                     <button type="button" className="btn btn-g" onClick={() => setShow((s) => !s)}>{show ? "Hide" : "Show"}</button>
                   </div>
-                  <span className="t-sm i3" style={{ display: "block", marginTop: 6 }}>{useCode ? "A code from when this vault was created. It opens the vault and stays valid; the passphrase cannot be changed in this version." : "8–256 characters. Held in memory only while the vault is open."}</span>
+                  <span className="t-sm i3" style={{ display: "block", marginTop: 6 }}>{useCode ? "A code from when this vault was created. It opens the vault and stays valid; the passphrase cannot be changed in this version." : "8–256 characters. MedScale can't recover it, so keep it somewhere safe."}</span>
                   {mode === "unlock" && <button type="button" className="link t-sm" style={{ marginTop: 6 }} onClick={() => { setUseCode((c) => !c); setPass(""); setError(null); }}>{useCode ? "Use my passphrase" : "Use a recovery code"}</button>}
                 </div>
                 {mode === "create" && (

@@ -14,7 +14,10 @@ build = "build.rs"
 custom-protocol = ["tauri/custom-protocol"]
 # Test-only: lets Edge WebDriver attach for desktop E2E (disables InPrivate).
 # Never enabled for packaged builds.
-e2e-webdriver = []
+e2e-webdriver = ["external-packs"]
+# Test-only: admits model Packs from any folder. Pack signatures have no real
+# trust root yet, so packaged builds only install verified downloads.
+external-packs = []
 
 [dependencies]
 rusqlite = { version = "=0.37.0" }

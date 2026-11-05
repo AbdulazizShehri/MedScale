@@ -64,7 +64,8 @@ pub use r_workspace::{R_WORKSPACE_TABLES, RPublishedTableRow};
 pub use research_packs::{PackChange, RESEARCH_PACK_TABLES};
 pub use sealed_blob::{SealedBlobError, SealedBlobStore};
 pub use sqlite_meta::{
-    AuthorityObjectRow, MetaError, SourceMeta, SqliteMetaStore, WorkDatabaseCheck,
+    AuthorityObjectRow, ENCRYPTED_VAULT_AUDIO_BUDGET_BYTES, MetaError, SourceMeta, SqliteMetaStore,
+    WorkDatabaseCheck,
 };
 pub use vault::{SyntheticVault, VaultError};
 pub use writer_lock::{WriterLock, WriterLockError};

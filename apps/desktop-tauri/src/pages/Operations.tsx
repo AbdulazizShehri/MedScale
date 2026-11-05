@@ -189,6 +189,9 @@ type TranscribeResult = { decision: { outcome: string; reason?: string | null };
 type AudioDraftNote = { sections: Record<string, Array<{ text: string; segment_seq: number; start_ms: number; end_ms: number }>>; segments_evaluated: number; note: string };
 
 function AudioBody({ projectId }: { projectId: string }) {
+  const desktop = useCommand<{ workspace: { kind: string } | null; external_packs_allowed: boolean }>("workspace_status");
+  const externalPacks = desktop.state.status === "ready" && desktop.state.data.external_packs_allowed;
+  const plaintextWorkspace = desktop.state.status === "ready" && desktop.state.data.workspace?.kind === "synthetic";
   const o = useCommand<AudioVm>("audio_overview", { projectId });
   const asr = useCommand<AsrStatus>("audio_asr_status");
   const availableModels = useCommand<AudioModel[]>("audio_model_catalog");
@@ -421,25 +424,26 @@ function AudioBody({ projectId }: { projectId: string }) {
               {downloadStatus.message ? ` ${downloadStatus.message}` : ""}
               {downloadStatus.state === "ready" ? " Verified Pack is ready for Core activation." : ""}
             </div>}
-            <p className="t-sm i3">Already have an Audio Pack from a source you trust? Select its folder below to admit it offline. MedScale checks the Pack's internal digests, which do not prove who made it. Downloads remain local, and only the dedicated in-progress cache is deleted on cancellation.</p>
+            {externalPacks && <p className="t-sm i3">Already have an Audio Pack from a source you trust? Select its folder below to admit it offline. MedScale checks the Pack's internal digests, which do not prove who made it. Downloads remain local, and only the dedicated in-progress cache is deleted on cancellation.</p>}
           </div>
         )}
       </Section>
       <Section title="Local speech recognition" count={local?.available ? "on" : "off"}>
+        {plaintextWorkspace && <p className="t-sm i3" style={{ marginBottom: 8 }}>The sample workspace isn&apos;t encrypted. Recordings and transcripts you import here are stored unencrypted on this computer, and they can stay in its files after you remove them. Use an encrypted vault for anything you want protected.</p>}
         <LoadError cmd={asr} />
         <div className="row-gap" style={{ gap: 10, marginBottom: 8 }}>
           <Status kind={local?.available ? "available" : "unavailable"} weight="strong">{local?.available ? "Local Whisper engine installed" : (local?.reason ?? (asr.state.status === "error" ? "Status unavailable" : "Not installed"))}</Status>
           {asr.state.status === "ready" && asr.state.data.asr_pack_dir && <span className="mono t-mono-sm i3 trunc">{asr.state.data.asr_pack_dir}</span>}
         </div>
         <div className="grid-2">
-          <form onSubmit={admitPack} className="stack" style={{ gap: 6 }}>
+          {externalPacks && <form onSubmit={admitPack} className="stack" style={{ gap: 6 }}>
             <label className="lbl" htmlFor="ap1">Admit an Audio Pack folder</label>
             <input id="ap1" value={packPath} maxLength={1024} placeholder="Absolute folder path" onChange={(e) => setPackPath(e.target.value)} />
             <div className="row-gap" style={{ gap: 8 }}>
               <button type="button" className="btn btn-g" onClick={browsePack} disabled={!!pending || !!choosing}>Browse folder…</button>
               <button type="submit" className="btn btn-s" disabled={!packPath.trim() || !!pending || !!choosing}>Admit and install</button>
             </div>
-          </form>
+          </form>}
           <form onSubmit={importWav} className="stack" style={{ gap: 6 }}>
             <label className="lbl" htmlFor="wp1">Import a WAV recording</label>
             <input id="wp1" value={wavPath} maxLength={1024} placeholder="Absolute .wav path (16 kHz, 16-bit PCM, up to 32 MiB)" onChange={(e) => setWavPath(e.target.value)} />
@@ -461,9 +465,10 @@ function AudioBody({ projectId }: { projectId: string }) {
           Transcription language
           <select aria-label="Transcription language" value={language} onChange={(e) => setLanguage(e.target.value as "en" | "ar")}>
             <option value="en">English</option>
-            <option value="ar">Arabic (requires multilingual Audio Pack)</option>
+            <option value="ar">Arabic, experimental (needs a multilingual model)</option>
           </select>
         </label>
+        {language === "ar" && <p className="t-sm i3" role="status">Arabic is experimental. On 24 public read-speech clips, Whisper Tiny got about 65% of words wrong and Whisper Base about 46%. Check every line against the recording.</p>}
         <label className="row-gap t-sm" style={{ gap: 6, marginBottom: 8 }}>
           <input type="checkbox" checked={diarize} onChange={(e) => setDiarize(e.target.checked)} />
           Group speakers (acoustic clustering, unvalidated; labels are never identity)
