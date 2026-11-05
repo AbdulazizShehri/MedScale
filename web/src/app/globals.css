@@ -74,6 +74,8 @@ button { font: inherit; color: inherit; }
 .skip-link { position: absolute; left: 12px; top: -48px; z-index: 100; display: inline-flex; align-items: center; min-height: 44px; padding: 0 16px; border-radius: var(--r-2); background: var(--ink); color: var(--bg); font-weight: 500; font-size: 14px; }
 .skip-link:focus { top: 12px; }
 .mono { font-family: var(--font-mono); }
+/* cv11 and ss01 are Inter's. They must not reach the display face. */
+.display, .h2, .h3, .prose h2, .platform h3, .install-card h3 { font-feature-settings: normal; }
 
 /* ---------- Type ---------- */
 /* Sizes: 12 13 14 15 17 19 20 24, then the headline sizes. Weights: 400 500 600. */
@@ -100,7 +102,8 @@ button { font: inherit; color: inherit; }
 .h2-xs { font-size: 24px; line-height: 1.25; letter-spacing: -0.02em; }
 .stack { display: grid; gap: var(--stack); align-content: start; justify-items: start; }
 .stack > * { max-width: 100%; }
-.stack-lg { display: grid; gap: var(--stack-lg); }
+.stack-lg { display: grid; grid-template-columns: minmax(0, 1fr); gap: var(--stack-lg); }
+.stack-lg > .body { max-width: var(--span-7); overflow-wrap: anywhere; }
 .h3 { margin: 0; font-family: var(--font-display); font-size: 20px; line-height: 1.3; font-weight: 600; letter-spacing: -0.015em; }
 .mute { color: var(--ink-3); }
 .lede { margin: 0; color: var(--ink-2); font-size: clamp(17px, 1.6vw, 19px); line-height: 1.55; max-width: var(--measure); text-wrap: pretty; }
@@ -350,8 +353,9 @@ a:hover > .arrow, button:hover > .arrow { transform: translateX(2px); }
 .platform-state { display: inline-flex; align-items: center; gap: 8px; font-size: 13px; line-height: 1.4; color: var(--ink-2); width: fit-content; }
 .platform-state::before { content: ""; width: 6px; height: 6px; border-radius: 50%; background: var(--orange); }
 .platform-note { margin: 0; color: var(--ink-3); font-size: 14px; line-height: 1.55; }
-/* Installer labels are long, so they wrap inside the button instead of overflowing the card. */
-.platform .btn { width: 100%; height: auto; min-height: 44px; padding: 10px 20px; white-space: normal; text-align: center; line-height: 1.3; }
+/* Installer labels are long, so they wrap inside the button instead of overflowing the card.
+   The button comes last in every card, so buttons line up even when one card shows a hash. */
+.platform .btn { order: 1; width: 100%; height: auto; min-height: 44px; padding: 10px 20px; white-space: normal; text-align: center; line-height: 1.3; }
 .platform-state[data-available="true"]::before { background: var(--blue); }
 .platform-hash { display: grid; gap: 4px; font-size: 12px; color: var(--ink-3); min-width: 0; }
 .platform-hash code { font-family: var(--font-mono); overflow-wrap: anywhere; color: var(--ink-2); }
@@ -413,7 +417,17 @@ a.card:hover { border-color: var(--line-3); }
 .notice p { margin: 0; color: var(--ink-2); font-size: 14px; line-height: 1.6; }
 .notice .text-link { font-size: 14px; }
 .table-wrap { overflow-x: auto; border: 1px solid var(--panel-line); border-radius: var(--r-3); }
-table { width: 100%; border-collapse: collapse; font-size: 14px; line-height: 1.55; min-width: 560px; }
+table { width: 100%; table-layout: fixed; border-collapse: collapse; font-size: 14px; line-height: 1.55; min-width: 560px; }
+/* Column text lands on grid lines: a cell N columns wide starts its text one panel
+   padding in, so the first cell gives that padding back. Table cells ignore calc()
+   with percentages, so these use container units. */
+@media (min-width: 721px) {
+  .table-wrap { container-type: inline-size; --tcol: calc((100cqw - 11 * var(--gap)) / 12); }
+  th:first-child { width: calc(3 * var(--tcol) + 3 * var(--gap) - var(--pad)); }
+  .table-cols-4 th:nth-child(2), .table-cols-4 th:nth-child(3) { width: calc(2 * var(--tcol) + 2 * var(--gap)); }
+  .table-cols-3 th:nth-child(2) { width: calc(4 * var(--tcol) + 4 * var(--gap)); }
+}
+@media (max-width: 720px) { th:first-child { width: 28%; } }
 th, td { text-align: left; padding: 14px var(--pad); border-bottom: 1px solid var(--line); vertical-align: top; }
 th { color: var(--ink-3); font-family: var(--font-mono); font-size: 12px; font-weight: 400; letter-spacing: 0.04em; text-transform: uppercase; background: var(--bg-1); }
 td { color: var(--ink-2); }

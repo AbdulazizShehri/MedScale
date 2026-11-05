@@ -56,7 +56,7 @@ export default function Download() {
           <div className="section-head"><h2 id="status-title" className="h2 h2-sm"><span className="mute">Release status,</span> plainly.</h2></div>
           <div className="stack-lg">
           <div className="table-wrap" role="region" aria-label="Scrollable table" tabIndex={0}>
-            <table>
+            <table className="table-cols-4">
               <thead><tr><th scope="col">Platform</th><th scope="col">Surface</th><th scope="col">Today</th><th scope="col">Packaging</th></tr></thead>
               <tbody>{status.map((r) => <tr key={r[0]}>{r.map((c, i) => <td key={i}>{c}</td>)}</tr>)}</tbody>
             </table>

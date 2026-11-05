@@ -26,7 +26,7 @@ export default function Models() {
             <h2 className="h2 h2-sm"><span className="mute">Four states,</span> always visible.</h2>
           </div>
           <div className="table-wrap" role="region" aria-label="Scrollable table" tabIndex={0}>
-            <table>
+            <table className="table-cols-3">
               <thead><tr><th scope="col">State</th><th scope="col">What it means</th><th scope="col">What it does not mean</th></tr></thead>
               <tbody>{states.map(([s, m, n]) => <tr key={s}><td>{s}</td><td>{m}</td><td>{n}</td></tr>)}</tbody>
             </table>
