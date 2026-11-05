@@ -38,7 +38,7 @@ type PrivacyVm = {
 };
 
 export function Privacy() {
-  return <ProjectScope title="Privacy" sub="Data classes, transform receipts and egress decisions. Every boundary crossing is evaluated, never assumed.">{(pid) => <PrivacyBody projectId={pid} />}</ProjectScope>;
+  return <ProjectScope title="Privacy" sub="What kinds of data exist here, how they were transformed, and what may leave. Every crossing is checked, never assumed.">{(pid) => <PrivacyBody projectId={pid} />}</ProjectScope>;
 }
 
 function PrivacyBody({ projectId }: { projectId: string }) {
@@ -54,7 +54,7 @@ function PrivacyBody({ projectId }: { projectId: string }) {
   const v = o.state.data;
   return (
     <>
-      <Section n="01" title="Check egress" count="Core evaluates; Desktop only asks">
+      <Section title="Check whether data can leave" count="Core decides">
         <form onSubmit={check} className="field-row">
           <select value={artifact} onChange={(e) => setArtifact(e.target.value)} aria-label="Artifact" style={{ flex: 1 }}>
             <option value="">Choose an ingested source…</option>
@@ -64,16 +64,16 @@ function PrivacyBody({ projectId }: { projectId: string }) {
           <button type="submit" className="btn btn-s" disabled={!artifact || !!pending}>Evaluate</button>
         </form>
       </Section>
-      <Section n="02" title="Decisions" count={v.decisions.length}>
+      <Section title="Decisions" count={v.decisions.length}>
         {v.decisions.length ? <table className="tb"><thead><tr><th style={{ width: "34%" }}>Artifact</th><th style={{ width: "14%" }}>Boundary</th><th style={{ width: "16%" }}>Outcome</th><th>Reason</th></tr></thead><tbody>{v.decisions.map((d, i) => <tr key={i}><td><span className="mono t-mono-sm trunc">{d.artifact_id}</span></td><td className="t-sm">{d.boundary}</td><td><Status kind={glyphFor(d.outcome)} weight="strong">{d.outcome}</Status></td><td className="t-sm i2"><span>{d.reason}</span></td></tr>)}</tbody></table> : <p className="t-sm i3">No egress decisions recorded.</p>}
       </Section>
-      <Section n="03" title="Classifications" count={v.classifications.length}>
+      <Section title="Classifications" count={v.classifications.length}>
         {v.classifications.length ? v.classifications.map((c) => <div key={c.artifact_id} className="lr" style={{ gridTemplateColumns: "minmax(0,1fr) 160px minmax(0,1fr)" }}><span className="mono t-mono-sm trunc">{c.artifact_id}</span><span className="t-sm">{c.data_class}</span><span className="t-sm i3 trunc">{c.basis}</span></div>) : <p className="t-sm i3">No artifacts classified in this project.</p>}
       </Section>
-      <Section n="04" title="Transform receipts" count={v.receipts.length}>
+      <Section title="Transform receipts" count={v.receipts.length}>
         {v.receipts.length ? v.receipts.map((r) => <div key={r.id} className="lr" style={{ gridTemplateColumns: "minmax(0,1fr) 120px minmax(0,1fr)" }}><span className="mono t-mono-sm trunc">{r.id}</span><Status kind={glyphFor(r.status)}>{r.status}</Status><span className="t-sm i3 trunc">{r.residual}</span></div>) : <p className="t-sm i3">No pseudonymization receipts.</p>}
       </Section>
-      <Authority>Default deny. A positive decision covers one artifact at one boundary; it is not a standing permission.</Authority>
+      <Authority>Nothing leaves by default. A yes covers one item at one boundary, and is not a standing permission.</Authority>
     </>
   );
 }
@@ -83,7 +83,7 @@ export function AuditTrail() {
   const { state, reload } = useGov();
   return (
     <div className="pane">
-      <PageHead title="Audit Trail" sub="Disclosure history recorded by Core. Nothing here is editable." />
+      <PageHead title="Audit Trail" sub="Every disclosure, recorded by Core. Nothing here can be edited." />
       {state.status === "loading" && <Skeleton />}
       {state.status === "error" && <ErrorState error={state.error} onRetry={reload} />}
       {state.status === "ready" && <>

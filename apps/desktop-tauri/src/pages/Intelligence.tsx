@@ -25,12 +25,15 @@ export function Models() {
   return (
     <>
       <div className="pane">
-        <PageHead title="Models" sub="Operator-session Pack status, separate workspace evaluation, and model qualification references.">
+        <PageHead title="Models" sub="Model packs admitted in this session, a catalog to browse, and a way to try a model on synthetic text.">
           <button type="button" className="btn btn-s" onClick={admit} disabled={!!pending}>{pending ? <Glyph kind="running" /> : null}Admit synthetic fixture pack</button>
         </PageHead>
-        <Ledger items={[{ k: "runtime", v: v.model_runtime_summary }, { k: "source", v: v.model_source_summary }, { k: "inventory", v: v.model_inventory_summary }]} />
+        <details className="access-details audio-technical">
+          <summary>How models are governed</summary>
+          <div style={{ marginTop: 12 }}><Ledger items={[{ k: "runtime", v: v.model_runtime_summary }, { k: "source", v: v.model_source_summary }, { k: "inventory", v: v.model_inventory_summary }]} /></div>
+        </details>
         <div className="tabs" role="tablist" style={{ marginBottom: 14 }}>
-          <button type="button" role="tab" aria-selected={tab === "packs"} className={`tab ${tab === "packs" ? "on" : ""}`} onClick={() => setTab("packs")}>Pack status</button>
+          <button type="button" role="tab" aria-selected={tab === "packs"} className={`tab ${tab === "packs" ? "on" : ""}`} onClick={() => setTab("packs")}>Admitted packs</button>
           <button type="button" role="tab" aria-selected={tab === "catalog"} className={`tab ${tab === "catalog" ? "on" : ""}`} onClick={() => setTab("catalog")}>MedScale Catalog</button>
           <button type="button" role="tab" aria-selected={tab === "evaluate"} className={`tab ${tab === "evaluate" ? "on" : ""}`} onClick={() => setTab("evaluate")}>Try a model</button>
         </div>
@@ -47,9 +50,9 @@ export function Models() {
         ) : <Empty icon="models" title="No admitted packs">Admit the bundled synthetic ONNX fixture pack. Core verifies its manifest, digests and signature before admission.</Empty>)}
         {tab === "catalog" && <CatalogTab />}
         {tab === "evaluate" && <EvaluateTab />}
-        <Section n="02" title="How model output is treated">
+        <Section title="How model output is treated">
           <div className="grid-2">
-            <Notice kind="proposal" title="Proposal.">Every output stays an outline-triangle proposal. Desktop has no step that accepts one into a record.</Notice>
+            <Notice kind="proposal" title="Proposal.">Every output stays a proposal, marked with an outlined triangle. MedScale has no step that accepts one into a record.</Notice>
             <Notice kind="unknown" title="Confidence.">Shown only when the task defines it. Raw logits are never presented as probability.</Notice>
           </div>
           <p className="t-sm i3" style={{ marginTop: 10 }}>{v.model_runtime_boundary}</p>
@@ -61,7 +64,7 @@ export function Models() {
             <div><div className="mono" style={{ fontSize: 13.5, fontWeight: 500 }}>{m.model}</div><div className="row-gap" style={{ gap: 14, marginTop: 8 }}><Status kind={/candidate/i.test(m.state) ? "proposal" : glyphFor(m.state)}>{m.state}</Status><Status kind={/synthetic/i.test(m.source) ? "synthetic" : "available"}>{m.source}</Status></div></div>
             <Section title="Identity"><KV keyWidth={96} rows={[["task", m.task], ["runtime", <span className="mono t-mono-sm">{m.runtime}</span>], ["device", m.device], ["trust", m.trust], ["digest", <span className="mono-break">{m.digest}</span>]]} /></Section>
             <Section title="Evidence"><p className="t-sm i2">{m.benchmark}</p></Section>
-            <Authority>Admission is not promotion. Promoting a pack to a task requires an explicit gate that this desktop does not grant.</Authority>
+            <Authority>Admitting a pack doesn't promote it. Promotion to a task needs an explicit gate that this desktop doesn't grant.</Authority>
           </div>
         </aside>
       )}
@@ -191,7 +194,7 @@ type Run = { id: string; status: string; revision: number; prompt: string };
 type Turn = { seq: number; kind: string; payload: string };
 
 export function MedAgent() {
-  return <ProjectScope title="MedAgent" sub="Named agents on admitted local Packs, with contexts bound to chosen sources. Output is a proposal.">{(pid) => <MedAgentBody projectId={pid} />}</ProjectScope>;
+  return <ProjectScope title="MedAgent" sub="Agents that run on local model packs you admit, reading only the sources you choose. Output is a proposal.">{(pid) => <MedAgentBody projectId={pid} />}</ProjectScope>;
 }
 
 type Agent = { id: string; label: string; status: string; revision?: number; pack_id?: string; tools?: string[] };

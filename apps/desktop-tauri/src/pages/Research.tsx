@@ -237,7 +237,7 @@ function AnalyticsBody({ projectId }: { projectId: string }) {
 
 /* ───────────────────────────── Knowledge ───────────────────────────── */
 export function Knowledge() {
-  return <ProjectScope title="Knowledge" sub="A local index over this project's sources, with search receipts and canvases.">{(pid) => <KnowledgeBody projectId={pid} />}</ProjectScope>;
+  return <ProjectScope title="Knowledge" sub="Search this project's sources with a local index. Every search leaves a receipt.">{(pid) => <KnowledgeBody projectId={pid} />}</ProjectScope>;
 }
 
 function KnowledgeBody({ projectId }: { projectId: string }) {
