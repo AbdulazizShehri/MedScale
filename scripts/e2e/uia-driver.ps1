@@ -70,6 +70,22 @@ while ($null -ne ($line = [Console]::In.ReadLine())) {
                 if (-not $e.TryGetCurrentPattern([System.Windows.Automation.TogglePattern]::Pattern, [ref]$p)) { throw 'no toggle pattern' }
                 $reply.checked = $p.Current.ToggleState -eq [System.Windows.Automation.ToggleState]::On
             }
+            'shape' {
+                # Counts by control type only, so it's always safe to print.
+                $counts = @{}
+                foreach ($e in $script:window.FindAll($scope::Descendants, $cond)) {
+                    $t = $e.Current.ControlType.ProgrammaticName
+                    $counts[$t] = 1 + [int]$counts[$t]
+                }
+                $reply.shape = $counts
+            }
+            'wake' {
+                # Chromium can drop its accessibility tree; focus and a fresh
+                # lookup of the window ask it to build one again.
+                $script:window = Find-Window $c.pid
+                if ($null -ne $script:window) { $script:window.SetFocus() }
+                $reply.found = $null -ne $script:window
+            }
             'text' {
                 $names = New-Object System.Collections.Generic.List[string]
                 foreach ($e in $script:window.FindAll($scope::Descendants, $cond)) {

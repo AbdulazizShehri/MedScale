@@ -68,9 +68,11 @@ const control = (name) => ({ kind: "Button", name });
 /** Waits for a control that can be used. */
 async function find(c, timeout = 30000) {
   const end = Date.now() + timeout;
+  let tries = 0;
   while (Date.now() < end) {
     const r = await driver.send({ op: "exists", ...c });
     if (r.ok && r.found && r.enabled) return;
+    if (++tries % 15 === 0) await driver.send({ op: "wake", pid: child.pid });
     await sleep(300);
   }
   throw new Error(`not found: ${describe(c)}`);
@@ -170,6 +172,7 @@ async function step(name, fn) {
   } catch (error) {
     report.steps.push({ name, result: "FAIL", seconds: Math.round((Date.now() - started) / 1000) });
     console.log(`STEP ${name} FAIL: ${String(error.message).slice(0, 300)}`);
+    if (driver) console.log(`SHAPE: ${JSON.stringify((await driver.send({ op: "shape" }).catch(() => ({}))).shape ?? {})}`);
     if (pageIsLoggable && driver) console.log(`PAGE: ${String(await pageText().catch(() => "")).slice(0, 1500)}`);
     throw error;
   }
