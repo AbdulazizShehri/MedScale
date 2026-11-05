@@ -20,7 +20,6 @@ export function Quickstart() {
   return (
     <div className="terminal">
       <div className="terminal-bar">
-        <span aria-hidden="true"><i /><i /><i /></span>
         <span>Rust 1.97 · Windows, macOS, Linux</span>
         <button type="button" className="copy-btn" onClick={copy} aria-live="polite">{copied ? "Copied" : "Copy"}</button>
       </div>
