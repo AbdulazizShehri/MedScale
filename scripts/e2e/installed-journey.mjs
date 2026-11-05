@@ -99,6 +99,8 @@ async function pageNames() {
 }
 const pageText = async () => (await pageNames()).join("\n");
 
+// The accessibility tree splits adjacent text nodes, and pageText puts a line
+// break between them, so a pattern spanning nodes needs \\s rather than a space.
 async function waitForText(pattern, timeout = 60000) {
   const test = typeof pattern === "string" ? (s) => s.includes(pattern) : (s) => pattern.test(s);
   const end = Date.now() + timeout;
@@ -253,7 +255,7 @@ async function main() {
     pwsh("Clear-DnsClientCache");
     try {
       await checkAndApproveDownload();
-      await waitForText(/Model download: (failed|error|cancelled)/i, 120000);
+      await waitForText(/Model download:\s*(failed|error|cancelled)/i, 120000);
     } finally {
       fs.writeFileSync(hostsFile, originalHosts);
       pwsh("Clear-DnsClientCache");
@@ -261,7 +263,7 @@ async function main() {
   });
   await step("kill-during-download-recovers", async () => {
     await checkAndApproveDownload();
-    await waitForText(/Model download: downloading/, 60000);
+    await waitForText(/Model download:\s*downloading/, 60000);
     await sleep(1500);
     await kill();
     await launch(installed.exe);
@@ -272,7 +274,7 @@ async function main() {
   });
   await step("consented-model-download", async () => {
     await checkAndApproveDownload();
-    await waitForText(/Model download: ready\./, 420000);
+    await waitForText(/Model download:\s*ready/, 420000);
     await waitForText("Local Whisper engine installed", 180000);
   });
   await step("real-speech-transcribed", async () => {
