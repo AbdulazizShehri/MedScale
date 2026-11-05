@@ -87,7 +87,8 @@ for (const f of scripts) {
   const body = read(f);
   check(!/api\.github\.com|releases\/latest/i.test(body), `${rel}: depends on a mutable release lookup`);
   for (const [href] of body.matchAll(/https:\/\/[A-Za-z0-9.-]+\/[^\s"'`\\<>]*\/releases\/download\/[^\s"'`\\<>]*/g)) {
-    check(allowedAssets.has(href), `${rel}: names an unapproved release asset ${href}`);
+    // The compiled releaseAssetUrl template is code, not a link.
+    if (!href.includes("${")) check(allowedAssets.has(href), `${rel}: names an unapproved release asset ${href}`);
   }
 }
 
