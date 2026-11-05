@@ -41,6 +41,20 @@ quit_app() {
   return 1
 }
 
+# Through LaunchServices as a person would. If `open` stalls, say so and run the
+# app's executable, so a stall there doesn't hide whether the app itself starts.
+start_app() {
+  local code=0
+  bounded 45 open "$app" >/dev/null 2>&1 || code=$?
+  say "OPEN_EXIT=$code"
+  if [ "$(process_count)" = "0" ]; then
+    say "LAUNCH_METHOD=executable"
+    "$app/Contents/MacOS/$(defaults read "$app/Contents/Info" CFBundleExecutable)" >/dev/null 2>&1 &
+  else
+    say "LAUNCH_METHOD=open"
+  fi
+}
+
 [ ! -e "$app" ] || { say "APP_ALREADY_PRESENT"; exit 1; }
 [ ! -e "$data" ] || { say "APP_DATA_ALREADY_PRESENT"; exit 1; }
 
@@ -81,13 +95,13 @@ sleep 3
 
 # The per-app approval: clears quarantine from this app only.
 xattr -dr com.apple.quarantine "$app"
-bounded 60 open "$app"
+start_app
 if wait_for_window; then say "LAUNCH_FROM_APPLICATIONS=PASS"; else say "LAUNCH_FROM_APPLICATIONS=FAIL"; exit 1; fi
 sleep 5
 [ "$(process_count)" != "0" ] && say "ALIVE_AFTER_LAUNCH=PASS" || { say "ALIVE_AFTER_LAUNCH=FAIL"; exit 1; }
 
 quit_app && say "QUIT=PASS" || { say "QUIT=FAIL"; exit 1; }
-bounded 60 open "$app"
+start_app
 if wait_for_window; then say "REOPEN=PASS"; else say "REOPEN=FAIL"; exit 1; fi
 quit_app || pkill -f "$app/Contents/MacOS/" || true
 
