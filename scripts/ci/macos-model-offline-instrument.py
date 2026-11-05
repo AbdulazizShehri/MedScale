@@ -65,3 +65,4 @@ body = body.replace(anchor, fault + anchor, 1)
 body = body.replace(cache_anchor, cache_anchor + probe, 1)
 source.write_text(body.replace(run_anchor, run_anchor + stage_fixture, 1))
 print("MAC_NATIVE_OFFLINE_FAULT_INSTRUMENTED: no HTTP, synthetic partial stage, preserved unrelated sentinel, exact cache-root proof")
+# Touched only to re-run this qualification on main@80c937a; this PR is never merged.

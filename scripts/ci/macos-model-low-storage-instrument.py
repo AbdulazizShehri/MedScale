@@ -52,3 +52,4 @@ trap = '''    if std::env::var("MEDSCALE_MAC_E2E_FORCE_LOW_SPACE").as_deref() ==
 '''
 source.write_text(body.replace(acquire, trap + acquire, 1))
 print("MAC_NATIVE_LOW_SPACE_INSTRUMENTED: zero-byte budget and no-network acquisition trap")
+# Touched only to re-run this qualification on main@80c937a; this PR is never merged.

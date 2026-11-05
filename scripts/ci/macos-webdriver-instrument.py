@@ -35,3 +35,5 @@ src = src.replace(anchor, """    let builder = tauri::Builder::default().plugin(
 """)
 main.write_text(src)
 print("MAC_WEBDRIVER_INSTRUMENTED: feature gated; no production permissions changed")
+
+# Touched only to re-run the macOS native qualifications on main@80c937a; this PR is never merged.
