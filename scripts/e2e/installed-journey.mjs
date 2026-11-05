@@ -15,7 +15,8 @@ import readline from "node:readline";
 
 const [installer, manifestPath, reportPath] = process.argv.slice(2);
 const wavPath = process.env.MEDSCALE_E2E_REAL_WAV_PATH;
-if (!installer || !manifestPath || !reportPath || !wavPath) throw new Error("usage: installed-journey.mjs <installer> <package-manifest> <report> with MEDSCALE_E2E_REAL_WAV_PATH");
+const referencePath = process.env.MEDSCALE_E2E_REAL_WAV_REFERENCE;
+if (!installer || !manifestPath || !reportPath || !wavPath || !referencePath) throw new Error("usage: installed-journey.mjs <installer> <package-manifest> <report> with MEDSCALE_E2E_REAL_WAV_PATH and MEDSCALE_E2E_REAL_WAV_REFERENCE");
 if (process.env.GITHUB_ACTIONS !== "true" || process.env.RUNNER_ENVIRONMENT !== "github-hosted") throw new Error("disposable GitHub-hosted runner required");
 
 const IDENTIFIER = "org.medscale.desktop.preview";
@@ -276,6 +277,11 @@ async function main() {
     await checkAndApproveDownload();
     await waitForText(/Model download:\s*ready/, 420000);
     await waitForText("Local Whisper engine installed", 180000);
+    // The download really happened: the weights are on disk at their real size.
+    const weights = findFile(path.join(appData, "audio-models"), "model.safetensors");
+    if (!weights) throw new Error("no model weights on disk");
+    report.model_weights_bytes = fs.statSync(weights).size;
+    if (report.model_weights_bytes < 50 * 1024 * 1024) throw new Error("the model weights are too small to be real");
   });
   await step("real-speech-transcribed", async () => {
     pageIsLoggable = false;
@@ -289,9 +295,14 @@ async function main() {
     // Real speech yields new sentences on the page. Counted, never printed.
     const after = await pageNames();
     if (after.some((n) => n.includes("(untranscribed)") || n.includes("[fixture"))) throw new Error("the transcript is a placeholder");
-    const spoken = after.filter((n) => !before.has(n) && /[a-z]+ [a-z]+ [a-z]+/i.test(n) && n !== "Transcription recorded");
-    report.new_transcript_lines = spoken.length;
-    if (spoken.length === 0) throw new Error("no transcript text appeared");
+    const added = after.filter((n) => !before.has(n));
+    // Against the public reference: a score goes in the report, never the words.
+    const heard = new Set(words(added.join(" ")));
+    const reference = words(fs.readFileSync(referencePath, "utf8"));
+    const recall = reference.filter((w) => heard.has(w)).length / reference.length;
+    report.reference_word_count = reference.length;
+    report.reference_word_recall = Number(recall.toFixed(3));
+    if (recall < 0.6) throw new Error(`transcript matches only ${report.reference_word_recall} of the reference words`);
   });
   await step("close-reopen-keeps-transcript-and-model", async () => {
     await closeWindow();
@@ -351,6 +362,8 @@ async function unlock() {
   await click(button("Unlock workspace"));
   await find(OPENED, 180000);
 }
+
+const words = (text) => text.toLowerCase().match(/[a-z']+/g) ?? [];
 
 function findFile(root, name) {
   for (const entry of fs.existsSync(root) ? fs.readdirSync(root, { withFileTypes: true }) : []) {

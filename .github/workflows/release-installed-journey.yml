@@ -63,9 +63,11 @@ jobs:
           $hash = (Get-FileHash -LiteralPath $archive -Algorithm MD5).Hash.ToLowerInvariant()
           if ($hash -ne '32fa31d27d2e1cad72775fee3f4849a9' -or (Get-Item $archive).Length -ne 346663984) { throw 'Unverified archive refused' }
           $wav = Join-Path $env:RUNNER_TEMP 'real-human-voice.wav'
-          python scripts/qualification/prepare_librispeech_one_wav.py $archive $wav
+          $reference = Join-Path $env:RUNNER_TEMP 'real-human-voice.txt'
+          python scripts/qualification/prepare_librispeech_one_wav.py $archive $wav $reference
           if ($LASTEXITCODE -ne 0) { throw 'No public speech example' }
           "MEDSCALE_E2E_REAL_WAV_PATH=$wav" | Out-File -Append -FilePath $env:GITHUB_ENV -Encoding utf8
+          "MEDSCALE_E2E_REAL_WAV_REFERENCE=$reference" | Out-File -Append -FilePath $env:GITHUB_ENV -Encoding utf8
       - name: Run the journey on the installed release build
         shell: pwsh
         run: node scripts/e2e/installed-journey.mjs $env:RELEASE_INSTALLER $env:RELEASE_MANIFEST target/installed-journey/windows.json

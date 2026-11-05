@@ -18,12 +18,12 @@ def key(utterance: str) -> str:
     return hashlib.sha256(("medscale-native-audio-v1:" + utterance).encode()).hexdigest()
 
 
-def prepare(archive: Path, destination: Path) -> None:
+def prepare(archive: Path, destination: Path, reference: Path | None = None) -> None:
     if destination.exists():
         raise RuntimeError("refusing overwrite")
     with tarfile.open(archive, "r:gz") as source:
         files = {item.name: item for item in source.getmembers() if item.isfile()}
-        eligible = set()
+        eligible = {}
         for name, item in files.items():
             if not name.endswith(".trans.txt"):
                 continue
@@ -33,7 +33,7 @@ def prepare(archive: Path, destination: Path) -> None:
             for line in text_file.read().decode("utf-8").splitlines():
                 uid, sep, words = line.partition(" ")
                 if sep and 6 <= len(words.split()) <= 22:
-                    eligible.add(uid)
+                    eligible[uid] = words
         candidates = sorted(
             (
                 (key(Path(name).stem), item)
@@ -61,6 +61,8 @@ def prepare(archive: Path, destination: Path) -> None:
                     result.getnchannels(), result.getsampwidth(), result.getframerate()
                 ) == (1, 2, 16_000)
             if valid and 4 <= duration <= 13:
+                if reference is not None:
+                    reference.write_text(eligible[Path(item.name).stem], encoding="utf-8")
                 print("REAL_VOICE_WAV_PREPARED clips=1 origin=LibriSpeech-test-clean license=CC-BY-4.0")
                 return
             destination.unlink(missing_ok=True)
@@ -68,6 +70,6 @@ def prepare(archive: Path, destination: Path) -> None:
 
 
 if __name__ == "__main__":
-    if len(sys.argv) != 3:
-        raise SystemExit("usage: prepare_librispeech_one_wav.py VERIFIED_ARCHIVE WAV_OUTPUT")
-    prepare(Path(sys.argv[1]), Path(sys.argv[2]))
+    if len(sys.argv) not in (3, 4):
+        raise SystemExit("usage: prepare_librispeech_one_wav.py VERIFIED_ARCHIVE WAV_OUTPUT [REFERENCE_OUTPUT]")
+    prepare(Path(sys.argv[1]), Path(sys.argv[2]), Path(sys.argv[3]) if len(sys.argv) == 4 else None)
