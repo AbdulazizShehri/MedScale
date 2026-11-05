@@ -174,6 +174,7 @@ impl SqliteMetaStore {
     pub(crate) fn open_in_memory_placeholder() -> Result<Self, MetaError> {
         Ok(Self {
             conn: Connection::open_in_memory()?,
+            audio_budget: None,
         })
     }
 
