@@ -1,7 +1,6 @@
 import { useApp } from "../lib/app";
 import { useCommand } from "../lib/ipc";
 import { MOD } from "../components/shell";
-import { Mark } from "../components/brand";
 import { ErrorState, Glyph, KV, Section, Skeleton, Stamp, Status } from "../components/ui";
 import { CoverageStrip, COVERAGE } from "./Patients";
 
@@ -51,11 +50,10 @@ export function Home() {
       <div className="pane">
         <div className="page-head">
           <div className="grow">
-            <div className="brand-hero" style={{ marginBottom: 6 }}><Mark height={20} className="mark" /><span className="brand-rule" aria-hidden="true" /></div>
             <h1 className="t-h1">Workspace</h1>
             <p className="ph-sub">What needs a person, what changed, and what this workspace can and cannot assert.</p>
           </div>
-          <button type="button" className="btn btn-g" onClick={openPalette}>Search or run <span className="kbd">{MOD} K</span></button>
+          <button type="button" className="btn btn-s" onClick={openPalette}>Search or run <span className="kbd">{MOD} K</span></button>
         </div>
 
         <Section n="01" title="Needs review" count={loadingQueue ? "…" : queue.length}>
@@ -94,7 +92,7 @@ export function Home() {
       <aside className="inspector" aria-label="Workspace state">
         <div className="ins-pad">
           <Section title="Workspace state">
-            <KV keyWidth={104} rows={[
+            <KV keyWidth={72} rows={[
               ["workspace", <Status kind={ws?.workspace?.kind === "synthetic" ? "synthetic" : "available"} weight="strong">{ws?.workspace?.label ?? "None"}</Status>],
               ["vault", <><span className="mono t-mono-sm">{ws?.workspace?.vault_id}</span><div className="t-sm i3">{ws?.workspace?.kind === "encrypted" ? "Encrypted at rest" : "Synthetic fixtures only"}</div></>],
               ["runtime", <><Status kind={ws?.local_only ? "available" : "unknown"} weight="strong">{ws?.local_only ? "Local" : "Unknown"}</Status><div className="t-sm i3">Core in-process</div></>],

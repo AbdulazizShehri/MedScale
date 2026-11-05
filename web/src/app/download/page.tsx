@@ -23,12 +23,12 @@ export default function Download() {
         <span className="eyebrow">Download</span>
         {publicRelease ? (
           <>
-            <h1 className="display" style={{ fontSize: "clamp(40px, 6vw, 72px)" }}>Get MedScale Beta.<br /><span className="mute">Free and local-first.</span></h1>
+            <h1 className="display display-sub">Get MedScale Beta.<br /><span className="mute">Free and local-first.</span></h1>
             <p className="lede">Download, install and open it. You don&apos;t need an account, an app store or a GitHub login.</p>
           </>
         ) : (
           <>
-            <h1 className="display" style={{ fontSize: "clamp(40px, 6vw, 72px)" }}>Get MedScale.<br /><span className="mute">Start from the source.</span></h1>
+            <h1 className="display display-sub">Get MedScale.<br /><span className="mute">Start from the source.</span></h1>
             <p className="lede">There is no qualified public installer yet. When a release is qualified and approved, this page will offer the right installer for your platform. Until then, every option here is real and links to working instructions.</p>
           </>
         )}
@@ -42,7 +42,7 @@ export default function Download() {
       {publicRelease && <InstallGuide release={publicRelease} />}
       <section className="page-section" aria-labelledby="cli-title">
         <div className="shell dev">
-          <div style={{ display: "grid", gap: 20 }}>
+          <div className="stack">
             <span className="eyebrow">Build from source</span>
             <h2 id="cli-title" className="h2 h2-sm"><span className="mute">The CLI,</span> in four commands.</h2>
             <p className="body">You need Git and the Rust toolchain. On Windows, the vendored OpenSSL build also needs Strawberry Perl. The desktop app adds Node.js and the Tauri prerequisites; its guide has the exact steps.</p>
@@ -52,15 +52,17 @@ export default function Download() {
         </div>
       </section>
       <section className="page-section" aria-labelledby="status-title">
-        <div className="shell stack-lg">
-          <h2 id="status-title" className="h2 h2-sm"><span className="mute">Release status,</span> plainly.</h2>
+        <div className="shell">
+          <div className="section-head"><h2 id="status-title" className="h2 h2-sm"><span className="mute">Release status,</span> plainly.</h2></div>
+          <div className="stack-lg">
           <div className="table-wrap" role="region" aria-label="Scrollable table" tabIndex={0}>
-            <table>
+            <table className="table-cols-4">
               <thead><tr><th scope="col">Platform</th><th scope="col">Surface</th><th scope="col">Today</th><th scope="col">Packaging</th></tr></thead>
               <tbody>{status.map((r) => <tr key={r[0]}>{r.map((c, i) => <td key={i}>{c}</td>)}</tr>)}</tbody>
             </table>
           </div>
-          <div className="notice"><strong>Not a production release</strong><p>{publicRelease ? "MedScale is in Beta." : "Engineering builds are for testing the release process."} Clinical validation and permission to use real patient data are external gates that have not been met. Each installer states its own signing status. <a className="text-link" style={{ fontSize: 14 }} href={docs.qualification}>Read the external gates</a> · <a className="text-link" style={{ fontSize: 14 }} href={docs.releases}>GitHub Releases</a></p></div>
+          <div className="notice"><strong>Not a production release</strong><p>{publicRelease ? "MedScale is in Beta." : "Engineering builds are for testing the release process."} Clinical validation and permission to use real patient data are external gates that have not been met. Each installer states its own signing status. <a className="text-link" href={docs.qualification}>Read the external gates</a> · <a className="text-link" href={docs.releases}>GitHub Releases</a></p></div>
+          </div>
         </div>
       </section>
     </main>

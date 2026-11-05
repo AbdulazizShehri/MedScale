@@ -468,7 +468,7 @@ function AudioBody({ projectId }: { projectId: string }) {
           <input type="checkbox" checked={diarize} onChange={(e) => setDiarize(e.target.checked)} />
           Group speakers (acoustic clustering, unvalidated; labels are never identity)
         </label>
-        {v.sources.length ? v.sources.map((s) => <div key={s.id} className="lr" style={{ gridTemplateColumns: "minmax(0,1fr) minmax(0,1.2fr) 110px auto auto auto auto" }}><span style={{ display: "flex", flexDirection: "column", minWidth: 0 }}><span className="trunc" style={{ fontWeight: 600 }}>{s.label}</span><span className="mono t-mono-sm i3 trunc">{s.id}</span></span><span className="t-sm i3 trunc">{s.kind} · {s.detail}</span><Status kind={glyphFor(s.health)} weight="weak">{s.health}</Status><button type="button" className="btn btn-g" disabled={!!pending} onClick={() => segment(s.id)}>Segment</button><button type="button" className="btn btn-g" disabled={!!pending} onClick={() => inspectStoredData(s.id)}>Stored data</button><button type="button" className="btn btn-g" disabled={!!pending} onClick={() => openTranscript(s.id)}>Open transcript</button><button type="button" className="btn btn-s" disabled={!!pending} onClick={() => transcribe(s.id)}>{pending === `t-${s.id}` ? <Glyph kind="running" /> : null}Transcribe</button></div>) : <p className="t-sm i3">No audio sources in this project.</p>}
+        {v.sources.length ? v.sources.map((s) => <div key={s.id} className="lr lr-source"><span style={{ display: "flex", flexDirection: "column", minWidth: 0 }}><span className="trunc" style={{ fontWeight: 600 }}>{s.label}</span><span className="mono t-mono-sm i3 trunc">{s.id}</span></span><span className="t-sm i3 trunc">{s.kind} · {s.detail}</span><Status kind={glyphFor(s.health)} weight="weak">{s.health}</Status><div className="lr-actions"><button type="button" className="btn btn-g" disabled={!!pending} onClick={() => segment(s.id)}>Segment</button><button type="button" className="btn btn-g" disabled={!!pending} onClick={() => inspectStoredData(s.id)}>Stored data</button><button type="button" className="btn btn-g" disabled={!!pending} onClick={() => openTranscript(s.id)}>Open transcript</button><button type="button" className="btn btn-s" disabled={!!pending} onClick={() => transcribe(s.id)}>{pending === `t-${s.id}` ? <Glyph kind="running" /> : null}Transcribe</button></div></div>) : <p className="t-sm i3">No audio sources in this project.</p>}
         {retentionPreview?.project_id === projectId && v.sources.some((s) => s.id === retentionPreview.source_id) && (
           <div className="stack" style={{ gap: 8, marginTop: 10 }}>
             <p className="t-sm i2" role="status" aria-live="polite">
@@ -476,7 +476,7 @@ function AudioBody({ projectId }: { projectId: string }) {
             {" "}{retentionPreview.has_huddle_media_link ? "Linked Huddles media is retained. " : ""}{retentionPreview.has_capture_reference ? "Capture-session evidence is retained. " : ""}{retentionPreview.unreferenced_imported_file ? "No linked evidence found in this active vault at inspection time. " : "Linked evidence may prevent removal. "}Read-only inspection: no deletion has been performed. Older backups may retain this recording; linked transcripts and audit receipts need separate retention handling.
             </p>
             {retentionPreview.delete_available && (
-              <div className="stack" style={{ gap: 8, padding: 12, border: "1px solid var(--line-strong)", borderRadius: "var(--r-2)" }}>
+              <div className="stack" style={{ gap: 8, padding: 12, maxWidth: 640, border: "1px solid var(--line-strong)", borderRadius: "var(--r-2)" }}>
                 <p className="t-sm">
                   Remove only this unreferenced imported recording from the active vault. This cannot erase older backups or snapshots, and it will not remove linked transcript or audit evidence.
                 </p>
@@ -499,7 +499,7 @@ function AudioBody({ projectId }: { projectId: string }) {
       {result && <Section title="Transcript" count={result.transcript ? `revision ${result.transcript.revision_no} · ${result.transcript.state}` : result.decision.outcome}>
         <Ledger items={[{ k: "decision", v: `${result.decision.outcome}${result.decision.reason ? ` · ${result.decision.reason}` : ""}` }, { k: "engine", v: result.engine ? `${result.engine.engine_id}${result.engine.is_fixture ? " (fixture)" : ""}` : "none", mono: true }, { k: "limitations", v: result.limitations.join(", ") }]} />
         {result.transcript?.segments.map((x) => (
-          <div key={x.seq} className="lr" style={{ gridTemplateColumns: "36px 130px minmax(0,1fr) auto", alignItems: "start", padding: "8px 12px" }}>
+          <div key={x.seq} className="lr" style={{ gridTemplateColumns: "28px 188px minmax(0,1fr) auto", alignItems: "baseline", padding: "4px 0" }}>
             <span className="mono t-mono-sm i3">{x.seq}</span>
             <span className="mono t-mono-sm i3">{clock(x.start_ms)}–{clock(x.end_ms)}{speakerLabel(x.speaker) ? ` · ${speakerLabel(x.speaker)}` : ""}</span>
             <span className="t-sm" dir="auto">{x.text ?? <span className="i3">(untranscribed)</span>}</span>

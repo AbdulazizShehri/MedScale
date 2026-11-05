@@ -21,7 +21,7 @@ export function Sidebar() {
       </div>
 
       <button type="button" className="sb-ws" style={{ width: "calc(100% - 16px)", textAlign: "left" }} onClick={() => navigate("Settings")} title="Workspace settings">
-        <span className={`mg ${ws?.workspace?.kind === "synthetic" ? "syn" : ""}`} style={{ width: 22, height: 22, borderStyle: open ? "solid" : "dashed" }}>
+        <span className={`mg ${ws?.workspace?.kind === "synthetic" ? "syn" : ""}`} style={{ width: 18, height: 18, borderStyle: open ? "solid" : "dashed" }}>
           <span><Icon name="workspace" size={12} /></span>
         </span>
         <span style={{ display: "flex", flexDirection: "column", minWidth: 0, flex: 1 }}>

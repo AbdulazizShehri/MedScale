@@ -17,16 +17,16 @@ export default function Models() {
     <main id="main">
       <section className="shell page-hero">
         <span className="eyebrow">Models</span>
-        <h1 className="display" style={{ fontSize: "clamp(40px, 6vw, 72px)" }}>Find a model.<br /><span className="mute">Then decide if you trust it.</span></h1>
+        <h1 className="display display-sub">Find a model.<br /><span className="mute">Then decide if you trust it.</span></h1>
         <p className="lede">MedScale treats models as things to inspect, not as authority. You can see where a model came from, what runs it and what state it is in, before you put it to work.</p>
       </section>
       <section className="page-section">
-        <div className="shell" style={{ display: "grid", gap: 32 }}>
-          <div className="section-head" style={{ marginBottom: 0 }}>
+        <div className="shell">
+          <div className="section-head">
             <h2 className="h2 h2-sm"><span className="mute">Four states,</span> always visible.</h2>
           </div>
           <div className="table-wrap" role="region" aria-label="Scrollable table" tabIndex={0}>
-            <table>
+            <table className="table-cols-3">
               <thead><tr><th scope="col">State</th><th scope="col">What it means</th><th scope="col">What it does not mean</th></tr></thead>
               <tbody>{states.map(([s, m, n]) => <tr key={s}><td>{s}</td><td>{m}</td><td>{n}</td></tr>)}</tbody>
             </table>
@@ -41,15 +41,16 @@ export default function Models() {
             <p className="body">The catalog in the desktop app lists models with their task, format, size and source identity. Search by name, family or language and filter by task, format and status. Browsing downloads nothing; a model runs only after you admit a local pack folder for it.</p>
             <p className="body">External model registries are sources, not authority. MedScale records where an entry came from; it does not inherit trust from it.</p>
           </div>
-          <Shot name="models" title="Models" />
+          <Shot name="models" />
         </div>
       </section>
       <section className="page-section">
-        <div className="shell" style={{ display: "grid", gap: 28 }}>
-          <div className="section-head" style={{ marginBottom: 0 }}>
+        <div className="shell">
+          <div className="section-head">
             <span className="eyebrow">Runtimes</span>
             <h2 className="h2 h2-sm"><span className="mute">On your machine,</span> within clear limits.</h2>
           </div>
+          <div className="stack-lg">
           <div className="cards">
             <div className="card"><div className="card-top"><small>Runtime</small></div><strong>ONNX</strong><p>Admitted packs run on tract, a pure-Rust ONNX runtime, inside the Core. No native runtime to install.</p></div>
             <div className="card"><div className="card-top"><small>Runtime</small></div><strong>Rust encoders</strong><p>Small encoder models such as token classifiers run on Candle, in Rust, on the CPU.</p></div>
@@ -57,6 +58,7 @@ export default function Models() {
           </div>
           <div className="notice"><strong>Current limits</strong><p>Model packs are bounded to 1 GiB, so large generative and multimodal models are not supported yet. No model is qualified for any clinical task.</p></div>
           <div className="actions"><a className="btn btn-secondary" href={docs.qualification}>Qualification boundaries <ArrowUpRight /></a><a className="btn btn-secondary" href={`${github}/tree/main/crates/medscale-pack`}>medscale-pack source <ArrowUpRight /></a></div>
+          </div>
         </div>
       </section>
     </main>

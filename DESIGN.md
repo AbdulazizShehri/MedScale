@@ -219,6 +219,21 @@ scroll independently. The contextual header uses `--header-height` (66px).
 The sidebar is 234px, changing to 207px at the 1180px source breakpoint and
 180px at 850px. Other inherited layout metrics remain explicit CSS values.
 
+The Tauri shell keeps one sidebar axis: icons centre on 25px and labels start at
+44px, for the workspace, search, navigation and runtime rows alike. The brand row
+matches the header height, and the breadcrumb, page title and sections share the
+page's left edge. Section 17 of `apps/desktop-tauri/src/styles/medscale.css` holds
+these rules, because sections 1-14 stay verbatim. Running text in a section stops
+at a 76ch measure, and a wrapped ledger row starts on the page edge.
+
+Buttons, inputs and selects share one control height: 32px standard, 28px compact.
+Table and list row text sits on the page edge with the headings and rules; hover and
+selection bleed 12px outward without moving anything. The first inspector heading
+shares a line with the page title. A field draws one frame around its input.
+
+Welcome has one left axis at the layout padding. Its decorative dot field stays
+right of the copy, and it is hidden below 1000px so that it never sits under text.
+
 The shared table has a 40px header, prospective 52px rows and a 680px minimum
 width inside its own scrolling region. The current four-column allocation is
 specific to Patients, not a global table rule. Explanatory copy uses the source

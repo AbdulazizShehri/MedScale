@@ -48,7 +48,7 @@ export default function Home() {
             </div>
           </div>
           <div className="hero-stage reveal reveal-4">
-            <Shot name="insightsHero" title="Insights" priority fade />
+            <Shot name="insightsHero" priority />
           </div>
         </div>
         <div className="strip">
@@ -61,7 +61,7 @@ export default function Home() {
       <section className="section" aria-labelledby="tour-title">
         <div className="shell">
           <div className="section-head split">
-            <div style={{ display: "grid", gap: 20 }}>
+            <div className="stack">
               <span className="eyebrow">One workspace</span>
               <h2 id="tour-title" className="h2"><span className="mute">Stop stitching tools together.</span> One window for all of it.</h2>
             </div>
@@ -74,7 +74,7 @@ export default function Home() {
       <section className="section" aria-labelledby="evidence-title">
         <div className="shell">
           <div className="section-head split">
-            <div style={{ display: "grid", gap: 20 }}>
+            <div className="stack">
               <span className="eyebrow">Evidence first</span>
               <h2 id="evidence-title" className="h2"><span className="mute">Most AI gives you an answer.</span> MedScale shows the source behind it.</h2>
             </div>
@@ -119,13 +119,13 @@ export default function Home() {
       <section className="section" aria-labelledby="models-title">
         <div className="shell">
           <div className="section-head split">
-            <div style={{ display: "grid", gap: 20 }}>
+            <div className="stack">
               <span className="eyebrow">Models</span>
               <h2 id="models-title" className="h2"><span className="mute">A model is more than a name.</span> Know what it is before you use it.</h2>
             </div>
-            <div style={{ display: "grid", gap: 20, justifyItems: "start" }}>
+            <div className="stack">
               <p className="body">MedScale separates finding a model from trusting it. Each step is a visible state, and the last one is never granted by the software alone.</p>
-              <Link className="text-link" href="/models/">How models work in MedScale <ArrowRight size={14} /></Link>
+              <Link className="text-link" href="/models/"><span>How models work in MedScale</span> <ArrowRight size={14} /></Link>
             </div>
           </div>
           <div className="states">
@@ -139,7 +139,7 @@ export default function Home() {
 
       <section className="section" aria-labelledby="arch-title">
         <div className="shell arch">
-          <div style={{ display: "grid", gap: 22 }}>
+          <div className="stack">
             <span className="eyebrow">Built on something real</span>
             <h2 id="arch-title" className="h2"><span className="mute">One trusted Core.</span> Two ways to work.</h2>
             <p className="body">The desktop app is for daily work. The CLI is for scripts and automation. Both are thin surfaces over the same Rust Core, which owns records, provenance, policy and storage.</p>
@@ -174,13 +174,13 @@ export default function Home() {
             <p className="lede">{publicRelease ? "Download the installer for your computer. No account, app store or GitHub login." : "The source is open today. A public installer is not released yet, so each platform shows exactly what you can run now."}</p>
           </div>
           <DownloadCards />
-          <div className="download-foot"><span>{productStage} · synthetic workspaces + licensed nonpatient audio · not for clinical use</span><Link className="text-link" href="/download/" style={{ fontSize: 13 }}>Full release status</Link></div>
+          <div className="download-foot"><span>{productStage} · synthetic workspaces + licensed nonpatient audio · not for clinical use</span><Link className="text-link text-link-sm" href="/download/">Full release status</Link></div>
         </div>
       </section>
 
       <section className="section" aria-labelledby="dev-title">
         <div className="shell dev">
-          <div style={{ display: "grid", gap: 22 }}>
+          <div className="stack">
             <span className="eyebrow">For developers</span>
             <h2 id="dev-title" className="h2"><span className="mute">Read the code.</span> Run it in four commands.</h2>
             <p className="body">MedScale is a Rust workspace with a desktop app and a CLI. Clone it, build it and run the health check. Contributions start with an issue, a synthetic test case or a design question.</p>
@@ -209,7 +209,7 @@ export default function Home() {
 
       <section className="section" aria-labelledby="faq-title">
         <div className="shell faq">
-          <div style={{ display: "grid", gap: 20, alignContent: "start" }}>
+          <div className="stack">
             <span className="eyebrow">Questions</span>
             <h2 id="faq-title" className="h2">Before you begin.</h2>
             <p className="body">Plain answers about what MedScale is today, and what it is not yet.</p>
@@ -221,15 +221,15 @@ export default function Home() {
       </section>
 
       <section className="closing" aria-labelledby="closing-title">
-        <div className="shell inner">
-          <img src={asset("/brand/mark-white.svg")} alt="" width={76} height={50} />
-          <h2 id="closing-title" className="display" style={{ fontSize: "clamp(40px, 6vw, 72px)" }}>Every insight,<br /><span className="mute">with its source.</span></h2>
-          <p className="lede" style={{ margin: "0 auto" }}>Open the workspace, inspect the evidence and decide for yourself.</p>
+        <div className="shell"><div className="closing-inner">
+          <img src={asset("/brand/mark-white.svg")} alt="" width={61} height={40} />
+          <h2 id="closing-title" className="display display-sub">Every insight,<br /><span className="mute">with its source.</span></h2>
+          <p className="lede">Open the workspace, inspect the evidence and decide for yourself.</p>
           <div className="actions">
             <Link className="btn btn-primary" href="/download/">Get MedScale <ArrowRight /></Link>
             <a className="btn btn-secondary" href={github}><GitHub size={16} /> Star on GitHub</a>
           </div>
-        </div>
+        </div></div>
       </section>
     </main>
   );
