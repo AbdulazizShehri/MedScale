@@ -251,6 +251,26 @@ async function main() {
     await recordInPrivate("third");
     await click(SAMPLE, 60000);
     await find(OPENED, 180000);
+    // The second launch chose Dark, and the first chose Light; compare with Light
+    // here too, because Dark may simply be the default.
+    await nav("Settings");
+    await find({ kind: "RadioButton", name: "Light" }, 30000);
+    report.theme_selected_after_restart = {
+      dark: (await driver.send({ op: "selected", kind: "RadioButton", name: "Dark" })).selected ?? null,
+      light: (await driver.send({ op: "selected", kind: "RadioButton", name: "Light" })).selected ?? null,
+    };
+    console.log(`THEME_AFTER_RESTART ${JSON.stringify(report.theme_selected_after_restart)}`);
+    await click({ kind: "RadioButton", name: "Light" }, 30000);
+    await sleep(1500);
+    await closeWindow();
+    await launch(installed.exe);
+    await find(SAMPLE, 60000);
+    await click(SAMPLE, 60000);
+    await find(OPENED, 180000);
+    await nav("Settings");
+    await find({ kind: "RadioButton", name: "Light" }, 30000);
+    report.light_kept_after_restart = (await driver.send({ op: "selected", kind: "RadioButton", name: "Light" })).selected ?? null;
+    console.log(`LIGHT_KEPT_AFTER_RESTART ${report.light_kept_after_restart}`);
     console.log(`PREF_ON_DISK first=${report.pref_on_disk_after_first_launch.hits} second=${report.pref_on_disk_after_second_launch.hits}`);
   });
   await step("create-project", async () => {

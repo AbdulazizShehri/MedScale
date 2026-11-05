@@ -79,6 +79,13 @@ while ($null -ne ($line = [Console]::In.ReadLine())) {
                 if (-not $e.TryGetCurrentPattern([System.Windows.Automation.TogglePattern]::Pattern, [ref]$p)) { throw 'no toggle pattern' }
                 $reply.checked = $p.Current.ToggleState -eq [System.Windows.Automation.ToggleState]::On
             }
+            'selected' {
+                $e = Find-Control $c
+                if ($null -eq $e) { throw 'not found' }
+                $p = $null
+                if (-not $e.TryGetCurrentPattern([System.Windows.Automation.SelectionItemPattern]::Pattern, [ref]$p)) { throw 'no selection pattern' }
+                $reply.selected = $p.Current.IsSelected
+            }
             'shape' {
                 # Counts by control type only, so it's always safe to print.
                 $counts = @{}
