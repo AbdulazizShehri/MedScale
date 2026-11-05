@@ -118,7 +118,7 @@ impl SqliteMetaStore {
 
     /// Bytes in use, not counting free pages. A removed recording frees its
     /// pages for reuse without shrinking the file, so this is what must fit.
-    pub(crate) fn live_bytes(&self) -> Result<u64, MetaError> {
+    pub fn live_bytes(&self) -> Result<u64, MetaError> {
         // SQLCipher answers `PRAGMA page_size` with text, so accept either form.
         let pragma = |name: &str| -> Result<u64, MetaError> {
             let value: rusqlite::types::Value =

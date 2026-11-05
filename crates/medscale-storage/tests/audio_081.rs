@@ -1362,7 +1362,8 @@ fn an_encrypted_store_limits_recordings_and_removal_makes_room() {
     );
     populate_pre_081(&meta);
 
-    meta.set_audio_budget(Some(2 * 1024 * 1024));
+    // Measured, because the empty schema itself takes space.
+    meta.set_audio_budget(Some(meta.live_bytes().unwrap() + 2 * 1024 * 1024));
     let first = bytes(1_500_000, 1);
     let second = bytes(1_500_000, 2);
     let src_1 = imported("src-1", &first);
@@ -1371,7 +1372,7 @@ fn an_encrypted_store_limits_recordings_and_removal_makes_room() {
 
     let refused = meta.insert_imported_audio_source(&src_2, &second);
     match refused {
-        Err(MetaError::Conflict(message)) => assert!(message.contains("2 MiB limit"), "{message}"),
+        Err(MetaError::Conflict(message)) => assert!(message.contains("MiB limit"), "{message}"),
         other => panic!("expected the limit to refuse this: {other:?}"),
     }
     assert!(
