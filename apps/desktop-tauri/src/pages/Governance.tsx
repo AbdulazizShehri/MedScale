@@ -252,8 +252,8 @@ export function Settings() {
       <div style={{ maxWidth: 860 }}>
         <PageHead title="Settings" sub="Read-only facts are shown as status. Anything you can change is a control." />
         <Section n="01" title="Appearance">
-          <SettingRow label="Theme" detail="Saved on this device. Also available from the command palette."><Seg label="Theme" value={theme} options={["dark", "light"]} onChange={setTheme} /></SettingRow>
-          <SettingRow label="Density" detail="Compact tightens rows, padding and gaps. Type size does not change."><Seg label="Density" value={density} options={["standard", "compact"]} onChange={setDensity} /></SettingRow>
+          <SettingRow label="Theme" detail="Resets when MedScale closes. Also available from the command palette."><Seg label="Theme" value={theme} options={["dark", "light"]} onChange={setTheme} /></SettingRow>
+          <SettingRow label="Density" detail="Compact tightens rows, padding and gaps. Type size does not change. Resets when MedScale closes."><Seg label="Density" value={density} options={["standard", "compact"]} onChange={setDensity} /></SettingRow>
           <SettingRow label="Reduce motion" detail="Follows the operating system. State changes stay immediate."><Status kind="available">Follows system</Status></SettingRow>
         </Section>
         <Section n="02" title="Workspace">
