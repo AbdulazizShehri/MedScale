@@ -44,9 +44,10 @@ quit_app() {
 # Through LaunchServices as a person would. If `open` stalls, say so and run the
 # app's executable, so a stall there doesn't hide whether the app itself starts.
 start_app() {
-  local code=0
-  bounded 45 open "$app" >/dev/null 2>&1 || code=$?
+  local code=0 output
+  output="$(bounded 45 open "$app" 2>&1)" || code=$?
   say "OPEN_EXIT=$code"
+  [ -z "$output" ] || say "OPEN_OUTPUT=$(echo "$output" | tr '\n' ' ' | cut -c1-200)"
   if [ "$(process_count)" = "0" ]; then
     say "LAUNCH_METHOD=executable"
     "$app/Contents/MacOS/$(defaults read "$app/Contents/Info" CFBundleExecutable)" >/dev/null 2>&1 &
@@ -82,21 +83,19 @@ codesign --verify --deep --strict "$app" >/dev/null 2>&1 && say "CODESIGN_VERIFY
 say "CODESIGN_FLAGS=$(codesign -dv "$app" 2>&1 | sed -n 's/.*flags=\([^ ]*\).*/\1/p' | head -1)"
 say "SPCTL=$(spctl --assess --type execute "$app" 2>&1 | tr '\n' ' ' | cut -c1-200)"
 
-# What Gatekeeper does with the build as downloaded. Recorded either way.
-bounded 30 open "$app" >/dev/null 2>&1 && open_code=0 || open_code=$?
-sleep 15
-say "QUARANTINED_OPEN_EXIT=$open_code"
-say "QUARANTINED_OPEN_PROCESSES=$(process_count)"
-say "QUARANTINED_OPEN_WINDOWS=$(window_count)"
-quit_app || true
-pkill -f "CoreServicesUIAgent" >/dev/null 2>&1 || true
-pkill -f "$app/Contents/MacOS/" >/dev/null 2>&1 || true
-sleep 3
-
-# The per-app approval: clears quarantine from this app only.
+# Launch with quarantine cleared from this one app, which is what per-app approval
+# does. This runs before the Gatekeeper test, which has to kill a system prompt.
+saved_quarantine="$(xattr -p com.apple.quarantine "$app" 2>/dev/null || true)"
 xattr -dr com.apple.quarantine "$app"
 start_app
-if wait_for_window; then say "LAUNCH_FROM_APPLICATIONS=PASS"; else say "LAUNCH_FROM_APPLICATIONS=FAIL"; exit 1; fi
+if wait_for_window; then
+  say "LAUNCH_FROM_APPLICATIONS=PASS"
+else
+  say "LAUNCH_FROM_APPLICATIONS=FAIL"
+  say "PROCESSES=$(process_count)"
+  say "WINDOW_QUERY=$(bounded 20 osascript -e 'tell application "System Events" to get name of every process whose bundle identifier is "'"$identifier"'"' 2>&1 | tr '\n' ' ' | cut -c1-200)"
+  exit 1
+fi
 sleep 5
 [ "$(process_count)" != "0" ] && say "ALIVE_AFTER_LAUNCH=PASS" || { say "ALIVE_AFTER_LAUNCH=FAIL"; exit 1; }
 
@@ -104,6 +103,19 @@ quit_app && say "QUIT=PASS" || { say "QUIT=FAIL"; exit 1; }
 start_app
 if wait_for_window; then say "REOPEN=PASS"; else say "REOPEN=FAIL"; exit 1; fi
 quit_app || pkill -f "$app/Contents/MacOS/" || true
+sleep 3
+
+# What Gatekeeper does with the build as downloaded. Recorded, not asserted.
+xattr -w com.apple.quarantine "$saved_quarantine" "$app"
+open_output="$(bounded 30 open "$app" 2>&1)" && open_code=0 || open_code=$?
+sleep 15
+say "QUARANTINED_OPEN_EXIT=$open_code"
+say "QUARANTINED_OPEN_OUTPUT=$(echo "$open_output" | tr '\n' ' ' | cut -c1-200)"
+say "QUARANTINED_OPEN_PROCESSES=$(process_count)"
+say "QUARANTINED_OPEN_WINDOWS=$(window_count)"
+pkill -f "$app/Contents/MacOS/" >/dev/null 2>&1 || true
+pkill -f "CoreServicesUIAgent" >/dev/null 2>&1 || true
+sleep 3
 
 rm -rf "$app"
 [ ! -e "$app" ] && say "REMOVE_APP=PASS"
