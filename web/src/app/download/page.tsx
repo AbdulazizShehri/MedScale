@@ -1,14 +1,18 @@
 import type { Metadata } from "next";
 import { DownloadCards } from "@/components/DownloadCards";
 import { ArrowUpRight } from "@/components/Icons";
+import { InstallGuide } from "@/components/InstallGuide";
 import { Quickstart } from "@/components/Quickstart";
+import { installerFor, publicRelease } from "@/lib/release";
 import { docs, pageMeta } from "@/lib/site";
 
 export const metadata: Metadata = pageMeta("/download/", "Download", "MedScale desktop for Windows and macOS and the CLI for Windows, macOS and Linux. Current release status and build-from-source steps.");
 
+const windows = installerFor(publicRelease, "windows");
+const macos = installerFor(publicRelease, "macos");
 const status = [
-  ["Windows x64", "Desktop app + CLI", "Build from source", "CI builds an unsigned per-user NSIS installer to test packaging. It is not signed and is not published."],
-  ["macOS (Apple silicon)", "Desktop app + CLI", "Build from source", "CI builds an ad-hoc signed DMG to test packaging. It is not notarized and is not published."],
+  ["Windows x64", "Desktop app + CLI", windows ? "Download" : "Build from source", windows ? "Per-user NSIS installer. Checksum, SBOM and notices are published with it." : "CI builds an unsigned per-user NSIS installer to test packaging. It is not qualified or published."],
+  ["macOS (Apple silicon)", "Desktop app + CLI", macos ? "Download" : "Build from source", macos ? "DMG installer. Checksum, SBOM and notices are published with it." : "CI builds an ad-hoc signed DMG to test packaging. It is not notarized, qualified or published."],
   ["Linux x86_64", "CLI", "CLI from source", "The Rust Core and CLI are tested on Ubuntu. A Linux desktop app is deferred."],
 ];
 
@@ -17,8 +21,17 @@ export default function Download() {
     <main id="main">
       <section className="shell page-hero">
         <span className="eyebrow">Download</span>
-        <h1 className="display" style={{ fontSize: "clamp(40px, 6vw, 72px)" }}>Get MedScale.<br /><span className="mute">Start from the source.</span></h1>
-        <p className="lede">There is no signed public installer yet. When a release is signed and qualified, this page will offer the right installer for your platform. Until then, every option here is real and links to working instructions.</p>
+        {publicRelease ? (
+          <>
+            <h1 className="display" style={{ fontSize: "clamp(40px, 6vw, 72px)" }}>Get MedScale Beta.<br /><span className="mute">Free and local-first.</span></h1>
+            <p className="lede">Download, install and open it. You don&apos;t need an account, an app store or a GitHub login.</p>
+          </>
+        ) : (
+          <>
+            <h1 className="display" style={{ fontSize: "clamp(40px, 6vw, 72px)" }}>Get MedScale.<br /><span className="mute">Start from the source.</span></h1>
+            <p className="lede">There is no qualified public installer yet. When a release is qualified and approved, this page will offer the right installer for your platform. Until then, every option here is real and links to working instructions.</p>
+          </>
+        )}
       </section>
       <section className="page-section" aria-labelledby="platforms-title">
         <div className="shell">
@@ -26,6 +39,7 @@ export default function Download() {
           <DownloadCards />
         </div>
       </section>
+      {publicRelease && <InstallGuide release={publicRelease} />}
       <section className="page-section" aria-labelledby="cli-title">
         <div className="shell dev">
           <div style={{ display: "grid", gap: 20 }}>
@@ -46,7 +60,7 @@ export default function Download() {
               <tbody>{status.map((r) => <tr key={r[0]}>{r.map((c, i) => <td key={i}>{c}</td>)}</tr>)}</tbody>
             </table>
           </div>
-          <div className="notice"><strong>Not a production release</strong><p>Engineering builds are for testing the release process. Production signing, notarization, clinical validation and permission to use real patient data are external gates that have not been met. <a className="text-link" style={{ fontSize: 14 }} href={docs.qualification}>Read the external gates</a> · <a className="text-link" style={{ fontSize: 14 }} href={docs.releases}>GitHub Releases</a></p></div>
+          <div className="notice"><strong>Not a production release</strong><p>{publicRelease ? "MedScale is in Beta." : "Engineering builds are for testing the release process."} Clinical validation and permission to use real patient data are external gates that have not been met. Each installer states its own signing status. <a className="text-link" style={{ fontSize: 14 }} href={docs.qualification}>Read the external gates</a> · <a className="text-link" style={{ fontSize: 14 }} href={docs.releases}>GitHub Releases</a></p></div>
         </div>
       </section>
     </main>

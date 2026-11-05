@@ -20,10 +20,10 @@ npm run check      # verifies the export
 
 - every route and brand asset
 - the logo is byte-identical to `assets/brand/`
-- the release gate is closed
+- the release gate and manifest agree, and a manifest that fails validation is refused
 - the preview disclosures are present
 - no remote scripts, stylesheets or fonts
-- no installer links
+- no installer link other than those in a valid manifest, and no `latest` or release API lookup
 - every internal link and asset resolves under the configured base path
 
 ## Configuration
@@ -113,13 +113,27 @@ References:
 
 ## Downloads
 
-The platform cards show what is genuinely available and never invent an installer URL. `src/lib/release.ts` holds the platform-aware installer selection, adapted from CommunityFinance-CoFi's tested selector, plus a qualification gate: `QUALIFIED_RELEASE_TAGS` is empty, so the site makes no release request and links only to build instructions.
+The site offers an installer only from `src/lib/release-manifest.json`, a reviewed file built into the static export. The site never calls a release API or follows a `latest` link. `src/lib/release.ts` validates the manifest, and each platform passes or fails on its own, so macOS can stay unavailable while Windows is offered.
 
-Enable direct downloads only when all of these hold:
+Each platform entry needs:
 
-- a GitHub Release exists with signed Windows and signed, notarized macOS installers
-- release qualification has passed
-- the tag has been added to `QUALIFIED_RELEASE_TAGS` in a reviewed pull request
+- the exact asset URL for this tag, with no other host or path
+- SHA-256 and size
+- the workflow run that qualified those bytes
+- the signing state, and the founder's comment accepting it
+- checksum, SBOM, notice and package manifest files
+
+The site words the signing status from the state, so an ad-hoc DMG can't be described as notarized.
+
+To enable a download, in this order:
+
+1. Pass qualification on the exact installer, and get the founder's approval for those artifacts.
+2. Publish the GitHub Release. Name the companion files per platform, such as `windows-SHA256SUMS`, because each platform's set uses the same file names.
+3. In one reviewed pull request, fill in `release-manifest.json` and add the tag to `QUALIFIED_RELEASE_TAGS`.
+4. Run `npm run verify-release`. It downloads with no login and compares the published bytes with the manifest. CI runs it too, so a pull request can't advertise assets that don't exist.
+5. Deploying the site is a separate step that needs its own decision. See the deployment notes above.
+
+`npm run check` refuses a manifest and gate that disagree, an unapproved installer link, and the test fixture in `release.fixture.json`.
 
 A Linux desktop app is not available. The Linux card offers the CLI.
 

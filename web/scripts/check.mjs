@@ -4,6 +4,7 @@
 // base path (NEXT_PUBLIC_SITE_BASE_PATH, "" for a root domain).
 import fs from "node:fs";
 import path from "node:path";
+import { QUALIFIED_RELEASE_TAGS, formatSize, validateRelease } from "../src/lib/release.ts";
 
 const root = process.cwd();
 const out = path.join(root, "out");
@@ -23,8 +24,16 @@ const master = path.join(root, "..", "assets", "brand", "medscale-horizontal-whi
 if (fs.existsSync(master)) check(read(master) === read(path.join(root, "public/brand/medscale-horizontal-white.svg")), "web logo differs from assets/brand master");
 
 // Release gate and download honesty.
-const release = read(path.join(root, "src/lib/release.ts"));
-check(/QUALIFIED_RELEASE_TAGS: readonly string\[\] = \[\];/.test(release), "release gate must stay empty until a signed, qualified release exists");
+const fixture = process.argv.includes("--fixture");
+const raw = JSON.parse(read(path.join(root, "src/lib/release-manifest.json")));
+const verdict = validateRelease(raw, fixture ? ["v0.0.0-beta.0"] : QUALIFIED_RELEASE_TAGS);
+check(verdict.errors.length === 0, `release manifest refused: ${verdict.errors.join("; ")}`);
+const offered = Object.values(verdict.release?.platforms ?? {});
+if (!fixture) {
+  check(raw.release === null || !String(raw.release.tag).startsWith("v0.0.0"), "the fixture release must never ship");
+  check((raw.release === null) === (QUALIFIED_RELEASE_TAGS.length === 0), "release gate and manifest must change together");
+}
+const allowedInstallers = new Set(offered.map((p) => p.url));
 
 const files = [];
 (function walk(d) { for (const e of fs.readdirSync(d, { withFileTypes: true })) { const f = path.join(d, e.name); e.isDirectory() ? walk(f) : f.endsWith(".html") && files.push(f); } })(out);
@@ -45,7 +54,8 @@ for (const f of files) {
   check(!/<script[^>]+src="https?:/i.test(html), `${rel}: loads a remote script`);
   check(![...html.matchAll(/<link[^>]+>/gi)].some(([tag]) => /rel="(stylesheet|preload|modulepreload|preconnect)"/i.test(tag) && /href="https?:/i.test(tag)), `${rel}: loads a remote stylesheet or preload`);
   check(!/fonts\.googleapis|fonts\.gstatic/i.test(html), `${rel}: uses a remote font service`);
-  check(!/href="https?:\/\/[^"]+\.(exe|msi|dmg|pkg|appimage|deb|rpm)"/i.test(html), `${rel}: links an installer`);
+  for (const [, href] of html.matchAll(/href="(https?:\/\/[^"]+\.(?:exe|msi|dmg|pkg|appimage|deb|rpm))"/gi)) check(allowedInstallers.has(href), `${rel}: links an unapproved installer ${href}`);
+  check(!/api\.github\.com|releases\/latest/i.test(html), `${rel}: depends on a mutable release lookup`);
   for (const [, href] of html.matchAll(/(?:href|src)="([^"]+)"/g)) {
     if (/^(https?:|mailto:|#|data:)/.test(href)) {
       if (/^https?:/.test(href)) check(/^https:\/\/(github\.com\/AbdulazizShehri\/MedScale|github\.com\/sponsors\/AbdulazizShehri(?:[\/#?]|$)|abdulazizshehri\.github\.io\/MedScale|medscale\.si)/.test(href), `${rel}: unexpected external link ${href}`);
@@ -66,8 +76,22 @@ check(product.includes("Real patient data and clinical decisions are not authori
 check(!/synthetic data only/i.test(home + product + dl), "site: inaccurate synthetic-only product claim reintroduced");
 check(home.includes("Real screenshot"), "home: screenshot provenance label missing");
 check(home.includes("Interactive example"), "home: interactive example label missing");
-check(dl.includes("There is no signed public installer yet"), "download: release status missing");
+if (offered.length === 0) {
+  check(dl.includes("There is no qualified public installer yet"), "download: release status missing");
+  check(!/Download for (Windows|macOS)/.test(dl), "download: offers an installer with no release");
+} else {
+  for (const p of offered) {
+    check(dl.includes(p.url), `download: missing link to ${p.fileName}`);
+    check(dl.includes(p.sha256), `download: missing SHA-256 for ${p.fileName}`);
+    check(dl.includes(formatSize(p.size)), `download: missing size for ${p.fileName}`);
+  }
+  check(dl.includes(verdict.release.version), "download: version missing");
+  check(dl.includes(verdict.release.sourceSha), "download: source commit missing");
+  check(dl.includes("Report a problem"), "download: support link missing");
+  check(dl.includes("Real patient records and clinical decisions aren"), "download: patient data restriction missing");
+  check(!dl.includes("Signed with Apple Developer ID") || offered.some((p) => p.signing === "developer-id-notarized"), "download: claims notarization no installer has");
+}
 check(dl.includes("Not a production release"), "download: production disclaimer missing");
 
 if (failures.length) { console.error("FAIL\n- " + failures.join("\n- ")); process.exit(1); }
-console.log(`PASS: ${files.length} pages, base path "${base || "/"}", internal links and assets resolve, release gate closed, disclosures present`);
+console.log(`PASS: ${files.length} pages, base path "${base || "/"}", internal links and assets resolve, release gate ${offered.length ? "open for " + verdict.release.tag : "closed"}, disclosures present`);
