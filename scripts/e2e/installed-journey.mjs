@@ -26,7 +26,7 @@ const originalHosts = fs.readFileSync(hostsFile);
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 const pwsh = (script) => execFileSync("pwsh", ["-NoProfile", "-Command", script], { encoding: "utf8" }).trim();
 
-const report = { installer: path.basename(installer), steps: [], signing: "NOT_GRANTED" };
+const report = { installer: path.basename(installer), steps: [], signing: "NOT_GRANTED", inprivate_by_launch: [] };
 let child;
 let driver;
 // Once real speech is on the page, a failure must not print the page.
@@ -218,6 +218,7 @@ async function main() {
   await step("first-launch-needs-no-account", async () => {
     await launch(installed.exe);
     await find(SAMPLE, 60000);
+    await recordInPrivate("first");
     if (/sign in|log in|create an account/i.test(await pageText())) throw new Error("the first screen asks for an account");
   });
   await step("sample-workspace-opens", async () => {
@@ -268,6 +269,8 @@ async function main() {
     await sleep(1500);
     await kill();
     await launch(installed.exe);
+    await find(SAMPLE, 60000);
+    await recordInPrivate("after-kill");
     await click(SAMPLE, 60000);
     await find(OPENED, 180000);
     await nav("Audio");
@@ -278,9 +281,11 @@ async function main() {
     await waitForText(/Model download:\s*ready/, 420000);
     await waitForText("Local Whisper engine installed", 180000);
     // The download really happened: the weights are on disk at their real size.
-    const weights = findFile(path.join(appData, "audio-models"), "model.safetensors");
-    if (!weights) throw new Error("no model weights on disk");
-    report.model_weights_bytes = fs.statSync(weights).size;
+    // A killed download can leave a partial copy, which is reported separately.
+    const copies = findFiles(path.join(appData, "audio-models"), "model.safetensors").map((f) => fs.statSync(f).size).sort((a, b) => b - a);
+    if (copies.length === 0) throw new Error("no model weights on disk");
+    report.model_weights_bytes = copies[0];
+    report.leftover_partial_weights_bytes = copies.slice(1);
     if (report.model_weights_bytes < 50 * 1024 * 1024) throw new Error("the model weights are too small to be real");
   });
   await step("real-speech-transcribed", async () => {
@@ -307,6 +312,8 @@ async function main() {
   await step("close-reopen-keeps-transcript-and-model", async () => {
     await closeWindow();
     await launch(installed.exe);
+    await find(SAMPLE, 60000);
+    await recordInPrivate("after-clean-close");
     await click(SAMPLE, 60000);
     await find(OPENED, 180000);
     await nav("Audio");
@@ -339,6 +346,11 @@ async function main() {
     await waitForText(VAULT_PROJECT, 30000);
     await closeWindow();
   });
+  await step("webview-residue-measured", async () => {
+    // Reported, not asserted yet: this journey is the first to look after real use.
+    report.webview_residue = webViewResidue(["Installed build study", VAULT_PROJECT, "installed-fictional-patient"]);
+    console.log(`WEBVIEW_RESIDUE ${JSON.stringify(report.webview_residue)}`);
+  });
   await step("uninstall-keeps-user-data", async () => {
     await uninstall(installed);
     if (!findFile(appData, "meta.sealed")) throw new Error("uninstall removed the encrypted vault");
@@ -364,6 +376,46 @@ async function unlock() {
 }
 
 const words = (text) => text.toLowerCase().match(/[a-z']+/g) ?? [];
+
+function findFiles(root, name) {
+  const found = [];
+  for (const entry of fs.existsSync(root) ? fs.readdirSync(root, { withFileTypes: true }) : []) {
+    const full = path.join(root, entry.name);
+    if (entry.isDirectory()) found.push(...findFiles(full, name));
+    else if (entry.name === name) found.push(full);
+  }
+  return found;
+}
+
+/** Whether this launch's WebView says it's in InPrivate mode. */
+async function recordInPrivate(label) {
+  const names = await pageNames();
+  const inPrivate = names.some((n) => /InPrivate/.test(n));
+  report.inprivate_by_launch.push({ launch: label, inprivate: inPrivate });
+  console.log(`INPRIVATE ${label} ${inPrivate}`);
+}
+
+/** Files under the WebView profile holding this run's synthetic markers. */
+function webViewResidue(markers) {
+  const root = path.join(appData, "EBWebView");
+  const needles = markers.flatMap((m) => [Buffer.from(m, "utf8"), Buffer.from(m, "utf16le")]);
+  let scanned = 0;
+  let hits = 0;
+  let unreadable = 0;
+  const walk = (dir) => {
+    for (const entry of fs.existsSync(dir) ? fs.readdirSync(dir, { withFileTypes: true }) : []) {
+      const full = path.join(dir, entry.name);
+      if (entry.isDirectory()) { walk(full); continue; }
+      try {
+        const bytes = fs.readFileSync(full);
+        scanned += 1;
+        if (needles.some((n) => bytes.includes(n))) hits += 1;
+      } catch { unreadable += 1; }
+    }
+  };
+  walk(root);
+  return { scanned, hits, unreadable };
+}
 
 function findFile(root, name) {
   for (const entry of fs.existsSync(root) ? fs.readdirSync(root, { withFileTypes: true }) : []) {
