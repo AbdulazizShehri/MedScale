@@ -35,7 +35,7 @@ export function Models() {
           <button type="button" role="tab" aria-selected={tab === "evaluate"} className={`tab ${tab === "evaluate" ? "on" : ""}`} onClick={() => setTab("evaluate")}>Try a model</button>
         </div>
         {tab === "packs" && (v.models.length ? (
-          <table className="tb"><thead><tr><th style={{ width: "30%" }}>Model</th><th style={{ width: "18%" }}>Task</th><th className="col-p3" style={{ width: "18%" }}>Runtime</th><th style={{ width: "17%" }}>State</th><th>Trust</th></tr></thead>
+          <table className="tb"><thead><tr><th style={{ width: "30%" }}>Model</th><th style={{ width: "18%" }}>Task</th><th className="col-p3" style={{ width: "16%" }}>Runtime</th><th style={{ width: "20%" }}>State</th><th>Trust</th></tr></thead>
             <tbody>{v.models.map((x, i) => (
               <tr key={x.model + i} className={`r2 clickable ${m === x ? "sel" : ""}`} tabIndex={0} onClick={() => setSel(i)} onKeyDown={(e) => e.key === "Enter" && setSel(i)}>
                 <td><div style={{ display: "flex", gap: 10, alignItems: "center", minWidth: 0 }}><Icon name="models" /><div style={{ display: "flex", flexDirection: "column", minWidth: 0 }}><span className="mono trunc" style={{ fontSize: 12.5, fontWeight: 500 }} title={x.model}>{x.model}</span><span className="t-sm i3 trunc" title={x.scope}>{x.scope}</span></div></div></td>
@@ -113,7 +113,7 @@ function CatalogTab() {
       {page.state.status === "loading" && <Skeleton />}
       {page.state.status === "error" && <ErrorState error={page.state.error} onRetry={page.reload} />}
       {p && <>
-        <table className="tb"><thead><tr><th style={{ width: "34%" }}>Model</th><th style={{ width: "18%" }}>Task</th><th className="col-p3" style={{ width: "14%" }}>Formats</th><th style={{ width: "10%" }}>Disk</th><th style={{ width: "14%" }}>Expectation</th><th>Status</th></tr></thead>
+        <table className="tb"><thead><tr><th style={{ width: "32%" }}>Model</th><th style={{ width: "17%" }}>Task</th><th className="col-p3" style={{ width: "12%" }}>Formats</th><th style={{ width: "9%" }}>Disk</th><th style={{ width: "15%" }}>Expectation</th><th>Status</th></tr></thead>
           <tbody>{p.rows.map((r) => (
             <tr key={r.repo_id} className="r2">
               <td><div style={{ display: "flex", flexDirection: "column", minWidth: 0 }}><span className="mono trunc" style={{ fontSize: 12.5 }} title={r.repo_id}>{catalogDisplayName(r.repo_id)}</span><span className="t-sm i3 trunc">{[r.family, r.tier, r.license_claim].filter(Boolean).join(" · ")}</span><span className="t-sm i3 mono trunc" title="MedScale catalog entry ID (not an assertion of model authorship)">{r.medscale_id}</span></div></td>

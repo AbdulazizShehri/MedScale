@@ -570,3 +570,54 @@ body { font-family: var(--font-ui); }
 .section p.t-sm, .section .stack > p, .pane > .section > .t-sm { max-width: 76ch; }
 /* A ghost button's label lines up with the input above it; its hover area hangs left. */
 .ms .row-gap > .btn-g:first-child { margin-left: -10px; }
+
+/* One control height. A button beside an input is the same height as the input. */
+:root, [data-theme] { --ctl: 32px; }
+[data-density="compact"] { --ctl: 28px; }
+.ms input:not([type]), .ms input[type="text"], .ms input[type="password"], .ms input[type="search"], .ms select, .picker select { height: var(--ctl); }
+.seg button { height: calc(var(--ctl) - 6px); }
+.flt { height: 28px; }
+
+/* The field draws the frame. The input inside it has none, and the ring follows it. */
+.ms .field input:not([type]), .ms .field input[type] { height: 100%; padding: 0; border: 0; background: transparent; box-shadow: none; outline: 0; }
+.ms .field:focus-within { outline: 1.5px solid var(--focus); outline-offset: 0; box-shadow: 0 0 0 4px var(--focus-halo); }
+
+/* Row text sits on the page edge with the headings and rules. Hover and selection
+   bleed 12 px outward as shadows, so nothing shifts when a row changes state. */
+.tb th:first-child, .tb td:first-child, .tfoot, .lr { padding-left: 0 !important; }
+.tb th:last-child, .tb td:last-child, .tfoot, .lr { padding-right: 0 !important; }
+.tb td { overflow-wrap: anywhere; }
+.tb tbody tr:hover td:first-child, .tb tbody tr.hov td:first-child { box-shadow: -12px 0 0 var(--bg-hover); }
+.tb tbody tr:hover td:last-child, .tb tbody tr.hov td:last-child { box-shadow: 12px 0 0 var(--bg-hover); }
+.tb tbody tr.sel td:first-child { box-shadow: -9px 0 0 var(--bg-active), -12px 0 0 var(--accent); }
+.tb tbody tr.sel td:last-child { box-shadow: 12px 0 0 var(--bg-active); }
+.lr:hover { box-shadow: -12px 0 0 var(--bg-hover), 12px 0 0 var(--bg-hover); }
+.lr.sel { box-shadow: -9px 0 0 var(--bg-active), -12px 0 0 var(--accent), 12px 0 0 var(--bg-active); }
+/* A trailing ghost button's label ends on the page edge too. */
+.lr > .btn-g:last-child, .sec-a > .btn-g:last-child, .page-head > .btn-g:last-child { margin-right: -10px; }
+
+/* Audio's source row keeps its name and detail readable when the window narrows. */
+.lr-source { grid-template-columns: minmax(0, 1fr) minmax(0, 1.2fr) 110px auto; padding-block: 8px; }
+.lr-actions { display: flex; align-items: center; justify-content: flex-end; gap: 4px; }
+@media (max-width: 1279px) {
+  .lr-source { grid-template-columns: minmax(0, 1fr) 110px; row-gap: 4px; }
+  .lr-source > :nth-child(2) { grid-row: 2; grid-column: 1 / -1; }
+  .lr-actions { grid-column: 1 / -1; justify-content: flex-start; margin-left: -10px; }
+}
+
+/* A checkbox stays beside its label when the label is long. */
+label.row-gap { flex-wrap: nowrap; }
+label.row-gap > input[type="checkbox"] { flex: none; }
+
+/* Glyphs centre on the first line of a 18 px text block. */
+.toast > .g, .toast > .gt, .notice > .g, .notice > .gt { margin-top: 4.5px; }
+
+/* Inspector: its first heading shares a line with the page title. */
+.inspector .ins-pad { padding: var(--pad-page-y) 24px 32px; gap: 24px; }
+.inspector .auth { flex-wrap: wrap; align-items: center; }
+.inspector .auth > :last-child { flex-basis: 100%; }
+
+/* Key-value rows: the label and first value line share a baseline. */
+.kv > div:nth-child(odd) { padding-top: 7px; line-height: 16px; }
+
+.sb-nav { padding-top: 8px; }

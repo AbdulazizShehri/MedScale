@@ -210,7 +210,7 @@ export function Access({ onBack }: { onBack: () => void }) {
                 <div>
                   <label className="lbl" htmlFor="pp">{useCode ? "Recovery code" : "Passphrase"}</label>
                   <div className="field-row">
-                    <input id="pp" type={show ? "text" : "password"} value={pass} onChange={(e) => setPass(e.target.value)} autoComplete={useCode ? "off" : mode === "unlock" ? "current-password" : "new-password"} aria-invalid={error?.kind === "invalid" || error?.kind === "denied"} style={{ flex: 1, height: 40 }} autoFocus />
+                    <input id="pp" type={show ? "text" : "password"} value={pass} onChange={(e) => setPass(e.target.value)} autoComplete={useCode ? "off" : mode === "unlock" ? "current-password" : "new-password"} aria-invalid={error?.kind === "invalid" || error?.kind === "denied"} style={{ flex: 1, height: 36 }} autoFocus />
                     <button type="button" className="btn btn-g" onClick={() => setShow((s) => !s)}>{show ? "Hide" : "Show"}</button>
                   </div>
                   <span className="t-sm i3" style={{ display: "block", marginTop: 6 }}>{useCode ? "A code from when this vault was created. It opens the vault and stays valid; the passphrase cannot be changed in this version." : "8–256 characters. Held in memory only while the vault is open."}</span>
@@ -219,7 +219,7 @@ export function Access({ onBack }: { onBack: () => void }) {
                 {mode === "create" && (
                   <div>
                     <label className="lbl" htmlFor="pp2">Confirm passphrase</label>
-                    <input id="pp2" type={show ? "text" : "password"} value={confirm} onChange={(e) => setConfirm(e.target.value)} autoComplete="new-password" style={{ width: "100%", height: 40 }} />
+                    <input id="pp2" type={show ? "text" : "password"} value={confirm} onChange={(e) => setConfirm(e.target.value)} autoComplete="new-password" style={{ width: "100%", height: 36 }} />
                   </div>
                 )}
                 {error && <FailureAlert error={error} glyph={error.kind === "denied" ? "denied" : "failed"} wrap />}

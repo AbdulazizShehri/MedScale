@@ -72,7 +72,7 @@ export function Documents() {
           </div>
           {rows.length ? (
             <table className="tb" aria-label="Sources">
-              <thead><tr><th style={{ width: "30%" }}>Source</th><th style={{ width: "14%" }}>Resource</th><th style={{ width: "15%" }}>Extraction</th><th className="col-p3" style={{ width: "27%" }}>Subject</th><th>Origin</th></tr></thead>
+              <thead><tr><th style={{ width: "28%" }}>Source</th><th style={{ width: "19%" }}>Resource</th><th style={{ width: "16%" }}>Extraction</th><th className="col-p3" style={{ width: "22%" }}>Subject</th><th>Origin</th></tr></thead>
               <tbody>{rows.map((s, i) => (
                 <tr key={s.source_id + i} className={`r2 clickable ${cur === s ? "sel" : ""}`} tabIndex={0} aria-selected={cur === s} onClick={() => setSel(i)} onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); setSel(i); } }}>
                   <td><div style={{ display: "flex", flexDirection: "column", minWidth: 0 }}><span className="mono trunc" style={{ fontSize: 12 }}>{s.source_id}</span><span className="t-sm i3">FHIR R4 · {s.fixture}</span></div></td>
@@ -257,7 +257,7 @@ export function Insights() {
           { k: "scope", v: <Status kind={v.synthetic_only ? "synthetic" : "available"} weight="strong">{v.synthetic_only ? "Synthetic only" : "Workspace"}</Status> },
         ]} />
         <Section n="01" title="Cohort" count={`${v.cohorts.length} subjects`}>
-          <table className="tb"><thead><tr><th style={{ width: "22%" }}>Subject</th><th style={{ width: "16%" }}>Condition</th><th style={{ width: "40%" }}>Evidence</th><th>Review</th></tr></thead>
+          <table className="tb"><thead><tr><th style={{ width: "22%" }}>Subject</th><th style={{ width: "16%" }}>Condition</th><th style={{ width: "37%" }}>Evidence</th><th>Review</th></tr></thead>
             <tbody>{v.cohorts.map((c) => (
               <tr key={c.subject_ref} className="clickable" tabIndex={0} onClick={() => navigate("Patients", c.subject_ref)} onKeyDown={(e) => e.key === "Enter" && navigate("Patients", c.subject_ref)}>
                 <td><span className="pname trunc">{c.display_name}</span></td><td className="t-sm i2"><span className="trunc">{c.condition}</span></td>
@@ -271,7 +271,7 @@ export function Insights() {
             {v.coverage_distribution.map((r) => {
               const n = Number(r.value) || 0;
               return (
-                <div key={r.label} className="lr" style={{ gridTemplateColumns: "190px 40px minmax(0,1fr) minmax(0,1fr)", minHeight: 34 }}>
+                <div key={r.label} className="lr" style={{ gridTemplateColumns: "minmax(112px, 170px) 32px minmax(48px, 0.6fr) minmax(0, 1.4fr)", minHeight: 34 }}>
                   <Status kind={glyphFor(r.label)} weight={n ? "strong" : "weak"}>{r.label}</Status>
                   <span className={`mono t-mono-sm ${n ? "" : "i3"}`} style={{ textAlign: "right" }}>{r.value}</span>
                   <span style={{ height: 8, background: "var(--bg-active)", position: "relative" }} aria-hidden="true"><span style={{ position: "absolute", inset: 0, width: `${(n / max) * 100}%`, background: n ? "var(--accent)" : "transparent" }} /></span>

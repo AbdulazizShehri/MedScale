@@ -23,7 +23,7 @@ function useGov() { return useCommand<Gov>("governance_overview"); }
 
 function RowList({ rows }: { rows: Row[] }) {
   return <>{rows.map((r) => (
-    <div key={r.label} style={{ display: "grid", gridTemplateColumns: "minmax(0,1fr) 240px", gap: 24, alignItems: "center", minHeight: 56, padding: "8px 0", borderBottom: "1px solid var(--line-subtle)" }}>
+    <div key={r.label} style={{ display: "grid", gridTemplateColumns: "minmax(0,1fr) 280px", gap: 24, alignItems: "center", minHeight: 56, padding: "8px 0", borderBottom: "1px solid var(--line-subtle)" }}>
       <div><div style={{ fontSize: 13, fontWeight: 500 }}>{r.label}</div><div className="t-sm i3" style={{ marginTop: 2 }}>{r.detail}</div></div>
       <div className="stack" style={{ gap: 2 }}><Status kind={glyphFor(r.status) === "unknown" ? glyphFor(r.value) : glyphFor(r.status)} weight="strong">{r.value}</Status><span className="t-sm i3">{r.status}</span></div>
     </div>
@@ -87,7 +87,7 @@ export function AuditTrail() {
       {state.status === "loading" && <Skeleton />}
       {state.status === "error" && <ErrorState error={state.error} onRetry={reload} />}
       {state.status === "ready" && <>
-        {state.data.audit_rows.length ? <table className="tb"><thead><tr><th style={{ width: "24%" }}>Record</th><th style={{ width: "18%" }}>Action</th><th style={{ width: "20%" }}>Subject</th><th style={{ width: "14%" }}>Status</th><th>Detail</th></tr></thead>
+        {state.data.audit_rows.length ? <table className="tb"><thead><tr><th style={{ width: "22%" }}>Record</th><th style={{ width: "18%" }}>Action</th><th style={{ width: "20%" }}>Subject</th><th style={{ width: "20%" }}>Status</th><th>Detail</th></tr></thead>
           <tbody>{state.data.audit_rows.map((r) => <tr key={r.record_id}><td><span className="mono t-mono-sm trunc">{r.record_id}</span></td><td className="t-sm">{r.action}</td><td className="t-sm i2"><span className="trunc">{r.subject}</span></td><td><Status kind={glyphFor(r.status)}>{r.status}</Status></td><td className="t-sm i3"><span className="trunc">{r.detail}</span></td></tr>)}</tbody></table>
           : <Empty icon="audit" title="No disclosures recorded">Core records a disclosure whenever data leaves the vault through an authorized path. None have happened in this workspace.</Empty>}
         <p className="t-sm i3" style={{ marginTop: 12 }}>{state.data.audit_boundary}</p>
@@ -267,7 +267,7 @@ export function Settings() {
         </Section>
         {ws?.workspace?.kind === "encrypted" && <RecoveryKept onRestored={() => void vaultClosed()} />}
         {gov.state.status === "ready" && <>
-          <Section title="Privacy & network"><RowList rows={gov.state.data.settings_rows.filter((r) => !/release|accessib/i.test(r.label))} /></Section>
+          <Section n="03" title="Privacy & network"><RowList rows={gov.state.data.settings_rows.filter((r) => !/release|accessib/i.test(r.label))} /></Section>
           <Section title="Qualification" count="read-only"><RowList rows={gov.state.data.settings_rows.filter((r) => /release|accessib/i.test(r.label))} /><p className="t-sm i3" style={{ marginTop: 10 }}>{gov.state.data.missing_release_evidence}</p></Section>
         </>}
         {gov.state.status === "error" && <ErrorState error={gov.state.error} onRetry={gov.reload} />}

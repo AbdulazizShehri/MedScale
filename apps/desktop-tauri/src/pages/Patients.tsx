@@ -93,11 +93,11 @@ export function Patients() {
             </div>
             <table className="tb" aria-label="Patients">
               <thead><tr>
-                <th style={{ width: "28%" }} className="sorted">Patient</th>
+                <th style={{ width: "26%" }} className="sorted">Patient</th>
                 <th style={{ width: "16%" }} className="col-p2">Known condition</th>
                 <th style={{ width: "20%" }}>Coverage</th>
                 <th style={{ width: "7%" }} className="col-p3 num" title="Sources">Src</th>
-                <th style={{ width: "15%" }}>Review</th>
+                <th style={{ width: "19%" }}>Review</th>
                 <th className="num" title="Latest event">Latest</th>
               </tr></thead>
               <tbody>
