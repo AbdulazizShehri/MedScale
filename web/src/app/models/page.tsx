@@ -23,7 +23,7 @@ export default function Models() {
       <section className="page-section">
         <div className="shell" style={{ display: "grid", gap: 32 }}>
           <div className="section-head" style={{ marginBottom: 0 }}>
-            <h2 className="h2" style={{ fontSize: "clamp(28px, 3.4vw, 40px)" }}><span className="mute">Four states,</span> always visible.</h2>
+            <h2 className="h2 h2-sm"><span className="mute">Four states,</span> always visible.</h2>
           </div>
           <div className="table-wrap" role="region" aria-label="Scrollable table" tabIndex={0}>
             <table>
@@ -37,7 +37,7 @@ export default function Models() {
         <div className="shell feature-row">
           <div className="feature-copy">
             <span className="eyebrow">Catalog</span>
-            <h2 className="h2" style={{ fontSize: "clamp(28px, 3.4vw, 40px)" }}><span className="mute">Browse first.</span> Admit only what you choose.</h2>
+            <h2 className="h2 h2-sm"><span className="mute">Browse first.</span> Admit only what you choose.</h2>
             <p className="body">The catalog in the desktop app lists models with their task, format, size and source identity. Search by name, family or language and filter by task, format and status. Browsing downloads nothing; a model runs only after you admit a local pack folder for it.</p>
             <p className="body">External model registries are sources, not authority. MedScale records where an entry came from; it does not inherit trust from it.</p>
           </div>
@@ -48,7 +48,7 @@ export default function Models() {
         <div className="shell" style={{ display: "grid", gap: 28 }}>
           <div className="section-head" style={{ marginBottom: 0 }}>
             <span className="eyebrow">Runtimes</span>
-            <h2 className="h2" style={{ fontSize: "clamp(28px, 3.4vw, 40px)" }}><span className="mute">On your machine,</span> within clear limits.</h2>
+            <h2 className="h2 h2-sm"><span className="mute">On your machine,</span> within clear limits.</h2>
           </div>
           <div className="cards">
             <div className="card"><div className="card-top"><small>Runtime</small></div><strong>ONNX</strong><p>Admitted packs run on tract, a pure-Rust ONNX runtime, inside the Core. No native runtime to install.</p></div>

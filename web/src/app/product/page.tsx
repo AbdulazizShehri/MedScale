@@ -31,7 +31,7 @@ export default function Product() {
             <div key={r.eyebrow} className={"feature-row" + (i % 2 ? " flip" : "")}>
               <div className="feature-copy">
                 <span className="eyebrow">{r.eyebrow}</span>
-                <h2 className="h2" style={{ fontSize: "clamp(28px, 3.4vw, 40px)" }}><span className="mute">{r.mute}</span> {r.title}</h2>
+                <h2 className="h2 h2-sm"><span className="mute">{r.mute}</span> {r.title}</h2>
                 <p className="body">{r.body}</p>
                 <ul className="checklist">{r.points.map((p) => <li key={p}><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" aria-hidden="true"><path d="m5 12.5 4.2 4.2L19 7" /></svg>{p}</li>)}</ul>
               </div>

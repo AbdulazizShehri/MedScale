@@ -44,7 +44,7 @@ export default function Download() {
         <div className="shell dev">
           <div style={{ display: "grid", gap: 20 }}>
             <span className="eyebrow">Build from source</span>
-            <h2 id="cli-title" className="h2" style={{ fontSize: "clamp(28px, 3.4vw, 40px)" }}><span className="mute">The CLI,</span> in four commands.</h2>
+            <h2 id="cli-title" className="h2 h2-sm"><span className="mute">The CLI,</span> in four commands.</h2>
             <p className="body">You need Git and the Rust toolchain. On Windows, the vendored OpenSSL build also needs Strawberry Perl. The desktop app adds Node.js and the Tauri prerequisites; its guide has the exact steps.</p>
             <div className="actions"><a className="btn btn-secondary" href={docs.desktop}>Desktop build guide <ArrowUpRight /></a><a className="btn btn-secondary" href={docs.cli}>CLI guide <ArrowUpRight /></a></div>
           </div>
@@ -52,8 +52,8 @@ export default function Download() {
         </div>
       </section>
       <section className="page-section" aria-labelledby="status-title">
-        <div className="shell" style={{ display: "grid", gap: 24 }}>
-          <h2 id="status-title" className="h2" style={{ fontSize: "clamp(28px, 3.4vw, 40px)" }}><span className="mute">Release status,</span> plainly.</h2>
+        <div className="shell stack-lg">
+          <h2 id="status-title" className="h2 h2-sm"><span className="mute">Release status,</span> plainly.</h2>
           <div className="table-wrap" role="region" aria-label="Scrollable table" tabIndex={0}>
             <table>
               <thead><tr><th scope="col">Platform</th><th scope="col">Surface</th><th scope="col">Today</th><th scope="col">Packaging</th></tr></thead>

@@ -21,7 +21,17 @@
 | `--line` / `--line-2` / `--line-3` | white at 7.5% / 13% / 22% | dividers, borders, hover borders |
 | `--blue`, `--orange` | `#70B8C7`, `#FB905A` | above 8:1 on `--bg-2` |
 | Radius | 6 / 10 / 14 / 20 px, and 999 px for pills and buttons | |
-| Spacing | 4 px base. Section padding is `clamp(80px, 11vw, 144px)`. Gutter is `clamp(20px, 4vw, 40px)`. Shell maximum is 1200 px. | |
+| Spacing | 4 px base. Section padding is `clamp(72px, 9vw, 120px)`. Gutter is `clamp(20px, 4vw, 40px)`. Shell maximum is 1200 px. | |
+
+## Layout grid
+
+Every multi-column layout sits on one 12-column grid with a 24 px gap, defined by `--col` and `--span-*` in `globals.css`. Don't add a new column ratio.
+
+- **One left axis.** Headings, body text, panels and footers start on the shell's left edge. Nothing is centred at section level.
+- **Splits:** text and media use 5 + 7 columns; section heads and the evidence panel use 7 + 5; the tour uses 3 + 9; the footer uses 6 + 2 + 2 + 2.
+- **Repeats:** three-up rows span 4 columns each and four-up rows span 3.
+- **Panels:** one radius (14 px) and 24 px padding. In a row of cards, buttons line up along the bottom.
+- **Rhythm:** every section uses `--section-y` top and bottom.
 
 ## Type scale
 

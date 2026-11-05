@@ -20,7 +20,7 @@ export default function Docs() {
       </section>
       {groups.map((g) => (
         <section key={g.id} className="page-section" aria-labelledby={`g-${g.id}`}>
-          <div className="shell" style={{ display: "grid", gap: 24 }}>
+          <div className="shell stack-lg">
             <h2 id={`g-${g.id}`} className="h3" style={{ fontSize: 24 }}>{g.title}</h2>
             <div className="cards">{g.items.map(([t, d, href]) => <a key={t} className="card" href={href}><div className="card-top"><small>GitHub</small><ArrowUpRight /></div><strong>{t}</strong><p>{d}</p></a>)}</div>
           </div>
