@@ -142,3 +142,7 @@ test("normal-release native browser audits share exact unsigned source pin and r
   assert.match(sample, /synthetic_seed_wait_seconds/);
   assert.match(sample, /Normal-release synthetic seed was not observed before restart/);
 });
+
+test("macOS bundles get a complete ad-hoc signature", () => {
+  assert.equal(conf.bundle.macOS.signingIdentity, "-");
+});

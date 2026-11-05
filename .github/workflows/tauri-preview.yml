@@ -94,11 +94,14 @@ jobs:
         working-directory: apps/desktop-tauri
         shell: bash
         run: |
+          # macOS gets an ad-hoc signature (signingIdentity "-"): without one the
+          # bundle carries only the linker's partial signature and fails
+          # codesign --verify. It isn't Developer ID or notarization.
           case "$RUNNER_OS" in
-            Windows) bundles=nsis ;;
-            macOS) bundles=app,dmg ;;
+            Windows) bundles=nsis; sign=--no-sign ;;
+            macOS) bundles=app,dmg; sign= ;;
           esac
-          npm run tauri -- build --bundles "$bundles" --no-sign --ci --features custom-protocol -- --locked
+          npm run tauri -- build --bundles "$bundles" $sign --ci --features custom-protocol -- --locked
       - name: Record build-time tool hashes (Spec 101 FR-003)
         if: runner.os == 'Windows'
         shell: pwsh
