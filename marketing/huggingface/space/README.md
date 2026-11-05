@@ -7,7 +7,7 @@ sdk: static
 app_file: index.html
 pinned: true
 license: apache-2.0
-short_description: Free, open-source, local-first health intelligence desktop beta
+short_description: Free, open-source, local-first health AI desktop beta
 ---
 
 # MedScale — Open Health AI
