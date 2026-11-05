@@ -66,6 +66,43 @@ impl BlobBackend for EncryptedBlobBackend<'_> {
     }
 }
 
+#[cfg(test)]
+mod blob_error_tests {
+    use super::*;
+
+    #[test]
+    fn a_read_error_is_transient_and_only_absence_or_a_failed_check_is_damage() {
+        let root = std::env::temp_dir().join(format!("medscale-109-blob-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&root);
+        std::fs::create_dir_all(&root).unwrap();
+        let (vault, _) =
+            EncryptedVault::create("v-109", &root, "passphrase-ok", "holder", None).unwrap();
+        let backend = EncryptedBlobBackend(&vault);
+        let digest = backend.put_bytes(b"synthetic").unwrap();
+        let path = root
+            .join("sealed_blobs")
+            .join(format!("{}.sealed", digest.to_hex()));
+        std::fs::remove_file(&path).unwrap();
+        std::fs::create_dir(&path).unwrap();
+        assert!(matches!(
+            backend.get_bytes(&digest),
+            Err(AuthorityError::Unavailable { .. })
+        ));
+        std::fs::remove_dir(&path).unwrap();
+        assert!(matches!(
+            backend.get_bytes(&digest),
+            Err(AuthorityError::Corrupt { .. })
+        ));
+        std::fs::write(&path, b"not a sealed blob").unwrap();
+        assert!(matches!(
+            backend.get_bytes(&digest),
+            Err(AuthorityError::Corrupt { .. })
+        ));
+        drop(vault);
+        std::fs::remove_dir_all(&root).unwrap();
+    }
+}
+
 pub fn sync_store_to_vault(
     vault: &SyntheticVault,
     store: &InMemoryAuthorityStore,

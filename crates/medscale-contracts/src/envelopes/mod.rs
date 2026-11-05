@@ -669,6 +669,10 @@ pub enum RequestBody {
         vault_root: String,
         passphrase: Option<String>,
         recovery_code: Option<String>,
+        /// Spec 109: the user confirmed moving an unsealed session aside
+        /// without checking it, because the check could not finish.
+        #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+        discard_leftover: bool,
     },
     CloseEncryptedVault,
     NetworkBrokerInvoke {
@@ -1747,6 +1751,17 @@ impl RequestBody {
     }
 }
 
+/// Spec 109 Part B: what opening an encrypted vault did with an unsealed session.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum VaultOpenOutcome {
+    /// Its committed changes were verified and kept.
+    RecoveredInterruptedSession,
+    /// It could not be verified, so it was moved aside and the vault opened from
+    /// its last locked state.
+    DiscardedInterruptedSession,
+}
+
 /// Successful response body variants.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(tag = "ok", rename_all = "snake_case")]
@@ -1822,10 +1837,10 @@ pub enum ResponseBody {
     EncryptedVaultReady {
         vault_root: String,
         recovery_codes: Option<Vec<String>>,
-        /// Spec 109: this open discarded a work database from a session that
-        /// never sealed, so changes since the last lock may be lost.
-        #[serde(default, skip_serializing_if = "std::ops::Not::not")]
-        discarded_interrupted_session: bool,
+        /// Spec 109: what happened to a session that never sealed. Absent when
+        /// there was none.
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        open_outcome: Option<VaultOpenOutcome>,
     },
     NetworkBroker {
         result: NetworkBrokerResult,

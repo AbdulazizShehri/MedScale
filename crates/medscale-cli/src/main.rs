@@ -1541,10 +1541,18 @@ fn vault_open_sealed(vault_id: &str, vault_root: &Path, passphrase: &str) -> Res
     session
         .open_encrypted_vault(&vault_root.display().to_string(), passphrase)
         .map_err(auth)?;
-    if session.discarded_interrupted_session() {
-        eprintln!(
-            "warning: an earlier session did not close normally; changes made after the last seal may be lost"
-        );
+    match session.last_open_outcome() {
+        Some(medscale_contracts::envelopes::VaultOpenOutcome::RecoveredInterruptedSession) => {
+            eprintln!(
+                "warning: an earlier session did not close normally; its committed changes were recovered"
+            );
+        }
+        Some(medscale_contracts::envelopes::VaultOpenOutcome::DiscardedInterruptedSession) => {
+            eprintln!(
+                "warning: an earlier session did not close normally and could not be verified; changes made after the last seal may be lost"
+            );
+        }
+        None => {}
     }
     session
         .close_encrypted_vault()

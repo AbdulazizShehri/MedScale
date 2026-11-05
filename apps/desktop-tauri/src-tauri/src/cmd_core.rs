@@ -164,15 +164,8 @@ pub fn workspace_create_encrypted(
 pub fn workspace_unlock(host: tauri::State<'_, Host>, passphrase: String) -> CmdResult<Value> {
     let mut state = lock(&host)?;
     state.workspace = None;
-    let discarded = host::unlock_encrypted(&mut state, &passphrase)?;
-    let mut label = vault_label(&state);
-    if let Some(object) = label.as_object_mut() {
-        object.insert(
-            "discarded_interrupted_session".to_owned(),
-            Value::Bool(discarded),
-        );
-    }
-    Ok(label)
+    let outcome = host::unlock_encrypted(&mut state, &passphrase)?;
+    Ok(label_with_outcome(&state, outcome))
 }
 
 #[tauri::command(async)]
@@ -182,15 +175,37 @@ pub fn workspace_unlock_with_recovery_code(
 ) -> CmdResult<Value> {
     let mut state = lock(&host)?;
     state.workspace = None;
-    let discarded = host::unlock_encrypted_with_recovery_code(&mut state, &code)?;
-    let mut label = vault_label(&state);
+    let outcome = host::unlock_encrypted_with_recovery_code(&mut state, &code)?;
+    Ok(label_with_outcome(&state, outcome))
+}
+
+/// Spec 109: opens after the user confirmed moving an interrupted session aside,
+/// because its check could not finish. Exactly one secret is required.
+#[tauri::command(async)]
+pub fn workspace_unlock_moving_session_aside(
+    host: tauri::State<'_, Host>,
+    passphrase: Option<String>,
+    code: Option<String>,
+) -> CmdResult<Value> {
+    let mut state = lock(&host)?;
+    state.workspace = None;
+    let outcome = host::unlock_encrypted_moving_session_aside(
+        &mut state,
+        passphrase.as_deref(),
+        code.as_deref(),
+    )?;
+    Ok(label_with_outcome(&state, outcome))
+}
+
+fn label_with_outcome(
+    state: &State,
+    outcome: Option<medscale_contracts::envelopes::VaultOpenOutcome>,
+) -> Value {
+    let mut label = vault_label(state);
     if let Some(object) = label.as_object_mut() {
-        object.insert(
-            "discarded_interrupted_session".to_owned(),
-            Value::Bool(discarded),
-        );
+        object.insert("open_outcome".to_owned(), json!(outcome));
     }
-    Ok(label)
+    label
 }
 
 #[tauri::command(async)]
