@@ -292,7 +292,7 @@ export function About() {
       <div style={{ maxWidth: 980 }} className="stack">
         <h1 className="sr-only">About MedScale</h1>
         <div className="row-gap" style={{ alignItems: "flex-end", gap: 40, paddingBottom: 32, borderBottom: "1px solid var(--line)", marginBottom: 28 }}>
-          <Mark height={96} />
+          <Mark height={66} />
           <div className="stack" style={{ gap: 6, flex: 1, minWidth: 260 }}><Wordmark height={34} title={a.product} /><span style={{ fontSize: 15, color: "var(--ink-2)" }}>{a.tagline}</span></div>
           <div className="stack" style={{ alignItems: "flex-end", gap: 6 }}><span className="mono" style={{ fontSize: 20 }}>{a.version}</span><span style={{ fontSize: 11, letterSpacing: "0.28em", textTransform: "uppercase", color: "var(--ink-3)" }}>Evidence. Privacy. Scale.</span></div>
         </div>

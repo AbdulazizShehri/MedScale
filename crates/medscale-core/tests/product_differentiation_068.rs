@@ -134,13 +134,13 @@ fn brand_identity_is_canonical_and_runtime_bound() {
     assert!(brand.contains("Evidence first. Action second."));
     assert!(typography.contains("Inter"));
     assert!(typography.contains("JetBrains Mono"));
-    // Logo 12 (2026-10-19) supersedes the equilateral paired-M construction.
-    assert!(logo.contains("FOUNDER_APPROVED_LOGO_12"));
-    assert!(logo.to_lowercase().contains("three upright frames"));
+    // The founder-supplied mark (2026-11-05) supersedes Logo 12 and the paired-M construction.
+    assert!(logo.contains("FOUNDER_SUPPLIED_MARK_2026_11_05"));
+    assert!(logo.to_lowercase().contains("three triangular counters"));
     assert!(logo.contains("16 px"));
     assert!(logo.contains("clear space"));
     assert!(!mark.contains("<circle"));
     assert!(mark.contains("#000000"));
-    assert!(mark.contains("id=\"medscale-frames\""));
+    assert!(mark.contains("id=\"medscale-symbol\""));
     assert!(!mark.contains("#0A66FF"));
 }

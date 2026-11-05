@@ -2,7 +2,7 @@
 
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset="assets/brand/medscale-horizontal-white.svg">
-  <img src="assets/brand/medscale-horizontal-black.svg" alt="MedScale" width="280">
+  <img src="assets/brand/medscale-horizontal-black.svg" alt="MedScale" width="304">
 </picture>
 
 **Free, local-first desktop software for audio, models, research and evidence-backed health work.**

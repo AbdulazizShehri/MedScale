@@ -222,7 +222,7 @@ export default function Home() {
 
       <section className="closing" aria-labelledby="closing-title">
         <div className="shell inner">
-          <img src={asset("/brand/mark-white.svg")} alt="" width={53} height={72} />
+          <img src={asset("/brand/mark-white.svg")} alt="" width={76} height={50} />
           <h2 id="closing-title" className="display" style={{ fontSize: "clamp(40px, 6vw, 72px)" }}>Every insight,<br /><span className="mute">with its source.</span></h2>
           <p className="lede" style={{ margin: "0 auto" }}>Open the workspace, inspect the evidence and decide for yourself.</p>
           <div className="actions">

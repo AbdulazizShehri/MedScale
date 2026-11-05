@@ -134,7 +134,7 @@ components:
 
 ## Identity
 
-The locked mark is founder-approved Logo 12 (2026-10-19): three overlapping upright frames with rounded corners, drawn as one uniform white stroke, the front frame descending below a shared lower stroke, with the founder-approved MedScale wordmark of 2026-10-22 (Plus Jakarta Sans outlines at weight 590; symbol 2.05× the cap height in the horizontal lockup). Only pure black #000000 or white #FFFFFF, white on black canonical. No gradient, blue, shadow, effect or healthcare/AI decoration. assets/brand/mark-black.svg is the master; every lockup, icon and the desktop `brand.tsx` reuse its path data. docs/brand/LOGO_SPEC.md defines construction, size, clear space and lockups. The Spec 095 paired mark is superseded and kept as history.
+The locked mark is the founder-supplied symbol of 2026-11-05: one filled rounded trapezoid with three triangular counters, with the founder-approved MedScale wordmark of 2026-10-22 (Plus Jakarta Sans outlines at weight 590; symbol 1.45× the cap height in the horizontal lockup). Only pure black #000000 or white #FFFFFF, white on black canonical; application icons use the founder's near-black #080808 tile. No gradient, blue, shadow, effect or healthcare/AI decoration. assets/brand/mark-black.svg is the master; every lockup, icon and the desktop `brand.tsx` reuse its path data. docs/brand/LOGO_SPEC.md defines construction, size, clear space and lockups. Logo 12 and the Spec 095 paired mark are superseded and kept as history.
 
 MedScale is a **Clinical Intelligence OS**. **Evidence first. Action second.** is an operating principle, not a readiness claim. Typography and clear relationships carry the identity; the framed geometry belongs to the logo.
 
@@ -178,7 +178,7 @@ from a generic preset. The CSS remains the implementation source; use its
 theme variables rather than literal theme colors in new components. The
 preceding sections and historical source references are retained.
 
-The Logo 12 mark, one sidebar, quiet black/white hierarchy, Inter and exact
+The MedScale mark, one sidebar, quiet black/white hierarchy, Inter and exact
 data in JetBrains Mono NL remain the approved world. Light mode uses the same
 component relationships with its own neutral layers. This documentation does
 not qualify a populated clinical surface, privacy, accessibility or release.
@@ -238,7 +238,7 @@ Shared controls use the small radius; navigation and theme grouping use the
 medium radius. The icon family is first-party geometry: 24-unit view box,
 18px display size, two-unit outline, square ends, miter joins, no fill and
 current text color. Icons are decorative alongside labels; they do not replace
-accessible names. This icon grammar does not alter the Logo 12 symbol.
+accessible names. This icon grammar does not alter the MedScale symbol.
 
 ## Components
 
@@ -274,7 +274,7 @@ unavailable presentation and controls, with no invented clinical row.
 - **Do** use shared primitives and theme variables for new supported surfaces.
 - **Do** keep literal states, accessible labels and a visible sky-blue focus ring.
 - **Do** keep exact identifiers in the locally bundled data font.
-- **Do** preserve the Logo 12 identity and the same relationships in light mode.
+- **Do** preserve the MedScale identity and the same relationships in light mode.
 
 ### Don't:
 

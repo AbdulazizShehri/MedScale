@@ -6,7 +6,7 @@
 
 | Area | Shared MedScale contract (desktop, CLI, website) | Website-only decision |
 |---|---|---|
-| Logo | Logo 12 symbol plus the 2026-10-22 wordmark, from `assets/brand/` only. Monochrome, never recoloured, never retyped. | Header lockup at 26 px high; footer at 24 px; closing mark at 72 px. |
+| Logo | The 2026-11-05 symbol plus the 2026-10-22 wordmark, from `assets/brand/` only. Monochrome, never recoloured, never retyped. | Header lockup at 18 px high; footer at 17 px; closing mark at 50 px. |
 | Color | Black and warm white. Sky blue `#70B8C7` for interaction and support; orange `#FB905A` for attention, review, conflict and preview state. Status never relies on color alone. | Near-black page `#08090A` with three raised surfaces. Faint sky-blue radial light behind hero and closing sections. |
 | Type | Inter and JetBrains Mono NL, unchanged OFL files from `assets/brand/fonts/`. | Latin WOFF2 subsets of the same files, self-hosted, with the OFL texts in `/fonts/`. No font service. |
 | Voice | `VOICE_AND_COPY.md`. Evidence first. No clinical claims. | Two-tone headlines: a gray lead-in, then a white statement. |

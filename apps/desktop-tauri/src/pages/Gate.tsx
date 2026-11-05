@@ -81,7 +81,7 @@ export function Welcome({ onContinue }: { onContinue: () => void }) {
       <Topology />
       <div className="gate-fade" />
       <div className="gate-welcome-layout">
-        <Logo height={40} />
+        <Logo height={28} />
         <div className="stack" style={{ gap: 28 }}>
           <h1 className="gate-welcome-title">Your local AI<br />workspace</h1>
           <span className="brand-rule" aria-hidden="true" />
@@ -183,7 +183,7 @@ export function Access({ onBack }: { onBack: () => void }) {
       <div className="access">
         <section>
           <button type="button" onClick={onBack} style={{ display: "flex", alignItems: "center", gap: 12, width: "max-content" }} aria-label="Back to Welcome">
-            <Logo height={26} />
+            <Logo height={18} />
           </button>
           <div style={{ flex: 1, display: "flex", alignItems: "center", padding: "32px 0" }}>
             {codes ? (

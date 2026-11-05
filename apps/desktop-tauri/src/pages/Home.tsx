@@ -51,7 +51,7 @@ export function Home() {
       <div className="pane">
         <div className="page-head">
           <div className="grow">
-            <div className="brand-hero" style={{ marginBottom: 6 }}><Mark height={28} className="mark" /><span className="brand-rule" aria-hidden="true" /></div>
+            <div className="brand-hero" style={{ marginBottom: 6 }}><Mark height={20} className="mark" /><span className="brand-rule" aria-hidden="true" /></div>
             <h1 className="t-h1">Workspace</h1>
             <p className="ph-sub">What needs a person, what changed, and what this workspace can and cannot assert.</p>
           </div>

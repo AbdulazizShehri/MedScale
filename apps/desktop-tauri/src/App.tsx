@@ -154,8 +154,8 @@ export function App() {
   let body: ReactNode;
   if (!ws) {
     body = wsError
-      ? <div className="splash" role="alert"><div className="stack"><Mark height={56} className="mark" title="MedScale" /><span className="brand-rule" aria-hidden="true" /><p className="t-sm i2">Local runtime disconnected. {wsError}</p></div></div>
-      : <div className="splash" aria-busy="true"><div className="stack"><Mark height={56} className="mark" title="MedScale" /><span className="brand-rule" aria-hidden="true" /><p className="t-sm i3">Opening the local runtime…</p></div></div>;
+      ? <div className="splash" role="alert"><div className="stack"><Mark height={38} className="mark" title="MedScale" /><span className="brand-rule" aria-hidden="true" /><p className="t-sm i2">Local runtime disconnected. {wsError}</p></div></div>
+      : <div className="splash" aria-busy="true"><div className="stack"><Mark height={38} className="mark" title="MedScale" /><span className="brand-rule" aria-hidden="true" /><p className="t-sm i3">Opening the local runtime…</p></div></div>;
   } else if (!ws.open && route.scope !== "none") {
     body = gate === "welcome" ? <Welcome onContinue={() => setGate("access")} /> : <Access onBack={() => setGate("welcome")} />;
   } else {
