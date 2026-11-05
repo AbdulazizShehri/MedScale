@@ -17,8 +17,8 @@ jobs:
     runs-on: windows-latest
     timeout-minutes: 25
     env:
-      SOURCE_RUN: "41743239715"
-      SOURCE_SHA: "bc16eb3d8b0633378c1f476fb315df84324f6272"
+      SOURCE_RUN: "41976839962"
+      SOURCE_SHA: "80c937aa96ee2251294ded601379313700d0d366"
       MEDSCALE_RELEASE_WEBVIEW_PROBE: "1"
     steps:
       - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v4

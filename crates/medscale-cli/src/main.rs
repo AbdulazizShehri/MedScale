@@ -1521,8 +1521,8 @@ fn auth(err: medscale_contracts::envelopes::AuthorityError) -> anyhow::Error {
 /// the encrypted vault works in a SQLCipher working database; Core seals it
 /// into the encrypted meta file and removes it, its SQLite sidecars and the
 /// writer lease only on `CloseEncryptedVault`. Returning without it leaves
-/// those files on disk, and the next open discards everything written since
-/// the last seal as a crash leftover.
+/// those files on disk, and the next open checks them and normally recovers what
+/// was committed (Spec 109).
 fn vault_create_sealed(vault_id: &str, vault_root: &Path, passphrase: &str) -> Result<Vec<String>> {
     let mut session = CliSession::connect(vault_id).map_err(auth)?;
     let codes = session

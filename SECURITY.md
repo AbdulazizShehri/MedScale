@@ -2,7 +2,7 @@
 
 ## Scope and support status
 
-MedScale is an **unsigned, synthetic-only engineering preview**. It is not authorized for real patient data, clinical decisions or production deployment. Open-source availability is not a warranty, a vulnerability-free claim or a commitment to support any particular release.
+MedScale is an **unsigned engineering preview**. It runs on synthetic workspaces and on lawfully sourced **non-patient** recordings a user deliberately chooses. It is not authorized for real patient data, clinical decisions or production deployment. Current gates: `RELEASE_READY = false`, `REAL_PHI_AUTHORIZATION = NOT_AUTHORIZED`, `TAURI_WEBVIEW_PRIVACY_QUALIFICATION = OPEN` ([external gates](docs/qualification/EXTERNAL_GATES.md)). Known risks are in the [Beta readiness report](docs/beta/BETA_READINESS.md). Open-source availability is not a warranty, a vulnerability-free claim or a commitment to support any particular release.
 
 There are no currently supported production releases or clinical deployment versions. We review reports against the current `main` branch and qualifying engineering preview builds.
 
