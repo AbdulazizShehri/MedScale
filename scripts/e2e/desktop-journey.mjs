@@ -693,7 +693,7 @@ try {
     await see("Full proposal payload", 60000);
     await see("Prepared cache");
     const evidence = await wd("POST", `/session/${sid}/execute/sync`, {
-      script: "const t = document.body.innerText; return { localRuntime: !!document.querySelector('.lk[title="runtime"]') && !!document.querySelector('.lk[title="audit"]'), authority: t.includes('Evaluation evidence, not a record.') };",
+      script: "const t = document.body.innerText; return { localRuntime: !!document.querySelector('.lk[title=runtime]') && !!document.querySelector('.lk[title=audit]'), authority: t.includes('Evaluation evidence, not a record.') };",
       args: [],
     });
     if (!evidence.localRuntime || !evidence.authority) {
