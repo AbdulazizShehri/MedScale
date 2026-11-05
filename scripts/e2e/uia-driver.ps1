@@ -41,7 +41,8 @@ function Invoke-Control($e) {
     $p = $null
     if ($e.TryGetCurrentPattern([System.Windows.Automation.InvokePattern]::Pattern, [ref]$p)) { $p.Invoke(); return }
     if ($e.TryGetCurrentPattern([System.Windows.Automation.TogglePattern]::Pattern, [ref]$p)) { $p.Toggle(); return }
-    throw 'control has no invoke or toggle pattern'
+    if ($e.TryGetCurrentPattern([System.Windows.Automation.SelectionItemPattern]::Pattern, [ref]$p)) { $p.Select(); return }
+    throw 'control has no invoke, toggle or selection pattern'
 }
 
 while ($null -ne ($line = [Console]::In.ReadLine())) {

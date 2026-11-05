@@ -232,7 +232,7 @@ async function main() {
     // direct test: does it reach the profile, on the first launch and the next?
     const setTheme = async (name) => {
       await nav("Settings");
-      await click(button(name), 30000);
+      await click({ kind: "RadioButton", name }, 30000);
       await sleep(1500);
     };
     await setTheme("Light");
