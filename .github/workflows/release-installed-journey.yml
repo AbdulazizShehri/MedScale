@@ -66,11 +66,6 @@ jobs:
           python scripts/qualification/prepare_librispeech_one_wav.py $archive $wav
           if ($LASTEXITCODE -ne 0) { throw 'No public speech example' }
           "MEDSCALE_E2E_REAL_WAV_PATH=$wav" | Out-File -Append -FilePath $env:GITHUB_ENV -Encoding utf8
-      - name: Allow a debugging port on this disposable runner
-        shell: pwsh
-        run: |
-          New-Item -Path 'HKLM:\SOFTWARE\Policies\Microsoft\Edge' -Force | Out-Null
-          Set-ItemProperty -Path 'HKLM:\SOFTWARE\Policies\Microsoft\Edge' -Name RemoteDebuggingAllowed -Value 1 -Type DWord
       - name: Run the journey on the installed release build
         shell: pwsh
         run: node scripts/e2e/installed-journey.mjs $env:RELEASE_INSTALLER $env:RELEASE_MANIFEST target/installed-journey/windows.json

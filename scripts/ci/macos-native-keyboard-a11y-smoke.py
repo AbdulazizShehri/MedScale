@@ -175,7 +175,12 @@ try:
             raise AssertionError(f"Mouse click failed to focus native input: {field_id}")
 
         keypress(process.pid, 48)  # Real macOS Tab hardware-style key event
+        # The key arrives asynchronously after AppleScript returns.
+        deadline = time.monotonic() + 5
         next_focus = focused(session)
+        while next_focus.get("id") == field_id and time.monotonic() < deadline:
+            time.sleep(0.1)
+            next_focus = focused(session)
         if (next_focus.get("tag") != "BUTTON" or
                 expected_button not in next_focus.get("text", "")):
             raise AssertionError(
