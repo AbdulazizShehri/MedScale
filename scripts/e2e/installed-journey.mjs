@@ -63,15 +63,18 @@ async function launch(exe) {
   });
   const end = Date.now() + 120000;
   let target;
+  let seen = "no response on the port";
   while (Date.now() < end && !target) {
     if (child.exitCode !== null) throw new Error(`the app exited with code ${child.exitCode}`);
     try {
       const list = await (await fetch(`http://127.0.0.1:${DEBUG_PORT}/json/list`)).json();
-      target = list.find((t) => t.type === "page" && t.webSocketDebuggerUrl);
+      seen = `targets: ${list.map((t) => t.type).join(",") || "none"}`;
+      // WebView2 can report its page as "webview" rather than "page".
+      target = list.find((t) => t.webSocketDebuggerUrl && !/^devtools:/.test(t.url ?? "") && ["page", "webview", "other"].includes(t.type));
     } catch {}
     if (!target) await sleep(500);
   }
-  if (!target) throw new Error("the installed app opened no debugging port");
+  if (!target) throw new Error(`could not attach to the installed app (${seen})`);
   const socket = new WebSocket(target.webSocketDebuggerUrl);
   await new Promise((resolve, reject) => {
     socket.addEventListener("open", resolve, { once: true });
