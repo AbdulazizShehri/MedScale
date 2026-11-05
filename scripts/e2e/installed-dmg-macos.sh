@@ -50,7 +50,10 @@ xattr -w com.apple.quarantine "0081;$(printf %x "$(date +%s)");Safari;" "$dmg"
 hdiutil verify "$dmg" >/dev/null && say "DMG_VERIFY=PASS"
 
 # The DMG shows a licence prompt, which `yes` answers. A person sees it.
+# `yes` ends on a closed pipe, which isn't a failure here; a missing mount is.
+set +o pipefail
 mount_point="$(yes | hdiutil attach -nobrowse -readonly "$dmg" | awk -F'\t' '/\/Volumes\//{print $NF; exit}')"
+set -o pipefail
 [ -n "$mount_point" ] || { say "DMG_ATTACH=FAIL"; exit 1; }
 source_app="$(find "$mount_point" -maxdepth 1 -name '*.app' -print -quit)"
 [ -n "$source_app" ] || { say "DMG_HAS_APP=FAIL"; exit 1; }
