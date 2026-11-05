@@ -3,7 +3,7 @@ import type { Metadata } from "next";
 import { DownloadCards } from "@/components/DownloadCards";
 import { productStage, publicRelease } from "@/lib/release";
 import { EvidenceExample } from "@/components/EvidenceExample";
-import { ArrowRight, ArrowUpRight, Check, GitHub, Monitor, Plus, Terminal } from "@/components/Icons";
+import { ArrowRight, ArrowUpRight, GitHub, Monitor, Plus, Terminal } from "@/components/Icons";
 import { ProductTour } from "@/components/ProductTour";
 import { Quickstart } from "@/components/Quickstart";
 import { Shot } from "@/components/Shot";
@@ -18,6 +18,20 @@ const strip = [
   ["Local first", "The Core runs on your machine."],
   ["Source-aware", "Every insight keeps its evidence."],
   ["People decide", "AI proposes. You approve."],
+];
+
+const story = [
+  ["Open a record", "See what each subject's record covers, and what it doesn't, before you read further."],
+  ["Check the evidence", "Conflicts and gaps stay visible. When two sources disagree, MedScale shows both instead of picking one."],
+  ["Ask the evidence", "Answers quote the documents in your workspace with citations, or say that nothing supports them."],
+  ["Run a local model", "Agents run on model packs you admit, on your own machine. Their output is a proposal with a receipt, and a person decides what happens next."],
+  ["Share with disclosure", "An export shows what would leave before it leaves, and the Core records it in an audit trail you can read and can't edit."],
+];
+
+const audiences = [
+  ["Clinicians and informaticists", "Try the evidence workflow on synthetic records, and tell us what's missing. MedScale isn't for patient care today."],
+  ["Researchers", "Organize projects, query pinned snapshots and keep provenance attached to every result."],
+  ["Developers", "Read the Rust Core, run the tests and build on the desktop app or the CLI."],
 ];
 
 const faq = [
@@ -46,6 +60,7 @@ export default function Home() {
               <span><Monitor /> Desktop for Windows and macOS</span>
               <span><Terminal /> CLI for Windows, macOS and Linux</span>
             </div>
+            <p className="hero-note">{productStage} · synthetic data and licensed nonpatient audio · not for clinical use</p>
           </div>
           <div className="hero-stage reveal reveal-4">
             <Shot name="insightsHero" priority />
@@ -54,6 +69,24 @@ export default function Home() {
         <div className="strip">
           <div className="shell strip-grid">
             {strip.map(([t, d]) => <div className="strip-item" key={t}><strong>{t}</strong><span>{d}</span></div>)}
+          </div>
+        </div>
+      </section>
+
+      <section className="section" aria-labelledby="story-title">
+        <div className="shell">
+          <div className="section-head">
+            <span className="eyebrow">How it works</span>
+            <h2 id="story-title" className="h2"><span className="mute">Good decisions depend on knowing where a fact came from.</span> MedScale keeps that in view.</h2>
+          </div>
+          <ol className="story">
+            {story.map(([t, d], i) => <li key={t}><span className="story-n">{String(i + 1).padStart(2, "0")}</span><h3 className="h3">{t}</h3><p className="body">{d}</p></li>)}
+          </ol>
+          <div className="section-sub">
+            <h3 className="eyebrow">Who it&apos;s for today</h3>
+            <div className="cards">
+              {audiences.map(([t, d]) => <div className="card card-plain" key={t}><strong>{t}</strong><p>{d}</p></div>)}
+            </div>
           </div>
         </div>
       </section>
@@ -84,7 +117,7 @@ export default function Home() {
         </div>
       </section>
 
-      <section className="section" aria-labelledby="control-title">
+      <section className="section band" aria-labelledby="control-title">
         <div className="shell">
           <div className="section-head">
             <span className="eyebrow">Local first · human oversight</span>
@@ -137,35 +170,6 @@ export default function Home() {
         </div>
       </section>
 
-      <section className="section" aria-labelledby="arch-title">
-        <div className="shell arch">
-          <div className="stack">
-            <span className="eyebrow">Built on something real</span>
-            <h2 id="arch-title" className="h2"><span className="mute">One trusted Core.</span> Two ways to work.</h2>
-            <p className="body">The desktop app is for daily work. The CLI is for scripts and automation. Both are thin surfaces over the same Rust Core, which owns records, provenance, policy and storage.</p>
-            <ul className="checklist">
-              <li><Check /> Tauri 2 desktop with a React interface</li>
-              <li><Check /> Encrypted local storage and FHIR R4 interchange</li>
-              <li><Check /> Tests on Windows, macOS and Linux for every pull request</li>
-            </ul>
-            <div className="built-on" aria-label="Built on">
-              <span>Built on</span>
-              {["Rust", "Tauri 2", "React", "SQLCipher", "FHIR R4", "tract ONNX", "Candle"].map((t) => <b key={t}>{t}</b>)}
-            </div>
-            <a className="text-link" href={docs.crates}>Explore the Rust workspace <ArrowUpRight /></a>
-          </div>
-          <div className="arch-diagram" aria-label="Diagram: the desktop app and the CLI both use the MedScale Rust Core">
-            <div className="arch-row">
-              <div className="arch-node"><small>Surface</small><strong>Desktop</strong><span>Tauri 2 · React</span></div>
-              <div className="arch-node"><small>Surface</small><strong>CLI</strong><span>medscale-cli</span></div>
-            </div>
-            <div className="arch-links" aria-hidden="true"><i /><i /></div>
-            <div className="arch-node arch-core"><small>Authority</small><strong>MedScale Core</strong><span>Records · provenance · policy · audit</span></div>
-            <div className="crate-list">{["medscale-core", "medscale-storage", "medscale-fhir", "medscale-pack", "medscale-network", "medscale-keys", "medscale-contracts"].map((c) => <code key={c}>{c}</code>)}</div>
-          </div>
-        </div>
-      </section>
-
       <section className="section" id="download" aria-labelledby="download-title">
         <div className="shell">
           <div className="download-hero">
@@ -175,6 +179,30 @@ export default function Home() {
           </div>
           <DownloadCards />
           <div className="download-foot"><span>{productStage} · synthetic workspaces + licensed nonpatient audio · not for clinical use</span><Link className="text-link text-link-sm" href="/download/">Full release status</Link></div>
+        </div>
+      </section>
+
+      <section className="section" aria-labelledby="status-title">
+        <div className="shell">
+          <div className="section-head">
+            <span className="eyebrow">Where it stands</span>
+            <h2 id="status-title" className="h2"><span className="mute">No promises we can&apos;t show.</span> Here is today.</h2>
+          </div>
+          <div className="stack-lg">
+            <div className="table-wrap" role="region" aria-label="Current status" tabIndex={0}>
+              <table className="table-cols-3">
+                <thead><tr><th scope="col">Area</th><th scope="col">Today</th><th scope="col">What it means</th></tr></thead>
+                <tbody>
+                  <tr><td>Stage</td><td>{productStage}</td><td>{publicRelease ? `Version ${publicRelease.version}, for testing with synthetic data.` : "No released version yet. You can build it from source."}</td></tr>
+                  <tr><td>Real patient data</td><td>Not authorized</td><td>Use synthetic workspaces and licensed nonpatient audio only.</td></tr>
+                  <tr><td>Clinical validation</td><td>Not done</td><td>MedScale is not clinically validated. This is an external gate that hasn&apos;t been met.</td></tr>
+                  <tr><td>Platforms</td><td>Windows, macOS, Linux</td><td>Desktop for Windows and macOS. CLI on all three.</td></tr>
+                  <tr><td>Installers</td><td>{publicRelease ? "Signing varies" : "Not published"}</td><td>{publicRelease ? "Each installer states its own signing status and checksum." : "CI builds packages to test the release process. They aren't qualified for public use."}</td></tr>
+                </tbody>
+              </table>
+            </div>
+            <a className="text-link" href={docs.qualification}>Read the external gates <ArrowUpRight /></a>
+          </div>
         </div>
       </section>
 
@@ -191,18 +219,12 @@ export default function Home() {
           </div>
           <Quickstart />
         </div>
-      </section>
-
-      <section className="section" aria-labelledby="docs-title">
-        <div className="shell">
-          <div className="section-head">
-            <span className="eyebrow">Explore</span>
-            <h2 id="docs-title" className="h2">Find your way in.</h2>
-          </div>
+        <div className="shell section-sub">
+          <h3 className="eyebrow">Get involved</h3>
           <div className="cards">
-            <Link className="card" href="/product/"><div className="card-top"><small>Product</small><ArrowRight /></div><strong>What MedScale does</strong><p>Records, insights, agents, models and governance, area by area.</p></Link>
-            <Link className="card" href="/models/"><div className="card-top"><small>Models</small><ArrowRight /></div><strong>Model discovery</strong><p>Catalog, local runtime and the states a model moves through.</p></Link>
-            <Link className="card" href="/docs/"><div className="card-top"><small>Docs</small><ArrowRight /></div><strong>Get started</strong><p>Setup, desktop, CLI, security and the qualification boundaries.</p></Link>
+            <a className="card" href={docs.bugReport}><div className="card-top"><small>Feedback</small><ArrowUpRight /></div><strong>Report a problem</strong><p>Tell us what broke. Never include patient information.</p></a>
+            <a className="card" href={docs.discussions}><div className="card-top"><small>Support</small><ArrowUpRight /></div><strong>Ask a question</strong><p>Design questions, ideas and help with building from source.</p></a>
+            <a className="card" href={docs.security}><div className="card-top"><small>Security</small><ArrowUpRight /></div><strong>Report a vulnerability</strong><p>Use the private route in the security policy, not a public issue.</p></a>
           </div>
         </div>
       </section>
@@ -222,12 +244,12 @@ export default function Home() {
 
       <section className="closing" aria-labelledby="closing-title">
         <div className="shell"><div className="closing-inner">
-          <img src={asset("/brand/mark-white.svg")} alt="" width={61} height={40} />
+          <img src={asset("/brand/mark-black.svg")} alt="" width={61} height={40} />
           <h2 id="closing-title" className="display display-sub">Every insight,<br /><span className="mute">with its source.</span></h2>
           <p className="lede">Open the workspace, inspect the evidence and decide for yourself.</p>
           <div className="actions">
             <Link className="btn btn-primary" href="/download/">Get MedScale <ArrowRight /></Link>
-            <a className="btn btn-secondary" href={github}><GitHub size={16} /> Star on GitHub</a>
+            <a className="btn btn-outline-dark" href={github}><GitHub size={16} /> Star on GitHub</a>
           </div>
         </div></div>
       </section>
