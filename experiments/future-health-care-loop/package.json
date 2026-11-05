@@ -1,0 +1,14 @@
+{
+  "name": "@medscale/future-health-care-loop-demo",
+  "private": true,
+  "type": "module",
+  "version": "0.0.0",
+  "description": "Synthetic-only FHIR-style care-loop research prototype, not clinical software",
+  "scripts": {
+    "test": "node --test test/*.test.mjs",
+    "demo": "node server.mjs"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}
