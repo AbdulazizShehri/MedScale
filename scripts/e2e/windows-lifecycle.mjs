@@ -283,7 +283,7 @@ function recordInstaller(key, file) {
 async function clean() {
   let installed;
   await step("record-installer", () => recordInstaller("installer", installer));
-  await step("clean-install-with-mark-of-the-web", () => {
+  await step("clean-install-of-a-marked-file", () => {
     markAsDownloaded(installer);
     if (entries().length) throw new Error("already installed");
     if (fs.existsSync(appData)) throw new Error("app data already exists on this runner");
@@ -301,7 +301,7 @@ async function clean() {
     await click(SAMPLE);
     await find(OPENED, 180000);
     await click(OPENED);
-    await waitForText(/subject/i, 30000);
+    await waitForText(/b[1-9]d* subjects? · /, 30000);
     await shot("02-sample-open");
   });
   await step("sidebar-group-folds-and-opens", async () => {
@@ -524,7 +524,7 @@ async function upgrade() {
     await click(SAMPLE);
     await find(OPENED, 180000);
     await click(OPENED);
-    await waitForText(/subject/i, 30000);
+    await waitForText(/b[1-9]d* subjects? · /, 30000);
     await closeWindow();
   });
   await step("uninstall-keeps-user-data", async () => {
