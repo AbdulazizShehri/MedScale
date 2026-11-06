@@ -648,3 +648,4 @@ label.row-gap > input[type="checkbox"] { flex: none; }
 .kv > div:nth-child(odd) { font-family: var(--font-ui); font-size: 12px; }
 .auth .t-label { letter-spacing: 0; }
 .synth { font-family: var(--font-ui); font-size: 12px; letter-spacing: 0; text-transform: none; }
+.audio-technical { margin-bottom: var(--gap-sec); }

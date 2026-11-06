@@ -47,7 +47,7 @@ export function Documents() {
   return (
     <>
       <div className="pane">
-        <PageHead title="Documents" sub="Source material held in the vault, and exactly what was extracted from it.">
+        <PageHead title="Documents" sub="Source files in this workspace, and exactly what was extracted from each.">
           <button type="button" className="btn btn-s" onClick={() => setImp(imp ? null : { path: "", subject: "synthetic-subject-ada" })}>Import synthetic FHIR</button>
         </PageHead>
         {imp && <form onSubmit={importFhir} className="stack" style={{ gap: 8, maxWidth: 640, marginBottom: 14 }}>
@@ -77,14 +77,14 @@ export function Documents() {
                 <tr key={s.source_id + i} className={`r2 clickable ${cur === s ? "sel" : ""}`} tabIndex={0} aria-selected={cur === s} onClick={() => setSel(i)} onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); setSel(i); } }}>
                   <td><div style={{ display: "flex", flexDirection: "column", minWidth: 0 }}><span className="mono trunc" style={{ fontSize: 12 }}>{s.source_id}</span><span className="t-sm i3">FHIR R4 · {s.fixture}</span></div></td>
                   <td className="t-sm">{s.resource_type}</td>
-                  <td><Status kind="present">Structured</Status> <span className="mono t-mono-sm i3">{s.claim_kind}</span></td>
+                  <td><div style={{ display: "flex", flexDirection: "column", gap: 2, minWidth: 0 }}><Status kind="present">Structured</Status><span className="mono t-mono-sm i3 trunc">{s.claim_kind}</span></div></td>
                   <td className="col-p3" title={s.subject_ref}><span className="mono t-mono-sm i2 trunc">{s.subject_ref}</span></td>
                   <td title={s.fixture.startsWith("imported:") ? "Imported synthetic FHIR file" : "Bundled synthetic FHIR fixture"}><Status kind="synthetic" weight="weak">{s.fixture.startsWith("imported:") ? "Imported" : "Synthetic"}</Status></td>
                 </tr>
               ))}</tbody>
             </table>
-          ) : <Empty icon="documents" title="No sources in this vault">Sources appear after governed ingest. Open the synthetic workspace to use the bundled synthetic FHIR fixtures; encrypted vaults do not accept clinical ingest yet.</Empty>}
-          <Section n="02" title="Document understanding">
+          ) : <Empty icon="documents" title="No sources in this vault">Sources appear once records are imported. Open the sample workspace to use its bundled FHIR files. Encrypted vaults don't accept clinical imports yet.</Empty>}
+          <Section title="Document understanding">
             <Notice kind="unsupported" title="Not admitted.">{state.data.document_understanding}</Notice>
           </Section>
         </>}
@@ -96,7 +96,7 @@ export function Documents() {
               <div className="row-gap" style={{ gap: 14, marginTop: 8 }}><Status kind="synthetic">Synthetic</Status><Status kind="present">Structured</Status></div></div>
             <Section title="Provenance"><KV keyWidth={104} rows={[["resource", cur.resource_type], ["claim kind", <span className="mono t-mono-sm">{cur.claim_kind}</span>], ["subject", <span className="mono t-mono-sm">{cur.subject_ref}</span>], ["fixture", <span className="mono t-mono-sm">{cur.fixture}</span>], ["route", "Governed ingest → proposal → promotion"]]} /></Section>
             <div><button type="button" className="btn btn-s" onClick={() => navigate("Patients", cur.subject_ref)}>Open subject</button></div>
-            <Authority>Holding a source is not extraction. Only fields that passed a trusted extractor appear in the patient brief.</Authority>
+            <Authority>Holding a file doesn't mean it was understood. Only fields that passed a trusted extractor appear in the patient brief.</Authority>
           </div>
         </aside>
       )}
@@ -250,13 +250,13 @@ export function Insights() {
   return (
     <>
       <div className="pane">
-        <PageHead title="Insights" sub="What the trusted record supports across the cohort. Counts come from coverage only; there are no scores or predictions." />
+        <PageHead title="Insights" sub="What the records support across these subjects. Counts come from coverage only, with no scores or predictions." />
         <Ledger items={[
-          { k: "cohort_size", v: v.cohort_size, mono: true }, { k: "present_facts", v: v.present_count, mono: true },
-          { k: "evidence_gaps", v: v.evidence_gap_count, mono: true }, { k: "review_attention", v: v.review_attention_count, mono: true },
+          { k: "subjects", v: v.cohort_size, mono: true }, { k: "present_facts", v: v.present_count, mono: true },
+          { k: "evidence_gaps", v: v.evidence_gap_count, mono: true }, { k: "need_review", v: v.review_attention_count, mono: true },
           { k: "scope", v: <Status kind={v.synthetic_only ? "synthetic" : "available"} weight="strong">{v.synthetic_only ? "Synthetic only" : "Workspace"}</Status> },
         ]} />
-        <Section n="01" title="Cohort" count={`${v.cohorts.length} subjects`}>
+        <Section title="Subjects" count={v.cohorts.length}>
           <table className="tb"><thead><tr><th style={{ width: "22%" }}>Subject</th><th style={{ width: "16%" }}>Condition</th><th style={{ width: "37%" }}>Evidence</th><th>Review</th></tr></thead>
             <tbody>{v.cohorts.map((c) => (
               <tr key={c.subject_ref} className="clickable" tabIndex={0} onClick={() => navigate("Patients", c.subject_ref)} onKeyDown={(e) => e.key === "Enter" && navigate("Patients", c.subject_ref)}>
@@ -266,7 +266,7 @@ export function Insights() {
               </tr>
             ))}</tbody></table>
         </Section>
-        <Section n="02" title="Coverage distribution" count={`${v.coverage_distribution.length} statuses`}>
+        <Section title="Coverage" count={`${v.coverage_distribution.length} statuses`}>
           <div style={{ borderTop: "1px solid var(--line-subtle)" }}>
             {v.coverage_distribution.map((r) => {
               const n = Number(r.value) || 0;
@@ -281,7 +281,7 @@ export function Insights() {
             })}
           </div>
         </Section>
-        <Section n="03" title="Not computed" count="by design">
+        <Section title="Not computed" count="by design">
           <div className="grid-3">
             {[["Risk", v.risk_state], ["Trend", v.trend_state], ["Recommendation", v.recommendation_state]].map(([k, s]) => (
               <div key={k}><Status kind="unsupported">{k}</Status><p className="t-sm i3" style={{ marginTop: 4 }}>{s}</p></div>
@@ -308,7 +308,7 @@ export function Insights() {
           </Section>
           <Section title="Ask the evidence">
             <form onSubmit={ask} className="stack" style={{ gap: 8 }}>
-              <input type="text" value={q} onChange={(e) => setQ(e.target.value)} placeholder="e.g. what do these documents say about metformin?" maxLength={256} aria-label="Question for the evidence corpus" />
+              <input type="text" value={q} onChange={(e) => setQ(e.target.value)} placeholder="Ask about these documents" maxLength={256} aria-label="Question for the evidence corpus" />
               <div><button type="submit" className="btn btn-s" disabled={asking}>{asking ? <><Glyph kind="running" />Asking</> : "Ask"}</button></div>
             </form>
             {err && <ErrorState error={err} />}
@@ -328,7 +328,7 @@ export function Insights() {
                 </div>)}
             {answer && <p className="t-sm i3" style={{ marginTop: 6 }}>{answer.answer.note}</p>}
           </Section>
-          <Authority>Evidence-context only. Answers quote the documents in this workspace's corpus; they are not clinical advice.</Authority>
+          <Authority>Answers quote the documents in this workspace. They are not clinical advice.</Authority>
         </div>
       </aside>
     </>
