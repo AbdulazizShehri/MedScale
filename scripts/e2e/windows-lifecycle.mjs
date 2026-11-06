@@ -350,6 +350,8 @@ async function clean() {
     await click(button("Settings"));
     await find({ kind: "RadioButton", name: chosenTheme }, 30000);
     if (!(await selected(chosenTheme))) throw new Error("the chosen theme did not survive a restart");
+    const saved = findFile(appData, "ui-prefs.json");
+    if (!saved || JSON.parse(fs.readFileSync(saved, "utf8")).theme !== chosenTheme.toLowerCase()) throw new Error("Core did not save the chosen theme");
   });
   await step("encrypted-vault-create", async () => {
     pageIsLoggable = false;
@@ -440,7 +442,7 @@ async function clean() {
     await waitForText("Unlock workspace", 60000);
     await type("pp", PASSPHRASE);
     await click(button("Unlock workspace"));
-    await waitForText(/unreadable|damaged|corrupt/i, 120000);
+    await waitForText("failed an integrity check", 120000);
     if (await exists(OPENED)) throw new Error("a damaged vault opened");
     await shot("08-damaged-vault");
     await closeWindow();
