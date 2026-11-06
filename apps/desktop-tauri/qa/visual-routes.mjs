@@ -40,6 +40,12 @@ const mock = () => {
     audio_source_retention_preview: { project_id: "p1", source_id: "audio-source-1", source_kind: "imported_file", recording_bytes: 128000, revision_count: 1, receipt_count: 2, expected_digest: "abc", imported_file: true, has_transcript_revisions: true, has_audit_receipts: true, has_huddle_media_link: false, has_capture_reference: false, unreferenced_imported_file: true, delete_available: true, active_vault_only: true, older_backups_may_retain_recording: true, linked_evidence_requires_separate_retention_policy: true, message: "" },
     audio_transcribe: { decision: { outcome: "transcribed", reason: null }, engine: { engine_id: "fixture_asr", is_fixture: true }, limitations: ["Fixture engine, not recognition"], transcript: { revision_id: "rev-1", revision_no: 1, state: "draft", segments: [0, 1].map((seq) => ({ seq, start_ms: seq * 2000, end_ms: seq * 2000 + 1800, status: "draft", text: `Sample segment ${seq}`, speaker: { kind: "anonymous", index: seq } })) } },
     privacy_overview: { classifications: [{ artifact_id: "src-1", data_class: "synthetic", basis: "Bundled fixture", revision: 1 }], receipts: [{ id: "receipt-1", source: "src-1", output: "snapshot-1", status: "completed", residual: "none recorded", revision: 1 }], decisions: [{ artifact_id: "src-1", boundary: "browse", outcome: "denied", reason: "empty_allowlist" }] },
+    knowledge_overview: { index_status: "Index version 2 · 16 chunks · fresh · 3 current", canvases: [{ id: "c1", title: "Sample canvas", detail: "Two linked sources" }] },
+    medagent_runs: { runs: [{ id: "run-1", prompt: "Summarize the bound sources", status: "completed", revision: 3 }], agents: [{ id: "a1", label: "Sample reviewer", status: "active", pack_id: "pack-tiny-token-classifier-v0", tools: ["read_context_artifact"] }] },
+    medagent_sources: [{ id: "src-1", resource_type: "Patient", fixture: "patient-golden.json", subject: "synthetic-subject-ada" }, { id: "src-8", resource_type: "Observation", fixture: "observation-hr.json", subject: "synthetic-subject-ada" }],
+    medagent_turns: [{ seq: 1, kind: "tool", tool: "read_context_artifact", content: "Read one bound source", summary: "Read one bound source" }],
+    medagent_run_detail: { run: { id: "run-1", prompt: "Summarize the bound sources", status: "completed", revision: 3, proposal: { summary: "Sample proposal text" } }, context_id: "ctx-1", agent: { id: "a1", label: "Sample reviewer", status: "active", revision: 1, pack_id: "pack-tiny-token-classifier-v0", pack_version: "0.1.0", tools: ["read_context_artifact"] }, evidence: [{ id: "src-1", resolution: "current", fixture: "patient-golden.json", resource_type: "Patient", subject: "synthetic-subject-ada" }] },
+    fleet_overview: { lanes: [], fleets: [] },
     about_info: { product: "MedScale", tagline: "Clinical Intelligence OS", version: "0.1.0", shell: "Tauri 2", core: "Rust Core Host, in-process", local_only: true, network_default_deny: true, license: "Apache-2.0", build_profile: "release", target: "windows-x86_64", release_ready: false },
   };
   window.__TAURI_INTERNALS__ = { metadata: { currentWindow: { label: "main" }, currentWebview: { label: "main", windowLabel: "main" } }, transformCallback: () => 0, invoke: async (cmd) => { if (cmd in R) return R[cmd]; throw { kind: "unavailable", message: `Layout check has no data for ${cmd}` }; } };
@@ -47,6 +53,7 @@ const mock = () => {
 
 function audit() {
   const textLeft = (el) => { const w = document.createTreeWalker(el, NodeFilter.SHOW_TEXT, { acceptNode: (n) => (n.textContent.trim() ? 1 : 2) }); const n = w.nextNode(); if (!n) return null; const r = document.createRange(); r.selectNodeContents(n); return r.getBoundingClientRect().left; };
+  if (!document.querySelector(".crumb")) return ["the app shell did not render"];
   const edge = textLeft(document.querySelector(".crumb")), misses = [];
   for (const q of [".pane h1:not(.sr-only)", ".pane .tb th:first-child", ".pane .tb td:first-child", ".pane .page-head", ".pane > .notice", ".pane > .section > .sec"]) {
     for (const el of document.querySelectorAll(q)) {
@@ -55,7 +62,7 @@ function audit() {
       if (x !== null && Math.abs(x - edge) > 0.75) misses.push(`${q} at ${x.toFixed(1)}, page edge ${edge.toFixed(1)}`);
     }
   }
-  const sizes = new Set([...document.querySelectorAll('.pane .btn:not(.lg):not([style*="height"])')].map((b) => Math.round(b.getBoundingClientRect().height)));
+  const sizes = new Set([...document.querySelectorAll('.pane .btn:not(.lg):not(.btn-p)')].map((b) => Math.round(b.getBoundingClientRect().height)));
   if (sizes.size > 1) misses.push(`button heights ${[...sizes].join(", ")}`);
   if (document.documentElement.scrollWidth > innerWidth) misses.push("page overflow");
   return misses;
@@ -82,7 +89,7 @@ for (const theme of ["dark", "light"]) for (const [width, height] of [[1440, 900
     failures += misses.length;
     for (const miss of misses.slice(0, 4)) console.error(`${route} ${theme} ${width}: ${miss}`);
     if (outDir) await page.screenshot({ path: path.join(outDir, `${route.replace(/ /g, "_")}-${theme}-${width}.jpg`), type: "jpeg", quality: 82 });
-    if (route === "Audio" && outDir) {
+    if (route === "Audio" && outDir && !misses.length) {
       await page.getByRole("button", { name: "Stored data" }).click();
       await page.getByText("Stored audio:", { exact: false }).waitFor();
       await page.screenshot({ path: path.join(outDir, `Audio_stored_data-${theme}-${width}.jpg`), type: "jpeg", quality: 82 });

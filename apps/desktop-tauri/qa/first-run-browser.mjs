@@ -160,6 +160,27 @@ async function run() {
     await existing.getByRole("heading", { name: "Unlock workspace" }).waitFor({ timeout: 10000 });
     checks.push({ viewport: 1280, route: "existing vault -> unlock first, sample one explicit step away", passed: true });
     await existing.close();
+    // A workspace that can't open: says what happened, offers a next step, changes nothing.
+    const busy = await browser.newPage({ viewport: { width: 1280, height: 820 }, reducedMotion: "reduce" });
+    await busy.addInitScript(model);
+    await busy.addInitScript(() => {
+      const invoke = window.__TAURI_INTERNALS__.invoke;
+      window.__TAURI_INTERNALS__.invoke = async (cmd, args) => {
+        if (cmd === "workspace_open_synthetic") { window.__firstRunCommands.push(cmd); throw { kind: "unavailable", message: "internal path", reason: "workspace_busy" }; }
+        return invoke(cmd, args);
+      };
+    });
+    await busy.goto(origin, { waitUntil: "networkidle" });
+    await busy.getByRole("button", { name: "Try MedScale with sample data" }).click();
+    await busy.getByRole("alert").getByText("This workspace is in use.").waitFor({ timeout: 10000 });
+    assert.equal(await busy.getByText("internal path").count(), 0, "guidance replaces Core's raw message");
+    const opens = () => busy.evaluate(() => window.__firstRunCommands.filter((c) => c === "workspace_open_synthetic").length);
+    assert.equal(await opens(), 1, "no automatic retry");
+    await busy.getByRole("button", { name: "Try again" }).click();
+    await busy.waitForTimeout(200);
+    assert.equal(await opens(), 2, "retry happens only when asked");
+    checks.push({ viewport: 1280, route: "unavailable workspace -> guidance, explicit retry, no automatic change", passed: true });
+    await busy.close();
     // Returning to the sample: worded for a return, and still one explicit click.
     const returning = await browser.newPage({ viewport: { width: 1280, height: 820 }, reducedMotion: "reduce" });
     await returning.addInitScript(model);

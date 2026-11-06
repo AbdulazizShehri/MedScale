@@ -1,4 +1,4 @@
-export const areas = ["Home", "Clinical", "Research", "Intelligence", "Operations", "Governance", "Utility"] as const;
+export const areas = ["Home", "Clinical", "Intelligence", "Research", "Operations", "Governance", "Utility"] as const;
 export type Area = (typeof areas)[number];
 
 /** `scope` says what a route needs: the open workspace, or also a selected project. */
@@ -12,7 +12,7 @@ export const routes = [
   { id: "Data", label: "Data", area: "Research", icon: "data", scope: "project", description: "Governed sources and snapshots", aliases: ["datasets", "snapshots"] },
   { id: "Browse", label: "Browse", area: "Research", icon: "browse", scope: "project", description: "Allowlisted, governed fetches", aliases: ["browser", "web"] },
   { id: "Analytics", label: "Analytics", area: "Research", icon: "analytics", scope: "project", description: "Read-only snapshot queries", aliases: ["sql", "query"] },
-  { id: "Knowledge", label: "Knowledge", area: "Research", icon: "knowledge", scope: "project", description: "Indexed source search and canvases", aliases: ["search", "index"] },
+  { id: "Knowledge", label: "Knowledge", area: "Intelligence", icon: "knowledge", scope: "project", description: "Indexed source search and canvases", aliases: ["search", "index"] },
   { id: "Research OS", label: "Research OS", area: "Research", icon: "research", scope: "project", description: "Hub, compute, packs and federation planes", aliases: ["hub", "compute"] },
   { id: "Models", label: "Models", area: "Intelligence", icon: "models", scope: "workspace", description: "Admitted model packs and runtime", aliases: ["model center", "packs"] },
   { id: "MedAgent", label: "MedAgent", area: "Intelligence", icon: "medagent", scope: "project", description: "Evidence-bound agent runs", aliases: ["agents", "agent"] },
@@ -21,7 +21,7 @@ export const routes = [
   { id: "Tasks", label: "Tasks", area: "Operations", icon: "tasks", scope: "workspace", description: "Review tasks bound to payload digests", aliases: ["review queue"] },
   { id: "Messages", label: "Messages", area: "Operations", icon: "messages", scope: "workspace", description: "Action-linked message previews", aliases: ["message"] },
   { id: "Collaboration", label: "Collaboration", area: "Operations", icon: "collaboration", scope: "project", description: "Rooms, threads and tasks", aliases: ["rooms", "threads"] },
-  { id: "Audio", label: "Audio", area: "Operations", icon: "audio", scope: "project", description: "Local audio lineage and segmentation", aliases: ["audioflow", "voice"] },
+  { id: "Audio", label: "Audio", area: "Clinical", icon: "audio", scope: "project", description: "Local audio lineage and segmentation", aliases: ["audioflow", "voice"] },
   { id: "Privacy", label: "Privacy", area: "Governance", icon: "privacy", scope: "project", description: "Data classes and egress decisions", aliases: ["privacy gate", "egress"] },
   { id: "Audit Trail", label: "Audit Trail", area: "Governance", icon: "audit", scope: "workspace", description: "Disclosure history", aliases: ["audit", "disclosures"] },
   { id: "Exports", label: "Exports", area: "Governance", icon: "exports", scope: "workspace", description: "FHIR R4 interchange posture", aliases: ["fhir", "export"] },

@@ -204,15 +204,16 @@ fn every_asset_reuses_the_identical_symbol_and_wordmark_geometry() {
     let (white_tag, white) = group(&white_svg, WORDMARK);
     assert_monochrome_fill(white_tag, "#FFFFFF");
     assert_eq!(white, wordmark, "inverse wordmark drift");
-    // The wordmark did not change with the 2026-11-05 symbol: its masters stay byte-identical.
+    // The wordmark paths did not change with the 2026-11-05 symbol. These digests changed once, on
+    // 2026-11-06, only to remove a stale mention of the retired symbol from the SVG metadata.
     for (file, expected) in [
         (
             "medscale-wordmark-black.svg",
-            "5fdf0f97ad6cda0205f9e79a69d723c4a79db2b72b25f7d5bb19abe88b2f749d",
+            "6a103a28dca4dbee836f012aa08812020d12e642e858be4a3466410159c088bb",
         ),
         (
             "medscale-wordmark-white.svg",
-            "aa19d3114e3ca5c1cbc70a38f08f7b6b10d2559a481171fc9a36fbe30c02e573",
+            "688501906d890e6edfa2ea1cdc2b51d4bcc955050195e76215b7255ad488b327",
         ),
     ] {
         let bytes =

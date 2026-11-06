@@ -1,4 +1,4 @@
-import { useMemo, useState, type FormEvent } from "react";
+import { useMemo, useState, type FormEvent, type ReactNode } from "react";
 import { readPref, useApp, writePref } from "../lib/app";
 import { SAMPLE_OPENED_PREF, isReturningToSample } from "../lib/first-launch";
 import { useAction, type CmdError } from "../lib/ipc";
@@ -8,14 +8,18 @@ import { DELETE_SET_ASIDE_DIALOG, MOVE_SESSION_ASIDE_DIALOG, RECOVERED_SEED_NOTI
 import { ConfirmPanel } from "../components/confirm";
 
 /** Spec 108 step 2: one announced alert per failure. With a known reason the
- * plain guidance replaces Core's raw message, which can name internal paths. */
-function FailureAlert({ error, glyph = "failed", wrap = false }: { error: CmdError; glyph?: "failed" | "denied"; wrap?: boolean }) {
+ * plain guidance replaces Core's raw message, which can name internal paths.
+ * Next steps are always explicit: nothing here retries, resets or deletes by itself. */
+function FailureAlert({ error, glyph = "failed", children }: { error: CmdError; glyph?: "failed" | "denied"; children?: ReactNode }) {
   const g = seedFailureGuidance(error.reason);
   return (
-    <p className="st" role="alert" data-reason={error.reason} style={wrap || g ? { whiteSpace: "normal" } : undefined}>
+    <div className="recovery" role="alert" data-reason={error.reason}>
       <Glyph kind={glyph} />
-      {g ? <span><b>{g.title}</b> {g.detail}</span> : error.message}
-    </p>
+      <div className="recovery-body">
+        {g ? <><p className="recovery-title">{g.title}</p><p className="recovery-detail">{g.detail}</p></> : <p className="recovery-detail">{error.message}</p>}
+        {children && <div className="recovery-actions">{children}</div>}
+      </div>
+    </div>
   );
 }
 
@@ -98,11 +102,15 @@ export function Welcome({ onContinue }: { onContinue: () => void }) {
             <button type="button" className="btn btn-s lg" onClick={onContinue} disabled={!!pending}>{ws?.encrypted_vault_exists ? "Unlock your encrypted workspace" : "Create an encrypted workspace"}</button>
           </div>
           {pending && <p className="t-sm i3">First open ingests the synthetic FHIR fixtures through Core. This takes a few seconds once.</p>}
-          {error && <FailureAlert error={error} />}
-          {error && setAsideOffered(error.reason) && (
-            <button type="button" className="btn btn-s" style={{ marginTop: 10 }} aria-expanded={confirming === "set-aside"} onClick={() => setConfirming("set-aside")} disabled={!!pending}>
-              Set the sample workspace aside…
-            </button>
+          {error && (
+            <FailureAlert error={error}>
+              {seedFailureGuidance(error.reason)?.category === "retry" && <button type="button" className="btn btn-s" onClick={openSynthetic} disabled={!!pending}>Try again</button>}
+              {setAsideOffered(error.reason) && (
+                <button type="button" className="btn btn-s" aria-expanded={confirming === "set-aside"} onClick={() => setConfirming("set-aside")} disabled={!!pending}>
+                  Set the sample workspace aside…
+                </button>
+              )}
+            </FailureAlert>
           )}
           {(ws?.set_aside_exists || error?.reason === "set_aside_slot_occupied") && (
             <p className="t-sm i2" style={{ marginTop: 10, whiteSpace: "normal" }}>
@@ -248,7 +256,7 @@ export function Access({ onBack }: { onBack: () => void }) {
                     <input id="pp2" type={show ? "text" : "password"} value={confirm} onChange={(e) => setConfirm(e.target.value)} autoComplete="new-password" style={{ width: "100%", height: 36 }} />
                   </div>
                 )}
-                {error && <FailureAlert error={error} glyph={error.kind === "denied" ? "denied" : "failed"} wrap />}
+                {error && <FailureAlert error={error} glyph={error.kind === "denied" ? "denied" : "failed"} />}
                 {error?.reason === "work_session_check_failed" && !moveAside && (
                   <div><button type="button" className="btn btn-g" onClick={() => setMoveAside(true)} disabled={!!pending}>Move that session aside and open…</button></div>
                 )}

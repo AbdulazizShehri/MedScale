@@ -570,11 +570,11 @@ body { font-family: var(--font-ui); }
 .ms .row-gap > .btn-g:first-child { margin-left: -10px; }
 
 /* One control height. A button beside an input is the same height as the input. */
-:root, [data-theme] { --ctl: 32px; }
-[data-density="compact"] { --ctl: 28px; }
+:root, [data-theme] { --ctl: 36px; --nav: 36px; }
+[data-density="compact"] { --ctl: 32px; --nav: 32px; }
 .ms input:not([type]), .ms input[type="text"], .ms input[type="password"], .ms input[type="search"], .ms select, .picker select { height: var(--ctl); }
 .seg button { height: calc(var(--ctl) - 6px); }
-.flt { height: 28px; }
+.flt { height: var(--ctl); }
 
 /* The field draws the frame. The input inside it has none, and the ring follows it. */
 .ms .field input:not([type]), .ms .field input[type] { height: 100%; padding: 0; border: 0; background: transparent; box-shadow: none; outline: 0; }
@@ -649,3 +649,52 @@ label.row-gap > input[type="checkbox"] { flex: none; }
 .auth .t-label { letter-spacing: 0; }
 .synth { font-family: var(--font-ui); font-size: 12px; letter-spacing: 0; text-transform: none; }
 .audio-technical { margin-bottom: var(--gap-sec); }
+
+/* ---------- 19. Targets, navigation and task layouts ----------
+   Dense controls are 36 px (32 px compact). Primary actions are 44 px. min-height wins
+   over the small inline heights some rows set, so no control falls below these. */
+.ms .btn, .ms select, .sb-search { min-height: var(--ctl); }
+.sb-search { height: var(--ctl); }
+.ms .btn-p, .ms .btn.lg { min-height: 44px; padding-left: 16px; padding-right: 16px; }
+.sec { height: auto; min-height: var(--ctl); }
+label.row-gap { min-height: var(--ctl); }
+.field-row, .row-gap { align-items: center; }
+
+/* Sidebar groups fold; the group holding the current page stays open. */
+button.sb-group { display: flex; align-items: center; gap: 6px; width: 100%; min-height: var(--nav); padding: 8px 8px 4px; text-align: left; border-radius: var(--r-2); color: var(--ink-3); }
+button.sb-group:hover:not(:disabled) { color: var(--ink-1); }
+button.sb-group:disabled { cursor: default; }
+button.sb-group svg { flex: none; }
+
+/* Recovery: what happened, then what you can do. Nothing happens by itself. */
+.recovery { display: flex; gap: 12px; align-items: flex-start; max-width: 520px; padding: 12px 14px; border: 1px solid var(--line-strong); border-radius: var(--r-2); background: var(--bg-surface); }
+.recovery > .g, .recovery > .gt { margin-top: 4.5px; }
+.recovery-title { margin: 0; font-size: 13px; line-height: 18px; font-weight: 600; color: var(--ink-1); }
+.recovery-detail { margin: 2px 0 0; font-size: 12.5px; line-height: 18px; color: var(--ink-2); }
+.recovery-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px; }
+.access-sample { min-height: 36px; }
+
+/* MedAgent: runs, then the selected run, then setup. Knowledge: search, then its index. */
+.agent-layout { display: grid; grid-template-columns: 260px minmax(0, 1fr) 260px; gap: 32px; align-items: start; }
+.knowledge-layout { display: grid; grid-template-columns: minmax(0, 1fr) 280px; gap: 32px; align-items: start; }
+.agent-side { min-width: 0; }
+.knowledge-search { margin-bottom: var(--gap-sec); }
+.knowledge-search input { height: 44px; font-size: 14px; }
+.agent-layout form.stack { margin-bottom: var(--gap-sec); padding-bottom: var(--gap-sec); border-bottom: 1px solid var(--line-subtle); }
+.agent-side form.stack { padding-bottom: 0; border-bottom: 0; }
+@media (max-width: 1279px) {
+  .agent-layout { grid-template-columns: 240px minmax(0, 1fr); }
+  .agent-layout > .agent-side { grid-column: 1 / -1; }
+  .knowledge-layout { grid-template-columns: minmax(0, 1fr); }
+}
+
+.home-row { grid-template-columns: 16px minmax(150px, 1fr) minmax(0, 1.6fr) minmax(0, 200px) 72px; }
+@media (max-width: 1179px) { .home-row { grid-template-columns: 16px minmax(120px, 1fr) minmax(0, 1.6fr) auto; } }
+
+/* Settings: a section list beside one reading column. */
+.settings-layout { display: grid; grid-template-columns: 168px minmax(0, 720px); gap: 32px; align-items: start; }
+.settings-nav { position: sticky; top: 0; display: flex; flex-direction: column; gap: 2px; }
+.settings-link { min-height: var(--ctl); padding: 0 8px; margin-left: -8px; text-align: left; font-size: 13px; color: var(--ink-2); border-radius: var(--r-2); }
+.settings-link:hover { background: var(--bg-hover); color: var(--ink-1); }
+.settings-body > div { scroll-margin-top: 16px; }
+@media (max-width: 900px) { .settings-layout { grid-template-columns: minmax(0, 1fr); } .settings-nav { position: static; flex-direction: row; flex-wrap: wrap; } .settings-link { margin-left: 0; } }

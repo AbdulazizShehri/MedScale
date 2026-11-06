@@ -195,7 +195,9 @@ async function see(t, timeout) {
   await find(`//*[${text(t)} and not(.//*[${text(t)}])]`, timeout);
 }
 async function nav(label) {
-  await click(`//button[contains(@class,'nav') and ${text(label)}]`);
+  // Sidebar groups fold, so open any closed group before looking for the item.
+  await wd("POST", `/session/${sid}/execute/sync`, { script: "document.querySelectorAll('button.sb-group[aria-expanded=false]').forEach((b) => b.click());", args: [] });
+  await click(`//button[contains(concat(' ',normalize-space(@class),' '),' nav ') and ${text(label)}]`);
 }
 async function pageText() {
   return wd("POST", `/session/${sid}/execute/sync`, { script: "return document.body.innerText;", args: [] });
