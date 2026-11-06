@@ -314,6 +314,11 @@ async function clean() {
     if (await exists(audit)) throw new Error("Governance did not fold");
   });
   await step("redesigned-screens-open", async () => {
+    // MedAgent and Knowledge work inside a project.
+    await click(button("Projects"));
+    await type("pn", "Sample lifecycle project");
+    await click(button("Create project"));
+    await waitForText("Sample lifecycle project", 30000);
     await click(button("MedAgent"));
     await waitForText("New run", 30000);
     await shot("03-medagent");
@@ -367,7 +372,7 @@ async function clean() {
     await find(OPENED, 120000);
     // The same keys work once the codes are confirmed, so the check above wasn't empty.
     await pressKeys("^,");
-    await waitForText("Keyboard", 15000);
+    await find({ kind: "RadioButton", name: "Light" }, 15000);
     await click(button("Projects"));
     await type("pn", VAULT_PROJECT);
     await click(button("Create project"));
@@ -413,26 +418,29 @@ async function clean() {
     await kill();
     if (!findFile(appData, "meta.work.sqlite3")) throw new Error("the kill left no crash state, so this proved nothing");
     await launch(installed.exe);
-    await unlockDirectly();
+    await waitForText("Unlock workspace", 60000);
+    await type("pp", PASSPHRASE);
+    await click(button("Unlock workspace"));
+    await waitForText("Recovered changes from your last session", 180000);
     await projectStillThere();
-    report.write_before_kill_survived = (await pageText()).includes(written);
-    console.log(`WRITE_BEFORE_KILL_SURVIVED ${report.write_before_kill_survived}`);
+    await waitForText(written, 30000);
     await closeWindow();
   });
   await step("damaged-vault-refuses-and-changes-nothing", async () => {
     const sealed = findFile(appData, "meta.sealed");
     if (!sealed) throw new Error("no seal to damage");
     const good = fs.readFileSync(sealed);
-    const bad = Buffer.from(good);
-    bad[bad.length - 1] ^= 0xff;
-    fs.writeFileSync(sealed, bad);
+    // One flipped ciphertext byte: the file still parses, so the authentication check has to catch it.
+    const blob = JSON.parse(good.toString("utf8"));
+    blob.ciphertext[Math.floor(blob.ciphertext.length / 2)] ^= 0xff;
+    fs.writeFileSync(sealed, JSON.stringify(blob));
     const vaultFolder = path.dirname(sealed);
     const damaged = folderDigest(vaultFolder);
     await launch(installed.exe);
     await waitForText("Unlock workspace", 60000);
     await type("pp", PASSPHRASE);
     await click(button("Unlock workspace"));
-    await waitForText(/did not open|could not|damaged|corrupt|integrity|unavailable/i, 120000);
+    await waitForText(/unreadable|damaged|corrupt/i, 120000);
     if (await exists(OPENED)) throw new Error("a damaged vault opened");
     await shot("08-damaged-vault");
     await closeWindow();
