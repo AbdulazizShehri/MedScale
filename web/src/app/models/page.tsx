@@ -8,7 +8,7 @@ export const metadata: Metadata = pageMeta("/models/", "Models", "How MedScale l
 
 const states = [
   ["Listed", "The model appears in the catalog with its source, task, format and expected size.", "Not installed on your computer, and not reviewed."],
-  ["Admitted", "A local model pack folder is admitted. The Core verifies its manifest, digests and signature.", "Pack registry state is per session today."],
+  ["Admitted", "A local model pack is admitted. The Core verifies its manifest, digests and signature. Installers admit only a bundled test pack and verified Whisper downloads.", "Pack registry state is per session today."],
   ["Running", "The local runtime executes the model on your device and records a receipt for each run.", "Output is a proposal, never an authoritative record."],
   ["Qualified", "Independent evaluation shows the model is fit for one specific task.", "Not granted to any model today, and never by the software alone."],
 ];
@@ -46,8 +46,8 @@ export default function Models() {
         <div className="shell feature-row">
           <div className="feature-copy">
             <span className="eyebrow">Catalog</span>
-            <h2 className="h2 h2-sm"><span className="mute">Browse first.</span> Admit only what you choose.</h2>
-            <p className="body">The catalog in the desktop app lists models with their task, format, size and source identity. Search by name, family or language and filter by task, format and status. Browsing downloads nothing; a model runs only after you admit a local pack folder for it.</p>
+            <h2 className="h2 h2-sm"><span className="mute">Browse first.</span> Browsing installs nothing.</h2>
+            <p className="body">The catalog in the desktop app lists models with their task, format, size and source identity. Search by name, family or language and filter by task, format and status. Browsing downloads nothing, and being listed doesn&apos;t make a model runnable here. Installers admit only a bundled test pack and verified Whisper speech downloads. Admitting other pack folders is limited to developer builds.</p>
             <p className="body">External model registries are sources, not authority. MedScale records where an entry came from; it does not inherit trust from it.</p>
           </div>
           <Shot name="models" />

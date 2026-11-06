@@ -35,7 +35,7 @@ const story = [
   ["Open a record", "See what each subject's record covers, and what it doesn't, before you read further."],
   ["Check the evidence", "Conflicts and gaps stay visible. When two sources disagree, MedScale shows both instead of picking one."],
   ["Ask the evidence", "Answers quote the documents in your workspace with citations, or say that nothing supports them."],
-  ["Run a local model", "Agents run on model packs you admit, on your own machine. Their output is a proposal with a receipt, and a person decides what happens next."],
+  ["Run a local model", "Agents run on local model packs, on your own machine. Their output is a proposal with a receipt, and a person decides what happens next."],
   ["Share with disclosure", "An export reports what the format could not carry, and the Core records it in an audit trail you can read. There is no way to edit that trail in the app, though restoring an older backup can shorten it."],
 ];
 
@@ -49,7 +49,7 @@ const faq = [
   ["Can I use MedScale with real patient records?", `No. MedScale is an open-source ${productStage.toLowerCase()}. Synthetic workspace fixtures and user-approved licensed nonpatient audio are supported for local testing and transcription. MedScale is not clinically validated; real patient records, clinical decisions and production deployments are not authorized until external qualification gates are met.`],
   ["Is there an installer I can download?", publicRelease ? "Yes. The Download page offers each qualified installer with its checksum and signing status. You don't need an account, an app store or a GitHub login." : "Not a public one yet. CI builds unsigned engineering-preview packages for Windows and macOS to test the release process, but they are not qualified for public use. You can build the desktop app from source on Windows and macOS today, and the CLI on Windows, macOS and Linux."],
   ["Does MedScale need the cloud or an account?", "No. The Rust Core runs locally and network access is denied by default; browsing and egress are explicit, governed actions. Local workspace access is not organizational sign-in, and a full privacy qualification is still an open gate."],
-  ["Which AI models does it run?", "Models run locally through MedScale's own runtime, from admitted model packs. The desktop app includes a browsable catalog of models with their source, task, format and size. A model being listed in the catalog does not mean it is qualified for any clinical task."],
+  ["Which AI models does it run?", "Models run locally through MedScale's own runtime, from admitted model packs. Installers admit only a bundled test pack and verified Whisper downloads. The desktop app includes a browsable catalog of models with their source, task, format and size. A model being listed in the catalog does not mean it is qualified for any clinical task."],
   ["What does 'all your health AI in one place' mean today?", "One workspace for records, evidence, local models and agents, sharing one Core. It is the direction of the project, not a claim that every model or workflow is supported. The product page lists what exists now."],
   ["How can I contribute?", "Read the contributing guide, pick an issue or start a discussion. Every report, example and test must use synthetic data. Never include patient information or confidential material."],
 ];
