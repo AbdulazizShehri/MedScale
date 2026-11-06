@@ -28,6 +28,7 @@ fn main() {
         tauri_build::Attributes::new().app_manifest(tauri_build::AppManifest::new().commands(&[
             "get_shell_status",
             "workspace_status",
+            "ui_prefs_set",
             "workspace_open_synthetic",
             "workspace_set_aside_synthetic",
             "workspace_delete_set_aside_synthetic",

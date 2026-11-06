@@ -98,8 +98,21 @@ export function App() {
   useEffect(() => { writePref("project", null); }, []);
   useEffect(() => { document.documentElement.dataset.theme = theme; }, [theme]);
 
-  const setTheme = useCallback((t: Theme) => { setThemeState(t); writePref("theme", t); }, []);
-  const setDensity = useCallback((d: Density) => { setDensityState(d); writePref("density", d); }, []);
+  // Saved through Core: the release WebView runs InPrivate and forgets localStorage on exit.
+  const savedPrefsApplied = useRef(false);
+  useEffect(() => {
+    if (!ws || savedPrefsApplied.current) return;
+    savedPrefsApplied.current = true;
+    const savedTheme = hash.get("theme") ? null : parseTheme(ws.ui_prefs?.theme ?? null);
+    const savedDensity = hash.get("density") ? null : parseDensity(ws.ui_prefs?.density ?? null);
+    if (savedTheme) setThemeState(savedTheme);
+    if (savedDensity) setDensityState(savedDensity);
+  }, [ws]);
+  const savePrefs = useCallback((nextTheme: Theme, nextDensity: Density) => {
+    void call("ui_prefs_set", { theme: nextTheme, density: nextDensity }).catch(() => { /* the choice still applies until the app closes */ });
+  }, []);
+  const setTheme = useCallback((t: Theme) => { setThemeState(t); writePref("theme", t); savePrefs(t, density); }, [density, savePrefs]);
+  const setDensity = useCallback((d: Density) => { setDensityState(d); writePref("density", d); savePrefs(theme, d); }, [theme, savePrefs]);
   const setProject = useCallback((id: string | null) => { setProjectState(id); }, []);
   const navigate = useCallback((route: RouteId, subject?: string) => { setNav({ route, subject }); setPalette(false); }, []);
   const vaultClosed = useCallback(async () => {
