@@ -1392,6 +1392,11 @@ fn restore_asr(workspace: &mut Workspace, data_dir: &Path) {
     if let Some(dir) = load_asr_pack(&workspace.vault_root)
         && is_local_absolute(Path::new(&dir))
         && pack_dir_allowed(Path::new(&dir), data_dir, EXTERNAL_PACKS_ALLOWED)
+        && crate::audio_model_manager::pinned_pack_verified(
+            Path::new(&dir),
+            data_dir,
+            EXTERNAL_PACKS_ALLOWED,
+        )
         && workspace
             .session
             .packs_install_local(&dir)

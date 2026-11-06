@@ -9,6 +9,8 @@ use crate::host::{CmdError, CmdResult};
 
 const MIB: u64 = 1024 * 1024;
 const FREE_SPACE_RESERVE: u64 = 512 * MIB;
+/// In the order of `Model::sha256`.
+const PINNED_FILES: [&str; 3] = ["config.json", "tokenizer.json", "model.safetensors"];
 
 #[derive(Clone, Copy)]
 struct Model {
@@ -163,9 +165,34 @@ pub fn existing_pack_path(id: &str, data_dir: &Path) -> CmdResult<String> {
             "Denied: saved Pack identity does not match the selected pinned Whisper model",
         ));
     }
-    // These JSON claims are untrusted hints ONLY. The caller must still
-    // re-admit the entire Pack through Core's signed manifest + digest checks.
+    // These JSON claims are untrusted hints ONLY. The caller must still check
+    // the pinned digests and re-admit the entire Pack through Core.
     Ok(path.to_string_lossy().into_owned())
+}
+
+/// Whether a packaged build may admit this Pack folder: it must be one model's
+/// own folder, holding exactly the files pinned in source. A Pack signature can't
+/// vouch for this, because its seed is public. Reads the whole Pack to hash it.
+pub fn pinned_pack_verified(dir: &Path, data_dir: &Path, allow_external: bool) -> bool {
+    if allow_external {
+        return true;
+    }
+    let Ok(dir) = dir.canonicalize() else {
+        return false;
+    };
+    MODELS.iter().any(|entry| {
+        entry
+            .directory(data_dir)
+            .canonicalize()
+            .is_ok_and(|own| own == dir)
+            && files_match_pins(&dir, entry.sha256)
+    })
+}
+
+fn files_match_pins(dir: &Path, pins: [&str; 3]) -> bool {
+    PINNED_FILES.iter().zip(pins).all(|(name, pin)| {
+        medscale_pack::sha256_file_hex(&dir.join(name)).is_ok_and(|digest| digest == pin)
+    })
 }
 
 pub fn catalog(data_dir: &Path) -> Vec<Value> {
@@ -274,6 +301,41 @@ mod tests {
             !data_dir.exists(),
             "budget boundary test must remain read-only"
         );
+    }
+
+    #[test]
+    fn a_packaged_build_admits_only_the_pinned_files_in_a_models_own_folder() {
+        let root =
+            std::env::temp_dir().join(format!("medscale-pinned-pack-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&root);
+        let own = root.join("audio-models").join("whisper-tiny-en");
+        let outside = root.join("elsewhere");
+        for dir in [&own, &outside] {
+            std::fs::create_dir_all(dir).unwrap();
+            for name in PINNED_FILES {
+                std::fs::write(dir.join(name), name.as_bytes()).unwrap();
+            }
+        }
+        // Valid-looking files that aren't the pinned ones are refused, and a
+        // folder that isn't a model's own is refused however it looks.
+        assert!(!pinned_pack_verified(&own, &root, false));
+        assert!(!pinned_pack_verified(&outside, &root, false));
+        assert!(!pinned_pack_verified(&root.join("missing"), &root, false));
+        assert!(pinned_pack_verified(&outside, &root, true));
+
+        let digest = |name: &str| medscale_pack::sha256_file_hex(&own.join(name)).unwrap();
+        let (config, tokenizer, weights) = (
+            digest(PINNED_FILES[0]),
+            digest(PINNED_FILES[1]),
+            digest(PINNED_FILES[2]),
+        );
+        let pins = [config.as_str(), tokenizer.as_str(), weights.as_str()];
+        assert!(files_match_pins(&own, pins));
+        std::fs::write(own.join("model.safetensors"), b"swapped").unwrap();
+        assert!(!files_match_pins(&own, pins));
+        std::fs::remove_file(own.join("model.safetensors")).unwrap();
+        assert!(!files_match_pins(&own, pins));
+        std::fs::remove_dir_all(&root).unwrap();
     }
 
     #[test]
@@ -599,7 +661,7 @@ fn acquire(
                 "Hugging Face model metadata did not match the approved pinned revision".into(),
             );
         }
-        let names = ["config.json", "tokenizer.json", "model.safetensors"];
+        let names = PINNED_FILES;
         let mut total = 0u64;
         for name in names {
             let sibling = meta
