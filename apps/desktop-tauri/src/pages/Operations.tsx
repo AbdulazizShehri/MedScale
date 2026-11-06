@@ -431,7 +431,7 @@ function AudioBody({ projectId }: { projectId: string }) {
           <button type="button" className="btn btn-g" onClick={copyTranscript} disabled={!result.transcript.segments.length}>Copy transcript</button>
           <select aria-label="Pack for the draft note" value={notePack} onChange={(e) => setNotePack(e.target.value)}>{runnable.map((m) => <option key={m.id} value={m.id}>{m.id}</option>)}</select>
           <button type="button" className="btn btn-s" disabled={!notePack || !!pending} onClick={draftNote}>{pending === "draft" ? <Glyph kind="running" /> : null}Draft note from this revision</button>
-          {!runnable.length && <span className="t-sm i3">Drafting needs a local Pack that can run. Add one in MedAgent.</span>}
+          {!runnable.length && <span className="t-sm i3">Drafting needs a local Pack that can run.{externalPacks ? " Add one in MedAgent." : ""}</span>}
         </div>}
         {visibleDraft && <div style={{ border: "1px dashed var(--line-strong)", borderRadius: "var(--r-2)", padding: "12px 14px", marginTop: 12 }}>
           <Status kind="proposal" weight="strong">Draft note · proposal</Status>
@@ -534,7 +534,7 @@ function AudioBody({ projectId }: { projectId: string }) {
               {downloadStatus.message ? ` ${downloadStatus.message}` : ""}
               {downloadStatus.state === "ready" ? " Verified Pack is ready for Core activation." : ""}
             </div>}
-            {externalPacks && <p className="t-sm i3">Already have an Audio Pack from a source you trust? Select its folder below to admit it offline. MedScale checks the Pack's internal digests, which do not prove who made it. Downloads remain local, and only the dedicated in-progress cache is deleted on cancellation.</p>}
+            {externalPacks && <p className="t-sm i3">Already have an Audio Pack from a source you trust? Select its folder above to admit it offline. MedScale checks the Pack's internal digests, which do not prove who made it. Downloads remain local, and only the dedicated in-progress cache is deleted on cancellation.</p>}
           </div>
         )}
       </Section>
