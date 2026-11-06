@@ -215,6 +215,7 @@ async function run() {
     assert.equal(await codes.getByRole("button", { name: "Back to Welcome" }).count(), 0, "no way back while the vault is being created");
     const saveHeading = codes.getByRole("heading", { name: "Save your recovery codes" });
     await saveHeading.waitFor({ timeout: 10000 });
+    await codes.getByRole("button", { name: "Copy codes" }).waitFor({ timeout: 10000 });
     await codes.keyboard.press("Control+,");
     await codes.waitForTimeout(200);
     assert.equal(await saveHeading.isVisible(), true, "the Settings shortcut must not replace recovery codes");
@@ -236,6 +237,27 @@ async function run() {
     await failed.getByRole("button", { name: "Try MedScale with sample data" }).waitFor({ timeout: 10000 });
     checks.push({ viewport: 1280, route: "failed vault create releases the screen", passed: true });
     await failed.close();
+    // A create that fails after the vault exists says so and moves to unlock.
+    const partial = await browser.newPage({ viewport: { width: 1280, height: 820 }, reducedMotion: "reduce" });
+    await partial.addInitScript(model);
+    await partial.addInitScript(() => {
+      window.__failCreate = true;
+      const invoke = window.__TAURI_INTERNALS__.invoke;
+      let tried = false;
+      window.__TAURI_INTERNALS__.invoke = async (cmd, args) => {
+        if (cmd === "workspace_create_encrypted") tried = true;
+        const result = await invoke(cmd, args);
+        return cmd === "workspace_status" ? { ...result, encrypted_vault_exists: tried } : result;
+      };
+    });
+    await partial.goto(origin + "/#gate=access", { waitUntil: "networkidle" });
+    await partial.locator("#pp").fill("qa-synthetic-passphrase");
+    await partial.locator("#pp2").fill("qa-synthetic-passphrase");
+    await partial.locator('form button[type="submit"]').click();
+    await partial.getByRole("heading", { name: "Unlock workspace" }).waitFor({ timeout: 10000 });
+    await partial.getByText("its recovery codes couldn't be shown").waitFor({ timeout: 10000 });
+    checks.push({ viewport: 1280, route: "create failing after the vault exists says so and moves to unlock", passed: true });
+    await partial.close();
   } finally {
     await browser.close();
     await new Promise((resolve) => server.close(resolve));
