@@ -32,9 +32,10 @@ export function ProductTour() {
   const area = areas[index];
   const onKey = (e: KeyboardEvent) => {
     const step = e.key === "ArrowDown" || e.key === "ArrowRight" ? 1 : e.key === "ArrowUp" || e.key === "ArrowLeft" ? -1 : 0;
-    if (!step) return;
+    const jump = e.key === "Home" ? 0 : e.key === "End" ? areas.length - 1 : null;
+    if (!step && jump === null) return;
     e.preventDefault();
-    const next = (index + step + areas.length) % areas.length;
+    const next = jump ?? (index + step + areas.length) % areas.length;
     setIndex(next);
     tabs.current[next]?.focus();
   };

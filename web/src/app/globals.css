@@ -504,11 +504,22 @@ tr:last-child td { border-bottom: 0; }
 /* ---------- Small screens ---------- */
 @media (max-width: 600px) {
   .hero-copy .actions .btn, .closing .actions .btn { flex: 1 1 auto; padding: 0 16px; }
-  .frame img { aspect-ratio: 1 / 1; object-fit: cover; object-position: 83% 0; }
+  .frame img { aspect-ratio: 1 / 1; object-fit: cover; object-position: 74% 0; }
+  .hero-stage .frame img { object-position: 51% 0; }
   .frame-caption { flex-direction: column; }
 }
 
+/* A release's status line can wrap on three narrow cards: keep what follows level. */
+@media (min-width: 961px) and (max-width: 1240px) {
+  .platform-state { min-height: 2.8em; align-items: flex-start; }
+  .platform-state::before { margin-top: 0.45em; flex: none; }
+}
+.install-card:only-child { grid-column: 1 / -1; }
+
 /* ---------- Motion ---------- */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation-duration: 0.01ms !important; animation-delay: 0ms !important; transition-duration: 0.01ms !important; transition-delay: 0ms !important; }
+}
 @media (prefers-reduced-motion: no-preference) {
   .reveal { animation: rise 500ms var(--ease) both; }
   .reveal-2 { animation-delay: 80ms; }
@@ -550,4 +561,10 @@ a.proof-item:hover span { text-decoration: underline; text-underline-offset: 3px
   .proof-row { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .proof-row > .proof-item:nth-last-child(-n+4) { padding-bottom: var(--pad); }
   .proof-row > .proof-item:nth-last-child(-n+2) { padding-bottom: 0; }
+}
+
+/* Last, so it wins: desktop reading widths would leave phones and tablets a narrow column. */
+@media (max-width: 800px) {
+  .stack-lg > .body, .section-head, .download-hero, .closing-inner, .prose, .proof-note { max-width: none; }
+  .proof-row > a.proof-item { grid-column: 1 / -1; }
 }

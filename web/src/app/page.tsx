@@ -7,19 +7,31 @@ import { ArrowRight, ArrowUpRight, GitHub, Monitor, Plus, Terminal } from "@/com
 import { ProductTour } from "@/components/ProductTour";
 import { Quickstart } from "@/components/Quickstart";
 import { Shot } from "@/components/Shot";
-import { count, PROOF } from "@/lib/proof";
+import { CATALOG_NUMBER, count, PROOF } from "@/lib/proof";
 import { asset, docs, github, pageMeta } from "@/lib/site";
 
 const homeMeta = pageMeta("/", "Your health AI. One open workspace.", "Open-source, local-first workspace for health records, evidence and AI models. " + productStage + ": synthetic workspaces and user-approved licensed nonpatient audio.");
 const homeTitle = "MedScale — Your health AI. One open workspace.";
 export const metadata: Metadata = { ...homeMeta, title: { absolute: homeTitle }, openGraph: { ...homeMeta.openGraph, title: homeTitle }, twitter: { ...homeMeta.twitter, title: homeTitle } };
 
+const testsCount = `${count(PROOF.rustTestsFloor)}+`;
+const testsNote = "They run in public CI, and you can run them too.";
 const proofSmall = [
   [String(PROOF.catalogLanguages), "Languages", "Tagged across that catalog."],
   [String(PROOF.catalogFamilies), "Model families", "Including entity recognition and PII detection."],
-  [`${count(PROOF.rustTestsFloor)}+`, "Automated Rust tests", "They run in public CI, and you can run them too."],
+  ...(CATALOG_NUMBER === "large" ? [[testsCount, "Automated Rust tests", testsNote]] : []),
   [String(PROOF.specs), "Public specifications", "Feature designs are written down in the repository."],
 ];
+
+function CatalogCount() {
+  return (
+    <Link className="proof-item" href="/models/">
+      <strong>{count(PROOF.catalogModels)}</strong>
+      <span>Models to browse</span>
+      <small>From OpenMed&apos;s v3.0.0 public catalog, pinned by checksum. A catalog listing isn&apos;t a downloaded or runnable model. A count says nothing about quality.</small>
+    </Link>
+  );
+}
 
 const compare = [
   ["Where the AI runs", "On your computer", "Usually the vendor's cloud", "On your hardware"],
@@ -80,13 +92,10 @@ export default function Home() {
             <div className="proof-lead">
               <div className="proof-item proof-accent"><strong>$0</strong><span>To use</span><small>Free, with Apache-2.0 source code.</small></div>
               <div className="proof-item"><strong>0</strong><span>Cloud accounts</span><small>No sign-in. The Core runs on your computer.</small></div>
-              <Link className="proof-item" href="/models/">
-                <strong>{count(PROOF.catalogModels)}</strong>
-                <span>Models to browse</span>
-                <small>From OpenMed&apos;s v3.0.0 public catalog, pinned by checksum. A count says nothing about quality: listed doesn&apos;t mean installed or qualified.</small>
-              </Link>
+              {CATALOG_NUMBER === "large" ? <CatalogCount /> : <div className="proof-item"><strong>{testsCount}</strong><span>Automated Rust tests</span><small>{testsNote}</small></div>}
             </div>
             <div className="proof-row">
+              {CATALOG_NUMBER === "quiet" && <CatalogCount />}
               {proofSmall.map(([n, t, d]) => <div className="proof-item" key={t}><strong>{n}</strong><span>{t}</span><small>{d}</small></div>)}
             </div>
             <p className="proof-note">You can check each number against the public repository. They count the catalog and the code, not users or clinical outcomes, because MedScale doesn&apos;t have that data yet.</p>

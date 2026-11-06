@@ -23,6 +23,13 @@ export function Header() {
     document.body.style.overflow = "hidden";
     const onKey = (e: KeyboardEvent) => {
       if (e.key === "Escape") { setOpen(false); toggle.current?.focus(); }
+      // The open menu covers the page, so Tab stays between the toggle and the menu.
+      if (e.key === "Tab" && toggle.current) {
+        const stops = [toggle.current, ...document.querySelectorAll<HTMLElement>("#mobile-menu a")];
+        const first = stops[0], last = stops[stops.length - 1];
+        if (e.shiftKey && document.activeElement === first) { e.preventDefault(); last.focus(); }
+        else if (!e.shiftKey && document.activeElement === last) { e.preventDefault(); first.focus(); }
+      }
     };
     window.addEventListener("keydown", onKey);
     return () => { document.body.style.overflow = ""; window.removeEventListener("keydown", onKey); };

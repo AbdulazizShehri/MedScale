@@ -18,4 +18,7 @@ export const PROOF = {
   specs: 103,
 } as const;
 
+/** How the home page shows the catalog count: "large" in the lead row, or "quiet" among the supporting numbers. */
+export const CATALOG_NUMBER: "large" | "quiet" = "large";
+
 export const count = (n: number) => n.toLocaleString("en-US");
