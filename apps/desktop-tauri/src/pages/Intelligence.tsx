@@ -240,7 +240,7 @@ function MedAgentBody({ projectId }: { projectId: string }) {
     e.preventDefault();
     const args = agentId ? { projectId, prompt, agentId, sourceIds: picked } : { projectId, prompt, sourceIds: picked };
     const r = await run<Run>("create", "medagent_create_run", args);
-    if (outcome(r, "Run created (pending)")) { setPrompt(""); setProposal(null); setComposing(false); await runs.reload(); setSel(r.data.id); }
+    if (outcome(r, "Run created (pending)")) { setPrompt(""); setProposal(null); setComposing(false); await runs.reload(); setSel(r.data.id); document.getElementById("new-run")?.focus(); }
   }
   async function step(cmd: "medagent_start" | "medagent_cancel" | "medagent_complete", label: string) {
     if (!cur) return;
@@ -272,7 +272,7 @@ function MedAgentBody({ projectId }: { projectId: string }) {
   return (
     <div className="agent-layout">
       <div>
-        <Section title="Runs" count={list.length} actions={<button type="button" className="btn btn-g" onClick={() => setComposing(true)}>New run</button>}>
+        <Section title="Runs" count={list.length} actions={<button type="button" id="new-run" className="btn btn-g" onClick={() => setComposing(true)}>New run</button>}>
           {runs.state.status === "error" && <ErrorState error={runs.state.error} onRetry={runs.reload} />}
           {list.length === 0 && runs.state.status === "ready" && <p className="t-sm i3">No runs yet.</p>}
           {list.map((r) => (
@@ -302,7 +302,7 @@ function MedAgentBody({ projectId }: { projectId: string }) {
           </div>
           <label className="lbl" htmlFor="ap">Prompt</label>
           <textarea id="ap" value={prompt} onChange={(e) => setPrompt(e.target.value)} placeholder="Ask about the bound sources…" maxLength={2000} style={{ minHeight: 70 }} />
-          <div className="row-gap"><button type="submit" className="btn btn-p" disabled={!prompt.trim() || !picked.length || picked.length > 16 || !!pending}>{pending === "create" ? <Glyph kind="running" /> : null}Create run</button>{composing && cur && <button type="button" className="btn btn-g" onClick={() => setComposing(false)}>Cancel</button>}</div>
+          <div className="row-gap"><button type="submit" className="btn btn-p" disabled={!prompt.trim() || !picked.length || picked.length > 16 || !!pending}>{pending === "create" ? <Glyph kind="running" /> : null}Create run</button>{composing && cur && <button type="button" className="btn btn-g" onClick={() => { setComposing(false); document.getElementById("new-run")?.focus(); }}>Cancel</button>}</div>
         </form>}
         {cur ? <>
           <Ledger items={[

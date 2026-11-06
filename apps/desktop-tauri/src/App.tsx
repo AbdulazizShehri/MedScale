@@ -148,6 +148,7 @@ export function App() {
 
   useEffect(() => {
     function onKey(e: KeyboardEvent) {
+      if (recoveryCodesShown) return;
       const mod = e.ctrlKey || e.metaKey;
       if (mod && e.key.toLowerCase() === "k") { e.preventDefault(); setPalette((p) => !p); }
       else if (mod && e.shiftKey && e.key.toLowerCase() === "l" && ws?.open) { e.preventDefault(); void lock(); }
@@ -155,7 +156,7 @@ export function App() {
     }
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [lock, ws?.open]);
+  }, [lock, ws?.open, recoveryCodesShown]);
 
   const ctx: AppCtx = useMemo(() => ({
     ws, refreshWorkspace, vaultClosed, nav, navigate, project, setProject, theme, setTheme, density, setDensity, lock,

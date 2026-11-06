@@ -1,4 +1,4 @@
-import { useMemo, useState, type FormEvent, type ReactNode } from "react";
+import { useEffect, useMemo, useState, type FormEvent, type ReactNode } from "react";
 import { useApp } from "../lib/app";
 import { isReturningToSample } from "../lib/first-launch";
 import { useAction, type CmdError } from "../lib/ipc";
@@ -147,6 +147,16 @@ export function Access({ onBack, onRecoveryCodes }: { onBack: () => void; onReco
   const [error, setError] = useState<CmdError | null>(null);
   const [codes, setCodes] = useState<string[] | null>(null);
   const { pending, run } = useAction();
+  const holdingCodes = !!codes || pending === "create";
+  // A reload would restart the app with the vault open and the codes gone.
+  useEffect(() => {
+    if (!holdingCodes) return;
+    const block = (e: KeyboardEvent) => {
+      if (e.key === "F5" || ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "r")) e.preventDefault();
+    };
+    window.addEventListener("keydown", block, true);
+    return () => window.removeEventListener("keydown", block, true);
+  }, [holdingCodes]);
   // Unlocking is a short, familiar task: the explanation waits behind a disclosure.
   const compact = exists && mode === "unlock" && !codes;
 
@@ -165,8 +175,10 @@ export function Access({ onBack, onRecoveryCodes }: { onBack: () => void; onReco
         await refreshWorkspace();
       } else setError(r.error);
     } else {
+      // Held from before the call: leaving now would drop codes that are shown only once.
+      onRecoveryCodes(true);
       const r = await run<{ recovery_codes: string[] }>("create", "workspace_create_encrypted", { passphrase: pass });
-      if (r.ok) { setPass(""); setConfirm(""); setCodes(r.data.recovery_codes); onRecoveryCodes(true); } else setError(r.error);
+      if (r.ok) { setPass(""); setConfirm(""); setCodes(r.data.recovery_codes); } else { setError(r.error); onRecoveryCodes(false); }
     }
   }
 
@@ -221,7 +233,7 @@ export function Access({ onBack, onRecoveryCodes }: { onBack: () => void; onReco
     <main className="gate">
       <div className={compact ? "access access-compact" : "access"}>
         <section>
-          {codes ? <Logo height={18} /> : (
+          {codes || pending === "create" ? <Logo height={18} /> : (
             <button type="button" onClick={onBack} style={{ display: "flex", alignItems: "center", gap: 12, width: "max-content" }} aria-label="Back to Welcome">
               <Logo height={18} />
             </button>
