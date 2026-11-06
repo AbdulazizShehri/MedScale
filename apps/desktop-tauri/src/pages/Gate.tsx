@@ -201,7 +201,8 @@ export function Access({ onBack, onRecoveryCodes }: { onBack: () => void; onReco
       const r = await run<{ recovery_codes: string[] }>("create", "workspace_create_encrypted", { passphrase: pass });
       if (r.ok) { setPass(""); setConfirm(""); setCodes(r.data.recovery_codes); } else {
         setError(r.error);
-        setCreateFailed(true);
+        // A conflict means another create got there first, so these codes never existed.
+        setCreateFailed(r.error.kind !== "conflict");
         onRecoveryCodes(false);
         // Core can fail after the vault exists, and the screen has to show that.
         await refreshWorkspace();
@@ -275,6 +276,7 @@ export function Access({ onBack, onRecoveryCodes }: { onBack: () => void; onReco
                   <button type="button" className="btn btn-s lg" onClick={() => void copyCodes()} disabled={!codes.length}>{copy === "copied" ? "Copied" : "Copy codes"}</button>
                   {copy === "failed" && <span className="t-sm i2" role="status">Couldn&apos;t copy. Select the codes and press Ctrl+C.</span>}
                 </div>
+                <p className="t-sm i3" style={{ margin: 0 }}>Copied codes can stay in Windows clipboard history, and they can&apos;t be changed later. Writing them down is safer.</p>
                 <div><button type="button" className="btn btn-p lg" onClick={() => void refreshWorkspace().finally(() => onRecoveryCodes(false))}>I saved them · continue</button></div>
               </div>
             ) : (
