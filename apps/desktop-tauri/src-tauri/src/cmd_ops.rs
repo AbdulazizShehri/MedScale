@@ -266,11 +266,11 @@ pub(crate) fn remembered_pack_dir(
             "Unavailable: this Pack's folder is not known to this desktop; admit it again",
         )
     })?;
-    if !crate::audio_model_manager::pinned_pack_verified(
-        std::path::Path::new(&dir),
-        data_dir,
-        allow_external,
-    ) {
+    let path = std::path::Path::new(&dir);
+    if !host::is_local_absolute(path)
+        || !host::pack_dir_allowed(path, data_dir, allow_external)
+        || !crate::audio_model_manager::pinned_pack_verified(path, data_dir, allow_external)
+    {
         return Err(CmdError::new(
             "denied",
             "Denied: this version doesn't run Packs from that folder",
@@ -321,11 +321,15 @@ pub fn medagent_models(host: tauri::State<'_, Host>) -> CmdResult<Value> {
                     "runtime": p.runtime_requirements,
                     "fixture": id == fixture_id.as_str(),
                     "runnable": id == fixture_id.as_str()
-                        || dirs.get(id).is_some_and(|dir| host::pack_dir_allowed(
-                            std::path::Path::new(dir),
-                            &data_dir,
-                            host::EXTERNAL_PACKS_ALLOWED,
-                        )),
+                        || dirs.get(id).is_some_and(|dir| {
+                            let path = std::path::Path::new(dir);
+                            host::is_local_absolute(path)
+                                && host::pack_dir_allowed(
+                                    path,
+                                    &data_dir,
+                                    host::EXTERNAL_PACKS_ALLOWED,
+                                )
+                        }),
                 })
             })
             .collect::<Vec<_>>()
@@ -1170,7 +1174,7 @@ pub fn audio_admit_asr_pack(host: tauri::State<'_, Host>, path: String) -> CmdRe
     ) {
         return Err(CmdError::new(
             "denied",
-            "Denied: this model's files don't match their pinned digests. Download it again.",
+            "Denied: this model's files don't match their pinned digests. Delete its folder inside audio-models, then download it again.",
         ));
     }
     let session = state.session()?;
