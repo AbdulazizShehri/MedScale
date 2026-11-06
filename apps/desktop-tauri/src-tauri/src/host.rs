@@ -2041,6 +2041,45 @@ pub fn sample_workspace_exists(data_dir: &Path) -> bool {
     data_dir.join(VAULT_NAME).is_dir() && data_dir.join(MANIFEST_NAME).is_file()
 }
 
+const UI_PREFS_NAME: &str = "ui-prefs.json";
+const UI_THEMES: [&str; 2] = ["dark", "light"];
+const UI_DENSITIES: [&str; 2] = ["standard", "compact"];
+
+/// Theme and density, the only display choices kept outside the WebView: the
+/// release WebView runs InPrivate and keeps no storage across restarts. A missing
+/// or unreadable file means no saved choice. Nothing here describes a workspace.
+pub fn read_ui_prefs(data_dir: &Path) -> serde_json::Value {
+    let saved = std::fs::read(data_dir.join(UI_PREFS_NAME))
+        .ok()
+        .and_then(|bytes| serde_json::from_slice::<serde_json::Value>(&bytes).ok());
+    let pick = |key: &str, allowed: &[&str]| {
+        saved
+            .as_ref()
+            .and_then(|value| value.get(key))
+            .and_then(serde_json::Value::as_str)
+            .filter(|value| allowed.contains(value))
+            .map(str::to_owned)
+    };
+    serde_json::json!({
+        "theme": pick("theme", &UI_THEMES),
+        "density": pick("density", &UI_DENSITIES),
+    })
+}
+
+pub fn write_ui_prefs(data_dir: &Path, theme: &str, density: &str) -> CmdResult<()> {
+    if !UI_THEMES.contains(&theme) || !UI_DENSITIES.contains(&density) {
+        return Err(CmdError::new(
+            "invalid",
+            "Invalid: unknown theme or density",
+        ));
+    }
+    let bytes = serde_json::to_vec(&serde_json::json!({ "theme": theme, "density": density }))
+        .map_err(|_| CmdError::new("internal", "Internal: display preferences not encoded"))?;
+    std::fs::create_dir_all(data_dir)
+        .and_then(|()| write_atomic(&data_dir.join(UI_PREFS_NAME), &bytes))
+        .map_err(|_| CmdError::unavailable("Unavailable: display preferences not saved"))
+}
+
 /// True when any entry of the synthetic workspace remains in the data dir.
 fn has_synthetic_siblings(data_dir: &Path) -> CmdResult<bool> {
     let io = || {
