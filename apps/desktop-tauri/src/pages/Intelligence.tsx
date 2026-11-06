@@ -194,7 +194,7 @@ type Run = { id: string; status: string; revision: number; prompt: string };
 type Turn = { seq: number; kind: string; payload: string };
 
 export function MedAgent() {
-  return <ProjectScope title="MedAgent" sub="Agents that run on local model packs you admit, reading only the sources you choose. Output is a proposal.">{(pid) => <MedAgentBody projectId={pid} />}</ProjectScope>;
+  return <ProjectScope title="MedAgent" sub="Agents that run on local model packs, reading only the sources you choose. Output is a proposal.">{(pid) => <MedAgentBody projectId={pid} />}</ProjectScope>;
 }
 
 type Agent = { id: string; label: string; status: string; revision?: number; pack_id?: string; tools?: string[] };

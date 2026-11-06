@@ -8,7 +8,7 @@ export function Shot({ name, priority = false, caption = true }: { name: ShotKey
       <div className="frame">
         <img src={asset(s.src)} alt={s.alt} width={s.w} height={s.h} loading={priority ? "eager" : "lazy"} decoding="async" />
       </div>
-      {caption && <figcaption className="frame-caption"><span>Real screenshot · MedScale desktop for Windows{"note" in s ? ` · ${s.note}` : ""}</span><span>Synthetic workspace · no patient data</span></figcaption>}
+      {caption && <figcaption className="frame-caption"><span>Real screenshot · MedScale desktop for Windows</span><span>Synthetic workspace · no patient data</span></figcaption>}
     </figure>
   );
 }

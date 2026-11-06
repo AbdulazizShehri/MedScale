@@ -61,7 +61,7 @@ export default function Models() {
           </div>
           <div className="stack-lg">
           <div className="cards">
-            <div className="card"><div className="card-top"><small>Runtime</small></div><strong>ONNX</strong><p>Admitted packs run on tract, a pure-Rust ONNX runtime, inside the Core. No native runtime to install.</p></div>
+            <div className="card"><div className="card-top"><small>Runtime</small></div><strong>ONNX</strong><p>ONNX packs run on tract, a pure-Rust runtime, inside the Core. No native runtime to install.</p></div>
             <div className="card"><div className="card-top"><small>Runtime</small></div><strong>Rust encoders</strong><p>Small encoder models such as token classifiers run on Candle, in Rust, on the CPU.</p></div>
             <div className="card"><div className="card-top"><small>Audio</small></div><strong>Local speech-to-text</strong><p>Transcription runs on device. It has been checked on synthetic speech only.</p></div>
           </div>
