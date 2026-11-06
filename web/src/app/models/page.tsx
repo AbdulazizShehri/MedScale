@@ -7,7 +7,7 @@ import { docs, github, pageMeta } from "@/lib/site";
 export const metadata: Metadata = pageMeta("/models/", "Models", "How MedScale lists, admits and runs local AI models, and why a catalog listing is not clinical qualification.");
 
 const states = [
-  ["Listed", "The model appears in the catalog with its source, task, format and download size.", "Not installed on your computer, and not reviewed."],
+  ["Listed", "The model appears in the catalog with its source, task, format and expected size.", "Not installed on your computer, and not reviewed."],
   ["Admitted", "A local model pack folder is admitted. The Core verifies its manifest, digests and signature.", "Pack registry state is per session today."],
   ["Running", "The local runtime executes the model on your device and records a receipt for each run.", "Output is a proposal, never an authoritative record."],
   ["Qualified", "Independent evaluation shows the model is fit for one specific task.", "Not granted to any model today, and never by the software alone."],
@@ -19,7 +19,7 @@ export default function Models() {
       <section className="shell page-hero">
         <span className="eyebrow">Models</span>
         <h1 className="display display-sub">Find a model.<br /><span className="mute">Then decide if you trust it.</span></h1>
-        <p className="lede">MedScale treats models as things to inspect, not as authority. You can see where a model came from, what runs it and what state it is in, before you put it to work.</p>
+        <p className="lede">MedScale treats models as things to inspect, not as authority. You can see where a model came from, what runs it and what state it is in, before you put it to work. Real patient records aren&apos;t authorized for any of them.</p>
       </section>
       <section className="proof proof-page" aria-label="The model catalog in numbers">
         <div className="shell proof-row">
