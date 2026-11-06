@@ -25,7 +25,7 @@ function audit() {
   const starts = Array.from({ length: 12 }, (_, i) => L + i * (col + gap)), ends = starts.map((s) => s + col);
   const near = (x, lines) => lines.reduce((best, v) => (Math.abs(x - v) < Math.abs(best) ? x - v : best), Infinity);
 
-  const LEFT = ".brand-link img,.hero-copy > *,.hero-stage,.frame,.frame-caption,.strip-item,.section-head,.section-head > *,.eyebrow,.h2,.display,.lede,.story li > *,.tour > *,.tour-tab strong,.tour-points > div,.evidence,.pillar,.states,.state,.arch > *,.arch > .stack > *,.platforms,.platform,.dev > *,.dev > .stack > *,.cards,.card,.faq > *,.faq > .stack > *,.faq-list summary,.footer-grid > *,.footer-brand > *,.footer-col h2,.footer-col a,.footer-bottom > *,.closing-inner > *,.page-hero > *,.feature-row > *,.feature-copy > *,.notice,.table-wrap,.prose > *,.download-hero > *,.download-foot > *";
+  const LEFT = ".brand-link img,.hero-copy > *,.hero-stage,.frame,.frame-caption,.strip-item,.proof-item,.section-head,.section-head > *,.eyebrow,.h2,.display,.lede,.story li > *,.tour > *,.tour-tab strong,.tour-points > div,.evidence,.pillar,.states,.state,.arch > *,.arch > .stack > *,.platforms,.platform,.dev > *,.dev > .stack > *,.cards,.card,.faq > *,.faq > .stack > *,.faq-list summary,.footer-grid > *,.footer-brand > *,.footer-col h2,.footer-col a,.footer-bottom > *,.closing-inner > *,.page-hero > *,.feature-row > *,.feature-copy > *,.notice,.table-wrap,.prose > *,.download-hero > *,.download-foot > *";
   const RIGHT = ".frame,.tour-panel,.tour-points,.evidence,.pillars,.states,.arch-diagram,.platforms,.terminal,.cards,.faq-list,.table-wrap,.notice,.footer-bottom,.built-on,.story";
   const INSIDE = ".pillar *, .card *, .platform *, .evidence *, .state *, .notice *, .arch-diagram *, .terminal *, .frame *";
   const RIGHT_ALIGNED = ".footer-bottom > :last-child,.download-foot > :last-child,.frame-caption > :last-child";
@@ -54,8 +54,8 @@ function audit() {
     mark.remove(); wrap.parentNode.insertBefore(node, wrap); wrap.remove();
     return y;
   };
-  const OWNER = ".strip-item,.tour-points > div,.pillar,.state,.card,.platform,.arch-node,.footer-col";
-  for (const q of [".strip-item strong",".strip-item span",".tour-points strong",".tour-points span",".pillar h3",".pillar .body",".state small",".state strong",".state p",".card-top small",".card strong",".card p",".platform h3",".platform-sub",".platform-state",".platform-note",".footer-col h2",".footer-bottom > *",".download-foot > *",".frame-caption > *",".evidence-meta > *",".evidence-foot > *",".story-n, .story h3",".story h3, .story .body"]) {
+  const OWNER = ".strip-item,.proof-item,.tour-points > div,.pillar,.state,.card,.platform,.arch-node,.footer-col";
+  for (const q of [".proof-item span",".proof-item small",".strip-item strong",".strip-item span",".tour-points strong",".tour-points span",".pillar h3",".pillar .body",".state small",".state strong",".state p",".card-top small",".card strong",".card p",".platform h3",".platform-sub",".platform-state",".platform-note",".footer-col h2",".footer-bottom > *",".download-foot > *",".frame-caption > *",".evidence-meta > *",".evidence-foot > *",".story-n, .story h3",".story h3, .story .body"]) {
     const rows = new Map();
     for (const el of document.querySelectorAll(q)) {
       if (!visible(el)) continue;
