@@ -9,6 +9,8 @@ on:
       - "crates/medscale-pack/src/compatibility.rs"
       - "third_party/medscale-model-catalog-v3/**"
       - "specs/**"
+      - "crates/**"
+      - "apps/desktop-tauri/src-tauri/src/**"
       - "assets/brand/**"
   push:
     branches: [main]
@@ -19,6 +21,8 @@ on:
       - "crates/medscale-pack/src/compatibility.rs"
       - "third_party/medscale-model-catalog-v3/**"
       - "specs/**"
+      - "crates/**"
+      - "apps/desktop-tauri/src-tauri/src/**"
   workflow_dispatch:
 
 permissions:
