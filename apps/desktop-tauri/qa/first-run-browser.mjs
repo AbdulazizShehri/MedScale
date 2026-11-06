@@ -38,6 +38,7 @@ const model = () => {
     invoke: async (cmd) => {
       calls.push(cmd);
       if (cmd === "workspace_status") return open ? { ...initial, open: true, workspace: { subjects: 2, sources: 12 } } : initial;
+      if (cmd === "workspace_create_encrypted") { open = true; return { recovery_codes: ["qa-code-one", "qa-code-two"] }; }
       if (cmd === "workspace_open_synthetic") { open = true; return { subjects: 2, sources: 12 }; }
       if (cmd === "patients_list") return { subjects };
       if (cmd === "evidence_corpus") return { source_identity: "synthetic-qa", documents: [] };
@@ -184,12 +185,36 @@ async function run() {
     // Returning to the sample: worded for a return, and still one explicit click.
     const returning = await browser.newPage({ viewport: { width: 1280, height: 820 }, reducedMotion: "reduce" });
     await returning.addInitScript(model);
-    await returning.addInitScript(() => window.localStorage.setItem("medscale.sample-opened", "1"));
+    await returning.addInitScript(() => {
+      const invoke = window.__TAURI_INTERNALS__.invoke;
+      window.__TAURI_INTERNALS__.invoke = async (cmd, args) => {
+        const result = await invoke(cmd, args);
+        return cmd === "workspace_status" ? { ...result, sample_workspace_exists: true } : result;
+      };
+    });
     await returning.goto(origin, { waitUntil: "networkidle" });
-    await returning.getByRole("heading", { name: /your sample workspace is ready/i }).waitFor({ timeout: 10000 });
+    await returning.getByRole("heading", { name: /return to your sample workspace/i }).waitFor({ timeout: 10000 });
     assert.equal((await returning.evaluate(() => window.__firstRunCommands)).includes("workspace_open_synthetic"), false, "returning does not auto-open");
     checks.push({ viewport: 1280, route: "returning sample user -> worded return, no auto-open", passed: true });
     await returning.close();
+    // Shown-once recovery codes: the Settings shortcut and the logo cannot take them away.
+    const codes = await browser.newPage({ viewport: { width: 1280, height: 820 }, reducedMotion: "reduce" });
+    await codes.addInitScript(model);
+    await codes.goto(origin + "/#gate=access", { waitUntil: "networkidle" });
+    await codes.getByRole("heading", { name: "Create encrypted vault" }).waitFor({ timeout: 10000 });
+    await codes.locator("#pp").fill("qa-synthetic-passphrase");
+    await codes.locator("#pp2").fill("qa-synthetic-passphrase");
+    await codes.locator('form button[type="submit"]').click();
+    const saveHeading = codes.getByRole("heading", { name: "Save your recovery codes" });
+    await saveHeading.waitFor({ timeout: 10000 });
+    await codes.keyboard.press("Control+,");
+    await codes.waitForTimeout(200);
+    assert.equal(await saveHeading.isVisible(), true, "the Settings shortcut must not replace recovery codes");
+    assert.equal(await codes.getByRole("button", { name: "Back to Welcome" }).count(), 0, "no way back while codes are shown");
+    await codes.getByRole("button", { name: /I saved them/ }).click();
+    await saveHeading.waitFor({ state: "detached", timeout: 10000 });
+    checks.push({ viewport: 1280, route: "recovery codes hold the screen until confirmed", passed: true });
+    await codes.close();
   } finally {
     await browser.close();
     await new Promise((resolve) => server.close(resolve));

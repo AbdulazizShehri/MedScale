@@ -72,6 +72,7 @@ export function App() {
   const [ws, setWs] = useState<WorkspaceStatus | null>(null);
   const [wsError, setWsError] = useState<string | null>(null);
   const [gate, setGate] = useState<GateRequest>(hash.get("gate") === "access" ? "access" : "auto");
+  const [recoveryCodesShown, setRecoveryCodesShown] = useState(false);
   const [nav, setNav] = useState<Nav>(startNav);
   // Project selection belongs only to the currently unlocked workspace. Never persist its ID in WebView storage.
   const [project, setProjectState] = useState<string | null>(null);
@@ -153,7 +154,7 @@ export function App() {
   if (nav.subject) crumbs.push(nav.subject);
 
   let body: ReactNode;
-  const view = gateView({ runtimeError: !!wsError, status: ws, routeNeedsWorkspace: route.scope !== "none", request: gate });
+  const view = gateView({ runtimeError: !!wsError, status: ws, routeNeedsWorkspace: route.scope !== "none", request: gate, recoveryCodesShown });
   if (view === "runtime-unavailable") {
     body = <div className="splash" role="alert"><div className="stack"><Mark height={38} className="mark" title="MedScale" /><p className="t-sm i2">Local runtime disconnected. {wsError}</p><p className="t-sm i3">Your workspace stays closed until the runtime responds. If this keeps happening, close MedScale and open it again.</p><button type="button" className="btn btn-s" onClick={() => void refreshWorkspace()}>Try again</button></div></div>;
   } else if (view === "loading") {
@@ -161,7 +162,7 @@ export function App() {
   } else if (view === "welcome") {
     body = <Welcome onContinue={() => setGate("access")} />;
   } else if (view === "unlock" || view === "create") {
-    body = <Access onBack={() => setGate("welcome")} />;
+    body = <Access onBack={() => setGate("welcome")} onRecoveryCodes={setRecoveryCodesShown} />;
   } else {
     body = (
       <div className="app">

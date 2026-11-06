@@ -43,7 +43,13 @@ test("an unreachable runtime never falls through to a workspace", () => {
   assert.equal(gateView({ runtimeError: false, status: null, routeNeedsWorkspace: true, request: "auto" }), "loading");
 });
 
-test("only the exact stored value counts as a returning sample user", () => {
-  assert.equal(isReturningToSample("1"), true);
-  for (const value of [null, "", "0", "true", "<script>"]) assert.equal(isReturningToSample(value), false);
+test("only Core reporting the sample on disk counts as returning", () => {
+  assert.equal(isReturningToSample({ sample_workspace_exists: true }), true);
+  for (const value of [null, undefined, {}, { sample_workspace_exists: false }]) assert.equal(isReturningToSample(value), false);
+});
+
+test("shown-once recovery codes hold the screen until confirmed", () => {
+  for (const open of [false, true]) for (const routeNeedsWorkspace of [false, true]) {
+    assert.equal(gateView({ runtimeError: false, status: { open, encrypted_vault_exists: true }, routeNeedsWorkspace, request: "auto", recoveryCodesShown: true }), "create");
+  }
 });

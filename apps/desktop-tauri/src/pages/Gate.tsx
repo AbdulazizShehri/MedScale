@@ -1,6 +1,6 @@
 import { useMemo, useState, type FormEvent, type ReactNode } from "react";
-import { readPref, useApp, writePref } from "../lib/app";
-import { SAMPLE_OPENED_PREF, isReturningToSample } from "../lib/first-launch";
+import { useApp } from "../lib/app";
+import { isReturningToSample } from "../lib/first-launch";
 import { useAction, type CmdError } from "../lib/ipc";
 import { Logo } from "../components/brand";
 import { Glyph, useToast } from "../components/ui";
@@ -57,11 +57,10 @@ export function Welcome({ onContinue }: { onContinue: () => void }) {
 
   const toast = useToast();
   const [confirming, setConfirming] = useState<null | "set-aside" | "delete">(null);
-  const returning = isReturningToSample(readPref(SAMPLE_OPENED_PREF));
+  const returning = isReturningToSample(ws);
   async function openSynthetic() {
     const r = await run<unknown>("synthetic", "workspace_open_synthetic");
     if (!r.ok) { setError(r.error); return; }
-    writePref(SAMPLE_OPENED_PREF, "1");
     if (recoveredInterruptedSeed(r.data)) toast({ kind: "completed", ...RECOVERED_SEED_NOTICE });
     await refreshWorkspace();
   }
@@ -89,7 +88,7 @@ export function Welcome({ onContinue }: { onContinue: () => void }) {
       <div className="gate-welcome-layout">
         <Logo height={28} />
         <div className="stack" style={{ gap: 24 }}>
-          <h1 className="gate-welcome-title">{returning ? <>Your sample<br />workspace is ready</> : <>Your local AI<br />workspace</>}</h1>
+          <h1 className="gate-welcome-title">{returning ? <>Return to your<br />sample workspace</> : <>Your local AI<br />workspace</>}</h1>
           <div className="gate-welcome-tag">
             <span>Evidence.</span><span>Privacy.</span><span>Scale.</span>
           </div>
@@ -137,7 +136,7 @@ export function Welcome({ onContinue }: { onContinue: () => void }) {
   );
 }
 
-export function Access({ onBack }: { onBack: () => void }) {
+export function Access({ onBack, onRecoveryCodes }: { onBack: () => void; onRecoveryCodes: (shown: boolean) => void }) {
   const { ws, refreshWorkspace } = useApp();
   const exists = !!ws?.encrypted_vault_exists;
   const [mode, setMode] = useState<"unlock" | "create">(exists ? "unlock" : "create");
@@ -167,7 +166,7 @@ export function Access({ onBack }: { onBack: () => void }) {
       } else setError(r.error);
     } else {
       const r = await run<{ recovery_codes: string[] }>("create", "workspace_create_encrypted", { passphrase: pass });
-      if (r.ok) { setPass(""); setConfirm(""); setCodes(r.data.recovery_codes); } else setError(r.error);
+      if (r.ok) { setPass(""); setConfirm(""); setCodes(r.data.recovery_codes); onRecoveryCodes(true); } else setError(r.error);
     }
   }
 
@@ -186,7 +185,6 @@ export function Access({ onBack }: { onBack: () => void }) {
   async function synthetic() {
     const r = await run<unknown>("synthetic", "workspace_open_synthetic");
     if (!r.ok) { setError(r.error); return; }
-    writePref(SAMPLE_OPENED_PREF, "1");
     if (recoveredInterruptedSeed(r.data)) toast({ kind: "completed", ...RECOVERED_SEED_NOTICE });
     await refreshWorkspace();
   }
@@ -223,16 +221,18 @@ export function Access({ onBack }: { onBack: () => void }) {
     <main className="gate">
       <div className={compact ? "access access-compact" : "access"}>
         <section>
-          <button type="button" onClick={onBack} style={{ display: "flex", alignItems: "center", gap: 12, width: "max-content" }} aria-label="Back to Welcome">
-            <Logo height={18} />
-          </button>
+          {codes ? <Logo height={18} /> : (
+            <button type="button" onClick={onBack} style={{ display: "flex", alignItems: "center", gap: 12, width: "max-content" }} aria-label="Back to Welcome">
+              <Logo height={18} />
+            </button>
+          )}
           <div style={{ flex: 1, display: "flex", alignItems: "center", padding: "32px 0" }}>
             {codes ? (
               <div className="stack" style={{ width: 420, maxWidth: "100%", gap: 18 }}>
                 <h1 style={{ margin: 0, fontSize: 32, lineHeight: "36px", fontWeight: 600, letterSpacing: "-0.025em" }}>Save your recovery codes</h1>
                 <p className="t-body i2">Each code opens this vault if you lose your passphrase. They are shown once and are not stored anywhere MedScale can show them again. Keep them somewhere safe and separate.</p>
                 <div className="codes" aria-label="Recovery codes">{codes.length ? codes.map((c) => <span key={c}>{c}</span>) : <span className="i3">Core issued no recovery codes for this vault.</span>}</div>
-                <div><button type="button" className="btn btn-p lg" onClick={() => void refreshWorkspace()}>I saved them · continue</button></div>
+                <div><button type="button" className="btn btn-p lg" onClick={() => void refreshWorkspace().finally(() => onRecoveryCodes(false))}>I saved them · continue</button></div>
               </div>
             ) : (
               <form onSubmit={submit} className="stack" style={{ width: 420, maxWidth: "100%", gap: 22 }}>

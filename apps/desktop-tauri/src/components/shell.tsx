@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState, type KeyboardEvent } from "react";
 import { areas, routes, searchRoutes, type Route, type RouteId } from "../routes";
-import { readPref, useApp, writePref } from "../lib/app";
-import { navGroupOpen, parseClosedGroups, serializeClosedGroups } from "../lib/nav-groups";
+import { useApp } from "../lib/app";
+import { DEFAULT_CLOSED, navGroupOpen } from "../lib/nav-groups";
 import { Logo } from "./brand";
 import { Glyph, Icon, type IconName } from "./ui";
 
@@ -15,12 +15,11 @@ export function Sidebar() {
   const main = routes.filter((r) => r.area !== "Utility");
   const foot = routes.filter((r) => r.area === "Utility");
   const activeArea = routes.find((r) => r.id === nav.route)?.area;
-  const [closed, setClosed] = useState<ReadonlySet<string> | null>(() => parseClosedGroups(readPref("nav-closed")));
+  const [closed, setClosed] = useState<ReadonlySet<string>>(DEFAULT_CLOSED);
   function toggleGroup(area: string, isOpen: boolean) {
     setClosed((current) => {
-      const next = new Set(current ?? ["Operations", "Governance"]);
+      const next = new Set(current);
       if (isOpen) next.add(area); else next.delete(area);
-      writePref("nav-closed", serializeClosedGroups(next));
       return next;
     });
   }
@@ -56,7 +55,7 @@ export function Sidebar() {
           return (
             <div key={area}>
               {area !== "Home" && (
-                <button type="button" className="sb-group" aria-expanded={isOpen} disabled={area === activeArea} onClick={() => toggleGroup(area, isOpen)}>
+                <button type="button" className="sb-group" aria-expanded={isOpen} aria-disabled={area === activeArea} title={area === activeArea ? "Stays open while you are on a page in this group" : undefined} onClick={() => { if (area !== activeArea) toggleGroup(area, isOpen); }}>
                   <svg width="10" height="10" viewBox="0 0 10 10" aria-hidden="true"><path d={isOpen ? "M1 3h8L5 8Z" : "M3 1v8l5-4Z"} fill="currentColor" /></svg>
                   {area}
                 </button>

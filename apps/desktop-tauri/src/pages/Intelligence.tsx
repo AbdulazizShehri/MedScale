@@ -209,6 +209,7 @@ const TOOLS: Array<[string, string]> = [["read_context_artifact", "Read a bound 
 
 function MedAgentBody({ projectId }: { projectId: string }) {
   const [composing, setComposing] = useState(false);
+  useEffect(() => { if (composing) document.getElementById("ag")?.focus(); }, [composing]);
   const runs = useCommand<{ runs: Run[]; agents: Agent[] }>("medagent_runs", { projectId });
   const models = useCommand<Model[]>("medagent_models");
   const sources = useCommand<Source[]>("medagent_sources");
@@ -239,7 +240,7 @@ function MedAgentBody({ projectId }: { projectId: string }) {
     e.preventDefault();
     const args = agentId ? { projectId, prompt, agentId, sourceIds: picked } : { projectId, prompt, sourceIds: picked };
     const r = await run<Run>("create", "medagent_create_run", args);
-    if (outcome(r, "Run created (pending)")) { setPrompt(""); setProposal(null); await runs.reload(); setSel(r.data.id); }
+    if (outcome(r, "Run created (pending)")) { setPrompt(""); setProposal(null); setComposing(false); await runs.reload(); setSel(r.data.id); }
   }
   async function step(cmd: "medagent_start" | "medagent_cancel" | "medagent_complete", label: string) {
     if (!cur) return;
@@ -301,7 +302,7 @@ function MedAgentBody({ projectId }: { projectId: string }) {
           </div>
           <label className="lbl" htmlFor="ap">Prompt</label>
           <textarea id="ap" value={prompt} onChange={(e) => setPrompt(e.target.value)} placeholder="Ask about the bound sources…" maxLength={2000} style={{ minHeight: 70 }} />
-          <div><button type="submit" className="btn btn-p" disabled={!prompt.trim() || !picked.length || picked.length > 16 || !!pending}>{pending === "create" ? <Glyph kind="running" /> : null}Create run</button></div>
+          <div className="row-gap"><button type="submit" className="btn btn-p" disabled={!prompt.trim() || !picked.length || picked.length > 16 || !!pending}>{pending === "create" ? <Glyph kind="running" /> : null}Create run</button>{composing && cur && <button type="button" className="btn btn-g" onClick={() => setComposing(false)}>Cancel</button>}</div>
         </form>}
         {cur ? <>
           <Ledger items={[
@@ -340,7 +341,7 @@ function MedAgentBody({ projectId }: { projectId: string }) {
           <Authority>Proposal, not accepted. Nothing is written to a record. Runs, turns and evidence persist in the vault and resume after a restart.</Authority>
         </> : <Empty icon="medagent" title="No run selected">Choose an agent and the sources it may read, then create a run.</Empty>}
       </div>
-      <aside className="agent-side">
+      <aside className="agent-side" aria-label="Agents and models">
         <Section title="Agents" count={agents.length}>
           {agents.map((a) => (
             <div key={a.id} className="row-gap" style={{ justifyContent: "space-between", minHeight: 30, gap: 8 }}>

@@ -250,10 +250,12 @@ fn every_surface_runs_against_real_core() {
     assert_eq!(err["kind"], "unavailable", "{err}");
     let status = h.ok("workspace_status", json!({}));
     assert_eq!(status["open"], false);
+    assert_eq!(status["sample_workspace_exists"], false);
 
     // Open the synthetic workspace: fixtures are ingested and promoted.
     let ws = h.ok("workspace_open_synthetic", json!({}));
     assert_eq!(ws["subjects"], 2, "{ws}");
+    assert_eq!(h.ok("workspace_status", json!({}))["sample_workspace_exists"], true);
     assert!(ws["sources"].as_u64().unwrap() >= 10);
     assert_eq!(
         h.ok("get_shell_status", json!({}))["coreConnection"],

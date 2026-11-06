@@ -110,6 +110,7 @@ pub fn workspace_status(host: tauri::State<'_, Host>) -> CmdResult<Value> {
             .map(|root| root.join("vault_header.json").is_file() && root.join("meta.sealed").is_file())
             .unwrap_or(false),
         "set_aside_exists": state.data_dir().map(host::set_aside_exists).unwrap_or(false),
+        "sample_workspace_exists": state.data_dir().map(host::sample_workspace_exists).unwrap_or(false),
         "version": medscale_contracts::MEDSCALE_VERSION,
         "local_only": report.local_only,
         "real_phi_authorized": report.real_phi_authorized,

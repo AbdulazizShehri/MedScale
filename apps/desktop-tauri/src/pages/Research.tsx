@@ -261,7 +261,7 @@ function KnowledgeBody({ projectId }: { projectId: string }) {
           </form>
           <Section title="Results">{res ? <><p className="t-sm" style={{ marginBottom: 8 }}>{res.summary}</p><pre className="pre">{res.hits || "No hits."}</pre></> : <p className="t-sm i3">Build the index, then search. The index covers this project's data sources only.</p>}</Section>
         </div>
-        <aside className="agent-side">
+        <aside className="agent-side" aria-label="Index and canvases">
           <Section title="Index">
             {overview.state.status === "ready" && <p className="t-sm i2" style={{ marginBottom: 12 }}>{overview.state.data.index_status}</p>}
             <button type="button" className="btn btn-s" onClick={build} disabled={!!pending}>{pending === "build" ? <Glyph kind="running" /> : null}Build index</button>

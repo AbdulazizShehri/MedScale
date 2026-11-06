@@ -2035,6 +2035,12 @@ pub fn set_aside_exists(data_dir: &Path) -> bool {
         if set_aside_slots(&dir).is_ok_and(|(completed, partial)| !completed.is_empty() || !partial.is_empty()))
 }
 
+/// True when the sample workspace is on disk from an earlier open. It only words
+/// the Welcome screen: opening the sample still takes its own explicit command.
+pub fn sample_workspace_exists(data_dir: &Path) -> bool {
+    data_dir.join(VAULT_NAME).is_dir() && data_dir.join(MANIFEST_NAME).is_file()
+}
+
 /// True when any entry of the synthetic workspace remains in the data dir.
 fn has_synthetic_siblings(data_dir: &Path) -> CmdResult<bool> {
     let io = || {

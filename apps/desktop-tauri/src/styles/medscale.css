@@ -662,8 +662,8 @@ label.row-gap { min-height: var(--ctl); }
 
 /* Sidebar groups fold; the group holding the current page stays open. */
 button.sb-group { display: flex; align-items: center; gap: 6px; width: 100%; min-height: var(--nav); padding: 8px 8px 4px; text-align: left; border-radius: var(--r-2); color: var(--ink-3); }
-button.sb-group:hover:not(:disabled) { color: var(--ink-1); }
-button.sb-group:disabled { cursor: default; }
+button.sb-group:hover:not([aria-disabled="true"]) { color: var(--ink-1); }
+button.sb-group[aria-disabled="true"] { cursor: default; }
 button.sb-group svg { flex: none; }
 
 /* Recovery: what happened, then what you can do. Nothing happens by itself. */
@@ -697,4 +697,5 @@ button.sb-group svg { flex: none; }
 .settings-link { min-height: var(--ctl); padding: 0 8px; margin-left: -8px; text-align: left; font-size: 13px; color: var(--ink-2); border-radius: var(--r-2); }
 .settings-link:hover { background: var(--bg-hover); color: var(--ink-1); }
 .settings-body > div { scroll-margin-top: 16px; }
+.settings-body > div:focus { outline: none; }
 @media (max-width: 900px) { .settings-layout { grid-template-columns: minmax(0, 1fr); } .settings-nav { position: static; flex-direction: row; flex-wrap: wrap; } .settings-link { margin-left: 0; } }
