@@ -38,7 +38,12 @@ const model = () => {
     invoke: async (cmd) => {
       calls.push(cmd);
       if (cmd === "workspace_status") return open ? { ...initial, open: true, workspace: { subjects: 2, sources: 12 } } : initial;
-      if (cmd === "workspace_create_encrypted") { open = true; return { recovery_codes: ["qa-code-one", "qa-code-two"] }; }
+      if (cmd === "workspace_create_encrypted") {
+        await new Promise((resolve) => setTimeout(resolve, 500));
+        if (window.__failCreate) throw { kind: "unavailable", message: "Unavailable: test failure" };
+        open = true;
+        return { recovery_codes: ["qa-code-one", "qa-code-two"] };
+      }
       if (cmd === "workspace_open_synthetic") { open = true; return { subjects: 2, sources: 12 }; }
       if (cmd === "patients_list") return { subjects };
       if (cmd === "evidence_corpus") return { source_identity: "synthetic-qa", documents: [] };
@@ -205,6 +210,9 @@ async function run() {
     await codes.locator("#pp").fill("qa-synthetic-passphrase");
     await codes.locator("#pp2").fill("qa-synthetic-passphrase");
     await codes.locator('form button[type="submit"]').click();
+    // Core is still creating the vault: leaving now is what would lose the codes.
+    await codes.keyboard.press("Control+,");
+    assert.equal(await codes.getByRole("button", { name: "Back to Welcome" }).count(), 0, "no way back while the vault is being created");
     const saveHeading = codes.getByRole("heading", { name: "Save your recovery codes" });
     await saveHeading.waitFor({ timeout: 10000 });
     await codes.keyboard.press("Control+,");
@@ -215,6 +223,19 @@ async function run() {
     await saveHeading.waitFor({ state: "detached", timeout: 10000 });
     checks.push({ viewport: 1280, route: "recovery codes hold the screen until confirmed", passed: true });
     await codes.close();
+    // A failed create lets go of the screen, so nobody is trapped on it.
+    const failed = await browser.newPage({ viewport: { width: 1280, height: 820 }, reducedMotion: "reduce" });
+    await failed.addInitScript(model);
+    await failed.addInitScript(() => { window.__failCreate = true; });
+    await failed.goto(origin + "/#gate=access", { waitUntil: "networkidle" });
+    await failed.locator("#pp").fill("qa-synthetic-passphrase");
+    await failed.locator("#pp2").fill("qa-synthetic-passphrase");
+    await failed.locator('form button[type="submit"]').click();
+    await failed.getByRole("alert").waitFor({ timeout: 10000 });
+    await failed.getByRole("button", { name: "Back to Welcome" }).click();
+    await failed.getByRole("button", { name: "Try MedScale with sample data" }).waitFor({ timeout: 10000 });
+    checks.push({ viewport: 1280, route: "failed vault create releases the screen", passed: true });
+    await failed.close();
   } finally {
     await browser.close();
     await new Promise((resolve) => server.close(resolve));
