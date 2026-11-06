@@ -179,7 +179,7 @@ export const DELETE_RECOVERY_DIALOG = {
 export const MOVE_SESSION_ASIDE_DIALOG = {
   title: "Move that session aside?",
   confirm: "Move aside and open",
-  body: "MedScale will open the vault from its last locked state. Changes from your last session will not be in the vault. Its file is kept in the vault folder, so nothing is deleted. Try this only if retrying keeps failing.",
+  body: "MedScale will open the vault from its last locked state. Changes from your last session will not be in the vault. Its file is kept in the vault folder, so nothing is deleted, but MedScale can't open it. Try this only if retrying keeps failing.",
 } as const;
 
 export const RECOVERED_SEED_NOTICE = {
@@ -197,7 +197,7 @@ export function setAsideOffered(reason: SeedReason | undefined): boolean {
 
 export const SET_ASIDE_DIALOG = {
   title: "Set the sample workspace aside?",
-  body: "MedScale will move the sample workspace and its settings into a folder inside MedScale's own data, then create a new sample. Nothing is deleted. The set-aside copy is not encrypted, cannot be opened in MedScale, may include FHIR files you imported into the sample, and is kept until you delete it. Your original source files elsewhere are untouched. Audio Pack settings for the sample need to be set up again; downloaded models stay.",
+  body: "MedScale will move the sample workspace and its settings into a folder inside MedScale's own data, then create a new sample. Nothing is deleted. The set-aside copy is not encrypted, cannot be opened in MedScale, may include FHIR files and recordings you imported into the sample, and is kept until you delete it. Your original source files elsewhere are untouched. Audio Pack settings for the sample need to be set up again; downloaded models stay.",
   confirm: "Set aside and start a new sample",
 } as const;
 

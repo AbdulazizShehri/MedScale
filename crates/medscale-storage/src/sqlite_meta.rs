@@ -76,7 +76,14 @@ pub struct SourceMeta {
 #[derive(Debug)]
 pub struct SqliteMetaStore {
     conn: Connection,
+    audio_budget: Option<u64>,
 }
+
+/// How much an encrypted vault may hold before it refuses another recording.
+/// Lock reads the whole work file into memory and rewrites it as a seal about
+/// 3.6 times its size, so without a limit a vault could grow until it can't be
+/// sealed or opened on a small machine. At this size Lock needs about 1.4 GiB.
+pub const ENCRYPTED_VAULT_AUDIO_BUDGET_BYTES: u64 = 256 * 1024 * 1024;
 
 impl SqliteMetaStore {
     pub fn open(vault_root: &Path) -> Result<Self, MetaError> {
@@ -89,12 +96,46 @@ impl SqliteMetaStore {
     /// Open metadata DB at an explicit path (SyntheticVault / unkeyed plaintext-compatible).
     pub fn open_at(db_path: &Path) -> Result<Self, MetaError> {
         let conn = Self::open_connection(db_path)?;
-        let store = Self { conn };
+        let store = Self {
+            conn,
+            audio_budget: None,
+        };
         store.migrate()?;
         Ok(store)
     }
 
     /// Crate-internal connection access for the Spec 074 row module.
+    /// The limit on new recordings, if this store has one. Plaintext stores don't.
+    pub fn audio_budget(&self) -> Option<u64> {
+        self.audio_budget
+    }
+
+    /// Replaces the limit on new recordings, for tests of the limit itself.
+    #[doc(hidden)]
+    pub fn set_audio_budget(&mut self, budget: Option<u64>) {
+        self.audio_budget = budget;
+    }
+
+    /// Bytes in use, not counting free pages. A removed recording frees its
+    /// pages for reuse without shrinking the file, so this is what must fit.
+    pub fn live_bytes(&self) -> Result<u64, MetaError> {
+        // SQLCipher answers `PRAGMA page_size` with text, so accept either form.
+        let pragma = |name: &str| -> Result<u64, MetaError> {
+            let value: rusqlite::types::Value =
+                self.conn
+                    .query_row(&format!("PRAGMA {name}"), [], |row| row.get(0))?;
+            match value {
+                rusqlite::types::Value::Integer(n) => u64::try_from(n).ok(),
+                rusqlite::types::Value::Text(text) => text.trim().parse().ok(),
+                _ => None,
+            }
+            .ok_or_else(|| MetaError::UnsupportedSchema(format!("unreadable PRAGMA {name}")))
+        };
+        Ok(pragma("page_count")?
+            .saturating_sub(pragma("freelist_count")?)
+            .saturating_mul(pragma("page_size")?))
+    }
+
     pub(crate) fn conn(&self) -> &Connection {
         &self.conn
     }
@@ -107,7 +148,10 @@ impl SqliteMetaStore {
         let conn = Self::open_connection(db_path)?;
         apply_sqlcipher_key(&conn, key32)?;
         verify_sqlcipher_readable(&conn)?;
-        let store = Self { conn };
+        let store = Self {
+            conn,
+            audio_budget: Some(ENCRYPTED_VAULT_AUDIO_BUDGET_BYTES),
+        };
         store.migrate()?;
         Ok(store)
     }
@@ -125,7 +169,10 @@ impl SqliteMetaStore {
         )?;
         apply_sqlcipher_key(&conn, key32)?;
         verify_sqlcipher_readable(&conn)?;
-        Ok(Self { conn })
+        Ok(Self {
+            conn,
+            audio_budget: Some(ENCRYPTED_VAULT_AUDIO_BUDGET_BYTES),
+        })
     }
 
     /// A throwaway in-memory store, so a vault can close its real connection
@@ -133,6 +180,7 @@ impl SqliteMetaStore {
     pub(crate) fn open_in_memory_placeholder() -> Result<Self, MetaError> {
         Ok(Self {
             conn: Connection::open_in_memory()?,
+            audio_budget: None,
         })
     }
 

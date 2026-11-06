@@ -309,6 +309,12 @@ pub fn medagent_admit_pack(host: tauri::State<'_, Host>, path: String) -> CmdRes
             "Invalid: choose an existing Pack folder on this computer",
         ));
     }
+    if !host::EXTERNAL_PACKS_ALLOWED {
+        return Err(CmdError::new(
+            "denied",
+            "Denied: this version doesn't admit Packs from a folder",
+        ));
+    }
     let mut state = lock(&host)?;
     let result = state.session()?.packs_install_local(&path)?;
     let Some(pack_id) = result.pack_id.clone().filter(|_| result.admitted) else {
@@ -1117,6 +1123,12 @@ pub fn audio_admit_asr_pack(host: tauri::State<'_, Host>, path: String) -> CmdRe
         ));
     }
     let mut state = lock(&host)?;
+    if !host::pack_dir_allowed(dir, state.data_dir()?, host::EXTERNAL_PACKS_ALLOWED) {
+        return Err(CmdError::new(
+            "denied",
+            "Denied: this version installs Whisper models only through Download, verify and install",
+        ));
+    }
     let session = state.session()?;
     let admitted = session.packs_install_local(&path)?;
     let Some(pack_id) = admitted.pack_id.clone().filter(|_| admitted.admitted) else {

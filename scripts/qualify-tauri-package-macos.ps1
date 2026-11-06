@@ -35,6 +35,9 @@ try {
         $read = { param($k) (& /usr/libexec/PlistBuddy -c "Print :$k" $plist 2>$null) }
         $result.bundle = [ordered]@{ name = & $read 'CFBundleName'; identifier = & $read 'CFBundleIdentifier'; version = & $read 'CFBundleShortVersionString'; executable = & $read 'CFBundleExecutable' }
         $result.signature = (& codesign -dv $copy 2>&1 | Out-String).Trim()
+        # Broken signatures can make macOS report a downloaded app as damaged.
+        $verify = (& codesign --verify --deep --strict $copy 2>&1 | Out-String).Trim()
+        if ($LASTEXITCODE -ne 0) { throw "The bundle fails codesign --verify: $verify" }
         $exe = Join-Path $copy ("Contents/MacOS/" + $result.bundle.executable)
         if ((Test-Path -LiteralPath $exe) -and $result.bundle.identifier -eq 'org.medscale.desktop.preview') { $result.INSTALL = 'PASS' }
         if ($result.INSTALL -eq 'PASS') {
