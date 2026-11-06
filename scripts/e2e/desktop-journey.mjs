@@ -900,7 +900,7 @@ try {
       execFileSync("taskkill", ["/F", "/T", "/IM", path.basename(app)], { stdio: "ignore" });
       await quit();
       await launch();
-      await click(`//button[${text("Set up or unlock encrypted vault")}]`, 60000);
+      // A closed encrypted vault opens straight on unlock, with no Welcome first.
       await see("Unlock workspace", 60000);
       await type("//input[@id='pp']", "e2e-disposable-runner-passphrase");
       await click("//button[@type='submit' and not(@disabled)]");
@@ -938,6 +938,8 @@ try {
     fs.rmSync(manifest);
     await launch();
     await journey("unopenable-sample-set-aside", async () => {
+      // An encrypted vault exists by now, so the sample is one explicit step away.
+      await click(`//button[${text("Explore sample data instead")}]`, 60000);
       await click(`//button[${text("Try MedScale with sample data")}]`, 60000);
       await see("The sample workspace was not finished setting up.", 60000);
       await click(`//button[${text("Set the sample workspace aside")}]`);

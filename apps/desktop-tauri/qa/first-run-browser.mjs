@@ -75,7 +75,7 @@ async function run() {
       assert.equal(res.status(), 200, "served desktop bundle");
       await page.getByRole("heading", { name: /your local ai workspace/i }).waitFor();
       const primary = page.getByRole("button", { name: "Try MedScale with sample data" });
-      const advanced = page.getByRole("button", { name: "Set up or unlock encrypted vault" });
+      const advanced = page.getByRole("button", { name: "Create an encrypted workspace" });
       assert.equal(await primary.isVisible(), true);
       assert.equal(await advanced.isVisible(), true);
       assert.equal(await page.getByText("Beta · synthetic data only", { exact: false }).count() > 0, true);
@@ -132,12 +132,43 @@ async function run() {
     const advanced = await browser.newPage({ viewport: { width: 1280, height: 820 } });
     await advanced.addInitScript(model);
     await advanced.goto(origin, { waitUntil: "networkidle" });
-    await advanced.getByRole("button", { name: "Set up or unlock encrypted vault" }).click();
+    await advanced.getByRole("button", { name: "Create an encrypted workspace" }).click();
     await advanced.getByRole("heading", { name: "Create encrypted vault" }).waitFor({ timeout: 10000 });
     const advancedCmds = await advanced.evaluate(() => window.__firstRunCommands);
     assert.equal(advancedCmds.includes("workspace_open_synthetic"), false);
     checks.push({ viewport: 1280, route: "welcome -> encrypted vault (opt-in)", passed: true });
     await advanced.close();
+    // Existing encrypted vault: unlock comes first, and nothing opens without Core.
+    const existing = await browser.newPage({ viewport: { width: 1280, height: 820 }, reducedMotion: "reduce" });
+    await existing.addInitScript(model);
+    await existing.addInitScript(() => {
+      const invoke = window.__TAURI_INTERNALS__.invoke;
+      window.__TAURI_INTERNALS__.invoke = async (cmd, args) => {
+        const result = await invoke(cmd, args);
+        return cmd === "workspace_status" ? { ...result, encrypted_vault_exists: true } : result;
+      };
+    });
+    await existing.goto(origin, { waitUntil: "networkidle" });
+    await existing.getByRole("heading", { name: "Unlock workspace" }).waitFor({ timeout: 10000 });
+    assert.equal(await existing.locator("#pp").isVisible(), true, "passphrase field is shown");
+    assert.equal(await existing.getByRole("button", { name: "Unlock workspace" }).isDisabled(), true, "unlock needs a passphrase");
+    assert.equal((await existing.evaluate(() => window.__firstRunCommands)).includes("workspace_open_synthetic"), false, "no workspace opened by itself");
+    assert.equal(await existing.getByText("Real patient data is not authorized").count() > 0, true);
+    await existing.getByRole("button", { name: "Explore sample data instead" }).click();
+    await existing.getByRole("button", { name: "Try MedScale with sample data" }).waitFor({ timeout: 10000 });
+    await existing.getByRole("button", { name: "Unlock your encrypted workspace" }).click();
+    await existing.getByRole("heading", { name: "Unlock workspace" }).waitFor({ timeout: 10000 });
+    checks.push({ viewport: 1280, route: "existing vault -> unlock first, sample one explicit step away", passed: true });
+    await existing.close();
+    // Returning to the sample: worded for a return, and still one explicit click.
+    const returning = await browser.newPage({ viewport: { width: 1280, height: 820 }, reducedMotion: "reduce" });
+    await returning.addInitScript(model);
+    await returning.addInitScript(() => window.localStorage.setItem("medscale.sample-opened", "1"));
+    await returning.goto(origin, { waitUntil: "networkidle" });
+    await returning.getByRole("heading", { name: /your sample workspace is ready/i }).waitFor({ timeout: 10000 });
+    assert.equal((await returning.evaluate(() => window.__firstRunCommands)).includes("workspace_open_synthetic"), false, "returning does not auto-open");
+    checks.push({ viewport: 1280, route: "returning sample user -> worded return, no auto-open", passed: true });
+    await returning.close();
   } finally {
     await browser.close();
     await new Promise((resolve) => server.close(resolve));
