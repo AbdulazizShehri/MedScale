@@ -1622,6 +1622,39 @@ fn verified_public_human_wav_transcribes_via_native_tauri() {
 }
 
 #[test]
+fn a_packaged_build_refuses_a_remembered_pack_folder_from_an_earlier_build() {
+    use crate::cmd_ops::remembered_pack_dir;
+    let root = std::env::temp_dir().join(format!("medscale-remembered-{}", std::process::id()));
+    let _ = std::fs::remove_dir_all(&root);
+    let outside = root.join("elsewhere");
+    std::fs::create_dir_all(&outside).unwrap();
+    let dirs = || {
+        std::collections::BTreeMap::from([(
+            "old-pack".to_owned(),
+            outside.to_string_lossy().into_owned(),
+        )])
+    };
+    let refused = remembered_pack_dir(dirs(), "old-pack", &root, false).unwrap_err();
+    assert_eq!(refused.kind, "denied");
+    #[cfg(windows)]
+    {
+        let network = std::collections::BTreeMap::from([(
+            "old-pack".to_owned(),
+            r"\\host\share\pack".to_owned(),
+        )]);
+        let refused = remembered_pack_dir(network, "old-pack", &root, true).unwrap_err();
+        assert_eq!(refused.kind, "denied", "a network path is never contacted");
+    }
+    let unknown = remembered_pack_dir(dirs(), "other-pack", &root, false).unwrap_err();
+    assert_eq!(unknown.kind, "unavailable");
+    assert_eq!(
+        remembered_pack_dir(dirs(), "old-pack", &root, true).unwrap(),
+        outside.to_string_lossy()
+    );
+    std::fs::remove_dir_all(&root).unwrap();
+}
+
+#[test]
 fn a_packaged_build_admits_packs_only_from_its_own_model_folder() {
     use crate::host::pack_dir_allowed;
     let root = std::env::temp_dir().join(format!("medscale-pack-dir-{}", std::process::id()));

@@ -253,6 +253,32 @@ pub fn medagent_turns(host: tauri::State<'_, Host>, run_id: String) -> CmdResult
     ))
 }
 
+/// A remembered folder, if this build may still run it. The list is a plain file
+/// beside the vault, and a vault from an earlier build can name any folder.
+pub(crate) fn remembered_pack_dir(
+    mut dirs: std::collections::BTreeMap<String, String>,
+    pack_id: &str,
+    data_dir: &std::path::Path,
+    allow_external: bool,
+) -> CmdResult<String> {
+    let dir = dirs.remove(pack_id).ok_or_else(|| {
+        CmdError::unavailable(
+            "Unavailable: this Pack's folder is not known to this desktop; admit it again",
+        )
+    })?;
+    let path = std::path::Path::new(&dir);
+    if !host::is_local_absolute(path)
+        || !host::pack_dir_allowed(path, data_dir, allow_external)
+        || !crate::audio_model_manager::pinned_pack_verified(path, data_dir, allow_external)
+    {
+        return Err(CmdError::new(
+            "denied",
+            "Denied: this version doesn't run Packs from that folder",
+        ));
+    }
+    Ok(dir)
+}
+
 /// Folder of an admitted Pack: the bundled fixture, or one this desktop
 /// admitted into the open vault.
 fn pack_dir(state: &mut State, pack_id: &str) -> CmdResult<String> {
@@ -261,11 +287,13 @@ fn pack_dir(state: &mut State, pack_id: &str) -> CmdResult<String> {
         return Ok(fixture_dir);
     }
     let root = state.workspace()?.vault_root.clone();
-    let dir = host::load_pack_dirs(&root).remove(pack_id).ok_or_else(|| {
-        CmdError::unavailable(
-            "Unavailable: this Pack's folder is not known to this desktop; admit it again",
-        )
-    })?;
+    let data_dir = state.data_dir()?.to_path_buf();
+    let dir = remembered_pack_dir(
+        host::load_pack_dirs(&root),
+        pack_id,
+        &data_dir,
+        host::EXTERNAL_PACKS_ALLOWED,
+    )?;
     // Core's Pack registry is per session: admit the remembered folder again
     // (idempotent; Core re-verifies it) so runs resume after a restart.
     state.session()?.packs_install_local(&dir)?;
@@ -280,6 +308,7 @@ pub fn medagent_models(host: tauri::State<'_, Host>) -> CmdResult<Value> {
     let (fixture_id, _) = workspace_pack(&mut state)?;
     let root = state.workspace()?.vault_root.clone();
     let dirs = host::load_pack_dirs(&root);
+    let data_dir = state.data_dir()?.to_path_buf();
     let packs = state.session()?.packs_list()?;
     Ok(json!(
         packs
@@ -291,7 +320,16 @@ pub fn medagent_models(host: tauri::State<'_, Host>) -> CmdResult<Value> {
                     "version": p.version,
                     "runtime": p.runtime_requirements,
                     "fixture": id == fixture_id.as_str(),
-                    "runnable": id == fixture_id.as_str() || dirs.contains_key(id),
+                    "runnable": id == fixture_id.as_str()
+                        || dirs.get(id).is_some_and(|dir| {
+                            let path = std::path::Path::new(dir);
+                            host::is_local_absolute(path)
+                                && host::pack_dir_allowed(
+                                    path,
+                                    &data_dir,
+                                    host::EXTERNAL_PACKS_ALLOWED,
+                                )
+                        }),
                 })
             })
             .collect::<Vec<_>>()
@@ -1127,6 +1165,16 @@ pub fn audio_admit_asr_pack(host: tauri::State<'_, Host>, path: String) -> CmdRe
         return Err(CmdError::new(
             "denied",
             "Denied: this version installs Whisper models only through Download, verify and install",
+        ));
+    }
+    if !crate::audio_model_manager::pinned_pack_verified(
+        dir,
+        state.data_dir()?,
+        host::EXTERNAL_PACKS_ALLOWED,
+    ) {
+        return Err(CmdError::new(
+            "denied",
+            "Denied: this saved model doesn't match what MedScale pinned. Delete its folder inside audio-models, then download it again.",
         ));
     }
     let session = state.session()?;

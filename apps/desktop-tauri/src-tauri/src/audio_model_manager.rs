@@ -9,6 +9,8 @@ use crate::host::{CmdError, CmdResult};
 
 const MIB: u64 = 1024 * 1024;
 const FREE_SPACE_RESERVE: u64 = 512 * MIB;
+/// In the order of `Model::sha256`.
+const PINNED_FILES: [&str; 3] = ["config.json", "tokenizer.json", "model.safetensors"];
 
 #[derive(Clone, Copy)]
 struct Model {
@@ -149,11 +151,7 @@ pub fn existing_pack_path(id: &str, data_dir: &Path) -> CmdResult<String> {
         .map_err(|_| CmdError::invalid("Invalid: malformed saved Audio Pack manifest"))?;
     let meta: Value = serde_json::from_slice(&meta)
         .map_err(|_| CmdError::invalid("Invalid: malformed saved model provenance"))?;
-    let expected_pack_id = format!(
-        "hf-{}-asr",
-        entry.repository.rsplit('/').next().unwrap_or_default()
-    );
-    if manifest["pack_id"] != expected_pack_id
+    if manifest["pack_id"] != expected_pack_id(entry)
         || meta["repository"] != entry.repository
         || meta["revision"] != entry.revision
         || meta["runtime_family"] != medscale_pack::CANDLE_WHISPER_ASR_RUNTIME_ID
@@ -163,9 +161,85 @@ pub fn existing_pack_path(id: &str, data_dir: &Path) -> CmdResult<String> {
             "Denied: saved Pack identity does not match the selected pinned Whisper model",
         ));
     }
-    // These JSON claims are untrusted hints ONLY. The caller must still
-    // re-admit the entire Pack through Core's signed manifest + digest checks.
+    // These JSON claims are untrusted hints ONLY. The caller must still check
+    // the pinned digests and re-admit the entire Pack through Core.
     Ok(path.to_string_lossy().into_owned())
+}
+
+/// Whether a packaged build may admit this Pack folder: it must be one model's
+/// own folder, and its manifest must list only that model's files, with the weights
+/// and metadata pinned in source. Core runs whatever the manifest lists, and a Pack
+/// signature can't vouch for it because its seed is public. Hashes the whole Pack.
+pub fn pinned_pack_verified(dir: &Path, data_dir: &Path, allow_external: bool) -> bool {
+    if allow_external {
+        return true;
+    }
+    let Ok(dir) = dir.canonicalize() else {
+        return false;
+    };
+    MODELS.iter().any(|entry| {
+        entry
+            .directory(data_dir)
+            .canonicalize()
+            .is_ok_and(|own| own == dir)
+            && pack_matches(&dir, *entry, entry.sha256)
+    })
+}
+
+fn pack_matches(dir: &Path, entry: Model, pins: [&str; 3]) -> bool {
+    manifest_lists_only_this_model(dir, entry, pins[2]) && files_match_pins(dir, entry, pins)
+}
+
+fn manifest_lists_only_this_model(dir: &Path, entry: Model, weights_pin: &str) -> bool {
+    let read = |name: &str| -> Option<Value> {
+        let bytes = crate::host::read_bounded(&dir.join(name), MIB).ok()?;
+        serde_json::from_slice(&bytes).ok()
+    };
+    let (Some(manifest), Some(meta)) = (read("pack.manifest.json"), read("model.meta.json")) else {
+        return false;
+    };
+    let runtime = medscale_pack::CANDLE_WHISPER_ASR_RUNTIME_ID;
+    let runtime_matches = manifest["runtime_requirements"]
+        .as_str()
+        .is_some_and(|text| text.split(';').next() == Some(runtime));
+    let Some(artifacts) = manifest["artifacts"].as_array() else {
+        return false;
+    };
+    let listed = |name: &str, kind: &str| {
+        artifacts
+            .iter()
+            .any(|row| row["relative_path"] == name && row["kind"] == kind)
+    };
+    let weights_pinned = artifacts
+        .iter()
+        .any(|row| row["relative_path"] == PINNED_FILES[2] && row["digest"] == weights_pin);
+    runtime_matches
+        && weights_pinned
+        && manifest["pack_id"] == expected_pack_id(entry)
+        && artifacts.len() == 4
+        && listed("config.json", "model_metadata")
+        && listed("model.meta.json", "model_metadata")
+        && listed("model.safetensors", "safetensors_model")
+        && listed("tokenizer.json", "tokenizer_meta")
+        && meta["repository"] == entry.repository
+        && meta["revision"] == entry.revision
+        && meta["runtime_family"] == runtime
+}
+
+fn files_match_pins(dir: &Path, entry: Model, pins: [&str; 3]) -> bool {
+    PINNED_FILES.iter().zip(pins).all(|(name, pin)| {
+        let file = dir.join(name);
+        // Refuse an oversized file before spending time hashing it.
+        std::fs::metadata(&file).is_ok_and(|m| m.len() <= entry.max_snapshot_bytes)
+            && medscale_pack::sha256_file_hex(&file).is_ok_and(|digest| digest == pin)
+    })
+}
+
+fn expected_pack_id(entry: Model) -> String {
+    format!(
+        "hf-{}-asr",
+        entry.repository.rsplit('/').next().unwrap_or_default()
+    )
 }
 
 pub fn catalog(data_dir: &Path) -> Vec<Value> {
@@ -274,6 +348,156 @@ mod tests {
             !data_dir.exists(),
             "budget boundary test must remain read-only"
         );
+    }
+
+    fn write_pack(dir: &Path, entry: Model) -> [String; 3] {
+        std::fs::create_dir_all(dir).unwrap();
+        for name in PINNED_FILES {
+            std::fs::write(dir.join(name), name.as_bytes()).unwrap();
+        }
+        let digest = |name: &str| medscale_pack::sha256_file_hex(&dir.join(name)).unwrap();
+        let pins = PINNED_FILES.map(digest);
+        std::fs::write(
+            dir.join("model.meta.json"),
+            json!({
+                "repository": entry.repository,
+                "revision": entry.revision,
+                "runtime_family": medscale_pack::CANDLE_WHISPER_ASR_RUNTIME_ID,
+            })
+            .to_string(),
+        )
+        .unwrap();
+        std::fs::write(
+            dir.join("pack.manifest.json"),
+            json!({
+                "pack_id": expected_pack_id(entry),
+                "runtime_requirements": format!(
+                    "{};synthetic_only=true",
+                    medscale_pack::CANDLE_WHISPER_ASR_RUNTIME_ID
+                ),
+                "artifacts": [
+                    {"relative_path": "config.json", "kind": "model_metadata", "digest": pins[0]},
+                    {"relative_path": "model.meta.json", "kind": "model_metadata", "digest": "aa"},
+                    {"relative_path": "model.safetensors", "kind": "safetensors_model", "digest": pins[2]},
+                    {"relative_path": "tokenizer.json", "kind": "tokenizer_meta", "digest": pins[1]},
+                ],
+            })
+            .to_string(),
+        )
+        .unwrap();
+        pins
+    }
+
+    #[test]
+    fn a_packaged_build_admits_only_a_models_own_folder_with_its_pinned_pack() {
+        let root =
+            std::env::temp_dir().join(format!("medscale-pinned-pack-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&root);
+        let entry = model("whisper-tiny-en").unwrap();
+        let own = entry.directory(&root);
+        let outside = root.join("elsewhere");
+        let pins = write_pack(&own, entry);
+        write_pack(&outside, entry);
+        let pins = [pins[0].as_str(), pins[1].as_str(), pins[2].as_str()];
+
+        // The test pack holds no real weights, so the source pins refuse it, and a
+        // folder that isn't a model's own is refused however complete it looks.
+        assert!(!pinned_pack_verified(&own, &root, false));
+        assert!(!pinned_pack_verified(&outside, &root, false));
+        assert!(!pinned_pack_verified(&root.join("missing"), &root, false));
+        assert!(pinned_pack_verified(&outside, &root, true));
+        assert!(pack_matches(&own, entry, pins));
+
+        // Pinned files left in place, but the manifest points Core at other weights.
+        let manifest_path = own.join("pack.manifest.json");
+        let good = std::fs::read_to_string(&manifest_path).unwrap();
+        let mut swapped: Value = serde_json::from_str(&good).unwrap();
+        swapped["artifacts"][2]["relative_path"] = json!("evil.safetensors");
+        std::fs::write(&manifest_path, swapped.to_string()).unwrap();
+        assert!(!pack_matches(&own, entry, pins), "other weights listed");
+
+        let mut extra: Value = serde_json::from_str(&good).unwrap();
+        extra["artifacts"].as_array_mut().unwrap().push(
+            json!({"relative_path": "evil.onnx", "kind": "safetensors_model", "digest": "aa"}),
+        );
+        std::fs::write(&manifest_path, extra.to_string()).unwrap();
+        assert!(!pack_matches(&own, entry, pins), "extra artifact listed");
+
+        let mut other_digest: Value = serde_json::from_str(&good).unwrap();
+        other_digest["artifacts"][2]["digest"] = json!("aa");
+        std::fs::write(&manifest_path, other_digest.to_string()).unwrap();
+        assert!(!pack_matches(&own, entry, pins), "weights digest changed");
+
+        let mut runtime: Value = serde_json::from_str(&good).unwrap();
+        runtime["runtime_requirements"] = json!("onnx;synthetic_only=true");
+        std::fs::write(&manifest_path, runtime.to_string()).unwrap();
+        assert!(!pack_matches(&own, entry, pins), "other runtime");
+
+        let mut id: Value = serde_json::from_str(&good).unwrap();
+        id["pack_id"] = json!("hf-other-asr");
+        std::fs::write(&manifest_path, id.to_string()).unwrap();
+        assert!(!pack_matches(&own, entry, pins), "other Pack id");
+        std::fs::write(&manifest_path, &good).unwrap();
+
+        let meta_path = own.join("model.meta.json");
+        let good_meta = std::fs::read_to_string(&meta_path).unwrap();
+        let mut meta: Value = serde_json::from_str(&good_meta).unwrap();
+        meta["revision"] = json!("other");
+        std::fs::write(&meta_path, meta.to_string()).unwrap();
+        assert!(!pack_matches(&own, entry, pins), "other revision");
+        std::fs::write(&meta_path, &good_meta).unwrap();
+
+        // An oversized, swapped or missing file.
+        let small = Model {
+            max_snapshot_bytes: 1,
+            ..entry
+        };
+        assert!(!files_match_pins(&own, small, pins), "oversized file");
+        std::fs::write(own.join("model.safetensors"), b"swapped").unwrap();
+        assert!(!pack_matches(&own, entry, pins), "swapped weights");
+        std::fs::remove_file(own.join("model.safetensors")).unwrap();
+        assert!(!pack_matches(&own, entry, pins), "missing weights");
+        std::fs::remove_dir_all(&root).unwrap();
+    }
+
+    /// The check must accept what the real builder writes, or it would refuse every
+    /// genuine download. Pins come from this snapshot, since it holds no real weights.
+    #[test]
+    fn the_pack_builders_real_output_passes_the_check() {
+        let root = std::env::temp_dir().join(format!("medscale-built-pack-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&root);
+        let entry = model("whisper-tiny-en").unwrap();
+        let snapshot = root.join("snapshot");
+        std::fs::create_dir_all(&snapshot).unwrap();
+        std::fs::write(
+            snapshot.join("config.json"),
+            br#"{"max_target_positions":448}"#,
+        )
+        .unwrap();
+        std::fs::write(snapshot.join("tokenizer.json"), b"{}").unwrap();
+        std::fs::write(snapshot.join("model.safetensors"), b"synthetic weights").unwrap();
+        let digests =
+            PINNED_FILES.map(|name| medscale_pack::sha256_file_hex(&snapshot.join(name)).unwrap());
+        let siblings: Vec<Value> = PINNED_FILES
+            .iter()
+            .zip(&digests)
+            .map(|(name, digest)| json!({"rfilename": name, "lfs": {"sha256": digest}}))
+            .collect();
+        let meta: medscale_pack::HfRepoMetadata = serde_json::from_value(json!({
+            "id": entry.repository,
+            "sha": entry.revision,
+            "siblings": siblings,
+        }))
+        .unwrap();
+        let built = entry.directory(&root);
+        medscale_pack::build_asr_pack(&meta, &snapshot, &built).unwrap();
+        let pins = [
+            digests[0].as_str(),
+            digests[1].as_str(),
+            digests[2].as_str(),
+        ];
+        assert!(pack_matches(&built, entry, pins));
+        std::fs::remove_dir_all(&root).unwrap();
     }
 
     #[test]
@@ -599,7 +823,7 @@ fn acquire(
                 "Hugging Face model metadata did not match the approved pinned revision".into(),
             );
         }
-        let names = ["config.json", "tokenizer.json", "model.safetensors"];
+        let names = PINNED_FILES;
         let mut total = 0u64;
         for name in names {
             let sibling = meta
