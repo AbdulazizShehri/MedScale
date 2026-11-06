@@ -1174,7 +1174,7 @@ pub fn audio_admit_asr_pack(host: tauri::State<'_, Host>, path: String) -> CmdRe
     ) {
         return Err(CmdError::new(
             "denied",
-            "Denied: this model's files don't match their pinned digests. Delete its folder inside audio-models, then download it again.",
+            "Denied: this saved model doesn't match what MedScale pinned. Delete its folder inside audio-models, then download it again.",
         ));
     }
     let session = state.session()?;

@@ -447,16 +447,56 @@ mod tests {
         assert!(!pack_matches(&own, entry, pins), "other revision");
         std::fs::write(&meta_path, &good_meta).unwrap();
 
-        // A swapped, missing or oversized file.
-        std::fs::write(own.join("model.safetensors"), b"swapped").unwrap();
-        assert!(!pack_matches(&own, entry, pins), "swapped weights");
-        std::fs::remove_file(own.join("model.safetensors")).unwrap();
-        assert!(!pack_matches(&own, entry, pins), "missing weights");
+        // An oversized, swapped or missing file.
         let small = Model {
             max_snapshot_bytes: 1,
             ..entry
         };
         assert!(!files_match_pins(&own, small, pins), "oversized file");
+        std::fs::write(own.join("model.safetensors"), b"swapped").unwrap();
+        assert!(!pack_matches(&own, entry, pins), "swapped weights");
+        std::fs::remove_file(own.join("model.safetensors")).unwrap();
+        assert!(!pack_matches(&own, entry, pins), "missing weights");
+        std::fs::remove_dir_all(&root).unwrap();
+    }
+
+    /// The check must accept what the real builder writes, or it would refuse every
+    /// genuine download. Pins come from this snapshot, since it holds no real weights.
+    #[test]
+    fn the_pack_builders_real_output_passes_the_check() {
+        let root = std::env::temp_dir().join(format!("medscale-built-pack-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&root);
+        let entry = model("whisper-tiny-en").unwrap();
+        let snapshot = root.join("snapshot");
+        std::fs::create_dir_all(&snapshot).unwrap();
+        std::fs::write(
+            snapshot.join("config.json"),
+            br#"{"max_target_positions":448}"#,
+        )
+        .unwrap();
+        std::fs::write(snapshot.join("tokenizer.json"), b"{}").unwrap();
+        std::fs::write(snapshot.join("model.safetensors"), b"synthetic weights").unwrap();
+        let digests =
+            PINNED_FILES.map(|name| medscale_pack::sha256_file_hex(&snapshot.join(name)).unwrap());
+        let siblings: Vec<Value> = PINNED_FILES
+            .iter()
+            .zip(&digests)
+            .map(|(name, digest)| json!({"rfilename": name, "lfs": {"sha256": digest}}))
+            .collect();
+        let meta: medscale_pack::HfRepoMetadata = serde_json::from_value(json!({
+            "id": entry.repository,
+            "sha": entry.revision,
+            "siblings": siblings,
+        }))
+        .unwrap();
+        let built = entry.directory(&root);
+        medscale_pack::build_asr_pack(&meta, &snapshot, &built).unwrap();
+        let pins = [
+            digests[0].as_str(),
+            digests[1].as_str(),
+            digests[2].as_str(),
+        ];
+        assert!(pack_matches(&built, entry, pins));
         std::fs::remove_dir_all(&root).unwrap();
     }
 

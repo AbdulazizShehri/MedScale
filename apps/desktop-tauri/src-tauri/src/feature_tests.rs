@@ -1636,6 +1636,15 @@ fn a_packaged_build_refuses_a_remembered_pack_folder_from_an_earlier_build() {
     };
     let refused = remembered_pack_dir(dirs(), "old-pack", &root, false).unwrap_err();
     assert_eq!(refused.kind, "denied");
+    #[cfg(windows)]
+    {
+        let network = std::collections::BTreeMap::from([(
+            "old-pack".to_owned(),
+            r"\\host\share\pack".to_owned(),
+        )]);
+        let refused = remembered_pack_dir(network, "old-pack", &root, true).unwrap_err();
+        assert_eq!(refused.kind, "denied", "a network path is never contacted");
+    }
     let unknown = remembered_pack_dir(dirs(), "other-pack", &root, false).unwrap_err();
     assert_eq!(unknown.kind, "unavailable");
     assert_eq!(
