@@ -524,9 +524,8 @@ tr:last-child td { border-bottom: 0; }
 .proof-page { margin-top: 0; padding: var(--pad) 0; border-bottom: 1px solid var(--line); }
 .proof-lead, .proof-row { display: grid; column-gap: var(--gap); row-gap: var(--pad); }
 .proof-lead { grid-template-columns: repeat(12, minmax(0, 1fr)); row-gap: 0; margin-top: var(--pad); }
-.proof-lead > .proof-item { grid-column: span 3; display: grid; grid-row: span 3; grid-template-rows: subgrid; }
+.proof-lead > .proof-item { grid-column: span 4; display: grid; grid-row: span 3; grid-template-rows: subgrid; }
 .proof-lead strong { align-self: end; }
-.proof-lead > .proof-big { grid-column: span 6; }
 .proof-row { grid-template-columns: repeat(4, minmax(0, 1fr)); }
 .proof-row { row-gap: 0; }
 .proof-row > .proof-item { display: grid; grid-row: span 3; grid-template-rows: subgrid; padding-bottom: var(--pad); }
@@ -534,8 +533,8 @@ tr:last-child td { border-bottom: 0; }
 .proof .proof-row:not(.shell) { margin-top: var(--pad); padding-top: var(--pad); border-top: 1px solid var(--line); }
 .proof-item { display: flex; flex-direction: column; min-width: 0; color: inherit; text-decoration: none; }
 .proof-item strong { font-family: var(--font-display); font-size: clamp(32px, 3.6vw, 48px); line-height: 1.05; font-weight: 600; letter-spacing: -0.03em; font-variant-numeric: tabular-nums; }
-.proof-lead > .proof-item:not(.proof-big) strong { font-size: clamp(44px, 5.6vw, 76px); }
-.proof-big strong { color: var(--orange); font-size: clamp(72px, 12vw, 152px); line-height: 0.95; letter-spacing: -0.045em; }
+.proof-lead strong { font-size: clamp(64px, 8.4vw, 120px); line-height: 0.95; letter-spacing: -0.045em; }
+.proof-accent strong { color: var(--orange); }
 .proof-item span { margin-top: 10px; font-size: 15px; line-height: 1.4; font-weight: 500; color: var(--ink); }
 .proof-item small { margin-top: 4px; max-width: 44ch; font-size: 13px; line-height: 1.5; color: var(--ink-3); }
 a.proof-item:hover span { text-decoration: underline; text-underline-offset: 3px; }
@@ -546,8 +545,8 @@ a.proof-item:hover span { text-decoration: underline; text-underline-offset: 3px
 .compare th[scope="row"] { font-family: inherit; font-size: 14px; letter-spacing: 0; text-transform: none; font-weight: 500; text-align: left; color: var(--ink-2); }
 .compare td:nth-child(2) { color: var(--ink); font-weight: 500; }
 @media (max-width: 800px) {
-  .proof-lead > .proof-big { grid-column: 1 / -1; padding-bottom: var(--pad); }
-  .proof-lead > .proof-item:not(.proof-big) { grid-column: span 6; }
+  .proof-lead > .proof-item { grid-column: span 6; padding-bottom: var(--pad); }
+  .proof-lead > .proof-item:last-child { grid-column: 1 / -1; padding-bottom: 0; }
   .proof-row { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .proof-row > .proof-item:nth-last-child(-n+4) { padding-bottom: var(--pad); }
   .proof-row > .proof-item:nth-last-child(-n+2) { padding-bottom: 0; }

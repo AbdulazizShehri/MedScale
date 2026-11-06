@@ -15,8 +15,8 @@ const homeTitle = "MedScale — Your health AI. One open workspace.";
 export const metadata: Metadata = { ...homeMeta, title: { absolute: homeTitle }, openGraph: { ...homeMeta.openGraph, title: homeTitle }, twitter: { ...homeMeta.twitter, title: homeTitle } };
 
 const proofSmall = [
-  ["$0", "To use", "Free, with Apache-2.0 source code."],
-  ["0", "Cloud accounts", "No sign-in. The Core runs on your computer."],
+  [String(PROOF.catalogLanguages), "Languages", "Tagged across that catalog."],
+  [String(PROOF.catalogFamilies), "Model families", "Including entity recognition and PII detection."],
   [`${count(PROOF.rustTestsFloor)}+`, "Automated Rust tests", "They run in public CI, and you can run them too."],
   [String(PROOF.specs), "Public specifications", "Each feature's design is in the repository."],
 ];
@@ -78,13 +78,13 @@ export default function Home() {
           <div className="shell">
             <h2 id="proof-title" className="eyebrow">By the numbers</h2>
             <div className="proof-lead">
-              <Link className="proof-item proof-big" href="/models/">
+              <div className="proof-item proof-accent"><strong>$0</strong><span>To use</span><small>Free, with Apache-2.0 source code.</small></div>
+              <div className="proof-item"><strong>0</strong><span>Cloud accounts</span><small>No sign-in. The Core runs on your computer.</small></div>
+              <Link className="proof-item" href="/models/">
                 <strong>{count(PROOF.catalogModels)}</strong>
                 <span>Open models to browse</span>
                 <small>Listed from OpenMed&apos;s public catalog and pinned by checksum. Listed doesn&apos;t mean installed or qualified.</small>
               </Link>
-              <div className="proof-item"><strong>{PROOF.catalogLanguages}</strong><span>Languages</span><small>Tagged across that catalog.</small></div>
-              <div className="proof-item"><strong>{PROOF.catalogFamilies}</strong><span>Model families</span><small>Including entity recognition and PII detection.</small></div>
             </div>
             <div className="proof-row">
               {proofSmall.map(([n, t, d]) => <div className="proof-item" key={t}><strong>{n}</strong><span>{t}</span><small>{d}</small></div>)}
