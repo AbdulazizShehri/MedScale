@@ -8,8 +8,10 @@ export const PROOF = {
   catalogModels: 2266,
   catalogLanguages: 35,
   catalogFamilies: 5,
-  /** specs/103-local-model-catalog/CAPABILITY_MATRIX.md, recomputed 2026-10-11. */
-  catalogRunnable: 1764,
+  /** EXECUTED_MODELS in crates/medscale-pack/src/compatibility.rs. */
+  catalogExecuted: 1466,
+  /** MEASURED_OVER_BOUND in the same file. */
+  catalogOverBound: 262,
   /** A floor, not an exact count: #[test] functions in crates/ and the desktop host. */
   rustTestsFloor: 1300,
   /** Directories in specs/. */
