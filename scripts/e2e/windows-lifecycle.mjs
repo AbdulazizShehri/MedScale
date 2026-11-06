@@ -301,7 +301,7 @@ async function clean() {
     await click(SAMPLE);
     await find(OPENED, 180000);
     await click(OPENED);
-    await waitForText(/b[1-9]d* subjects? · /, 30000);
+    await waitForText(/\b[1-9]\d* subjects? · /, 30000);
     await shot("02-sample-open");
   });
   await step("sidebar-group-folds-and-opens", async () => {
@@ -524,7 +524,7 @@ async function upgrade() {
     await click(SAMPLE);
     await find(OPENED, 180000);
     await click(OPENED);
-    await waitForText(/b[1-9]d* subjects? · /, 30000);
+    await waitForText(/\b[1-9]\d* subjects? · /, 30000);
     await closeWindow();
   });
   await step("uninstall-keeps-user-data", async () => {
