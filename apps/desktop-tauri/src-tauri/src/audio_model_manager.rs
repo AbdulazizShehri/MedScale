@@ -528,6 +528,26 @@ fn set_progress(
     }
 }
 
+/// Removes what a killed or crashed download left behind, which can be a whole
+/// extra copy of a model. The instance lock and the coordinator mean nothing else
+/// can be downloading now, so any `.download-*` folder here is abandoned. Only
+/// real folders with that app-owned prefix go; a failure just leaves them.
+fn sweep_interrupted_downloads(root: &Path) {
+    let Ok(entries) = fs::read_dir(root) else {
+        return;
+    };
+    for entry in entries.flatten() {
+        let is_stage = entry
+            .file_name()
+            .to_str()
+            .is_some_and(|name| name.starts_with(".download-"));
+        let is_folder = entry.file_type().is_ok_and(|kind| kind.is_dir());
+        if is_stage && is_folder {
+            let _ = fs::remove_dir_all(entry.path());
+        }
+    }
+}
+
 fn acquire(
     entry: Model,
     data_dir: &Path,
@@ -542,8 +562,8 @@ fn acquire(
             "This model directory already exists; use the existing Pack or inspect it first".into(),
         );
     }
-    // Fixed, app-owned name with exclusive create; never overwrite a prior
-    // attempt or remove anything that existed before this function started.
+    sweep_interrupted_downloads(&root);
+    // Fixed, app-owned name with exclusive create; never overwrite a prior attempt.
     let work = root.join(format!(".download-{}-{}", entry.id, std::process::id()));
     fs::create_dir(&work)
         .map_err(|_| "Existing temporary download; refusing to overwrite".to_owned())?;
@@ -834,6 +854,52 @@ mod acquisition_tests {
         });
         assert_eq!(result.unwrap_err(), "Download cancelled");
         assert_eq!(chunks, 1);
+    }
+
+    #[test]
+    fn a_new_download_sweeps_only_abandoned_download_folders() {
+        let root = std::env::temp_dir().join(format!(
+            "medscale-interrupted-download-sweep-{}",
+            std::process::id()
+        ));
+        let _ = std::fs::remove_dir_all(&root);
+        let models = root.join("audio-models");
+        let abandoned = models
+            .join(".download-whisper-tiny-en-99999")
+            .join("snapshot");
+        let another = models.join(".download-whisper-base-1").join("pack");
+        let installed = models.join("whisper-base");
+        std::fs::create_dir_all(&abandoned).unwrap();
+        std::fs::create_dir_all(&another).unwrap();
+        std::fs::create_dir_all(&installed).unwrap();
+        std::fs::write(abandoned.join("model.safetensors"), b"partial").unwrap();
+        std::fs::write(installed.join("model.safetensors"), b"installed").unwrap();
+        // A file with the prefix isn't a stage this code created.
+        std::fs::write(models.join(".download-note.txt"), b"keep").unwrap();
+
+        let coordinator = Arc::new(Mutex::new(DownloadCoordinator::default()));
+        let cancelled = AtomicBool::new(true);
+        let error = acquire(
+            model("whisper-tiny-en").unwrap(),
+            &root,
+            &cancelled,
+            &coordinator,
+        )
+        .unwrap_err();
+        assert_eq!(error, "Download cancelled");
+
+        assert!(!models.join(".download-whisper-tiny-en-99999").exists());
+        assert!(!models.join(".download-whisper-base-1").exists());
+        assert_eq!(
+            std::fs::read(installed.join("model.safetensors")).unwrap(),
+            b"installed",
+            "an installed model is never swept"
+        );
+        assert_eq!(
+            std::fs::read(models.join(".download-note.txt")).unwrap(),
+            b"keep"
+        );
+        std::fs::remove_dir_all(root).unwrap();
     }
 
     #[test]
