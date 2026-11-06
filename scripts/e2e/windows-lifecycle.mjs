@@ -148,6 +148,29 @@ async function shot(name) {
   }
 }
 
+/** Keys sent to the app window. A step using this needs a control showing they arrive. */
+async function pressKeys(keys) {
+  await driver.send({ op: "wake", pid: child.pid });
+  await sleep(500);
+  pwsh(`Add-Type -AssemblyName System.Windows.Forms; [System.Windows.Forms.SendKeys]::SendWait('${keys}')`);
+  await sleep(1500);
+}
+
+/** Every file in a folder and its contents, to show a refused unlock changed nothing. */
+function folderDigest(dir) {
+  const hash = createHash("sha256");
+  const walk = (current) => {
+    for (const entry of fs.readdirSync(current, { withFileTypes: true }).sort((a, b) => a.name.localeCompare(b.name))) {
+      const full = path.join(current, entry.name);
+      hash.update(path.relative(dir, full));
+      if (entry.isDirectory()) walk(full);
+      else hash.update(fs.readFileSync(full));
+    }
+  };
+  walk(dir);
+  return hash.digest("hex");
+}
+
 // ----- the installer -----
 
 const registered = () => pwsh(`
@@ -211,7 +234,7 @@ async function step(name, fn) {
   } catch (error) {
     report.steps.push({ name, result: "FAIL", seconds: Math.round((Date.now() - started) / 1000) });
     console.log(`STEP ${name} FAIL: ${String(error.message).slice(0, 300)}`);
-    if (driver && child) await shot(`failed-${name}`);
+    if (driver && child && pageIsLoggable) await shot(`failed-${name}`);
     if (pageIsLoggable && driver) console.log(`PAGE: ${String(await pageText().catch(() => "")).replaceAll("\n", " | ").slice(0, 2500)}`);
     throw error;
   }
@@ -219,6 +242,7 @@ async function step(name, fn) {
 
 // Recovery codes can be on the page once a vault exists, so failures stop printing it.
 let pageIsLoggable = true;
+let recoveryCode;
 const PASSPHRASE = `disposable-runner-${process.pid}-${sha256(installer).slice(0, 12)}`;
 const SAMPLE = button("Try MedScale with sample data");
 const OPENED = button("Patients");
@@ -326,10 +350,32 @@ async function clean() {
     pageIsLoggable = false;
     await click(LOCK);
     await waitForText("Create encrypted vault", 30000);
-    await createVaultAndProject();
+    await type("pp", PASSPHRASE);
+    await type("pp2", PASSPHRASE);
+    await click(button("Create vault"));
+    await waitForText("Save your recovery codes", 120000);
+    const codes = () => pageText().then((text) => text.split("\n").filter((line) => /^[0-9a-f]{32}$/.test(line)));
+    const shown = await codes();
+    if (!shown.length) throw new Error("no recovery codes were shown");
+    recoveryCode = shown[0];
+    // Neither the Settings shortcut nor a reload may take the shown-once codes away.
+    await pressKeys("^,");
+    await pressKeys("{F5}");
+    await sleep(3000);
+    if (!(await pageText()).includes("Save your recovery codes") || !(await codes()).includes(recoveryCode)) throw new Error("the recovery codes were lost");
+    await click(button("I saved them · continue"));
+    await find(OPENED, 120000);
+    // The same keys work once the codes are confirmed, so the check above wasn't empty.
+    await pressKeys("^,");
+    await waitForText("Keyboard", 15000);
+    await click(button("Projects"));
+    await type("pn", VAULT_PROJECT);
+    await click(button("Create project"));
+    await waitForText(VAULT_PROJECT, 30000);
     await closeWindow();
     if (!findFile(appData, "meta.sealed")) throw new Error("closing left no seal");
     if (findFile(appData, "meta.work.sqlite3")) throw new Error("closing left the work database behind");
+    pageIsLoggable = true; // The codes never appear again, so failures can print the page.
   });
   await step("existing-vault-goes-straight-to-unlock", async () => {
     await launch(installed.exe);
@@ -340,9 +386,8 @@ async function clean() {
   await step("wrong-passphrase-opens-nothing", async () => {
     await type("pp", `${PASSPHRASE}-wrong`);
     await click(button("Unlock workspace"));
-    await sleep(8000);
+    await waitForText("did not open this vault", 120000);
     if (await exists(OPENED)) throw new Error("a wrong passphrase opened the vault");
-    await find({ id: "pp" }, 30000);
   });
   await step("right-passphrase-opens-the-vault", async () => {
     await type("pp", PASSPHRASE);
@@ -350,11 +395,28 @@ async function clean() {
     await find(OPENED, 180000);
     await projectStillThere();
   });
+  await step("recovery-code-opens-the-vault", async () => {
+    await click(LOCK);
+    await waitForText("Unlock workspace", 60000);
+    await click(button("Use a recovery code"));
+    await waitForText("Recovery code", 10000);
+    await type("pp", recoveryCode);
+    await click(button("Unlock workspace"));
+    await find(OPENED, 180000);
+    await projectStillThere();
+  });
   await step("killed-while-open-recovers-on-next-unlock", async () => {
+    const written = "Written just before the kill";
+    await type("pn", written);
+    await click(button("Create project"));
+    await waitForText(written, 30000);
     await kill();
+    if (!findFile(appData, "meta.work.sqlite3")) throw new Error("the kill left no crash state, so this proved nothing");
     await launch(installed.exe);
     await unlockDirectly();
     await projectStillThere();
+    report.write_before_kill_survived = (await pageText()).includes(written);
+    console.log(`WRITE_BEFORE_KILL_SURVIVED ${report.write_before_kill_survived}`);
     await closeWindow();
   });
   await step("damaged-vault-refuses-and-changes-nothing", async () => {
@@ -364,16 +426,17 @@ async function clean() {
     const bad = Buffer.from(good);
     bad[bad.length - 1] ^= 0xff;
     fs.writeFileSync(sealed, bad);
-    const damaged = sha256(sealed);
+    const vaultFolder = path.dirname(sealed);
+    const damaged = folderDigest(vaultFolder);
     await launch(installed.exe);
     await waitForText("Unlock workspace", 60000);
     await type("pp", PASSPHRASE);
     await click(button("Unlock workspace"));
-    await sleep(15000);
+    await waitForText(/did not open|could not|damaged|corrupt|integrity|unavailable/i, 120000);
     if (await exists(OPENED)) throw new Error("a damaged vault opened");
     await shot("08-damaged-vault");
     await closeWindow();
-    if (sha256(sealed) !== damaged) throw new Error("the failed unlock changed the damaged file");
+    if (folderDigest(vaultFolder) !== damaged) throw new Error("the failed unlock changed the vault folder");
     fs.writeFileSync(sealed, good);
     await launch(installed.exe);
     await unlockDirectly();

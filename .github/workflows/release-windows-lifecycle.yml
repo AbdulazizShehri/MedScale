@@ -1,6 +1,6 @@
 # Clean install, launch, upgrade and uninstall of this branch's Windows installer on
-# disposable runners. Never publishes anything. The installer is unsigned, is kept for
-# one day only so the test jobs can use it, and passing here qualifies no release.
+# disposable runners. Creates no release. The unsigned installer is a one-day run
+# artifact so the test jobs can use it, and passing here qualifies no release.
 name: release-windows-lifecycle
 
 on:
@@ -15,6 +15,7 @@ env:
   # The published engineering preview an upgrade starts from.
   PREVIOUS_TAG: "engineering-preview-19d419dd7b15"
   PREVIOUS_ASSET: "MedScale-engineering-preview-windows-x64.exe"
+  PREVIOUS_SHA256: "89c6fd754d45bd0be7c9d71463828fe57756f933f49d6ff9348486095d64be6c"
 
 jobs:
   build:
@@ -101,11 +102,10 @@ jobs:
           $ErrorActionPreference = 'Stop'
           gh run download $env:GITHUB_RUN_ID --repo $env:GITHUB_REPOSITORY --name lifecycle-test-installer-unsigned-not-a-release --dir lifecycle-installer
           if ($LASTEXITCODE -ne 0) { throw 'Could not retrieve the installer' }
-          gh release download $env:PREVIOUS_TAG --repo $env:GITHUB_REPOSITORY --pattern $env:PREVIOUS_ASSET --pattern SHA256SUMS --dir previous
+          gh release download $env:PREVIOUS_TAG --repo $env:GITHUB_REPOSITORY --pattern $env:PREVIOUS_ASSET --dir previous
           if ($LASTEXITCODE -ne 0) { throw 'Could not retrieve the published preview' }
-          $expected = (Select-String -LiteralPath previous/SHA256SUMS -SimpleMatch $env:PREVIOUS_ASSET).Line.Split(' ')[0].ToLowerInvariant()
           $actual = (Get-FileHash -LiteralPath "previous/$env:PREVIOUS_ASSET" -Algorithm SHA256).Hash.ToLowerInvariant()
-          if (-not $expected -or $actual -ne $expected) { throw 'The published preview does not match its checksum' }
+          if ($actual -ne $env:PREVIOUS_SHA256) { throw 'The published preview does not match its pinned checksum' }
       - name: Run the upgrade lifecycle
         shell: pwsh
         run: node scripts/e2e/windows-lifecycle.mjs upgrade "$PWD/lifecycle-installer/MedScale-lifecycle-test-UNSIGNED-setup.exe" target/windows-lifecycle/upgrade.json "$PWD/previous/$env:PREVIOUS_ASSET"
