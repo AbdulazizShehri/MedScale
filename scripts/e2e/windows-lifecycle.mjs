@@ -300,7 +300,14 @@ async function clean() {
     await waitForText("Keyboard", 30000);
     await shot("05-settings");
   });
+  const selected = async (name) => (await driver.send({ op: "selected", kind: "RadioButton", name })).selected === true;
+  let chosenTheme;
   await step("restart-words-a-return-without-opening", async () => {
+    await find({ kind: "RadioButton", name: "Light" }, 30000);
+    // Whichever theme this runner starts in, pick the other, so a default can't pass.
+    chosenTheme = (await selected("Light")) ? "Dark" : "Light";
+    await click({ kind: "RadioButton", name: chosenTheme });
+    await sleep(1500);
     await closeWindow();
     await launch(installed.exe);
     await find(SAMPLE, 60000);
@@ -308,9 +315,16 @@ async function clean() {
     if (await exists(OPENED)) throw new Error("the sample opened by itself");
     await shot("06-return-to-sample");
   });
+  await step("theme-survives-a-restart", async () => {
+    await click(SAMPLE);
+    await find(OPENED, 180000);
+    await click(button("Settings"));
+    await find({ kind: "RadioButton", name: chosenTheme }, 30000);
+    if (!(await selected(chosenTheme))) throw new Error("the chosen theme did not survive a restart");
+  });
   await step("encrypted-vault-create", async () => {
     pageIsLoggable = false;
-    await click(button("Create an encrypted workspace"));
+    await click(LOCK);
     await waitForText("Create encrypted vault", 30000);
     await createVaultAndProject();
     await closeWindow();
