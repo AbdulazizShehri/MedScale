@@ -89,6 +89,17 @@ def focused(session):
     };""")
 
 
+def focus_after_key(session, moved, timeout=5):
+    """A key arrives asynchronously after AppleScript returns, so a focus read
+    straight after it can see the old focus. Returns the last focus seen."""
+    deadline = time.monotonic() + timeout
+    current = focused(session)
+    while not moved(current) and time.monotonic() < deadline:
+        time.sleep(0.1)
+        current = focused(session)
+    return current
+
+
 def picker_windows_and_sheets(pid):
     """Copy-first AppKit window/sheet probe from macos-webdriver-smoke.py."""
     script = f'''tell application "System Events"
@@ -175,7 +186,7 @@ try:
             raise AssertionError(f"Mouse click failed to focus native input: {field_id}")
 
         keypress(process.pid, 48)  # Real macOS Tab hardware-style key event
-        next_focus = focused(session)
+        next_focus = focus_after_key(session, lambda f: f.get("id") != field_id)
         if (next_focus.get("tag") != "BUTTON" or
                 expected_button not in next_focus.get("text", "")):
             raise AssertionError(
@@ -184,7 +195,7 @@ try:
         print("MAC_NATIVE_KEYBOARD_TAB_BUTTON_FOCUS_PASS", expected_button)
 
         keypress(process.pid, 48, shift=True)  # Real macOS Shift+Tab
-        back_focus = focused(session)
+        back_focus = focus_after_key(session, lambda f: f.get("id") == field_id)
         if back_focus.get("id") != field_id:
             raise AssertionError(f"Real macOS Shift+Tab did not restore input focus: {field_id}")
         print("MAC_NATIVE_KEYBOARD_SHIFT_TAB_RETURN_PASS", field_id)
@@ -193,7 +204,7 @@ try:
         # native AppKit chooser. Adapt the picker counter + real Escape method
         # from macos-webdriver-smoke.py. No click(), JS event or fake dialog.
         keypress(process.pid, 48)
-        target = focused(session)
+        target = focus_after_key(session, lambda f: f.get("id") != field_id)
         if (target.get("tag") != "BUTTON" or
                 expected_button not in target.get("text", "")):
             raise AssertionError(f"Second real Tab lost Browse focus: {field_id}")

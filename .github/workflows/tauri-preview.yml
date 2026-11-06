@@ -132,7 +132,7 @@ jobs:
             target/tauri-release/
             target/tauri-release-qualification/
           if-no-files-found: warn
-          retention-days: 7
+          retention-days: 30
           compression-level: 0
       - uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v4.6.2
         with:
