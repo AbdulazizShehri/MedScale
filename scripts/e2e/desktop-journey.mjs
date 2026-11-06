@@ -846,6 +846,9 @@ try {
       } else {
         await see(expect, 30000);
       }
+      // The website uses these captures, so wait for the run's evidence and for toasts to clear.
+      if (route === "MedAgent") await see("patient-golden.json", 30000);
+      for (let i = 0; i < 60 && !(await wd("POST", `/session/${sid}/execute/sync`, { script: "return !document.querySelector('.toast');", args: [] })); i++) await sleep(250);
       await sleep(900);
       await shot(`dark-${route.toLowerCase().replace(/\s+/g, "-")}`);
     }

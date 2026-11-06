@@ -50,7 +50,7 @@ export function CoverageStrip({ slots }: { slots: Slot[] | null }) {
   return (
     <span style={{ display: "inline-flex", alignItems: "center", gap: 8 }} title={slots.map((s) => `${s.concept_key}: ${cov(s.status).label}`).join("\n")}>
       <span className="cov" aria-hidden="true">{slots.map((s) => <Glyph key={s.concept_key} kind={cov(s.status).glyph} />)}</span>
-      <span className="mono t-mono-sm i3">{present}/{slots.length}</span>
+      <span className="mono t-mono-sm i3" style={{ whiteSpace: "nowrap" }}>{present}/{slots.length}</span>
     </span>
   );
 }
