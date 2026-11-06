@@ -7,7 +7,7 @@ import { docs, github, pageMeta } from "@/lib/site";
 export const metadata: Metadata = pageMeta("/models/", "Models", "How MedScale lists, admits and runs local AI models, and why a catalog listing is not clinical qualification.");
 
 const states = [
-  ["Listed", "The model appears in the catalog with its source, task, format and download size.", "Not installed. Not reviewed. Nothing has run."],
+  ["Listed", "The model appears in the catalog with its source, task, format and download size.", "Not installed on your computer, and not reviewed."],
   ["Admitted", "A local model pack folder is admitted. The Core verifies its manifest, digests and signature.", "Pack registry state is per session today."],
   ["Running", "The local runtime executes the model on your device and records a receipt for each run.", "Output is a proposal, never an authoritative record."],
   ["Qualified", "Independent evaluation shows the model is fit for one specific task.", "Not granted to any model today, and never by the software alone."],
@@ -24,8 +24,8 @@ export default function Models() {
       <section className="proof proof-page" aria-label="The model catalog in numbers">
         <div className="shell proof-row">
           <div className="proof-item"><strong>{count(PROOF.catalogModels)}</strong><span>Models listed</span><small>From OpenMed&apos;s v3.0.0 public catalog, pinned by checksum.</small></div>
-          <div className="proof-item"><strong>{count(PROOF.catalogExecuted)}</strong><span>Have a recorded run</span><small>Each ran on a disposable CI runner. A run shows it works, not that it&apos;s accurate or safe.</small></div>
-          <div className="proof-item"><strong>{PROOF.catalogOverBound}</strong><span>Too large to admit today</span><small>Measured above MedScale&apos;s 1 GiB limit.</small></div>
+          <div className="proof-item"><strong>{count(PROOF.catalogExecuted)}</strong><span>Have a recorded run</span><small>Each ran on a disposable CI runner. A run shows it runs, not that it&apos;s accurate or safe.</small></div>
+          <div className="proof-item"><strong>{PROOF.catalogOverBound}</strong><span>Measured over the size limit</span><small>Files above MedScale&apos;s 1 GiB limit. Other rows may not fit either.</small></div>
           <div className="proof-item"><strong>0</strong><span>Qualified for clinical use</span><small>Being listed or running doesn&apos;t make a model fit for care.</small></div>
         </div>
       </section>

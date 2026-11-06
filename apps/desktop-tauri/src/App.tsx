@@ -108,8 +108,12 @@ export function App() {
     if (savedTheme) setThemeState(savedTheme);
     if (savedDensity) setDensityState(savedDensity);
   }, [ws]);
+  const savingPrefs = useRef<Promise<unknown>>(Promise.resolve());
   const savePrefs = useCallback((nextTheme: Theme, nextDensity: Density) => {
-    void call("ui_prefs_set", { theme: nextTheme, density: nextDensity }).catch(() => { /* the choice still applies until the app closes */ });
+    // One at a time, so the last choice is the one that stays saved.
+    savingPrefs.current = savingPrefs.current
+      .then(() => call("ui_prefs_set", { theme: nextTheme, density: nextDensity }))
+      .catch(() => { /* the choice still applies until the app closes */ });
   }, []);
   const setTheme = useCallback((t: Theme) => { setThemeState(t); writePref("theme", t); savePrefs(t, density); }, [density, savePrefs]);
   const setDensity = useCallback((d: Density) => { setDensityState(d); writePref("density", d); savePrefs(theme, d); }, [theme, savePrefs]);

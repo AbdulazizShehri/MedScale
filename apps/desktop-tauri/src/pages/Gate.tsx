@@ -154,8 +154,14 @@ export function Access({ onBack, onRecoveryCodes }: { onBack: () => void; onReco
     const block = (e: KeyboardEvent) => {
       if (e.key === "F5" || ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "r")) e.preventDefault();
     };
+    // The default context menu offers Refresh, which a key block can't stop.
+    const noMenu = (e: MouseEvent) => e.preventDefault();
     window.addEventListener("keydown", block, true);
-    return () => window.removeEventListener("keydown", block, true);
+    window.addEventListener("contextmenu", noMenu, true);
+    return () => {
+      window.removeEventListener("keydown", block, true);
+      window.removeEventListener("contextmenu", noMenu, true);
+    };
   }, [holdingCodes]);
   // Unlocking is a short, familiar task: the explanation waits behind a disclosure.
   const compact = exists && mode === "unlock" && !codes;
@@ -178,7 +184,12 @@ export function Access({ onBack, onRecoveryCodes }: { onBack: () => void; onReco
       // Held from before the call: leaving now would drop codes that are shown only once.
       onRecoveryCodes(true);
       const r = await run<{ recovery_codes: string[] }>("create", "workspace_create_encrypted", { passphrase: pass });
-      if (r.ok) { setPass(""); setConfirm(""); setCodes(r.data.recovery_codes); } else { setError(r.error); onRecoveryCodes(false); }
+      if (r.ok) { setPass(""); setConfirm(""); setCodes(r.data.recovery_codes); } else {
+        setError(r.error);
+        onRecoveryCodes(false);
+        // Core can fail after the vault exists, and the screen has to show that.
+        await refreshWorkspace();
+      }
     }
   }
 
@@ -242,7 +253,7 @@ export function Access({ onBack, onRecoveryCodes }: { onBack: () => void; onReco
             {codes ? (
               <div className="stack" style={{ width: 420, maxWidth: "100%", gap: 18 }}>
                 <h1 style={{ margin: 0, fontSize: 32, lineHeight: "36px", fontWeight: 600, letterSpacing: "-0.025em" }}>Save your recovery codes</h1>
-                <p className="t-body i2">Each code opens this vault if you lose your passphrase. They are shown once and are not stored anywhere MedScale can show them again. Keep them somewhere safe and separate.</p>
+                <p className="t-body i2">Each code opens this vault if you lose your passphrase. They are shown once and are not stored anywhere MedScale can show them again, so closing MedScale now loses them. Keep them somewhere safe and separate.</p>
                 <div className="codes" aria-label="Recovery codes">{codes.length ? codes.map((c) => <span key={c}>{c}</span>) : <span className="i3">Core issued no recovery codes for this vault.</span>}</div>
                 <div><button type="button" className="btn btn-p lg" onClick={() => void refreshWorkspace().finally(() => onRecoveryCodes(false))}>I saved them · continue</button></div>
               </div>
