@@ -39,6 +39,6 @@
       "webviewInstallMode": { "type": "skip" },
       "nsis": { "installMode": "currentUser", "installerIcon": "icons/icon.ico" }
     },
-    "macOS": { "minimumSystemVersion": "10.15" }
+    "macOS": { "minimumSystemVersion": "10.15", "signingIdentity": "-" }
   }
 }

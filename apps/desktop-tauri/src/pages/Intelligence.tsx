@@ -220,6 +220,8 @@ function MedAgentBody({ projectId }: { projectId: string }) {
   const [proposal, setProposal] = useState<unknown>(null);
   const [newAgent, setNewAgent] = useState<{ name: string; packId: string; tools: string[] } | null>(null);
   const [packPath, setPackPath] = useState("");
+  const desktop = useCommand<{ external_packs_allowed: boolean }>("workspace_status");
+  const externalPacks = desktop.state.status === "ready" && desktop.state.data.external_packs_allowed;
   const turns = useCommand<Turn[]>(sel ? "medagent_turns" : null, sel ? { runId: sel } : undefined);
   const detail = useCommand<RunDetail>(sel ? "medagent_run_detail" : null, sel ? { runId: sel } : undefined);
   const { pending, run } = useAction();
@@ -379,11 +381,11 @@ function MedAgentBody({ projectId }: { projectId: string }) {
         <Section title="Models" count={packs.length}>
           {models.state.status === "error" && <ErrorState error={models.state.error} onRetry={models.reload} />}
           {packs.map((p) => <div key={p.id} className="row-gap" style={{ justifyContent: "space-between", minHeight: 28 }}><span className="mono t-mono-sm trunc">{p.id}</span><Status kind={p.runnable ? "available" : "blocked"} weight="weak">{p.fixture ? "fixture" : p.runnable ? "local" : "folder unknown"}</Status></div>)}
-          <form onSubmit={admitPack} className="stack" style={{ gap: 6, marginTop: 8 }}>
+          {externalPacks && <form onSubmit={admitPack} className="stack" style={{ gap: 6, marginTop: 8 }}>
             <label className="lbl" htmlFor="pp">Admit a local Pack folder</label>
             <input id="pp" value={packPath} maxLength={1024} placeholder="Absolute folder path" onChange={(e) => setPackPath(e.target.value)} />
             <div><button type="submit" className="btn btn-s" disabled={!packPath.trim() || !!pending}>Admit</button></div>
-          </form>
+          </form>}
           <p className="t-sm i3" style={{ marginTop: 6 }}>Core verifies the manifest, digests and signature. Nothing is downloaded.</p>
         </Section>
       </aside>

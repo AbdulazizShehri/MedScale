@@ -80,6 +80,7 @@ export function App() {
   const [density, setDensityState] = useState<Density>(parseDensity(hash.get("density")) ?? parseDensity(readPref("density")) ?? "standard");
   const [palette, setPalette] = useState(false);
   const [lockError, setLockError] = useState<CmdError | null>(null);
+  const [locking, setLocking] = useState(false);
 
   const refreshWorkspace = useCallback(async () => {
     try {
@@ -127,6 +128,7 @@ export function App() {
   }, [refreshWorkspace]);
   const lock = useCallback(async () => {
     setLockError(null);
+    setLocking(true);
     try {
       await call("workspace_lock");
     } catch (e) {
@@ -134,6 +136,8 @@ export function App() {
       setLockError(e as CmdError);
       await refreshWorkspace();
       return;
+    } finally {
+      setLocking(false);
     }
     await vaultClosed();
   }, [refreshWorkspace, vaultClosed]);
@@ -188,6 +192,7 @@ export function App() {
         <Sidebar />
         <div className="main">
           <Header crumbs={crumbs} />
+          {locking && <div className="t-sm i2" role="status" style={{ padding: "12px 24px 0" }}>Locking… A large vault can take a while. Keep MedScale open.</div>}
           {lockError && <div style={{ padding: "12px 24px 0" }}><ErrorState error={{ ...lockError, message: `The workspace is still open: it could not be locked. ${lockError.message}` }} onRetry={() => void lock()} /></div>}
           <main id="main" className="split" tabIndex={-1} aria-label={nav.route} style={{ outline: "none" }}>
             {(nav.route === "Patients" && nav.subject) ? <PatientDetail subject={nav.subject} /> : PAGES[nav.route]()}

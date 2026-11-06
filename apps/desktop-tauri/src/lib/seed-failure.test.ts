@@ -68,7 +68,7 @@ test("set-aside is offered only for un-openable sample-setup states", () => {
 test("set-aside and delete dialogs disclose what they keep and remove", () => {
   assert.match(SET_ASIDE_DIALOG.body, /Nothing is deleted/);
   assert.match(SET_ASIDE_DIALOG.body, /not encrypted/);
-  assert.match(SET_ASIDE_DIALOG.body, /may include FHIR files you imported/);
+  assert.match(SET_ASIDE_DIALOG.body, /may include FHIR files and recordings you imported/);
   assert.match(DELETE_SET_ASIDE_DIALOG.body, /permanently deletes/);
   assert.match(DELETE_SET_ASIDE_DIALOG.body, /cannot be undone/);
 });

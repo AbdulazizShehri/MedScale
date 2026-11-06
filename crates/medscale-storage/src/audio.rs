@@ -388,6 +388,14 @@ impl SqliteMetaStore {
                 "capture sources come only from a stopped capture".to_owned(),
             ));
         }
+        if let Some(budget) = self.audio_budget()
+            && self.live_bytes()?.saturating_add(bytes.len() as u64) > budget
+        {
+            return Err(MetaError::Conflict(format!(
+                "This encrypted vault can't hold this recording: it would pass the {} MiB limit. Remove recordings you no longer need under Stored data, then try again.",
+                budget / (1024 * 1024)
+            )));
+        }
         Self::audio_insert_source_on(self.conn(), source, bytes)
     }
 
