@@ -17,7 +17,7 @@ const strip = [
   ["Open source", "Apache-2.0 code, built in public."],
   ["Local first", "The Core runs on your machine."],
   ["Source-aware", "Every insight keeps its evidence."],
-  ["People decide", "AI proposes. You approve."],
+  ["People decide", "AI output stays a proposal."],
 ];
 
 const story = [
@@ -25,7 +25,7 @@ const story = [
   ["Check the evidence", "Conflicts and gaps stay visible. When two sources disagree, MedScale shows both instead of picking one."],
   ["Ask the evidence", "Answers quote the documents in your workspace with citations, or say that nothing supports them."],
   ["Run a local model", "Agents run on model packs you admit, on your own machine. Their output is a proposal with a receipt, and a person decides what happens next."],
-  ["Share with disclosure", "An export shows what would leave before it leaves, and the Core records it in an audit trail you can read and can't edit."],
+  ["Share with disclosure", "An export reports what the format could not carry, and the Core records it in an audit trail you can read. There is no way to edit that trail in the app, though restoring an older backup can shorten it."],
 ];
 
 const audiences = [
@@ -98,7 +98,7 @@ export default function Home() {
               <span className="eyebrow">One workspace</span>
               <h2 id="tour-title" className="h2"><span className="mute">Stop stitching tools together.</span> One window for all of it.</h2>
             </div>
-            <p className="body">Every area runs on the same Rust Core, so the patient you open, the evidence you check and the model you run all follow the same rules for privacy, provenance and authority.</p>
+            <p className="body">Every area runs on the same Rust Core, so the subject you open, the evidence you check and the model you run all follow the same rules for privacy, provenance and authority.</p>
           </div>
           <ProductTour />
         </div>
@@ -142,8 +142,8 @@ export default function Home() {
               <div className="pillar-art" aria-hidden="true">
                 <svg width="220" height="80" viewBox="0 0 220 80" fill="none" stroke="currentColor" strokeWidth="1.4">{[18, 36, 54].map((y, i) => <g key={y}><circle cx="28" cy={y + 4} r="3" fill={i === 0 ? "var(--blue)" : "currentColor"} stroke="none" /><path d={`M40 ${y + 4}h${110 - i * 22}`} /><path d={`M164 ${y + 4}h26`} stroke="var(--ink-3)" /></g>)}</svg>
               </div>
-              <h3 className="h3">Everything leaves a trail</h3>
-              <p className="body">Disclosures and exports are recorded by the Core in an audit trail you can read and cannot edit. FHIR export shows what leaves before it does.</p>
+              <h3 className="h3">Disclosures leave a trail</h3>
+              <p className="body">Disclosures and exports are recorded by the Core in an audit trail you can read. There is no way to edit it in the app, though restoring an older backup can shorten it. A FHIR export reports what the format could not carry.</p>
             </article>
           </div>
         </div>
