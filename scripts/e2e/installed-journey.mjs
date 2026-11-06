@@ -414,7 +414,10 @@ async function main() {
 }
 
 async function unlock() {
-  await click(button("Set up or unlock encrypted vault"), 60000);
+  // Older builds open on Welcome. Newer ones go straight to unlock when a vault exists.
+  const older = button("Set up or unlock encrypted vault");
+  await waitForText(/Unlock workspace|Set up or unlock encrypted vault/, 60000);
+  if ((await driver.send({ op: "exists", ...older })).found) await click(older);
   await waitForText("Unlock workspace", 60000);
   await type("pp", PASSPHRASE);
   await click(button("Unlock workspace"));

@@ -42,7 +42,12 @@ function Invoke-Control($e) {
     if ($e.TryGetCurrentPattern([System.Windows.Automation.InvokePattern]::Pattern, [ref]$p)) { $p.Invoke(); return }
     if ($e.TryGetCurrentPattern([System.Windows.Automation.TogglePattern]::Pattern, [ref]$p)) { $p.Toggle(); return }
     if ($e.TryGetCurrentPattern([System.Windows.Automation.SelectionItemPattern]::Pattern, [ref]$p)) { $p.Select(); return }
-    throw 'control has no invoke, toggle or selection pattern'
+    if ($e.TryGetCurrentPattern([System.Windows.Automation.ExpandCollapsePattern]::Pattern, [ref]$p)) {
+        # A button with aria-expanded, such as a sidebar group, offers only this.
+        if ($p.Current.ExpandCollapseState -eq [System.Windows.Automation.ExpandCollapseState]::Collapsed) { $p.Expand() } else { $p.Collapse() }
+        return
+    }
+    throw 'control has no invoke, toggle, selection or expand pattern'
 }
 
 while ($null -ne ($line = [Console]::In.ReadLine())) {
