@@ -691,9 +691,9 @@ try {
     if (!packId) throw new Error("no admitted runnable synthetic model Pack selected");
     await click(`//button[@type='submit' and normalize-space(.)='Evaluate']`);
     await see("Full proposal payload", 60000);
-    await see("prepared cache");
+    await see("Prepared cache");
     const evidence = await wd("POST", `/session/${sid}/execute/sync`, {
-      script: "const t = document.body.innerText; return { localRuntime: t.includes('runtime') && t.includes('audit'), authority: t.includes('Evaluation evidence, not a record.') };",
+      script: "const t = document.body.innerText; return { localRuntime: !!document.querySelector('.lk[title=runtime]') && !!document.querySelector('.lk[title=audit]'), authority: t.includes('Evaluation evidence, not a record.') };",
       args: [],
     });
     if (!evidence.localRuntime || !evidence.authority) {
@@ -830,7 +830,7 @@ try {
     await click(`//*[@role='option' and ${text("Switch to dark theme")}]`);
     const theme = await wd("POST", `/session/${sid}/execute/sync`, { script: "return document.querySelector('.ms')?.getAttribute('data-theme');", args: [] });
     if (theme !== "dark") throw new Error(`theme is ${theme}, expected dark`);
-    for (const [route, expect] of [["Patients", "Ada Synthetic"], ["Insights", "cohort_size"], ["Knowledge", null], ["MedAgent", "summarize the bound sources"], ["Models", "MedScale Catalog"], ["Audit Trail", /synthetic-subject-ada|No disclosures recorded/]]) {
+    for (const [route, expect] of [["Patients", "Ada Synthetic"], ["Insights", "Present facts"], ["Knowledge", null], ["MedAgent", "summarize the bound sources"], ["Models", "MedScale Catalog"], ["Audit Trail", /synthetic-subject-ada|No disclosures recorded/]]) {
       await nav(route);
       if (route === "Knowledge") {
         // The restart starts a fresh session: rebuild the index and search again.

@@ -139,18 +139,18 @@ export function Evidence() {
   return (
     <>
       <div className="pane">
-        <PageHead title="Evidence" sub="A versioned local corpus with the provenance of every document. Static fixture, not live literature." />
+        <PageHead title="Evidence" sub="The documents in this workspace, and where each one came from. A fixed sample, not live literature." />
         <Ledger items={[
-          { k: "corpus", v: c.source_identity, mono: true },
+          { k: "source", v: c.source_identity, mono: true },
           { k: "rights", v: <Status kind="synthetic" weight="strong">{c.rights}</Status> },
           { k: "content_digest", v: short(c.content_digest), mono: true },
-          { k: "retrieval", v: "Lexical · on device" },
+          { k: "search", v: "Keyword · on device" },
           { k: "verification", v: <Status kind="present" weight="strong">Digest verified at admission</Status> },
         ]} />
         <form onSubmit={search} className="field-row" style={{ marginBottom: 12 }}>
           <label className="field" style={{ flex: "1 1 260px", maxWidth: 420 }}>
             <svg width="16" height="16" viewBox="0 0 20 20" aria-hidden="true"><path d="M8.5 2.5a6 6 0 1 1 0 12 6 6 0 0 1 0-12Zm0 1.7a4.3 4.3 0 1 0 0 8.6 4.3 4.3 0 0 0 0-8.6Z M12.7 13.9 13.9 12.7 18 16.8 16.8 18Z" fill="currentColor" fillRule="evenodd" /></svg>
-            <input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Search corpus text (lexical, local)" aria-label="Search corpus text" maxLength={256} />
+            <input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Search these documents, on this device" aria-label="Search corpus text" maxLength={256} />
           </label>
           <button type="button" className={`flt ${retracted ? "on" : ""}`} onClick={() => setRetracted((r) => !r)} aria-pressed={retracted}>Include retracted</button>
           <button type="submit" className="btn btn-s" disabled={busy}>{busy ? <><Glyph kind="running" />Searching</> : "Search"}</button>
@@ -170,10 +170,10 @@ export function Evidence() {
             <p className="note" style={{ marginTop: 8 }}>Evaluation <span className="mono">{result.evaluation_id}</span>. Results are retrieval matches, not recommendations.</p>
           </Section>
         ) : (
-          <Section title="Corpus" count={`${docs.length} documents`}>
+          <Section title="Documents" count={docs.length}>
             <div role="table" aria-label="Corpus documents">
               <div role="row" className="lr" style={{ gridTemplateColumns: "190px minmax(0,1fr) 150px 110px", minHeight: "var(--head)", borderBottom: "1px solid var(--line)" }}>
-                {["Document", "Text · provenance", "Markers", "Status"].map((h) => <span key={h} role="columnheader" className="t-label" style={{ letterSpacing: "0.08em" }}>{h}</span>)}
+                {["Document", "Text and source", "Conflicts", "Status"].map((h) => <span key={h} role="columnheader" className="t-label">{h}</span>)}
               </div>
               {docs.map((d) => (
                 <div role="row" key={d.doc_id} tabIndex={0} className={`lr clickable ${cur?.doc_id === d.doc_id ? "sel" : ""}`} style={{ gridTemplateColumns: "190px minmax(0,1fr) 150px 110px", minHeight: "var(--row-2)" }} onClick={() => setSel(d.doc_id)} onKeyDown={(e) => e.key === "Enter" && setSel(d.doc_id)}>

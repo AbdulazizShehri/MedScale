@@ -628,3 +628,23 @@ label.row-gap > input[type="checkbox"] { flex: none; }
 .access-details summary { cursor: pointer; font-size: 12px; line-height: 16px; color: var(--ink-3); }
 .access-details summary:hover { color: var(--ink-1); }
 .splash .btn { align-self: center; }
+
+/* ---------- 18. Direction A: Precision Clinical, in plain language ----------
+   Labels are sentence case instead of tracked capitals, so a screen has one voice.
+   Navigation recedes: lighter text and smaller icons on the same axes as section 17.
+   Exact identifiers stay in mono; names for things use the interface face. */
+.sb-group { padding: 16px 8px 4px; font-size: 12px; line-height: 16px; font-weight: 500; letter-spacing: 0; text-transform: none; }
+.nav { font-weight: 400; gap: 11px; }
+.nav.on { font-weight: 500; }
+.nav svg { width: 16px; height: 16px; margin-left: 1px; }
+.sec-t { font-size: 13px; font-weight: 600; letter-spacing: -0.005em; text-transform: none; color: var(--ink-1); }
+.sec-n { display: none; }
+.sec-c { font-family: var(--font-ui); font-size: 12px; }
+.sec-rule { background: var(--line-subtle); }
+.t-label, .ms label.lbl, .lbl { font-size: 12px; line-height: 16px; font-weight: 500; letter-spacing: 0; text-transform: none; }
+.ms label.lbl { color: var(--ink-2); }
+.tb th { font-size: 12px; font-weight: 500; letter-spacing: 0; text-transform: none; }
+.lk { font-family: var(--font-ui); font-size: 12px; line-height: 16px; }
+.kv > div:nth-child(odd) { font-family: var(--font-ui); font-size: 12px; }
+.auth .t-label { letter-spacing: 0; }
+.synth { font-family: var(--font-ui); font-size: 12px; letter-spacing: 0; text-transform: none; }
