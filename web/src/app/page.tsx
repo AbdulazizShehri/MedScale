@@ -18,15 +18,15 @@ const proofSmall = [
   [String(PROOF.catalogLanguages), "Languages", "Tagged across that catalog."],
   [String(PROOF.catalogFamilies), "Model families", "Including entity recognition and PII detection."],
   [`${count(PROOF.rustTestsFloor)}+`, "Automated Rust tests", "They run in public CI, and you can run them too."],
-  [String(PROOF.specs), "Public specifications", "Each feature's design is in the repository."],
+  [String(PROOF.specs), "Public specifications", "Feature designs are written down in the repository."],
 ];
 
 const compare = [
-  ["Where the AI runs", "On your computer", "In the vendor's cloud", "On your hardware"],
+  ["Where the AI runs", "On your computer", "Usually the vendor's cloud", "On your hardware"],
   ["Account or contract", "None", "Usually both", "None"],
-  ["Cost to start", "Free", "Usually a quote", "Free"],
+  ["Cost to start", "Free", "Varies, often a paid plan", "Free"],
   ["Source code", "Open, Apache-2.0", "Usually closed", "Open"],
-  ["Records, evidence, agents and audit trail", "One desktop app", "Varies", "Usually yours to build"],
+  ["Records, evidence, agents and audit trail", "One desktop app", "Varies", "Varies, often code you assemble"],
   ["Use with real patients", "Not authorized. Synthetic and licensed nonpatient data only", "Often", "Varies"],
   ["Published customer results", "None yet", "Often", "Varies"],
 ];
@@ -74,7 +74,7 @@ export default function Home() {
             <p className="hero-note">{productStage} · synthetic data and licensed nonpatient audio · not for clinical use</p>
           </div>
         </div>
-        <div className="proof" aria-labelledby="proof-title">
+        <section className="proof" aria-labelledby="proof-title">
           <div className="shell">
             <h2 id="proof-title" className="eyebrow">By the numbers</h2>
             <div className="proof-lead">
@@ -82,8 +82,8 @@ export default function Home() {
               <div className="proof-item"><strong>0</strong><span>Cloud accounts</span><small>No sign-in. The Core runs on your computer.</small></div>
               <Link className="proof-item" href="/models/">
                 <strong>{count(PROOF.catalogModels)}</strong>
-                <span>Open models to browse</span>
-                <small>Listed from OpenMed&apos;s public catalog and pinned by checksum. Listed doesn&apos;t mean installed or qualified.</small>
+                <span>Models to browse</span>
+                <small>From OpenMed&apos;s v3.0.0 public catalog, pinned by checksum. A count says nothing about quality: listed doesn&apos;t mean installed or qualified.</small>
               </Link>
             </div>
             <div className="proof-row">
@@ -91,7 +91,7 @@ export default function Home() {
             </div>
             <p className="proof-note">You can check each number against the public repository. They count the catalog and the code, not users or clinical outcomes, because MedScale doesn&apos;t have that data yet.</p>
           </div>
-        </div>
+        </section>
         <div className="shell">
           <div className="hero-stage reveal reveal-4">
             <Shot name="insightsHero" priority />
@@ -200,7 +200,7 @@ export default function Home() {
         <div className="shell">
           <div className="section-head">
             <span className="eyebrow">How it compares</span>
-            <h2 id="compare-title" className="h2"><span className="mute">Cloud tools run on someone else&apos;s computer. Libraries leave the building to you.</span> MedScale is a whole workspace on your computer.</h2>
+            <h2 id="compare-title" className="h2"><span className="mute">Different tools, different trade-offs.</span> MedScale puts a whole workspace on your computer.</h2>
           </div>
           <div className="stack-lg">
             <div className="table-wrap" role="region" aria-label="How MedScale compares" tabIndex={0}>
@@ -209,7 +209,7 @@ export default function Home() {
                 <tbody>{compare.map(([q, a, b, c]) => <tr key={q}><th scope="row">{q}</th><td>{a}</td><td>{b}</td><td>{c}</td></tr>)}</tbody>
               </table>
             </div>
-            <p className="proof-note">General descriptions of each category as of November 2026. Individual products differ.</p>
+            <p className="proof-note">Our own general reading of each category, not a survey. Individual products differ.</p>
           </div>
         </div>
       </section>

@@ -23,9 +23,9 @@ export default function Models() {
       </section>
       <section className="proof proof-page" aria-label="The model catalog in numbers">
         <div className="shell proof-row">
-          <div className="proof-item"><strong>{count(PROOF.catalogModels)}</strong><span>Models listed</span><small>From OpenMed&apos;s public catalog, pinned by checksum.</small></div>
-          <div className="proof-item"><strong>{count(PROOF.catalogRunnable)}</strong><span>Run or expected to run</span><small>As of October 2026. Real runs back each runtime and format, not every model.</small></div>
-          <div className="proof-item"><strong>{PROOF.catalogLanguages}</strong><span>Languages</span><small>Tagged across the catalog.</small></div>
+          <div className="proof-item"><strong>{count(PROOF.catalogModels)}</strong><span>Models listed</span><small>From OpenMed&apos;s v3.0.0 public catalog, pinned by checksum.</small></div>
+          <div className="proof-item"><strong>{count(PROOF.catalogExecuted)}</strong><span>Have a recorded run</span><small>Each ran on a disposable CI runner. A run shows it works, not that it&apos;s accurate or safe.</small></div>
+          <div className="proof-item"><strong>{PROOF.catalogOverBound}</strong><span>Too large to admit today</span><small>Measured above MedScale&apos;s 1 GiB limit.</small></div>
           <div className="proof-item"><strong>0</strong><span>Qualified for clinical use</span><small>Being listed or running doesn&apos;t make a model fit for care.</small></div>
         </div>
       </section>
@@ -51,14 +51,6 @@ export default function Models() {
             <p className="body">External model registries are sources, not authority. MedScale records where an entry came from; it does not inherit trust from it.</p>
           </div>
           <Shot name="models" />
-        </div>
-      </section>
-      <section className="proof proof-page" aria-label="The model catalog in numbers">
-        <div className="shell proof-row">
-          <div className="proof-item"><strong>{count(PROOF.catalogModels)}</strong><span>Models listed</span><small>From OpenMed&apos;s public catalog, pinned by checksum.</small></div>
-          <div className="proof-item"><strong>{count(PROOF.catalogRunnable)}</strong><span>Run or expected to run</span><small>As of October 2026. Real runs back each runtime and format, not every model.</small></div>
-          <div className="proof-item"><strong>{PROOF.catalogLanguages}</strong><span>Languages</span><small>Tagged across the catalog.</small></div>
-          <div className="proof-item"><strong>0</strong><span>Qualified for clinical use</span><small>Being listed or running doesn&apos;t make a model fit for care.</small></div>
         </div>
       </section>
       <section className="page-section">
