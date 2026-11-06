@@ -6,6 +6,9 @@ on:
       - "web/**"
       - ".github/workflows/website.yml"
       - "site/**"
+      - "crates/medscale-pack/src/compatibility.rs"
+      - "third_party/medscale-model-catalog-v3/**"
+      - "specs/**"
       - "assets/brand/**"
   push:
     branches: [main]
@@ -13,6 +16,9 @@ on:
       - "web/**"
       - ".github/workflows/website.yml"
       - "site/**"
+      - "crates/medscale-pack/src/compatibility.rs"
+      - "third_party/medscale-model-catalog-v3/**"
+      - "specs/**"
   workflow_dispatch:
 
 permissions:
