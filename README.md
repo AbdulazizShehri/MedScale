@@ -1,0 +1,1 @@
+Before and after evidence for the website's final Beta pass. Real captures of the built site, and of the desktop app from the synthetic workspace. Not part of the product, and safe to delete once the PR closes.
