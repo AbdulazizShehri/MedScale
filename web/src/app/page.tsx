@@ -188,7 +188,7 @@ export default function Home() {
             </div>
           </div>
           <div className="states">
-            <div className="state"><small>01</small><strong>Listed</strong><p>In the catalog, with source, task, format and size. Not installed.</p></div>
+            <div className="state"><small>01</small><strong>Listed</strong><p>In the catalog, with source, task, format and expected size. Not installed.</p></div>
             <div className="state"><small>02</small><strong>Admitted</strong><p>A local pack whose manifest and digests the Core has verified.</p></div>
             <div className="state"><small>03</small><strong>Running</strong><p>Executed by the local runtime on your device, with a receipt per run.</p></div>
             <div className="state gate"><small>04</small><strong>Qualified</strong><p>Needs independent evaluation for a specific task. No model has this today.</p></div>

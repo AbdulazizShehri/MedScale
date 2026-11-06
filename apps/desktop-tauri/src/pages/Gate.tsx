@@ -146,6 +146,21 @@ export function Access({ onBack, onRecoveryCodes }: { onBack: () => void; onReco
   const [useCode, setUseCode] = useState(false);
   const [error, setError] = useState<CmdError | null>(null);
   const [codes, setCodes] = useState<string[] | null>(null);
+  const [copy, setCopy] = useState<"idle" | "copied" | "failed">("idle");
+  const [createFailed, setCreateFailed] = useState(false);
+  // Core can fail after sealing the vault, and then the only way forward is to unlock it.
+  useEffect(() => {
+    if (exists && createFailed) setMode("unlock");
+  }, [exists, createFailed]);
+  async function copyCodes() {
+    try {
+      // Write-only Web Clipboard API on an explicit click.
+      await navigator.clipboard.writeText((codes ?? []).join("\n"));
+      setCopy("copied");
+    } catch {
+      setCopy("failed");
+    }
+  }
   const { pending, run } = useAction();
   const holdingCodes = !!codes || pending === "create";
   // A reload would restart the app with the vault open and the codes gone.
@@ -186,6 +201,7 @@ export function Access({ onBack, onRecoveryCodes }: { onBack: () => void; onReco
       const r = await run<{ recovery_codes: string[] }>("create", "workspace_create_encrypted", { passphrase: pass });
       if (r.ok) { setPass(""); setConfirm(""); setCodes(r.data.recovery_codes); } else {
         setError(r.error);
+        setCreateFailed(true);
         onRecoveryCodes(false);
         // Core can fail after the vault exists, and the screen has to show that.
         await refreshWorkspace();
@@ -255,6 +271,10 @@ export function Access({ onBack, onRecoveryCodes }: { onBack: () => void; onReco
                 <h1 style={{ margin: 0, fontSize: 32, lineHeight: "36px", fontWeight: 600, letterSpacing: "-0.025em" }}>Save your recovery codes</h1>
                 <p className="t-body i2">Each code opens this vault if you lose your passphrase. They are shown once and are not stored anywhere MedScale can show them again, so closing MedScale now loses them. Keep them somewhere safe and separate.</p>
                 <div className="codes" aria-label="Recovery codes">{codes.length ? codes.map((c) => <span key={c}>{c}</span>) : <span className="i3">Core issued no recovery codes for this vault.</span>}</div>
+                <div className="row-gap" style={{ gap: 8 }}>
+                  <button type="button" className="btn btn-s lg" onClick={() => void copyCodes()} disabled={!codes.length}>{copy === "copied" ? "Copied" : "Copy codes"}</button>
+                  {copy === "failed" && <span className="t-sm i2" role="status">Couldn&apos;t copy. Select the codes and press Ctrl+C.</span>}
+                </div>
                 <div><button type="button" className="btn btn-p lg" onClick={() => void refreshWorkspace().finally(() => onRecoveryCodes(false))}>I saved them · continue</button></div>
               </div>
             ) : (
@@ -280,6 +300,7 @@ export function Access({ onBack, onRecoveryCodes }: { onBack: () => void; onReco
                   </div>
                 )}
                 {error && <FailureAlert error={error} glyph={error.kind === "denied" ? "denied" : "failed"} />}
+                {createFailed && exists && <p className="t-sm i2" role="status" style={{ margin: 0 }}>The vault was created, but its recovery codes couldn&apos;t be shown. Your passphrase is now the only way to open it.</p>}
                 {error?.reason === "work_session_check_failed" && !moveAside && (
                   <div><button type="button" className="btn btn-g" onClick={() => setMoveAside(true)} disabled={!!pending}>Move that session aside and open…</button></div>
                 )}
