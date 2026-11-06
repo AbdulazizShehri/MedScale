@@ -19,6 +19,9 @@
   --blue-soft: rgba(112, 184, 199, 0.12);
   --orange: #fb905a;
   --orange-soft: rgba(251, 144, 90, 0.12);
+  --band: #0b2127;      /* deep sky-blue surface, one section per page at most */
+  --band-1: #10303a;
+  --band-line: rgba(112, 184, 199, 0.28);
   --r-1: 6px;
   --r-2: 10px;
   --r-3: 14px;
@@ -32,6 +35,7 @@
   --col: calc((100% - 11 * var(--gap)) / 12);
   --span-2: calc(2 * var(--col) + var(--gap));
   --span-3: calc(3 * var(--col) + 2 * var(--gap));
+  --span-4: calc(4 * var(--col) + 3 * var(--gap));
   --span-5: calc(5 * var(--col) + 4 * var(--gap));
   --span-6: calc(6 * var(--col) + 5 * var(--gap));
   --span-7: calc(7 * var(--col) + 6 * var(--gap));
@@ -187,6 +191,7 @@ a:hover > .arrow, button:hover > .arrow { transform: translateX(2px); }
 .hero-meta { display: flex; flex-wrap: wrap; gap: 8px var(--gap); color: var(--ink-3); font-size: 13px; }
 .hero-meta span { display: inline-flex; align-items: center; gap: 8px; }
 .hero-meta svg { color: var(--ink-2); }
+.hero-note { margin: 0; color: var(--ink-3); font-family: var(--font-mono); font-size: 12px; line-height: 1.5; }
 
 /* Real screenshots: one hairline, one radius, nothing laid over the image. */
 .frame { border-radius: var(--r-3); overflow: hidden; background: #000; box-shadow: 0 0 0 1px var(--panel-line); }
@@ -222,6 +227,17 @@ a:hover > .arrow, button:hover > .arrow { transform: translateX(2px); }
 /* An arrow has no baseline of its own, so a link in the right column names its label. */
 .section-head.split .text-link > span { align-self: last baseline; }
 @media (max-width: 860px) { .section-head { max-width: none; } .section-head.split { grid-template-columns: 1fr; gap: var(--stack); } }
+
+.section-sub { margin-top: var(--head-y); display: grid; gap: var(--stack); }
+
+/* ---------- Workflow story ---------- */
+/* Number, title and text sit on column lines 1, 2 and 6, so the list reads as one table. */
+.story { list-style: none; margin: 0; padding: 0; }
+.story li { display: grid; grid-template-columns: var(--col) var(--span-4) minmax(0, 1fr); column-gap: var(--gap); align-items: baseline; padding: var(--stack) 0; border-top: 1px solid var(--line-2); }
+.story li:first-child { border-top-color: var(--blue); }
+.story li:last-child { border-bottom: 1px solid var(--line-2); }
+.story-n { font-family: var(--font-mono); font-size: 12px; color: var(--blue); }
+@media (max-width: 720px) { .story li { grid-template-columns: var(--span-2) minmax(0, 1fr); row-gap: 4px; } .story .body { grid-column: 2; } }
 
 /* ---------- Tour ---------- */
 .tour { display: grid; grid-template-columns: var(--span-3) minmax(0, 1fr); gap: var(--gap); align-items: start; }
@@ -294,6 +310,14 @@ a:hover > .arrow, button:hover > .arrow { transform: translateX(2px); }
   .evidence-note { border-right: 0; border-bottom: 1px solid var(--line); }
 }
 
+/* ---------- Colour band ---------- */
+.band { background: var(--band); border-top-color: var(--band-line); }
+.band .mute, .band .eyebrow { color: #9fc4cd; }
+.band .pillar { background: var(--band-1); border-color: var(--band-line); }
+.band .pillar-art { background: var(--band); color: #9fc4cd; }
+.band .body { color: #c7dde2; }
+.band + .section { border-top-color: var(--band-line); }
+
 /* ---------- Pillars ---------- */
 /* Repeats use subgrid: titles and text share lines across a row even when one title wraps. */
 .pillars { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--gap); }
@@ -322,7 +346,7 @@ a:hover > .arrow, button:hover > .arrow { transform: translateX(2px); }
 /* ---------- Model states ---------- */
 /* Four columns on the grid with a rule above each, so the text starts on column lines. */
 .states { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: var(--gap); }
-.state { padding-top: 14px; display: grid; grid-row: span 3; grid-template-rows: subgrid; row-gap: 8px; border-top: 1px solid var(--line-3); }
+.state { padding-top: 14px; display: grid; grid-row: span 3; grid-template-rows: subgrid; row-gap: 8px; border-top: 2px solid var(--blue); }
 .state small { font-family: var(--font-mono); font-size: 12px; color: var(--ink-3); }
 .state strong { font-size: 17px; font-weight: 500; letter-spacing: -0.01em; }
 .state p { margin: 0; color: var(--ink-3); font-size: 14px; line-height: 1.55; }
@@ -381,7 +405,8 @@ a:hover > .arrow, button:hover > .arrow { transform: translateX(2px); }
 /* ---------- Cards / docs nav ---------- */
 .cards { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--gap); }
 .card { border: 1px solid var(--panel-line); border-radius: var(--r-3); padding: var(--pad); display: grid; grid-row: span 3; grid-template-rows: subgrid; row-gap: 8px; background: var(--bg-1); transition: border-color 160ms var(--ease); }
-a.card:hover { border-color: var(--line-3); }
+a.card:hover { border-color: var(--blue); }
+.card-plain { grid-row: span 2; }
 .card-top { display: flex; justify-content: space-between; align-items: center; min-height: 24px; margin-bottom: 8px; color: var(--ink-3); }
 .card-top small { font-family: var(--font-mono); font-size: 12px; }
 .card strong { font-size: 17px; font-weight: 500; letter-spacing: -0.01em; }
@@ -402,7 +427,15 @@ a.card:hover { border-color: var(--line-3); }
 /* ---------- Closing CTA ---------- */
 /* max-width goes on an element inside .shell: on .shell itself the column variables would
    resolve against the full-bleed section and the shell's auto margins would centre it. */
-.closing { padding: var(--section-y) 0; border-top: 1px solid var(--line); }
+.closing { padding: var(--section-y) 0; background: var(--blue); color: #000; }
+.closing .mute { color: #16444f; }
+.closing .lede { color: #0b2127; }
+.closing .btn-primary { background: #000; color: #fff; }
+.closing .btn-primary:hover { background: #0b2127; }
+.btn-outline-dark { border-color: rgba(0, 0, 0, 0.55); color: #000; }
+.btn-outline-dark:hover { background: rgba(0, 0, 0, 0.08); }
+.closing :focus-visible { outline-color: #000; }
+.closing + .footer, .closing ~ .footer { border-top: 0; }
 .closing-inner { display: grid; gap: var(--stack-lg); justify-items: start; max-width: var(--span-7); }
 .closing-inner img { height: 40px; width: auto; }
 
@@ -485,3 +518,36 @@ tr:last-child td { border-bottom: 0; }
 }
 @keyframes rise { from { opacity: 0; } to { opacity: 1; } }
 @keyframes fade { from { opacity: 0; } to { opacity: 1; } }
+
+/* Numbers band: figures that can be checked against the public repository. */
+.proof { border-top: 1px solid var(--line); margin-top: var(--pad); padding: var(--pad) 0 var(--head-y); }
+.proof-page { margin-top: 0; padding: var(--pad) 0; border-bottom: 1px solid var(--line); }
+.proof-lead, .proof-row { display: grid; column-gap: var(--gap); row-gap: var(--pad); }
+.proof-lead { grid-template-columns: repeat(12, minmax(0, 1fr)); row-gap: 0; margin-top: var(--pad); }
+.proof-lead > .proof-item { grid-column: span 4; display: grid; grid-row: span 3; grid-template-rows: subgrid; }
+.proof-lead strong { align-self: end; }
+.proof-row { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+.proof-row { row-gap: 0; }
+.proof-row > .proof-item { display: grid; grid-row: span 3; grid-template-rows: subgrid; padding-bottom: var(--pad); }
+.proof-row > .proof-item:nth-last-child(-n+4) { padding-bottom: 0; }
+.proof .proof-row:not(.shell) { margin-top: var(--pad); padding-top: var(--pad); border-top: 1px solid var(--line); }
+.proof-item { display: flex; flex-direction: column; min-width: 0; color: inherit; text-decoration: none; }
+.proof-item strong { font-family: var(--font-display); font-size: clamp(32px, 3.6vw, 48px); line-height: 1.05; font-weight: 600; letter-spacing: -0.03em; font-variant-numeric: tabular-nums; }
+.proof-lead strong { font-size: clamp(64px, 8.4vw, 120px); line-height: 0.95; letter-spacing: -0.045em; }
+.proof-accent strong { color: var(--orange); }
+.proof-item span { margin-top: 10px; font-size: 15px; line-height: 1.4; font-weight: 500; color: var(--ink); }
+.proof-item small { margin-top: 4px; max-width: 44ch; font-size: 13px; line-height: 1.5; color: var(--ink-3); }
+a.proof-item:hover span { text-decoration: underline; text-underline-offset: 3px; }
+.proof-note { margin: var(--pad) 0 0; max-width: var(--span-7); font-size: 13px; line-height: 1.5; color: var(--ink-3); }
+.stack-lg > .proof-note { margin-top: 0; }
+.compare th, .compare td { width: 24%; }
+.compare th:first-child { width: 28%; }
+.compare th[scope="row"] { font-family: inherit; font-size: 14px; letter-spacing: 0; text-transform: none; font-weight: 500; text-align: left; color: var(--ink-2); }
+.compare td:nth-child(2) { color: var(--ink); font-weight: 500; }
+@media (max-width: 800px) {
+  .proof-lead > .proof-item { grid-column: span 6; padding-bottom: var(--pad); }
+  .proof-lead > .proof-item:last-child { grid-column: 1 / -1; padding-bottom: 0; }
+  .proof-row { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .proof-row > .proof-item:nth-last-child(-n+4) { padding-bottom: var(--pad); }
+  .proof-row > .proof-item:nth-last-child(-n+2) { padding-bottom: 0; }
+}

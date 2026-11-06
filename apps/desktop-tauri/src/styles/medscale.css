@@ -501,8 +501,6 @@ body { font-family: var(--font-ui); }
 .attn { color: var(--signal-text); }
 
 /* Brand mark placements (geometry unchanged; color only) */
-.brand-hero { display: flex; align-items: center; gap: 14px; }
-.brand-hero .mark { color: var(--ink-1); flex: none; }
 .splash { width: 100%; height: 100%; display: grid; place-items: center; background: var(--bg-app); color: var(--ink-1); }
 .splash .stack { align-items: center; text-align: center; gap: 14px; }
 .splash .mark { color: var(--ink-1); }

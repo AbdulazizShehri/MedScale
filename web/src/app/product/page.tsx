@@ -13,7 +13,7 @@ const rows: { eyebrow: string; title: string; mute: string; body: string; shot: 
   { eyebrow: "Knowledge", mute: "Search your sources,", title: "with receipts.", body: "Build a local index over a project's sources and search it. Every search leaves a receipt, and an empty result is reported as insufficient evidence instead of being filled in.", shot: "knowledge", points: ["Local index with version and freshness", "Search receipts for every query", "Insufficient evidence is a real answer"] },
   { eyebrow: "Agents", mute: "Agents that", title: "leave receipts.", body: "MedAgent runs named agents on admitted local packs. You bind the sources each run may read, and the output is recorded as a proposal with its receipt.", shot: "medagent", points: ["Context bound to chosen sources", "Runs recorded as proposals", "Local packs only; nothing is downloaded"] },
   { eyebrow: "Models", mute: "A model is", title: "more than a name.", body: "See the local runtime, which packs are admitted in this session, and a browsable catalog of models with source, task, format and size.", shot: "models", points: ["Runtime and admission state", "Catalog search by task and format", "Listing is never clinical approval"] },
-  { eyebrow: "Governance", mute: "Every disclosure", title: "on the record.", body: "The Audit Trail shows disclosure history recorded by the Core. Exports show what will leave before it leaves, and network access is denied by default.", shot: "audit", points: ["Read-only audit history", "Exports with disclosure", "Default-deny browsing and egress"] },
+  { eyebrow: "Governance", mute: "Every disclosure", title: "on the record.", body: "The Audit Trail shows disclosure history recorded by the Core. Exports report what the format could not carry, and network access is denied by default.", shot: "audit", points: ["Read-only audit history", "Exports with disclosure", "Default-deny browsing and egress"] },
 ];
 
 export default function Product() {
@@ -40,6 +40,35 @@ export default function Product() {
           ))}
         </div>
       </section>
+      <section className="page-section" aria-labelledby="arch-title">
+        <div className="shell arch">
+          <div className="stack">
+            <span className="eyebrow">Built on something real</span>
+            <h2 id="arch-title" className="h2"><span className="mute">One trusted Core.</span> Two ways to work.</h2>
+            <p className="body">The desktop app is for daily work. The CLI is for scripts and automation. Both are thin surfaces over the same Rust Core, which owns records, provenance, policy and storage.</p>
+            <ul className="checklist">
+              <li><Check /> Tauri 2 desktop with a React interface</li>
+              <li><Check /> Encrypted local storage and FHIR R4 interchange</li>
+              <li><Check /> Tests on Windows, macOS and Linux for every pull request</li>
+            </ul>
+            <div className="built-on" aria-label="Built on">
+              <span>Built on</span>
+              {["Rust", "Tauri 2", "React", "SQLCipher", "FHIR R4", "tract ONNX", "Candle"].map((t) => <b key={t}>{t}</b>)}
+            </div>
+            <a className="text-link" href={docs.crates}>Explore the Rust workspace <ArrowUpRight /></a>
+          </div>
+          <div className="arch-diagram" aria-label="Diagram: the desktop app and the CLI both use the MedScale Rust Core">
+            <div className="arch-row">
+              <div className="arch-node"><small>Surface</small><strong>Desktop</strong><span>Tauri 2 · React</span></div>
+              <div className="arch-node"><small>Surface</small><strong>CLI</strong><span>medscale-cli</span></div>
+            </div>
+            <div className="arch-links" aria-hidden="true"><i /><i /></div>
+            <div className="arch-node arch-core"><small>Authority</small><strong>MedScale Core</strong><span>Records · provenance · policy · audit</span></div>
+            <div className="crate-list">{["medscale-core", "medscale-storage", "medscale-fhir", "medscale-pack", "medscale-network", "medscale-keys", "medscale-contracts"].map((c) => <code key={c}>{c}</code>)}</div>
+          </div>
+        </div>
+      </section>
+
       <section className="page-section">
         <div className="shell feature-row">
           <div className="feature-copy">

@@ -22,7 +22,7 @@ const areas: { id: string; label: string; summary: string; shot: ShotKey; points
   },
   {
     id: "governance", label: "Governance", summary: "An audit trail the Core writes.", shot: "audit",
-    points: [["Recorded by the Core", "Disclosures are written by the trusted Core and cannot be edited."], ["Exports with disclosure", "FHIR export shows what leaves before anything does."], ["Default-deny network", "Browsing and egress stay off until explicitly allowed."]],
+    points: [["Recorded by the Core", "Disclosures are written by the trusted Core. There is no way to edit them in the app, though restoring an older backup can shorten the trail."], ["Exports with disclosure", "A FHIR export reports what the format could not carry."], ["Default-deny network", "Browsing and egress stay off until explicitly allowed."]],
   },
 ];
 

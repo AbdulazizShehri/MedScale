@@ -167,6 +167,10 @@ Rust Core retains all authority. PHI is unauthorized, egress defaults deny, unre
 - Spec 073 circular Shelf-M, Instrument Sans/Source Serif and Mist Blue active visuals: SUPERSEDED_BY_SPEC_095.
 - Closed Specs 068–094 and their evidence remain intact; new identity replaces forward.
 
+## Direction
+
+**Precision Clinical, written in plain language** (founder-approved 2026-11-06). Information comes first, surfaces are restrained, and every statement shows its source. Warmth comes from the words rather than decoration. Colour is flat and purposeful: sky blue for interaction and support, orange for attention. The options and scoring are on the design canvas.
+
 ## Overview
 
 **Creative North Star: "The work is the interface"**
