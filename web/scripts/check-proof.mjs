@@ -1,4 +1,4 @@
-// Recounts every number the site shows from the public file it comes from.
+// Recounts the site's catalog, spec and test numbers from the public files they come from.
 import assert from "node:assert/strict";
 import fs from "node:fs";
 import path from "node:path";
@@ -19,8 +19,14 @@ assert.equal(value("catalogFamilies"), new Set(rows.map((row) => row.family)).si
 assert.equal(value("catalogLanguages"), new Set(rows.flatMap((row) => row.languages)).size, "catalog language count");
 assert.ok(rows.every((row) => row.repo_id.startsWith("OpenMed/")), "the site credits OpenMed for every row, so a new publisher needs new wording");
 
-const matrix = fs.readFileSync(path.join(root, "specs/103-local-model-catalog/CAPABILITY_MATRIX.md"), "utf8");
-assert.ok(matrix.includes(`Executed or expected runnable: **${value("catalogRunnable").toLocaleString("en-US")} of ${ids.size.toLocaleString("en-US")}**`), "runnable count matches the capability matrix");
+const compatibility = fs.readFileSync(path.join(root, "crates/medscale-pack/src/compatibility.rs"), "utf8");
+const listing = (name) => {
+  const start = compatibility.indexOf(`pub const ${name}:`);
+  assert.ok(start >= 0, `compatibility.rs declares ${name}`);
+  return compatibility.slice(start, compatibility.indexOf("\n];", start));
+};
+assert.equal(value("catalogExecuted"), (listing("EXECUTED_MODELS").match(/ExecutedModel \{/g) ?? []).length, "executed model count");
+assert.equal(value("catalogOverBound"), (listing("MEASURED_OVER_BOUND").match(/^\s*\(\s*"/gm) ?? []).length, "over-bound model count");
 
 assert.equal(value("specs"), fs.readdirSync(path.join(root, "specs"), { withFileTypes: true }).filter((entry) => entry.isDirectory()).length, "spec count");
 
@@ -29,7 +35,10 @@ const walk = (dir) => {
   for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
     const full = path.join(dir, entry.name);
     if (entry.isDirectory()) { if (entry.name !== "target") walk(full); }
-    else if (entry.name.endsWith(".rs")) tests += (fs.readFileSync(full, "utf8").match(/#\[(tokio::)?test\]/g) ?? []).length;
+    else if (entry.name.endsWith(".rs")) {
+      const source = fs.readFileSync(full, "utf8");
+      tests += (source.match(/#\[(tokio::)?test\]/g) ?? []).length - (source.match(/#\[(tokio::)?test\]\s*#\[ignore/g) ?? []).length;
+    }
   }
 };
 walk(path.join(root, "crates"));
