@@ -7,17 +7,28 @@ import { ArrowRight, ArrowUpRight, GitHub, Monitor, Plus, Terminal } from "@/com
 import { ProductTour } from "@/components/ProductTour";
 import { Quickstart } from "@/components/Quickstart";
 import { Shot } from "@/components/Shot";
+import { count, PROOF } from "@/lib/proof";
 import { asset, docs, github, pageMeta } from "@/lib/site";
 
 const homeMeta = pageMeta("/", "Your health AI. One open workspace.", "Open-source, local-first workspace for health records, evidence and AI models. " + productStage + ": synthetic workspaces and user-approved licensed nonpatient audio.");
 const homeTitle = "MedScale — Your health AI. One open workspace.";
 export const metadata: Metadata = { ...homeMeta, title: { absolute: homeTitle }, openGraph: { ...homeMeta.openGraph, title: homeTitle }, twitter: { ...homeMeta.twitter, title: homeTitle } };
 
-const strip = [
-  ["Open source", "Apache-2.0 code, built in public."],
-  ["Local first", "The Core runs on your machine."],
-  ["Source-aware", "Every insight keeps its evidence."],
-  ["People decide", "AI output stays a proposal."],
+const proofSmall = [
+  ["$0", "To use", "Free, with Apache-2.0 source code."],
+  ["0", "Cloud accounts", "No sign-in. The Core runs on your computer."],
+  [`${count(PROOF.rustTestsFloor)}+`, "Automated Rust tests", "They run in public CI, and you can run them too."],
+  [String(PROOF.specs), "Public specifications", "Each feature's design is in the repository."],
+];
+
+const compare = [
+  ["Where the AI runs", "On your computer", "In the vendor's cloud", "On your hardware"],
+  ["Account or contract", "None", "Usually both", "None"],
+  ["Cost to start", "Free", "Usually a quote", "Free"],
+  ["Source code", "Open, Apache-2.0", "Usually closed", "Open"],
+  ["Records, evidence, agents and audit trail", "One desktop app", "Varies", "Usually yours to build"],
+  ["Use with real patients", "Not authorized. Synthetic and licensed nonpatient data only", "Often", "Varies"],
+  ["Published customer results", "None yet", "Often", "Varies"],
 ];
 
 const story = [
@@ -51,7 +62,7 @@ export default function Home() {
           <div className="hero-copy">
             <a className="status-pill" href={docs.qualification}><b>{publicRelease ? "Beta" : "Preview"}</b><span>Open source · local first</span><ArrowRight size={14} /></a>
             <h1 id="hero-title" className="display">Your health AI.<br /><span className="mute">One open workspace.</span></h1>
-            <p className="lede">MedScale brings records, evidence and local AI models into one source-aware desktop workspace. Open source, local-first, and built so a person stays in charge of every decision.</p>
+            <p className="lede">Free to use. Built to run on your computer. Records, cited evidence, local AI models and agents in one open-source desktop app, with a person in charge of every decision.</p>
             <div className="actions">
               <Link className="btn btn-primary" href="/download/">Get MedScale <ArrowRight /></Link>
               <a className="btn btn-secondary" href={github}><GitHub size={16} /> View on GitHub</a>
@@ -62,13 +73,28 @@ export default function Home() {
             </div>
             <p className="hero-note">{productStage} · synthetic data and licensed nonpatient audio · not for clinical use</p>
           </div>
-          <div className="hero-stage reveal reveal-4">
-            <Shot name="insightsHero" priority />
+        </div>
+        <div className="proof" aria-labelledby="proof-title">
+          <div className="shell">
+            <h2 id="proof-title" className="eyebrow">By the numbers</h2>
+            <div className="proof-lead">
+              <Link className="proof-item proof-big" href="/models/">
+                <strong>{count(PROOF.catalogModels)}</strong>
+                <span>Open models to browse</span>
+                <small>Listed from OpenMed&apos;s public catalog and pinned by checksum. Listed doesn&apos;t mean installed or qualified.</small>
+              </Link>
+              <div className="proof-item"><strong>{PROOF.catalogLanguages}</strong><span>Languages</span><small>Tagged across that catalog.</small></div>
+              <div className="proof-item"><strong>{PROOF.catalogFamilies}</strong><span>Model families</span><small>Including entity recognition and PII detection.</small></div>
+            </div>
+            <div className="proof-row">
+              {proofSmall.map(([n, t, d]) => <div className="proof-item" key={t}><strong>{n}</strong><span>{t}</span><small>{d}</small></div>)}
+            </div>
+            <p className="proof-note">You can check each number against the public repository. They count the catalog and the code, not users or clinical outcomes, because MedScale doesn&apos;t have that data yet.</p>
           </div>
         </div>
-        <div className="strip">
-          <div className="shell strip-grid">
-            {strip.map(([t, d]) => <div className="strip-item" key={t}><strong>{t}</strong><span>{d}</span></div>)}
+        <div className="shell">
+          <div className="hero-stage reveal reveal-4">
+            <Shot name="insightsHero" priority />
           </div>
         </div>
       </section>
@@ -166,6 +192,24 @@ export default function Home() {
             <div className="state"><small>02</small><strong>Admitted</strong><p>A local pack whose manifest and digests the Core has verified.</p></div>
             <div className="state"><small>03</small><strong>Running</strong><p>Executed by the local runtime on your device, with a receipt per run.</p></div>
             <div className="state gate"><small>04</small><strong>Qualified</strong><p>Needs independent evaluation for a specific task. No model has this today.</p></div>
+          </div>
+        </div>
+      </section>
+
+      <section className="section band" aria-labelledby="compare-title">
+        <div className="shell">
+          <div className="section-head">
+            <span className="eyebrow">How it compares</span>
+            <h2 id="compare-title" className="h2"><span className="mute">Cloud tools run on someone else&apos;s computer. Libraries leave the building to you.</span> MedScale is a whole workspace on your computer.</h2>
+          </div>
+          <div className="stack-lg">
+            <div className="table-wrap" role="region" aria-label="How MedScale compares" tabIndex={0}>
+              <table className="table-cols-4 compare">
+                <thead><tr><th scope="col"><span className="sr-only">Question</span></th><th scope="col">MedScale</th><th scope="col">Cloud clinical AI</th><th scope="col">Open model libraries</th></tr></thead>
+                <tbody>{compare.map(([q, a, b, c]) => <tr key={q}><th scope="row">{q}</th><td>{a}</td><td>{b}</td><td>{c}</td></tr>)}</tbody>
+              </table>
+            </div>
+            <p className="proof-note">General descriptions of each category as of November 2026. Individual products differ.</p>
           </div>
         </div>
       </section>

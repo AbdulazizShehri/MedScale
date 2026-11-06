@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { ArrowUpRight } from "@/components/Icons";
 import { Shot } from "@/components/Shot";
+import { count, PROOF } from "@/lib/proof";
 import { docs, github, pageMeta } from "@/lib/site";
 
 export const metadata: Metadata = pageMeta("/models/", "Models", "How MedScale lists, admits and runs local AI models, and why a catalog listing is not clinical qualification.");
@@ -19,6 +20,14 @@ export default function Models() {
         <span className="eyebrow">Models</span>
         <h1 className="display display-sub">Find a model.<br /><span className="mute">Then decide if you trust it.</span></h1>
         <p className="lede">MedScale treats models as things to inspect, not as authority. You can see where a model came from, what runs it and what state it is in, before you put it to work.</p>
+      </section>
+      <section className="proof proof-page" aria-label="The model catalog in numbers">
+        <div className="shell proof-row">
+          <div className="proof-item"><strong>{count(PROOF.catalogModels)}</strong><span>Models listed</span><small>From OpenMed&apos;s public catalog, pinned by checksum.</small></div>
+          <div className="proof-item"><strong>{count(PROOF.catalogRunnable)}</strong><span>Run or expected to run</span><small>As of October 2026. Real runs back each runtime and format, not every model.</small></div>
+          <div className="proof-item"><strong>{PROOF.catalogLanguages}</strong><span>Languages</span><small>Tagged across the catalog.</small></div>
+          <div className="proof-item"><strong>0</strong><span>Qualified for clinical use</span><small>Being listed or running doesn&apos;t make a model fit for care.</small></div>
+        </div>
       </section>
       <section className="page-section">
         <div className="shell">
@@ -42,6 +51,14 @@ export default function Models() {
             <p className="body">External model registries are sources, not authority. MedScale records where an entry came from; it does not inherit trust from it.</p>
           </div>
           <Shot name="models" />
+        </div>
+      </section>
+      <section className="proof proof-page" aria-label="The model catalog in numbers">
+        <div className="shell proof-row">
+          <div className="proof-item"><strong>{count(PROOF.catalogModels)}</strong><span>Models listed</span><small>From OpenMed&apos;s public catalog, pinned by checksum.</small></div>
+          <div className="proof-item"><strong>{count(PROOF.catalogRunnable)}</strong><span>Run or expected to run</span><small>As of October 2026. Real runs back each runtime and format, not every model.</small></div>
+          <div className="proof-item"><strong>{PROOF.catalogLanguages}</strong><span>Languages</span><small>Tagged across the catalog.</small></div>
+          <div className="proof-item"><strong>0</strong><span>Qualified for clinical use</span><small>Being listed or running doesn&apos;t make a model fit for care.</small></div>
         </div>
       </section>
       <section className="page-section">
