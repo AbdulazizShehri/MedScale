@@ -321,6 +321,8 @@ async function clean() {
     await waitForText("Sample lifecycle project", 30000);
     await click(button("MedAgent"));
     await waitForText("New run", 30000);
+    // #438: a packaged build admits no Pack from a folder.
+    if ((await pageText()).includes("Admit a local Pack folder")) throw new Error("the installed build offers folder admission");
     await shot("03-medagent");
     await click(button("Knowledge"));
     await waitForText("Build index", 30000);
