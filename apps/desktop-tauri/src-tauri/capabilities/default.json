@@ -5,6 +5,7 @@
   "windows": ["main"],
   "permissions": [
     "allow-get-shell-status",
+    "allow-ui-prefs-set",
     "allow-workspace-status",
     "allow-workspace-open-synthetic",
     "allow-workspace-set-aside-synthetic",

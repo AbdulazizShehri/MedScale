@@ -156,7 +156,7 @@ Current, reviewed, unknown, stale, conflicting, partial, denied, unavailable, un
 
 ## Interaction and qualification
 
-Controls retain Enter/Space, visible focus and exposed role/label/action. Targets are at least 36px normally and 32px compact. Default motion/elevation is zero; future transitions must explain state and respect reduced motion. Measure contrast from actual tokens; inspect actual native pixels. Record keyboard, assistive technology and WCAG claims separately. Compilation/source assertions do not qualify visuals.
+Controls retain Enter/Space, visible focus and exposed role/label/action. Dense controls are 36px (32px compact), and primary actions and touch targets are 44px. Default motion/elevation is zero; future transitions must explain state and respect reduced motion. Measure contrast from actual tokens; inspect actual native pixels. Record keyboard, assistive technology and WCAG claims separately. Compilation/source assertions do not qualify visuals.
 
 Rust Core retains all authority. PHI is unauthorized, egress defaults deny, unrelated research projects are out of scope, and release/privacy/multi-client readiness stays false. CLI machine contracts remain stable. References and figure styles do not create capabilities.
 
@@ -230,10 +230,12 @@ page's left edge. Section 17 of `apps/desktop-tauri/src/styles/medscale.css` hol
 these rules, because sections 1-14 stay verbatim. Running text in a section stops
 at a 76ch measure, and a wrapped ledger row starts on the page edge.
 
-Buttons, inputs and selects share one control height: 32px standard, 28px compact.
+Buttons, inputs and selects share one control height: 36px standard, 32px compact. Primary actions are 44px.
 Table and list row text sits on the page edge with the headings and rules; hover and
 selection bleed 12px outward without moving anything. The first inspector heading
 shares a line with the page title. A field draws one frame around its input.
+
+Sidebar groups follow tasks (Clinical, Intelligence, Research, Operations, Governance) and fold. The group holding the current page stays open, and all 25 routes stay reachable.
 
 Welcome has one left axis at the layout padding. Its decorative dot field stays
 right of the copy, and it is hidden below 1000px so that it never sits under text.

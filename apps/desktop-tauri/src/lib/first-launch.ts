@@ -11,8 +11,11 @@ export function gateView(input: {
   /** Settings and About stay reachable with no workspace open. */
   routeNeedsWorkspace: boolean;
   request: GateRequest;
+  /** Shown-once recovery codes are on screen: nothing may replace them until confirmed. */
+  recoveryCodesShown?: boolean;
 }): GateView {
-  const { runtimeError, status, routeNeedsWorkspace, request } = input;
+  const { runtimeError, status, routeNeedsWorkspace, request, recoveryCodesShown } = input;
+  if (recoveryCodesShown) return "create";
   if (!status) return runtimeError ? "runtime-unavailable" : "loading";
   if (status.open || !routeNeedsWorkspace) return "workspace";
   if (request === "welcome") return "welcome";
@@ -20,10 +23,9 @@ export function gateView(input: {
   return request === "access" ? "create" : "welcome";
 }
 
-/** Set after the sample opens, to word the return path. It holds no identifier,
- * says nothing about who is using the app, and never opens anything by itself. */
-export const SAMPLE_OPENED_PREF = "sample-opened";
-
-export function isReturningToSample(pref: string | null): boolean {
-  return pref === "1";
+/** Core reports whether the sample is on disk, because the production WebView runs
+ * InPrivate and keeps no browser storage across restarts. This only words the
+ * Welcome screen and never opens anything by itself. */
+export function isReturningToSample(status: { sample_workspace_exists?: boolean } | null | undefined): boolean {
+  return status?.sample_workspace_exists === true;
 }

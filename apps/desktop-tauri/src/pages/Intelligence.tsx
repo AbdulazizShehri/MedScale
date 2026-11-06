@@ -208,6 +208,8 @@ type RunDetail = {
 const TOOLS: Array<[string, string]> = [["read_context_artifact", "Read a bound source"], ["search_context_artifacts", "Search bound sources"]];
 
 function MedAgentBody({ projectId }: { projectId: string }) {
+  const [composing, setComposing] = useState(false);
+  useEffect(() => { if (composing) document.getElementById("ag")?.focus(); }, [composing]);
   const runs = useCommand<{ runs: Run[]; agents: Agent[] }>("medagent_runs", { projectId });
   const models = useCommand<Model[]>("medagent_models");
   const sources = useCommand<Source[]>("medagent_sources");
@@ -238,7 +240,7 @@ function MedAgentBody({ projectId }: { projectId: string }) {
     e.preventDefault();
     const args = agentId ? { projectId, prompt, agentId, sourceIds: picked } : { projectId, prompt, sourceIds: picked };
     const r = await run<Run>("create", "medagent_create_run", args);
-    if (outcome(r, "Run created (pending)")) { setPrompt(""); setProposal(null); await runs.reload(); setSel(r.data.id); }
+    if (outcome(r, "Run created (pending)")) { setPrompt(""); setProposal(null); setComposing(false); await runs.reload(); setSel(r.data.id); document.getElementById("new-run")?.focus(); }
   }
   async function step(cmd: "medagent_start" | "medagent_cancel" | "medagent_complete", label: string) {
     if (!cur) return;
@@ -268,9 +270,9 @@ function MedAgentBody({ projectId }: { projectId: string }) {
   const toggle = (xs: string[], x: string) => (xs.includes(x) ? xs.filter((y) => y !== x) : [...xs, x]);
 
   return (
-    <div style={{ display: "grid", gridTemplateColumns: "300px minmax(0,1fr)", gap: 24 }}>
+    <div className="agent-layout">
       <div>
-        <Section title="Runs" count={list.length}>
+        <Section title="Runs" count={list.length} actions={<button type="button" id="new-run" className="btn btn-g" onClick={() => setComposing(true)}>New run</button>}>
           {runs.state.status === "error" && <ErrorState error={runs.state.error} onRetry={runs.reload} />}
           {list.length === 0 && runs.state.status === "ready" && <p className="t-sm i3">No runs yet.</p>}
           {list.map((r) => (
@@ -280,6 +282,66 @@ function MedAgentBody({ projectId }: { projectId: string }) {
             </button>
           ))}
         </Section>
+      </div>
+      <div>
+        {(composing || !cur) && <form onSubmit={create} className="stack" style={{ gap: 8, marginBottom: 18 }}>
+          <h2 className="sec-t">New run</h2>
+          <label className="lbl" htmlFor="ag">Agent</label>
+          <select id="ag" value={agentId} onChange={(e) => setAgentId(e.target.value)}>
+            {!active.length && <option value="">Synthetic review agent (created on first run)</option>}
+            {active.map((a) => <option key={a.id} value={a.id}>{a.label}</option>)}
+          </select>
+          <span className="lbl">Sources this run may read ({picked.length} selected)</span>
+          <div className="stack" style={{ gap: 2, maxHeight: 150, overflow: "auto" }}>
+            {srcs.map((s) => (
+              <label key={s.id} className="row-gap t-sm" style={{ gap: 6 }}>
+                <input type="checkbox" checked={picked.includes(s.id)} onChange={() => setPicked(toggle(picked, s.id))} />
+                <span className="trunc">{s.resource_type} · {s.fixture} · {s.subject}</span>
+              </label>
+            ))}
+          </div>
+          <label className="lbl" htmlFor="ap">Prompt</label>
+          <textarea id="ap" value={prompt} onChange={(e) => setPrompt(e.target.value)} placeholder="Ask about the bound sources…" maxLength={2000} style={{ minHeight: 70 }} />
+          <div className="row-gap"><button type="submit" className="btn btn-p" disabled={!prompt.trim() || !picked.length || picked.length > 16 || !!pending}>{pending === "create" ? <Glyph kind="running" /> : null}Create run</button>{composing && cur && <button type="button" className="btn btn-g" onClick={() => { setComposing(false); document.getElementById("new-run")?.focus(); }}>Cancel</button>}</div>
+        </form>}
+        {cur ? <>
+          <Ledger items={[
+            { k: "run", v: cur.id, mono: true },
+            { k: "status", v: <Status kind={glyphFor(cur.status)} weight="strong">{cur.status}</Status> },
+            { k: "revision", v: cur.revision, mono: true },
+            ...(d ? [{ k: "agent", v: `${d.agent.label} (${d.agent.status})` }, { k: "model", v: `${d.agent.pack_id} · ${d.agent.pack_version}`, mono: true }, { k: "tools", v: d.agent.tools.join(", ") || "none" }] : []),
+          ]} />
+          <div className="row-gap" style={{ gap: 8, marginBottom: 16 }}>
+            <button type="button" className="btn btn-s" onClick={() => step("medagent_start", "Run started")} disabled={!!pending || cur.status !== "pending"}>Start</button>
+            <button type="button" className="btn btn-p" onClick={execute} disabled={!!pending || cur.status !== "running"}>{pending === "execute" ? <Glyph kind="running" /> : null}Execute on local runtime</button>
+            <button type="button" className="btn btn-s" onClick={() => step("medagent_complete", "Run completed · receipt recorded")} disabled={!!pending || cur.status !== "running"}>Complete</button>
+            <button type="button" className="btn btn-g" onClick={() => step("medagent_cancel", "Run cancelled")} disabled={!!pending || ["completed", "cancelled", "failed"].includes(cur.status)}>Cancel</button>
+          </div>
+          {proposal !== null && <Section title="Proposal" count="not accepted">
+            <div style={{ border: "1px dashed var(--line-strong)", borderRadius: "var(--r-2)", padding: "12px 14px" }}>
+              <Status kind="proposal" weight="strong">Proposal</Status>
+              <pre className="pre" style={{ marginTop: 10, border: 0, background: "transparent", padding: 0 }}>{JSON.stringify(proposal, null, 2)}</pre>
+            </div>
+          </Section>}
+          <Section title="Evidence" count={d ? d.evidence.length : "…"}>
+            {detail.state.status === "error" && <ErrorState error={detail.state.error} onRetry={detail.reload} />}
+            {d?.evidence.map((e) => (
+              <div key={e.id} className="lr" style={{ gridTemplateColumns: "minmax(0,1fr) auto", padding: "6px 12px" }}>
+                <span style={{ display: "flex", flexDirection: "column", minWidth: 0 }}><span className="t-sm trunc">{e.resource_type ?? "source"} · {e.fixture ?? e.id}</span><span className="mono t-mono-sm i3 trunc">{e.id}{e.subject ? ` · ${e.subject}` : ""}</span></span>
+                <Status kind={e.resolution === "current" ? "available" : "blocked"} weight="weak">{e.resolution ?? "unknown"}</Status>
+              </div>
+            ))}
+          </Section>
+          <Section title="Turns" count={turns.state.status === "ready" ? turns.state.data.length : "…"}>
+            <LoadError cmd={turns} />
+            {turns.state.status === "ready" && (turns.state.data.length ? turns.state.data.map((t) => (
+              <div key={t.seq} className="lr" style={{ gridTemplateColumns: "36px 140px minmax(0,1fr)", alignItems: "start", padding: "8px 12px" }}><span className="mono t-mono-sm i3">{t.seq}</span><span className="t-sm i2">{t.kind}</span><TurnPayload payload={t.payload} /></div>
+            )) : <p className="t-sm i3">No turns yet. Start, then execute the run.</p>)}
+          </Section>
+          <Authority>Proposal, not accepted. Nothing is written to a record. Runs, turns and evidence persist in the vault and resume after a restart.</Authority>
+        </> : <Empty icon="medagent" title="No run selected">Choose an agent and the sources it may read, then create a run.</Empty>}
+      </div>
+      <aside className="agent-side" aria-label="Agents and models">
         <Section title="Agents" count={agents.length}>
           {agents.map((a) => (
             <div key={a.id} className="row-gap" style={{ justifyContent: "space-between", minHeight: 30, gap: 8 }}>
@@ -324,64 +386,7 @@ function MedAgentBody({ projectId }: { projectId: string }) {
           </form>
           <p className="t-sm i3" style={{ marginTop: 6 }}>Core verifies the manifest, digests and signature. Nothing is downloaded.</p>
         </Section>
-      </div>
-      <div>
-        <form onSubmit={create} className="stack" style={{ gap: 8, marginBottom: 18 }}>
-          <label className="lbl" htmlFor="ag">Agent</label>
-          <select id="ag" value={agentId} onChange={(e) => setAgentId(e.target.value)}>
-            {!active.length && <option value="">Synthetic review agent (created on first run)</option>}
-            {active.map((a) => <option key={a.id} value={a.id}>{a.label}</option>)}
-          </select>
-          <span className="lbl">Context · ingested synthetic sources ({picked.length} selected)</span>
-          <div className="stack" style={{ gap: 2, maxHeight: 150, overflow: "auto" }}>
-            {srcs.map((s) => (
-              <label key={s.id} className="row-gap t-sm" style={{ gap: 6 }}>
-                <input type="checkbox" checked={picked.includes(s.id)} onChange={() => setPicked(toggle(picked, s.id))} />
-                <span className="trunc">{s.resource_type} · {s.fixture} · {s.subject}</span>
-              </label>
-            ))}
-          </div>
-          <label className="lbl" htmlFor="ap">Prompt</label>
-          <textarea id="ap" value={prompt} onChange={(e) => setPrompt(e.target.value)} placeholder="Ask about the bound sources…" maxLength={2000} style={{ minHeight: 70 }} />
-          <div><button type="submit" className="btn btn-p" disabled={!prompt.trim() || !picked.length || picked.length > 16 || !!pending}>{pending === "create" ? <Glyph kind="running" /> : null}Create run</button></div>
-        </form>
-        {cur ? <>
-          <Ledger items={[
-            { k: "run", v: cur.id, mono: true },
-            { k: "status", v: <Status kind={glyphFor(cur.status)} weight="strong">{cur.status}</Status> },
-            { k: "revision", v: cur.revision, mono: true },
-            ...(d ? [{ k: "agent", v: `${d.agent.label} (${d.agent.status})` }, { k: "model", v: `${d.agent.pack_id} · ${d.agent.pack_version}`, mono: true }, { k: "tools", v: d.agent.tools.join(", ") || "none" }] : []),
-          ]} />
-          <div className="row-gap" style={{ gap: 8, marginBottom: 16 }}>
-            <button type="button" className="btn btn-s" onClick={() => step("medagent_start", "Run started")} disabled={!!pending || cur.status !== "pending"}>Start</button>
-            <button type="button" className="btn btn-p" onClick={execute} disabled={!!pending || cur.status !== "running"}>{pending === "execute" ? <Glyph kind="running" /> : null}Execute on local runtime</button>
-            <button type="button" className="btn btn-s" onClick={() => step("medagent_complete", "Run completed · receipt recorded")} disabled={!!pending || cur.status !== "running"}>Complete</button>
-            <button type="button" className="btn btn-g" onClick={() => step("medagent_cancel", "Run cancelled")} disabled={!!pending || ["completed", "cancelled", "failed"].includes(cur.status)}>Cancel</button>
-          </div>
-          <Section title="Evidence" count={d ? d.evidence.length : "…"}>
-            {detail.state.status === "error" && <ErrorState error={detail.state.error} onRetry={detail.reload} />}
-            {d?.evidence.map((e) => (
-              <div key={e.id} className="lr" style={{ gridTemplateColumns: "minmax(0,1fr) auto", padding: "6px 12px" }}>
-                <span style={{ display: "flex", flexDirection: "column", minWidth: 0 }}><span className="t-sm trunc">{e.resource_type ?? "source"} · {e.fixture ?? e.id}</span><span className="mono t-mono-sm i3 trunc">{e.id}{e.subject ? ` · ${e.subject}` : ""}</span></span>
-                <Status kind={e.resolution === "current" ? "available" : "blocked"} weight="weak">{e.resolution ?? "unknown"}</Status>
-              </div>
-            ))}
-          </Section>
-          <Section title="Turns" count={turns.state.status === "ready" ? turns.state.data.length : "…"}>
-            <LoadError cmd={turns} />
-            {turns.state.status === "ready" && (turns.state.data.length ? turns.state.data.map((t) => (
-              <div key={t.seq} className="lr" style={{ gridTemplateColumns: "36px 140px minmax(0,1fr)", alignItems: "start", padding: "8px 12px" }}><span className="mono t-mono-sm i3">{t.seq}</span><span className="t-sm i2">{t.kind}</span><TurnPayload payload={t.payload} /></div>
-            )) : <p className="t-sm i3">No turns yet. Start, then execute the run.</p>)}
-          </Section>
-          {proposal !== null && <Section title="Proposal" count="not accepted">
-            <div style={{ border: "1px dashed var(--line-strong)", borderRadius: "var(--r-2)", padding: "12px 14px" }}>
-              <Status kind="proposal" weight="strong">Proposal</Status>
-              <pre className="pre" style={{ marginTop: 10, border: 0, background: "transparent", padding: 0 }}>{JSON.stringify(proposal, null, 2)}</pre>
-            </div>
-          </Section>}
-          <Authority>Proposal, not accepted. Nothing is written to a record. Runs, turns and evidence persist in the vault and resume after a restart.</Authority>
-        </> : <Empty icon="medagent" title="No run selected">Choose an agent and the sources its context binds, then create a run.</Empty>}
-      </div>
+      </aside>
     </div>
   );
 }

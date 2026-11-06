@@ -35,6 +35,7 @@ fn presentation_builder<R: tauri::Runtime>(builder: tauri::Builder<R>) -> tauri:
         .invoke_handler(tauri::generate_handler![
             cmd_core::get_shell_status,
             cmd_core::workspace_status,
+            cmd_core::ui_prefs_set,
             cmd_core::workspace_open_synthetic,
             cmd_core::workspace_set_aside_synthetic,
             cmd_core::workspace_delete_set_aside_synthetic,

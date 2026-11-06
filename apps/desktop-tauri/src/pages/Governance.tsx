@@ -83,7 +83,7 @@ export function AuditTrail() {
   const { state, reload } = useGov();
   return (
     <div className="pane">
-      <PageHead title="Audit Trail" sub="Every disclosure, recorded by Core. Nothing here can be edited." />
+      <PageHead title="Audit Trail" sub="Every disclosure, recorded by Core. There is no way to edit it here, though restoring an older backup can shorten it." />
       {state.status === "loading" && <Skeleton />}
       {state.status === "error" && <ErrorState error={state.error} onRetry={reload} />}
       {state.status === "ready" && <>
@@ -249,14 +249,20 @@ export function Settings() {
 
   return (
     <div className="pane">
-      <div style={{ maxWidth: 860 }}>
-        <PageHead title="Settings" sub="Read-only facts are shown as status. Anything you can change is a control." />
-        <Section n="01" title="Appearance">
+      <PageHead title="Settings" sub="Read-only facts are shown as status. Anything you can change is a control." />
+      <div className="settings-layout">
+        <nav className="settings-nav" aria-label="Settings sections">
+          {[["set-appearance", "Appearance"], ["set-workspace", "Workspace"], ...(ws?.workspace?.kind === "encrypted" ? [["set-recovery", "Crash recovery"]] : []), ...(gov.state.status === "ready" ? [["set-privacy", "Privacy & network"], ["set-qualification", "Qualification"]] : []), ["set-keyboard", "Keyboard"]].map(([id, label]) => (
+            <button key={id} type="button" className="settings-link" onClick={() => { const target = document.getElementById(id!); target?.focus({ preventScroll: true }); target?.scrollIntoView({ block: "start" }); }}>{label}</button>
+          ))}
+        </nav>
+        <div className="settings-body">
+        <div id="set-appearance" tabIndex={-1}><Section title="Appearance">
           <SettingRow label="Theme" detail="Saved on this device. Also available from the command palette."><Seg label="Theme" value={theme} options={["dark", "light"]} onChange={setTheme} /></SettingRow>
           <SettingRow label="Density" detail="Compact tightens rows, padding and gaps. Type size does not change."><Seg label="Density" value={density} options={["standard", "compact"]} onChange={setDensity} /></SettingRow>
           <SettingRow label="Reduce motion" detail="Follows the operating system. State changes stay immediate."><Status kind="available">Follows system</Status></SettingRow>
-        </Section>
-        <Section n="02" title="Workspace">
+        </Section></div>
+        <div id="set-workspace" tabIndex={-1}><Section title="Workspace">
           <SettingRow label="Open workspace" detail={ws?.workspace ? `${ws.workspace.subjects} subjects · ${ws.workspace.sources} sources promoted by this desktop` : "No vault is open."}>
             {ws?.workspace ? <span className="mono" style={{ fontSize: 12 }}>{ws.workspace.vault_id}</span> : <Status kind="unavailable">None</Status>}
           </SettingRow>
@@ -264,16 +270,17 @@ export function Settings() {
           <SettingRow label="Lock workspace" detail="Closes the vault and releases keys from memory.">
             <span className="row-gap" style={{ gap: 8 }}><button type="button" className="btn btn-s" onClick={() => void lock()} disabled={!ws?.open}>Lock now</button><span className="kbd">{MOD} Shift L</span></span>
           </SettingRow>
-        </Section>
-        {ws?.workspace?.kind === "encrypted" && <RecoveryKept onRestored={() => void vaultClosed()} />}
+        </Section></div>
+        {ws?.workspace?.kind === "encrypted" && <div id="set-recovery" tabIndex={-1}><RecoveryKept onRestored={() => void vaultClosed()} /></div>}
         {gov.state.status === "ready" && <>
-          <Section title="Privacy & network"><RowList rows={gov.state.data.settings_rows.filter((r) => !/release|accessib/i.test(r.label))} /></Section>
-          <Section title="Qualification" count="read-only"><RowList rows={gov.state.data.settings_rows.filter((r) => /release|accessib/i.test(r.label))} /><p className="t-sm i3" style={{ marginTop: 10 }}>{gov.state.data.missing_release_evidence}</p></Section>
+          <div id="set-privacy" tabIndex={-1}><Section title="Privacy & network"><RowList rows={gov.state.data.settings_rows.filter((r) => !/release|accessib/i.test(r.label))} /></Section></div>
+          <div id="set-qualification" tabIndex={-1}><Section title="Qualification" count="read-only"><RowList rows={gov.state.data.settings_rows.filter((r) => /release|accessib/i.test(r.label))} /><p className="t-sm i3" style={{ marginTop: 10 }}>{gov.state.data.missing_release_evidence}</p></Section></div>
         </>}
         {gov.state.status === "error" && <ErrorState error={gov.state.error} onRetry={gov.reload} />}
-        <Section title="Keyboard">
+        <div id="set-keyboard" tabIndex={-1}><Section title="Keyboard">
           <KV keyWidth={150} rows={[[`${MOD} K`, "Search or run a command"], [`${MOD} ,`, "Settings"], [`${MOD} Shift L`, "Lock workspace"], ["Enter", "Open the focused row"], ["Space", "Preview the focused row"], ["Esc", "Close the palette or dialog"]]} />
-        </Section>
+        </Section></div>
+        </div>
       </div>
     </div>
   );

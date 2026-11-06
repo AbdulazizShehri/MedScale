@@ -195,7 +195,9 @@ async function see(t, timeout) {
   await find(`//*[${text(t)} and not(.//*[${text(t)}])]`, timeout);
 }
 async function nav(label) {
-  await click(`//button[contains(@class,'nav') and ${text(label)}]`);
+  // Sidebar groups fold, so open any closed group before looking for the item.
+  await wd("POST", `/session/${sid}/execute/sync`, { script: "document.querySelectorAll('button.sb-group[aria-expanded=false]').forEach((b) => b.click());", args: [] });
+  await click(`//button[contains(concat(' ',normalize-space(@class),' '),' nav ') and ${text(label)}]`);
 }
 async function pageText() {
   return wd("POST", `/session/${sid}/execute/sync`, { script: "return document.body.innerText;", args: [] });
@@ -693,7 +695,7 @@ try {
     await see("Full proposal payload", 60000);
     await see("Prepared cache");
     const evidence = await wd("POST", `/session/${sid}/execute/sync`, {
-      script: "const t = document.body.innerText; return { localRuntime: !!document.querySelector('.lk[title=runtime]') && !!document.querySelector('.lk[title=audit]'), authority: t.includes('Evaluation evidence, not a record.') };",
+      script: "const t = document.body.innerText; return { localRuntime: !!document.querySelector('.lk[title=runtime]:not(details *)') && !!document.querySelector('.lk[title=audit]:not(details *)'), authority: t.includes('Evaluation evidence, not a record.') };",
       args: [],
     });
     if (!evidence.localRuntime || !evidence.authority) {
