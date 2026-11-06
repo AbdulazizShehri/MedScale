@@ -412,8 +412,7 @@ body { font-family: var(--font-ui); }
 
 /* Welcome + Access (no sidebar) */
 .gate { width: 100%; height: 100%; background: var(--bg-app); color: var(--ink-1); position: relative; overflow: auto; }
-.gate-topo { position: absolute; top: 0; right: 0; width: 66%; height: 100%; color: var(--ink-1); pointer-events: none; }
-.gate-fade { position: absolute; inset: 0 auto 0 0; width: 52%; background: linear-gradient(90deg, var(--bg-app) 62%, transparent); pointer-events: none; }
+.gate-topo { position: absolute; top: 0; right: 0; width: 50%; height: 100%; color: var(--ink-1); opacity: 0.7; pointer-events: none; -webkit-mask-image: linear-gradient(90deg, transparent, #000 30%); mask-image: linear-gradient(90deg, transparent, #000 30%); }
 .access { display: flex; flex-wrap: wrap; min-height: 100%; }
 .access > section { flex: 1 1 560px; min-width: 0; display: flex; flex-direction: column; padding: 48px 64px; }
 .access > aside { flex: 0 1 460px; min-width: 0; background: var(--bg-surface); box-shadow: -1px 0 0 var(--line-subtle); padding: 48px; display: flex; flex-direction: column; justify-content: center; gap: 28px; }
@@ -502,9 +501,6 @@ body { font-family: var(--font-ui); }
 .attn { color: var(--signal-text); }
 
 /* Brand mark placements (geometry unchanged; color only) */
-.brand-hero { display: flex; align-items: center; gap: 14px; }
-.brand-hero .mark { color: var(--ink-1); flex: none; }
-.brand-rule { height: 3px; width: 56px; border-radius: 2px; background: linear-gradient(90deg, var(--brand-blue) 0 62%, var(--brand-orange) 62% 100%); }
 .splash { width: 100%; height: 100%; display: grid; place-items: center; background: var(--bg-app); color: var(--ink-1); }
 .splash .stack { align-items: center; text-align: center; gap: 14px; }
 .splash .mark { color: var(--ink-1); }
@@ -528,16 +524,178 @@ body { font-family: var(--font-ui); }
   letter-spacing: -0.04em;
   text-wrap: balance;
 }
-.gate-welcome-hint { max-width: 460px; margin: 0; color: var(--ink-2); font-size: 14px; line-height: 1.7; }
-.gate-welcome-actions { display: flex; gap: 10px; align-items: flex-start; flex-wrap: wrap; }
+.gate-welcome-tag { display: flex; flex-wrap: wrap; gap: 0 8px; margin-top: -8px; font-size: 20px; line-height: 28px; font-weight: 500; letter-spacing: -0.015em; color: var(--ink-2); }
+.gate-welcome-hint { max-width: 460px; margin: 0; color: var(--ink-2); font-size: 14px; line-height: 22px; text-wrap: pretty; }
+.gate-welcome-foot { display: flex; flex-wrap: wrap; align-items: center; gap: 4px var(--s-6); font-size: 12px; line-height: 16px; color: var(--ink-3); }
+.gate-welcome-foot .mono { font-size: 12px; }
+.gate-welcome-actions { display: flex; gap: 8px; align-items: flex-start; flex-wrap: wrap; }
 .gate-welcome-actions > button { min-height: 44px; }
+/* Below this width the dot field would sit under the copy. */
+@media (max-width: 1000px) { .gate-topo { display: none; } }
 @media (max-width: 700px) {
-  .gate-welcome-layout { padding: 32px 24px 28px; gap: 38px; }
+  .gate-welcome-layout { padding: 32px 24px; gap: 32px; }
   .gate-welcome-title { font-size: clamp(32px, 8vw, 46px); }
   .gate-welcome-actions { flex-direction: column; align-items: stretch; }
   .gate-welcome-actions > button { justify-content: center; }
-  .gate-topo { opacity: .45; width: 100%; }
 }
 @media (max-width: 380px) {
-  .gate-welcome-layout { padding: 24px 18px; }
+  .gate-welcome-layout { padding: 24px 16px; }
 }
+
+/* ---------- 17. Shell alignment ----------
+   Sections 1-14 stay verbatim, so alignment lives here. The sidebar has one icon
+   column centred at 25 px and one label axis at 44 px. The breadcrumb, page title
+   and sections share the page's left edge, and the brand row is as tall as the
+   header, so the logo and the breadcrumb sit on one line. */
+.sb-brand { height: var(--header); }
+.hd { padding: 0 var(--pad-page-x); }
+.sb-ws { gap: 10px; }
+.sb-search { gap: 11px; padding: 0 7px; }
+.sb-search > svg { margin-left: 1px; }
+.rt { gap: 10px; }
+.rt > .g, .rt > .gt { margin: 4.5px 4.5px 0; }
+
+/* A wrapped ledger row starts on the page edge too: every cell has its rule and
+   padding, and the clip removes them at the start of each row. */
+.ledger { row-gap: 12px; margin-left: -21px; clip-path: inset(0 0 0 21px); }
+.ledger > div:first-child { padding-left: 20px; border-left: 1px solid var(--line-subtle); }
+
+/* Page rhythm: 8 px between a label and its control, one measure for running text. */
+.page-head, .ph { margin-bottom: 20px; }
+.ms input[type="checkbox"] { margin: 0; }
+.stack > label.lbl { margin-bottom: 0; }
+.stack > select { align-self: flex-start; width: min(100%, 420px); }
+.section p.t-sm, .section .stack > p, .pane > .section > .t-sm { max-width: 76ch; }
+/* A ghost button's label lines up with the input above it; its hover area hangs left. */
+.ms .row-gap > .btn-g:first-child { margin-left: -10px; }
+
+/* One control height. A button beside an input is the same height as the input. */
+:root, [data-theme] { --ctl: 36px; --nav: 36px; }
+[data-density="compact"] { --ctl: 32px; --nav: 32px; }
+.ms input:not([type]), .ms input[type="text"], .ms input[type="password"], .ms input[type="search"], .ms select, .picker select { height: var(--ctl); }
+.seg button { height: calc(var(--ctl) - 6px); }
+.flt { height: var(--ctl); }
+
+/* The field draws the frame. The input inside it has none, and the ring follows it. */
+.ms .field input:not([type]), .ms .field input[type] { height: 100%; padding: 0; border: 0; background: transparent; box-shadow: none; outline: 0; }
+.ms .field:focus-within { outline: 1.5px solid var(--focus); outline-offset: 0; box-shadow: 0 0 0 4px var(--focus-halo); }
+
+/* Row text sits on the page edge with the headings and rules. Hover and selection
+   bleed 12 px outward as shadows, so nothing shifts when a row changes state. */
+.tb th:first-child, .tb td:first-child, .tfoot, .lr { padding-left: 0 !important; }
+.tb th:last-child, .tb td:last-child, .tfoot, .lr { padding-right: 0 !important; }
+.tb td { overflow-wrap: anywhere; }
+.tb tbody tr:hover td:first-child, .tb tbody tr.hov td:first-child { box-shadow: -12px 0 0 var(--bg-hover); }
+.tb tbody tr:hover td:last-child, .tb tbody tr.hov td:last-child { box-shadow: 12px 0 0 var(--bg-hover); }
+.tb tbody tr.sel td:first-child { box-shadow: -9px 0 0 var(--bg-active), -12px 0 0 var(--accent); }
+.tb tbody tr.sel td:last-child { box-shadow: 12px 0 0 var(--bg-active); }
+.lr:hover { box-shadow: -12px 0 0 var(--bg-hover), 12px 0 0 var(--bg-hover); }
+.lr.sel { box-shadow: -9px 0 0 var(--bg-active), -12px 0 0 var(--accent), 12px 0 0 var(--bg-active); }
+/* A trailing ghost button's label ends on the page edge too. */
+.lr > .btn-g:last-child, .sec-a > .btn-g:last-child, .page-head > .btn-g:last-child { margin-right: -10px; }
+
+/* Audio's source row keeps its name and detail readable when the window narrows. */
+.lr-source { grid-template-columns: minmax(0, 1fr) minmax(0, 1.2fr) 110px auto; padding-block: 8px; }
+.lr-actions { display: flex; align-items: center; justify-content: flex-end; gap: 4px; }
+@media (max-width: 1279px) {
+  .lr-source { grid-template-columns: minmax(0, 1fr) 110px; row-gap: 4px; }
+  .lr-source > :nth-child(2) { grid-row: 2; grid-column: 1 / -1; }
+  .lr-actions { grid-column: 1 / -1; justify-content: flex-start; margin-left: -10px; }
+}
+
+/* A checkbox stays beside its label when the label is long. */
+label.row-gap { flex-wrap: nowrap; }
+label.row-gap > input[type="checkbox"] { flex: none; }
+
+/* Glyphs centre on the first line of a 18 px text block. */
+.toast > .g, .toast > .gt, .notice > .g, .notice > .gt { margin-top: 4.5px; }
+
+/* Inspector: its first heading shares a line with the page title. */
+.inspector .ins-pad { padding: var(--pad-page-y) 24px 32px; gap: 24px; }
+.inspector .auth { flex-wrap: wrap; align-items: center; }
+.inspector .auth > :last-child { flex-basis: 100%; }
+
+/* Key-value rows: the label and first value line share a baseline. */
+.kv > div:nth-child(odd) { padding-top: 7px; line-height: 16px; }
+
+.sb-nav { padding-top: 8px; }
+
+/* Unlock: one short column for a familiar task. */
+.access-compact { justify-content: center; }
+.access-compact > section { flex: 0 1 468px; padding: 48px 24px; }
+.access-sample { width: max-content; }
+.access-compact > section > .row-gap { row-gap: 4px; }
+.access-details summary { cursor: pointer; font-size: 12px; line-height: 16px; color: var(--ink-3); }
+.access-details summary:hover { color: var(--ink-1); }
+.splash .btn { align-self: center; }
+
+/* ---------- 18. Direction A: Precision Clinical, in plain language ----------
+   Labels are sentence case instead of tracked capitals, so a screen has one voice.
+   Navigation recedes: lighter text and smaller icons on the same axes as section 17.
+   Exact identifiers stay in mono; names for things use the interface face. */
+.sb-group { padding: 16px 8px 4px; font-size: 12px; line-height: 16px; font-weight: 500; letter-spacing: 0; text-transform: none; }
+.nav { font-weight: 400; gap: 11px; }
+.nav.on { font-weight: 500; }
+.nav svg { width: 16px; height: 16px; margin-left: 1px; }
+.sec-t { font-size: 13px; font-weight: 600; letter-spacing: -0.005em; text-transform: none; color: var(--ink-1); }
+.sec-n { display: none; }
+.sec-c { font-family: var(--font-ui); font-size: 12px; }
+.sec-rule { background: var(--line-subtle); }
+.t-label, .ms label.lbl, .lbl { font-size: 12px; line-height: 16px; font-weight: 500; letter-spacing: 0; text-transform: none; }
+.ms label.lbl { color: var(--ink-2); }
+.tb th { font-size: 12px; font-weight: 500; letter-spacing: 0; text-transform: none; }
+.lk { font-family: var(--font-ui); font-size: 12px; line-height: 16px; }
+.kv > div:nth-child(odd) { font-family: var(--font-ui); font-size: 12px; }
+.auth .t-label { letter-spacing: 0; }
+.synth { font-family: var(--font-ui); font-size: 12px; letter-spacing: 0; text-transform: none; }
+.audio-technical { margin-bottom: var(--gap-sec); }
+
+/* ---------- 19. Targets, navigation and task layouts ----------
+   Dense controls are 36 px (32 px compact). Primary actions are 44 px. min-height wins
+   over the small inline heights some rows set, so no control falls below these. */
+.ms .btn, .ms select, .sb-search { min-height: var(--ctl); }
+.sb-search { height: var(--ctl); }
+.ms .btn-p, .ms .btn.lg { min-height: 44px; padding-left: 16px; padding-right: 16px; }
+.sec { height: auto; min-height: var(--ctl); }
+label.row-gap { min-height: var(--ctl); }
+.field-row, .row-gap { align-items: center; }
+
+/* Sidebar groups fold; the group holding the current page stays open. */
+button.sb-group { display: flex; align-items: center; gap: 6px; width: 100%; min-height: var(--nav); padding: 8px 8px 4px; text-align: left; border-radius: var(--r-2); color: var(--ink-3); }
+button.sb-group:hover:not([aria-disabled="true"]) { color: var(--ink-1); }
+button.sb-group[aria-disabled="true"] { cursor: default; }
+button.sb-group svg { flex: none; }
+
+/* Recovery: what happened, then what you can do. Nothing happens by itself. */
+.recovery { display: flex; gap: 12px; align-items: flex-start; max-width: 520px; padding: 12px 14px; border: 1px solid var(--line-strong); border-radius: var(--r-2); background: var(--bg-surface); }
+.recovery > .g, .recovery > .gt { margin-top: 4.5px; }
+.recovery-title { margin: 0; font-size: 13px; line-height: 18px; font-weight: 600; color: var(--ink-1); }
+.recovery-detail { margin: 2px 0 0; font-size: 12.5px; line-height: 18px; color: var(--ink-2); }
+.recovery-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px; }
+.access-sample { min-height: 36px; }
+
+/* MedAgent: runs, then the selected run, then setup. Knowledge: search, then its index. */
+.agent-layout { display: grid; grid-template-columns: 260px minmax(0, 1fr) 260px; gap: 32px; align-items: start; }
+.knowledge-layout { display: grid; grid-template-columns: minmax(0, 1fr) 280px; gap: 32px; align-items: start; }
+.agent-side { min-width: 0; }
+.knowledge-search { margin-bottom: var(--gap-sec); }
+.knowledge-search input { height: 44px; font-size: 14px; }
+.agent-layout form.stack { margin-bottom: var(--gap-sec); padding-bottom: var(--gap-sec); border-bottom: 1px solid var(--line-subtle); }
+.agent-side form.stack { padding-bottom: 0; border-bottom: 0; }
+@media (max-width: 1279px) {
+  .agent-layout { grid-template-columns: 240px minmax(0, 1fr); }
+  .agent-layout > .agent-side { grid-column: 1 / -1; }
+  .knowledge-layout { grid-template-columns: minmax(0, 1fr); }
+}
+
+.home-row { grid-template-columns: 16px minmax(150px, 1fr) minmax(0, 1.6fr) minmax(0, 200px) 72px; }
+@media (max-width: 1179px) { .home-row { grid-template-columns: 16px minmax(120px, 1fr) minmax(0, 1.6fr) auto; } }
+
+/* Settings: a section list beside one reading column. */
+.settings-layout { display: grid; grid-template-columns: 168px minmax(0, 720px); gap: 32px; align-items: start; }
+.settings-nav { position: sticky; top: 0; display: flex; flex-direction: column; gap: 2px; }
+.settings-link { min-height: var(--ctl); padding: 0 8px; margin-left: -8px; text-align: left; font-size: 13px; color: var(--ink-2); border-radius: var(--r-2); }
+.settings-link:hover { background: var(--bg-hover); color: var(--ink-1); }
+.settings-body > div { scroll-margin-top: 16px; }
+.settings-body > div:focus { outline: none; }
+@media (max-width: 900px) { .settings-layout { grid-template-columns: minmax(0, 1fr); } .settings-nav { position: static; flex-direction: row; flex-wrap: wrap; } .settings-link { margin-left: 0; } }

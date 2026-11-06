@@ -42,6 +42,7 @@ const STALE: Array<[RegExp, string]> = [
   [/\bTauri App\b|vite\.svg|Vite \+ React|create-vite/i, "generator boilerplate"],
   [/ScaleFold/i, "superseded identity (#125)"],
   [/paired[- ]M\b|M0 76 50 0 100 76Z|M0 86\.60254/, "superseded paired-M logo (Logo 12, 2026-10-19)"],
+  [/medscale-frames|M13\.5 390\.5|M209\.5 725/, "superseded Logo 12 frames (founder mark, 2026-11-05)"],
   [/lorem ipsum/i, "placeholder text"],
   [/\b\d[\d,]* (?:local |)models (?:run|available) locally\b/i, "bare model-count claim (Spec 103 R11)"],
 ];
@@ -52,6 +53,62 @@ test("product-facing surfaces carry no stale or third-party-centred identity", (
     for (const [pattern, why] of STALE) if (pattern.test(text)) hits.push(`${file}: ${why}`);
   }
   assert.deepEqual(hits, []);
+});
+
+test("active brand files never name a retired symbol", () => {
+  const hits = walk("assets/brand").filter((f) => f.endsWith(".svg") && /Logo 12/.test(read(f)));
+  assert.deepEqual(hits, []);
+});
+
+test("the founder symbol is one filled path, identical across every asset and runtime copy", () => {
+  const brand = "assets/brand/";
+  const mark = read(`${brand}mark-black.svg`);
+  const symbolOf = (svg: string, file: string) => {
+    const groups = svg.match(/<g id="medscale-symbol"[^>]*>(.*?)<\/g>/g) ?? [];
+    assert.equal(groups.length, 1, `exactly one symbol group: ${file}`);
+    const group = groups[0] ?? "";
+    assert.match(group, /^<g id="medscale-symbol" transform="translate\([\d. ]+\) scale\([\d.]+\)" fill="#(?:000000|FFFFFF)" fill-rule="evenodd"><path d="[^"]+"\/><\/g>$/, file);
+    return group.match(/ d="([^"]+)"/)?.[1] ?? "";
+  };
+  const path = symbolOf(mark, "mark-black.svg");
+  assert.equal(path.match(/M/g)?.length, 4, "the trapezoid and three counters");
+  assert.equal(path.match(/Z/g)?.length, 4, "every subpath is closed");
+  assert.equal(path.match(/C/g)?.length, 4, "four rounded corners, sharp counters");
+  assert.doesNotMatch(path, /[^MLCZ\d. -]/);
+  const masters = readdirSync(join(repo, brand)).filter((f) => f.endsWith(".svg"));
+  assert.ok(masters.length >= 16);
+  for (const file of masters) {
+    const svg = read(brand + file);
+    assert.doesNotMatch(svg, /stroke|medscale-frames|<circle|Gradient|<filter|<image|<text|opacity/, file);
+    if (!file.includes("wordmark")) assert.equal(symbolOf(svg, file), path, file);
+    const allowed = /icon|favicon/.test(file) ? /^#(?:000000|FFFFFF|080808)$/ : /^#(?:000000|FFFFFF)$/;
+    for (const color of svg.match(/#[0-9A-Fa-f]{6}/g) ?? []) assert.match(color, allowed, file);
+  }
+  assert.ok(read("assets/brand/source/geometry.json").includes(path));
+  const component = read("apps/desktop-tauri/src/components/brand.tsx");
+  assert.ok(component.includes(path), "desktop brand component geometry drift");
+  assert.doesNotMatch(component, /stroke|weight/i);
+  for (const [master, copy] of [
+    ["mark-black.svg", "crates/medscale-desktop/ui/assets/medscale-mark.svg"],
+    ["mark-white.svg", "crates/medscale-desktop/ui/assets/medscale-mark-white.svg"],
+    ["medscale-app-icon-dark.svg", "crates/medscale-desktop/ui/assets/medscale-app-icon.svg"],
+    ["medscale-app-icon-light.svg", "crates/medscale-desktop/ui/assets/medscale-app-icon-light.svg"],
+    ["medscale-favicon.svg", "apps/desktop-tauri/public/favicon.svg"],
+    ["mark-black.svg", "web/public/brand/mark-black.svg"],
+    ["mark-white.svg", "web/public/brand/mark-white.svg"],
+    ["medscale-app-icon-macos.svg", "web/public/brand/medscale-app-icon-macos.svg"],
+    ["medscale-favicon.svg", "web/public/brand/medscale-favicon.svg"],
+    ["medscale-horizontal-black.svg", "web/public/brand/medscale-horizontal-black.svg"],
+    ["medscale-horizontal-white.svg", "web/public/brand/medscale-horizontal-white.svg"],
+    ["medscale-wordmark-white.svg", "web/public/brand/medscale-wordmark-white.svg"],
+    ["icons/icon.ico", "apps/desktop-tauri/src-tauri/icons/icon.ico"],
+    ["icons/icon.icns", "apps/desktop-tauri/src-tauri/icons/icon.icns"],
+    ["icons/icon.ico", "web/public/favicon.ico"],
+    ["icons/favicon-32.png", "web/public/brand/favicon-32.png"],
+    ["icons/apple-touch-icon.png", "web/public/brand/apple-touch-icon.png"],
+  ] as const) {
+    assert.ok(readFileSync(join(repo, brand, master)).equals(readFileSync(join(repo, copy))), `runtime copy drift: ${copy}`);
+  }
 });
 
 test("product name and window title are MedScale", () => {

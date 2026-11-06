@@ -195,7 +195,9 @@ async function see(t, timeout) {
   await find(`//*[${text(t)} and not(.//*[${text(t)}])]`, timeout);
 }
 async function nav(label) {
-  await click(`//button[contains(@class,'nav') and ${text(label)}]`);
+  // Sidebar groups fold, so open any closed group before looking for the item.
+  await wd("POST", `/session/${sid}/execute/sync`, { script: "document.querySelectorAll('button.sb-group[aria-expanded=false]').forEach((b) => b.click());", args: [] });
+  await click(`//button[contains(concat(' ',normalize-space(@class),' '),' nav ') and ${text(label)}]`);
 }
 async function pageText() {
   return wd("POST", `/session/${sid}/execute/sync`, { script: "return document.body.innerText;", args: [] });
@@ -691,9 +693,9 @@ try {
     if (!packId) throw new Error("no admitted runnable synthetic model Pack selected");
     await click(`//button[@type='submit' and normalize-space(.)='Evaluate']`);
     await see("Full proposal payload", 60000);
-    await see("prepared cache");
+    await see("Prepared cache");
     const evidence = await wd("POST", `/session/${sid}/execute/sync`, {
-      script: "const t = document.body.innerText; return { localRuntime: t.includes('runtime') && t.includes('audit'), authority: t.includes('Evaluation evidence, not a record.') };",
+      script: "const t = document.body.innerText; return { localRuntime: !!document.querySelector('.lk[title=runtime]:not(details *)') && !!document.querySelector('.lk[title=audit]:not(details *)'), authority: t.includes('Evaluation evidence, not a record.') };",
       args: [],
     });
     if (!evidence.localRuntime || !evidence.authority) {
@@ -830,7 +832,7 @@ try {
     await click(`//*[@role='option' and ${text("Switch to dark theme")}]`);
     const theme = await wd("POST", `/session/${sid}/execute/sync`, { script: "return document.querySelector('.ms')?.getAttribute('data-theme');", args: [] });
     if (theme !== "dark") throw new Error(`theme is ${theme}, expected dark`);
-    for (const [route, expect] of [["Patients", "Ada Synthetic"], ["Insights", "cohort_size"], ["Knowledge", null], ["MedAgent", "summarize the bound sources"], ["Models", "MedScale Catalog"], ["Audit Trail", /synthetic-subject-ada|No disclosures recorded/]]) {
+    for (const [route, expect] of [["Patients", "Ada Synthetic"], ["Insights", "Present facts"], ["Knowledge", null], ["MedAgent", "summarize the bound sources"], ["Models", "MedScale Catalog"], ["Audit Trail", /synthetic-subject-ada|No disclosures recorded/]]) {
       await nav(route);
       if (route === "Knowledge") {
         // The restart starts a fresh session: rebuild the index and search again.
@@ -900,7 +902,7 @@ try {
       execFileSync("taskkill", ["/F", "/T", "/IM", path.basename(app)], { stdio: "ignore" });
       await quit();
       await launch();
-      await click(`//button[${text("Set up or unlock encrypted vault")}]`, 60000);
+      // A closed encrypted vault opens straight on unlock, with no Welcome first.
       await see("Unlock workspace", 60000);
       await type("//input[@id='pp']", "e2e-disposable-runner-passphrase");
       await click("//button[@type='submit' and not(@disabled)]");
@@ -938,6 +940,8 @@ try {
     fs.rmSync(manifest);
     await launch();
     await journey("unopenable-sample-set-aside", async () => {
+      // An encrypted vault exists by now, so the sample is one explicit step away.
+      await click(`//button[${text("Explore sample data instead")}]`, 60000);
       await click(`//button[${text("Try MedScale with sample data")}]`, 60000);
       await see("The sample workspace was not finished setting up.", 60000);
       await click(`//button[${text("Set the sample workspace aside")}]`);

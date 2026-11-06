@@ -1,7 +1,7 @@
 import { useMemo, useState, type ReactNode } from "react";
 import { useApp } from "../lib/app";
 import { useCommand } from "../lib/ipc";
-import { Authority, Empty, ErrorState, Glyph, KV, Notice, Section, Skeleton, Stamp, Status, type GlyphKind } from "../components/ui";
+import { Authority, Empty, ErrorState, Glyph, KV, Notice, Section, Skeleton, Stamp, Status, humanKey, type GlyphKind } from "../components/ui";
 
 type Slot = { concept_key: string; status: string };
 type SubjectRow = {
@@ -93,11 +93,11 @@ export function Patients() {
             </div>
             <table className="tb" aria-label="Patients">
               <thead><tr>
-                <th style={{ width: "28%" }} className="sorted">Patient</th>
-                <th style={{ width: "16%" }} className="col-p2">Known condition</th>
-                <th style={{ width: "20%" }}>Coverage</th>
-                <th style={{ width: "7%" }} className="col-p3 num" title="Sources">Src</th>
-                <th style={{ width: "15%" }}>Review</th>
+                <th style={{ width: "24%" }} className="sorted">Patient</th>
+                <th style={{ width: "19%" }} className="col-p2">Known condition</th>
+                <th style={{ width: "18%" }}>Coverage</th>
+                <th style={{ width: "10%" }} className="col-p3 num" title="Sources">Sources</th>
+                <th style={{ width: "17%" }}>Review</th>
                 <th className="num" title="Latest event">Latest</th>
               </tr></thead>
               <tbody>
@@ -154,16 +154,16 @@ function PatientInspector({ subject, onOpen }: { subject: string; onOpen: () => 
               <button type="button" className="btn btn-p" onClick={onOpen}>Open</button>
             </div>
             <div className="row-gap" style={{ gap: 18 }}><Status kind="synthetic">Synthetic</Status><Status kind={d.coverage_state.toLowerCase().includes("review") ? "needs-review" : glyphState(d.coverage_state)}>{d.coverage_state}</Status></div>
-            <Section title="Brief" count="SubjectBriefV1">
-              <KV keyWidth={150} rows={[
+            <Section title="Brief">
+              <KV keyWidth={112} rows={[
                 ...d.contracts.brief.sections.identity.map((f): [string, ReactNode] => [f.field_key, <FieldValue f={f} />]),
                 ...d.contracts.brief.sections.conditions.map((f): [string, ReactNode] => [f.field_key, <FieldValue f={f} />]),
               ]} />
             </Section>
-            <Section title="Coverage" count={`${d.contracts.coverage.slots.length} slots`}>
+            <Section title="Coverage" count={`${d.contracts.coverage.slots.length} areas`}>
               {d.contracts.coverage.slots.map((s) => (
                 <div key={s.concept_key} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", minHeight: 30, borderBottom: "1px solid var(--line-subtle)", gap: 12 }}>
-                  <span className="lk trunc">{s.concept_key}</span>
+                  <span className="lk trunc" title={s.concept_key}>{humanKey(s.concept_key)}</span>
                   <Status kind={cov(s.status).glyph} weight={s.status === "present" ? "default" : "weak"}>{cov(s.status).label}</Status>
                 </div>
               ))}
@@ -172,7 +172,7 @@ function PatientInspector({ subject, onOpen }: { subject: string; onOpen: () => 
             <Section title="Sources" count={d.sources.length}>
               <div className="stack" style={{ gap: 8 }}>{d.sources.map((s) => <span key={s.source_id + s.fixture} className="stamp"><span className="g g-synthetic" />{s.resource_type} · {s.source_id}</span>)}</div>
             </Section>
-            <Authority>Read-only presentation. Missing or conflicting evidence is never promoted into an affirmative fact.</Authority>
+            <Authority>Read-only. Missing or conflicting evidence is never presented as fact.</Authority>
           </>;
         })()}
       </div>

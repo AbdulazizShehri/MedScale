@@ -39,14 +39,14 @@ export function EvidenceExample() {
           <span><i style={{ background: "var(--blue)" }} /> Supported</span>
           <span><i style={{ background: "var(--orange)" }} /> Conflict or no evidence</span>
         </div>
-        <p className="body" style={{ fontSize: 14 }}>Select a highlighted phrase to see what supports it.</p>
+        <p className="body body-sm">Select a highlighted phrase to see what supports it.</p>
       </div>
       <div className="evidence-side" aria-live="polite">
         <span className="state-tag" data-state={claim.state}>{claim.label}</span>
         <p className="body" style={{ color: "var(--ink)" }}>{claim.why}</p>
         {claim.source && <SourceCard {...claim.source} state={claim.state} />}
         {claim.second && <SourceCard {...claim.second} state={claim.state} />}
-        {!claim.source && <div className="source-card"><small>Bound sources · 2 documents</small><p className="body" style={{ fontSize: 14 }}>No sentence in the bound sources mentions allergies.</p></div>}
+        {!claim.source && <div className="source-card"><small>Bound sources · 2 documents</small><p className="body body-sm">No sentence in the bound sources mentions allergies.</p></div>}
       </div>
       <div className="evidence-foot"><span>Interactive example · synthetic data</span><span>Illustrates MedScale&apos;s evidence states; not a screenshot</span></div>
     </div>

@@ -1,11 +1,18 @@
 """Rasterize an SVG file to PNG with headless Edge (exact pixel size, optional transparency)."""
+import atexit
+import os
+import shutil
 import subprocess
 import sys
+import tempfile
 from pathlib import Path
 
 from PIL import Image
 
-EDGE = r"C:\Program Files (x86)\Microsoft\Edge\Application\msedge.exe"
+EDGE = os.environ.get("MEDSCALE_EDGE", r"C:\Program Files (x86)\Microsoft\Edge\Application\msedge.exe")
+# A private profile, so a running Edge cannot stall the headless render.
+PROFILE = tempfile.mkdtemp(prefix="medscale-edge-")
+atexit.register(shutil.rmtree, PROFILE, ignore_errors=True)
 
 
 def raster(svg_path, png_path, width, height=None, transparent=True):
@@ -23,11 +30,18 @@ def raster(svg_path, png_path, width, height=None, transparent=True):
     )
     tmp = png_path.with_name(png_path.stem + ".full.png")
     args = [EDGE, "--headless", "--disable-gpu", "--hide-scrollbars", "--force-device-scale-factor=1",
-            "--allow-file-access-from-files", f"--window-size={max(width, 64)},{max(height, 64)}",
+            "--allow-file-access-from-files", f"--user-data-dir={PROFILE}", f"--window-size={max(width, 64)},{max(height, 64)}",
             f"--screenshot={tmp}"]
     if transparent:
         args.append("--default-background-color=00000000")
-    subprocess.run(args + [html.resolve().as_uri()], check=True, capture_output=True, timeout=60)
+    # Headless Edge occasionally hangs on a screenshot; a fresh attempt succeeds.
+    for attempt in range(4):
+        try:
+            subprocess.run(args + [html.resolve().as_uri()], check=True, capture_output=True, timeout=30)
+            break
+        except subprocess.TimeoutExpired:
+            if attempt == 3:
+                raise
     Image.open(tmp).convert("RGBA").crop((0, 0, width, height)).save(png_path, optimize=True)
     tmp.unlink()
     html.unlink()

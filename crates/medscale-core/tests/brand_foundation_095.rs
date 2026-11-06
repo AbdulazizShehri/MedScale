@@ -1,6 +1,7 @@
 //! Brand asset, redistribution, and non-color presentation contracts.
-//! Logo 12 (founder-approved 2026-10-19) supersedes the Spec 095 paired mark.
-//! The wordmark follows the founder amendment of 2026-10-22: filled outlines.
+//! The founder-supplied mark of 2026-11-05 supersedes Logo 12 (2026-10-19) and
+//! the Spec 095 paired mark. The wordmark follows the founder amendment of
+//! 2026-10-22: filled outlines.
 //! These deterministic checks do not establish rendered UI or WCAG qualification.
 
 use medscale_contracts::objects::DigestSha256;
@@ -57,7 +58,7 @@ fn group<'a>(svg: &'a str, id: &str) -> (&'a str, Vec<&'a str>) {
         .map(|path| {
             assert!(
                 !path.contains("stroke-width") && !path.contains("fill="),
-                "per-path weight or fill breaks the uniform stroke"
+                "per-path weight or fill breaks the monochrome group"
             );
             let d = path.split_once("d=\"").expect("path data").1;
             d.split_once('"').expect("path data end").0
@@ -66,17 +67,22 @@ fn group<'a>(svg: &'a str, id: &str) -> (&'a str, Vec<&'a str>) {
     (&svg[start..open_end], paths)
 }
 
-const FRAMES: &str = "medscale-frames";
+const SYMBOL: &str = "medscale-symbol";
 const WORDMARK: &str = "medscale-wordmark";
+/// The near-black tile sampled from the founder's art. Only application icons may use it.
+const TILE: &str = "#080808";
+/// The mark's offset on the founder's 1024-unit tile.
+const TILE_SYMBOL_OFFSET: (f64, f64) = (111.07, 247.1);
+/// The one symbol path: a rounded trapezoid and three triangular counters.
+const SYMBOL_PATH: &str = "M210.83 0L579.63 0C596.18 0 606.46 10.69 611.45 23.3L792.93 482.11C803.53 508.91 787.93 520.61 768.81 520.61L27.28 520.61C2.08 520.61 -6.18 506.94 4.68 479L176.62 36.63C185.41 14.02 195.49 0 210.83 0ZM296.48 69.3L504.78 69.3L400.68 371.8ZM236.83 138.95L351.08 446.05L113.08 446.05ZM559.38 138.8L678.33 446.05L445.33 446.05Z";
 
-fn assert_monochrome_stroke(open_tag: &str, color: &str) {
-    assert_eq!(attribute(open_tag, "stroke"), color);
-    assert_eq!(attribute(open_tag, "fill"), "none");
-    assert_eq!(attribute(open_tag, "stroke-linejoin"), "round");
-    let width: f64 = attribute(open_tag, "stroke-width")
-        .parse()
-        .expect("numeric stroke width");
-    assert!(width > 0.0 && width.is_finite());
+fn assert_filled_symbol(open_tag: &str, color: &str) {
+    assert_eq!(attribute(open_tag, "fill"), color);
+    assert_eq!(attribute(open_tag, "fill-rule"), "evenodd");
+    assert!(
+        !open_tag.contains("stroke"),
+        "the symbol is filled artwork, never stroked"
+    );
 }
 
 fn assert_monochrome_fill(open_tag: &str, color: &str) {
@@ -98,83 +104,94 @@ fn assert_no_decoration(svg: &str, asset: &str) {
         "opacity",
         "medscale-paired-m",
         "M0 86.60254",
+        // Logo 12 (2026-10-19), superseded on 2026-11-05: its group and frame paths.
+        "medscale-frames",
+        "M13.5 390.5",
+        "M209.5 725",
+        "stroke",
     ] {
         assert!(
             !svg.contains(forbidden),
             "unapproved treatment in {asset}: {forbidden}"
         );
     }
+    let may_use_tile = asset.contains("icon") || asset.contains("favicon");
     for (index, _) in svg.match_indices('#') {
         let color = &svg[index..index + 7];
         assert!(
-            matches!(color, "#000000" | "#FFFFFF"),
+            matches!(color, "#000000" | "#FFFFFF") || (may_use_tile && color == TILE),
             "non-monochrome colour in {asset}: {color}"
         );
     }
 }
 
 #[test]
-fn approved_logo_12_symbol_is_three_stroked_frames_with_the_interlocked_lower_stroke() {
+fn founder_symbol_is_one_filled_path_with_three_triangular_counters() {
     let black = read("assets/brand/mark-black.svg");
     let white = read("assets/brand/mark-white.svg");
-    let (black_tag, black_paths) = group(&black, FRAMES);
-    let (white_tag, white_paths) = group(&white, FRAMES);
-    assert_monochrome_stroke(black_tag, "#000000");
-    assert_monochrome_stroke(white_tag, "#FFFFFF");
+    let (black_tag, black_paths) = group(&black, SYMBOL);
+    let (white_tag, white_paths) = group(&white, SYMBOL);
+    assert_filled_symbol(black_tag, "#000000");
+    assert_filled_symbol(white_tag, "#FFFFFF");
     assert_eq!(black_paths, white_paths, "inverse geometry drift");
-    assert_eq!(
-        attribute(black_tag, "stroke-width"),
-        attribute(white_tag, "stroke-width")
-    );
     assert_no_decoration(&black, "mark-black.svg");
     assert_no_decoration(&white, "mark-white.svg");
     assert!(!black.contains("<rect"), "the symbol master is transparent");
-    // Frame A is closed; frames B and C are one open stroke whose shared lower
-    // stroke descends from C's lower-right corner to B's lower-left corner,
-    // with C's left side continuing below it as the descender.
-    assert_eq!(black_paths.len(), 2);
-    assert!(black_paths[0].ends_with('Z'), "back frame is closed");
-    assert!(!black_paths[1].contains('Z'), "interlocked pair stays open");
-    for d in &black_paths {
-        assert!(
-            d.chars()
-                .filter(char::is_ascii_alphabetic)
-                .all(|c| matches!(c, 'M' | 'L' | 'Q' | 'Z'))
-        );
-        // Curve control points may sit outside the stroke bounds; the path
-        // start (the descender foot or frame A's left side) may not.
-        let view_box = numbers(attribute(&black, "viewBox"));
-        let start = numbers(d);
-        assert!(
-            (0.0..=view_box[2]).contains(&start[0]) && (0.0..=view_box[3]).contains(&start[1]),
-            "normalized to the symbol's own bounds"
-        );
-    }
-    let corners = |d: &str| d.matches('Q').count();
-    assert_eq!(
-        corners(black_paths[0]),
-        4,
-        "four rounded corners on frame A"
-    );
-    assert_eq!(
-        corners(black_paths[1]),
-        6,
-        "six rounded corners on frames B and C"
-    );
-    let coordinates = numbers(black_paths[1]);
-    let descender_bottom = coordinates[1];
+    assert_eq!(black_paths.len(), 1, "one filled path");
+    let d = black_paths[0];
+    assert_eq!(d, SYMBOL_PATH, "symbol geometry drift");
     assert!(
-        coordinates
-            .chunks_exact(2)
-            .all(|point| point[1] <= descender_bottom),
-        "the front frame's descender is the lowest stroke"
+        d.chars()
+            .filter(char::is_ascii_alphabetic)
+            .all(|c| matches!(c, 'M' | 'L' | 'C' | 'Z'))
+    );
+    assert_eq!(d.matches('Z').count(), 4, "every subpath is closed");
+    let subpaths: Vec<&str> = d.split('M').skip(1).collect();
+    assert_eq!(subpaths.len(), 4, "the trapezoid and three counters");
+    assert_eq!(
+        subpaths[0].matches('C').count(),
+        4,
+        "four rounded corners on the trapezoid"
+    );
+    // Curve control points may sit outside the artwork bounds; the trapezoid's
+    // start and every counter vertex may not.
+    let view_box = numbers(attribute(&black, "viewBox"));
+    assert!(
+        view_box[2] > 1.4 * view_box[3],
+        "the mark is wider than tall"
+    );
+    let inside =
+        |x: f64, y: f64| (0.0..=view_box[2]).contains(&x) && (0.0..=view_box[3]).contains(&y);
+    let outer = numbers(subpaths[0]);
+    assert!(inside(outer[0], outer[1]), "normalized to its own bounds");
+    let mut counters = Vec::new();
+    for counter in &subpaths[1..] {
+        assert_eq!(counter.matches('L').count(), 2, "a straight triangle");
+        assert!(!counter.contains('C'), "counters keep sharp corners");
+        let points = numbers(counter);
+        assert_eq!(points.len(), 6, "three vertices");
+        assert!(points.chunks_exact(2).all(|p| inside(p[0], p[1])));
+        counters.push(points);
+    }
+    // The centre counter points down, with its flat edge on top; the outer two point up.
+    assert!(counters[0][1] == counters[0][3] && counters[0][5] > counters[0][1]);
+    for side in &counters[1..] {
+        assert!(side[3] == side[5] && side[1] < side[3]);
+    }
+    assert!(
+        counters[1][0] < counters[0][4] && counters[0][4] < counters[2][0],
+        "left, centre and right counters"
+    );
+    assert!(
+        read("assets/brand/source/geometry.json").contains(SYMBOL_PATH),
+        "the generator's source holds the same path"
     );
 }
 
 #[test]
 fn every_asset_reuses_the_identical_symbol_and_wordmark_geometry() {
     let mark = read("assets/brand/mark-black.svg");
-    let (_, symbol) = group(&mark, FRAMES);
+    let (_, symbol) = group(&mark, SYMBOL);
     let wordmark_svg = read("assets/brand/medscale-wordmark-black.svg");
     let (wordmark_tag, wordmark) = group(&wordmark_svg, WORDMARK);
     assert_monochrome_fill(wordmark_tag, "#000000");
@@ -187,6 +204,22 @@ fn every_asset_reuses_the_identical_symbol_and_wordmark_geometry() {
     let (white_tag, white) = group(&white_svg, WORDMARK);
     assert_monochrome_fill(white_tag, "#FFFFFF");
     assert_eq!(white, wordmark, "inverse wordmark drift");
+    // The wordmark paths did not change with the 2026-11-05 symbol. These digests changed once, on
+    // 2026-11-06, only to remove a stale mention of the retired symbol from the SVG metadata.
+    for (file, expected) in [
+        (
+            "medscale-wordmark-black.svg",
+            "6a103a28dca4dbee836f012aa08812020d12e642e858be4a3466410159c088bb",
+        ),
+        (
+            "medscale-wordmark-white.svg",
+            "688501906d890e6edfa2ea1cdc2b51d4bcc955050195e76215b7255ad488b327",
+        ),
+    ] {
+        let bytes =
+            std::fs::read(repo_root().join("assets/brand").join(file)).expect("wordmark master");
+        assert_eq!(DigestSha256::of(&bytes).to_hex(), expected, "{file}");
+    }
     for (master, native) in [
         (
             "assets/brand/mark-black.svg",
@@ -208,8 +241,58 @@ fn every_asset_reuses_the_identical_symbol_and_wordmark_geometry() {
             "assets/brand/medscale-favicon.svg",
             "apps/desktop-tauri/public/favicon.svg",
         ),
+        (
+            "assets/brand/mark-black.svg",
+            "web/public/brand/mark-black.svg",
+        ),
+        (
+            "assets/brand/mark-white.svg",
+            "web/public/brand/mark-white.svg",
+        ),
+        (
+            "assets/brand/medscale-app-icon-macos.svg",
+            "web/public/brand/medscale-app-icon-macos.svg",
+        ),
+        (
+            "assets/brand/medscale-favicon.svg",
+            "web/public/brand/medscale-favicon.svg",
+        ),
+        (
+            "assets/brand/medscale-horizontal-black.svg",
+            "web/public/brand/medscale-horizontal-black.svg",
+        ),
+        (
+            "assets/brand/medscale-horizontal-white.svg",
+            "web/public/brand/medscale-horizontal-white.svg",
+        ),
+        (
+            "assets/brand/medscale-wordmark-white.svg",
+            "web/public/brand/medscale-wordmark-white.svg",
+        ),
     ] {
         assert_eq!(read(master), read(native), "runtime asset drift: {native}");
+    }
+    for (master, copy) in [
+        (
+            "assets/brand/icons/icon.ico",
+            "apps/desktop-tauri/src-tauri/icons/icon.ico",
+        ),
+        (
+            "assets/brand/icons/icon.icns",
+            "apps/desktop-tauri/src-tauri/icons/icon.icns",
+        ),
+        ("assets/brand/icons/icon.ico", "web/public/favicon.ico"),
+        (
+            "assets/brand/icons/favicon-32.png",
+            "web/public/brand/favicon-32.png",
+        ),
+        (
+            "assets/brand/icons/apple-touch-icon.png",
+            "web/public/brand/apple-touch-icon.png",
+        ),
+    ] {
+        let bytes = |path: &str| std::fs::read(repo_root().join(path)).expect("icon bytes");
+        assert!(bytes(master) == bytes(copy), "icon drift: {copy}");
     }
     for asset in [
         "medscale-wordmark-white.svg",
@@ -228,8 +311,14 @@ fn every_asset_reuses_the_identical_symbol_and_wordmark_geometry() {
     ] {
         let svg = read(&format!("assets/brand/{asset}"));
         assert_no_decoration(&svg, asset);
-        if svg.contains(FRAMES) {
-            assert_eq!(group(&svg, FRAMES).1, symbol, "symbol drift: {asset}");
+        if asset.contains("wordmark") {
+            assert!(!svg.contains(SYMBOL), "the wordmark stands alone: {asset}");
+        } else {
+            let (tag, paths) = group(&svg, SYMBOL);
+            assert_eq!(paths, symbol, "symbol drift: {asset}");
+            assert_eq!(attribute(tag, "fill-rule"), "evenodd", "{asset}");
+            assert!(!tag.contains("stroke"), "filled symbol: {asset}");
+            assert!(matches!(attribute(tag, "fill"), "#000000" | "#FFFFFF"));
         }
         if svg.contains(WORDMARK) {
             let (tag, paths) = group(&svg, WORDMARK);
@@ -241,7 +330,7 @@ fn every_asset_reuses_the_identical_symbol_and_wordmark_geometry() {
     for color in ["black", "white"] {
         for layout in ["horizontal", "stacked"] {
             let svg = read(&format!("assets/brand/medscale-{layout}-{color}.svg"));
-            assert!(svg.contains(FRAMES) && svg.contains(WORDMARK));
+            assert!(svg.contains(SYMBOL) && svg.contains(WORDMARK));
             assert!(!svg.contains("<rect"), "lockups are transparent");
         }
     }
@@ -253,30 +342,62 @@ fn every_asset_reuses_the_identical_symbol_and_wordmark_geometry() {
 }
 
 #[test]
-fn application_icons_center_the_symbol_with_clear_space() {
+fn application_icons_keep_the_founders_tile_and_clear_space() {
     let mark = numbers(attribute(&read("assets/brand/mark-black.svg"), "viewBox"));
-    for (variant, background) in [("dark", "#000000"), ("light", "#FFFFFF")] {
+    for (variant, background, ink) in [("dark", TILE, "#FFFFFF"), ("light", "#FFFFFF", "#000000")] {
         let svg = read(&format!("assets/brand/medscale-app-icon-{variant}.svg"));
         let view_box = numbers(attribute(&svg, "viewBox"));
         assert_eq!(view_box, vec![0.0, 0.0, 1024.0, 1024.0]);
         assert!(svg.contains(&format!(
-            "<rect width=\"1024\" height=\"1024\" fill=\"{background}\"/>"
+            "<rect width=\"1024\" height=\"1024\" rx=\"215\" fill=\"{background}\"/>"
         )));
-        let (tag, _) = group(&svg, FRAMES);
+        let (tag, _) = group(&svg, SYMBOL);
+        assert_eq!(attribute(tag, "fill"), ink);
         let transform = numbers(attribute(tag, "transform"));
         assert_eq!(transform.len(), 3, "translation plus uniform scale");
         let (x, y, scale) = (transform[0], transform[1], transform[2]);
-        let (width, height) = (mark[2] * scale, mark[3] * scale);
+        // The founder's art sits a few units off centre; keep exactly that placement.
+        assert!((scale - 1.0).abs() < 0.0001, "the founder's proportion");
         assert!(
-            (x - (1024.0 - width - x)).abs() < 0.01,
-            "centred horizontally"
+            (x - TILE_SYMBOL_OFFSET.0).abs() < 0.01,
+            "founder's x offset"
         );
         assert!(
-            (y - (1024.0 - height - y)).abs() < 0.01,
-            "centred vertically"
+            (y - TILE_SYMBOL_OFFSET.1).abs() < 0.01,
+            "founder's y offset"
+        );
+        let (width, height) = (mark[2] * scale, mark[3] * scale);
+        assert!(
+            (x - (1024.0 - width - x)).abs() < 1024.0 * 0.01,
+            "within 1% of centre horizontally"
+        );
+        assert!(
+            (y - (1024.0 - height - y)).abs() < 1024.0 * 0.01,
+            "within 1% of centre vertically"
         );
         assert!(y >= 1024.0 * 0.15, "clear space above and below the symbol");
     }
+    // Optical masters crop tighter around the same path, on the same tile.
+    let founder_scale = 1.0;
+    let mut previous = founder_scale;
+    for asset in ["medium-dark", "small-dark"] {
+        let svg = read(&format!("assets/brand/medscale-icon-{asset}.svg"));
+        assert!(svg.contains(&format!(
+            "<rect width=\"1024\" height=\"1024\" rx=\"215\" fill=\"{TILE}\"/>"
+        )));
+        let scale = numbers(attribute(group(&svg, SYMBOL).0, "transform"))[2];
+        assert!(scale > previous, "tighter crop at smaller sizes: {asset}");
+        assert!(
+            mark[2] * scale < 1024.0,
+            "the mark stays on the tile: {asset}"
+        );
+        previous = scale;
+    }
+    // macOS keeps Apple's 824/1024 rounded tile grid, with transparent margins.
+    let macos = read("assets/brand/medscale-app-icon-macos.svg");
+    assert!(macos.contains(&format!(
+        "<rect x=\"100\" y=\"100\" width=\"824\" height=\"824\" rx=\"185\" fill=\"{TILE}\"/>"
+    )));
     let wordmark = read("third_party/provenance/medscale-wordmark-2026-10-22.md");
     for required in [
         "2026-10-22",
@@ -305,12 +426,26 @@ fn application_icons_center_the_symbol_with_clear_space() {
         assert_eq!(DigestSha256::of(&bytes).to_hex(), expected, "{file}");
         assert!(wordmark.contains(expected), "provenance pins {file}");
     }
-    // Approved horizontal lockup proportions.
+    // Lockup proportions for the wider, filled symbol: no stroke, no drop.
     let geometry = read("assets/brand/source/geometry.json");
-    assert!(geometry.contains("\"symbol_to_cap\": 2.05"));
+    assert!(geometry.contains("\"symbol_to_cap\": 1.45"));
     assert!(geometry.contains("\"gap_to_cap\": 0.5"));
-    let provenance = read("third_party/provenance/logo-12-approved-identity.md");
-    assert!(provenance.contains("2026-10-19"));
+    assert!(geometry.contains("\"color\": \"#080808\""));
+    assert!(!geometry.contains("symbol_stroke") && !geometry.contains("symbol_drop"));
+    // Logo 12's record stays as history.
+    assert!(read("third_party/provenance/logo-12-approved-identity.md").contains("2026-10-19"));
+    let provenance = read("third_party/provenance/medscale-logo-2026-11-05.md");
+    assert!(provenance.contains("supplied"));
+    assert!(provenance.contains("2026-11-05"));
+    for reference in [
+        "7d8139bc35eb34d7ad03db37d3b49636c9898a68df55b854da98b7c2698d02d0",
+        "f6854f4ee03e1ac21b85909679fe1047a27305ff7738e1293a80a650812eac4a",
+    ] {
+        assert!(
+            provenance.contains(reference),
+            "reference digest {reference}"
+        );
+    }
     assert!(provenance.to_lowercase().contains("no font"));
     assert!(
         provenance.contains("16"),

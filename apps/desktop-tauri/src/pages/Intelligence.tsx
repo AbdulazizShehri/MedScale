@@ -25,17 +25,20 @@ export function Models() {
   return (
     <>
       <div className="pane">
-        <PageHead title="Models" sub="Operator-session Pack status, separate workspace evaluation, and model qualification references.">
+        <PageHead title="Models" sub="Model packs admitted in this session, a catalog to browse, and a way to try a model on synthetic text.">
           <button type="button" className="btn btn-s" onClick={admit} disabled={!!pending}>{pending ? <Glyph kind="running" /> : null}Admit synthetic fixture pack</button>
         </PageHead>
-        <Ledger items={[{ k: "runtime", v: v.model_runtime_summary }, { k: "source", v: v.model_source_summary }, { k: "inventory", v: v.model_inventory_summary }]} />
+        <details className="access-details audio-technical">
+          <summary>How models are governed</summary>
+          <div style={{ marginTop: 12 }}><Ledger items={[{ k: "runtime", v: v.model_runtime_summary }, { k: "source", v: v.model_source_summary }, { k: "inventory", v: v.model_inventory_summary }]} /></div>
+        </details>
         <div className="tabs" role="tablist" style={{ marginBottom: 14 }}>
-          <button type="button" role="tab" aria-selected={tab === "packs"} className={`tab ${tab === "packs" ? "on" : ""}`} onClick={() => setTab("packs")}>Pack status</button>
+          <button type="button" role="tab" aria-selected={tab === "packs"} className={`tab ${tab === "packs" ? "on" : ""}`} onClick={() => setTab("packs")}>Admitted packs</button>
           <button type="button" role="tab" aria-selected={tab === "catalog"} className={`tab ${tab === "catalog" ? "on" : ""}`} onClick={() => setTab("catalog")}>MedScale Catalog</button>
           <button type="button" role="tab" aria-selected={tab === "evaluate"} className={`tab ${tab === "evaluate" ? "on" : ""}`} onClick={() => setTab("evaluate")}>Try a model</button>
         </div>
         {tab === "packs" && (v.models.length ? (
-          <table className="tb"><thead><tr><th style={{ width: "30%" }}>Model</th><th style={{ width: "18%" }}>Task</th><th className="col-p3" style={{ width: "18%" }}>Runtime</th><th style={{ width: "17%" }}>State</th><th>Trust</th></tr></thead>
+          <table className="tb"><thead><tr><th style={{ width: "30%" }}>Model</th><th style={{ width: "18%" }}>Task</th><th className="col-p3" style={{ width: "16%" }}>Runtime</th><th style={{ width: "20%" }}>State</th><th>Trust</th></tr></thead>
             <tbody>{v.models.map((x, i) => (
               <tr key={x.model + i} className={`r2 clickable ${m === x ? "sel" : ""}`} tabIndex={0} onClick={() => setSel(i)} onKeyDown={(e) => e.key === "Enter" && setSel(i)}>
                 <td><div style={{ display: "flex", gap: 10, alignItems: "center", minWidth: 0 }}><Icon name="models" /><div style={{ display: "flex", flexDirection: "column", minWidth: 0 }}><span className="mono trunc" style={{ fontSize: 12.5, fontWeight: 500 }} title={x.model}>{x.model}</span><span className="t-sm i3 trunc" title={x.scope}>{x.scope}</span></div></div></td>
@@ -47,9 +50,9 @@ export function Models() {
         ) : <Empty icon="models" title="No admitted packs">Admit the bundled synthetic ONNX fixture pack. Core verifies its manifest, digests and signature before admission.</Empty>)}
         {tab === "catalog" && <CatalogTab />}
         {tab === "evaluate" && <EvaluateTab />}
-        <Section n="02" title="How model output is treated">
+        <Section title="How model output is treated">
           <div className="grid-2">
-            <Notice kind="proposal" title="Proposal.">Every output stays an outline-triangle proposal. Desktop has no step that accepts one into a record.</Notice>
+            <Notice kind="proposal" title="Proposal.">Every output stays a proposal, marked with an outlined triangle. MedScale has no step that accepts one into a record.</Notice>
             <Notice kind="unknown" title="Confidence.">Shown only when the task defines it. Raw logits are never presented as probability.</Notice>
           </div>
           <p className="t-sm i3" style={{ marginTop: 10 }}>{v.model_runtime_boundary}</p>
@@ -61,7 +64,7 @@ export function Models() {
             <div><div className="mono" style={{ fontSize: 13.5, fontWeight: 500 }}>{m.model}</div><div className="row-gap" style={{ gap: 14, marginTop: 8 }}><Status kind={/candidate/i.test(m.state) ? "proposal" : glyphFor(m.state)}>{m.state}</Status><Status kind={/synthetic/i.test(m.source) ? "synthetic" : "available"}>{m.source}</Status></div></div>
             <Section title="Identity"><KV keyWidth={96} rows={[["task", m.task], ["runtime", <span className="mono t-mono-sm">{m.runtime}</span>], ["device", m.device], ["trust", m.trust], ["digest", <span className="mono-break">{m.digest}</span>]]} /></Section>
             <Section title="Evidence"><p className="t-sm i2">{m.benchmark}</p></Section>
-            <Authority>Admission is not promotion. Promoting a pack to a task requires an explicit gate that this desktop does not grant.</Authority>
+            <Authority>Admitting a pack doesn't promote it. Promotion to a task needs an explicit gate that this desktop doesn't grant.</Authority>
           </div>
         </aside>
       )}
@@ -113,7 +116,7 @@ function CatalogTab() {
       {page.state.status === "loading" && <Skeleton />}
       {page.state.status === "error" && <ErrorState error={page.state.error} onRetry={page.reload} />}
       {p && <>
-        <table className="tb"><thead><tr><th style={{ width: "34%" }}>Model</th><th style={{ width: "18%" }}>Task</th><th className="col-p3" style={{ width: "14%" }}>Formats</th><th style={{ width: "10%" }}>Disk</th><th style={{ width: "14%" }}>Expectation</th><th>Status</th></tr></thead>
+        <table className="tb"><thead><tr><th style={{ width: "31%" }}>Model</th><th style={{ width: "16%" }}>Task</th><th className="col-p3" style={{ width: "12%" }}>Formats</th><th style={{ width: "12%" }}>Disk</th><th style={{ width: "15%" }}>Expectation</th><th>Status</th></tr></thead>
           <tbody>{p.rows.map((r) => (
             <tr key={r.repo_id} className="r2">
               <td><div style={{ display: "flex", flexDirection: "column", minWidth: 0 }}><span className="mono trunc" style={{ fontSize: 12.5 }} title={r.repo_id}>{catalogDisplayName(r.repo_id)}</span><span className="t-sm i3 trunc">{[r.family, r.tier, r.license_claim].filter(Boolean).join(" · ")}</span><span className="t-sm i3 mono trunc" title="MedScale catalog entry ID (not an assertion of model authorship)">{r.medscale_id}</span></div></td>
@@ -191,7 +194,7 @@ type Run = { id: string; status: string; revision: number; prompt: string };
 type Turn = { seq: number; kind: string; payload: string };
 
 export function MedAgent() {
-  return <ProjectScope title="MedAgent" sub="Named agents on admitted local Packs, with contexts bound to chosen sources. Output is a proposal.">{(pid) => <MedAgentBody projectId={pid} />}</ProjectScope>;
+  return <ProjectScope title="MedAgent" sub="Agents that run on local model packs you admit, reading only the sources you choose. Output is a proposal.">{(pid) => <MedAgentBody projectId={pid} />}</ProjectScope>;
 }
 
 type Agent = { id: string; label: string; status: string; revision?: number; pack_id?: string; tools?: string[] };
@@ -205,6 +208,8 @@ type RunDetail = {
 const TOOLS: Array<[string, string]> = [["read_context_artifact", "Read a bound source"], ["search_context_artifacts", "Search bound sources"]];
 
 function MedAgentBody({ projectId }: { projectId: string }) {
+  const [composing, setComposing] = useState(false);
+  useEffect(() => { if (composing) document.getElementById("ag")?.focus(); }, [composing]);
   const runs = useCommand<{ runs: Run[]; agents: Agent[] }>("medagent_runs", { projectId });
   const models = useCommand<Model[]>("medagent_models");
   const sources = useCommand<Source[]>("medagent_sources");
@@ -237,7 +242,7 @@ function MedAgentBody({ projectId }: { projectId: string }) {
     e.preventDefault();
     const args = agentId ? { projectId, prompt, agentId, sourceIds: picked } : { projectId, prompt, sourceIds: picked };
     const r = await run<Run>("create", "medagent_create_run", args);
-    if (outcome(r, "Run created (pending)")) { setPrompt(""); setProposal(null); await runs.reload(); setSel(r.data.id); }
+    if (outcome(r, "Run created (pending)")) { setPrompt(""); setProposal(null); setComposing(false); await runs.reload(); setSel(r.data.id); document.getElementById("new-run")?.focus(); }
   }
   async function step(cmd: "medagent_start" | "medagent_cancel" | "medagent_complete", label: string) {
     if (!cur) return;
@@ -267,9 +272,9 @@ function MedAgentBody({ projectId }: { projectId: string }) {
   const toggle = (xs: string[], x: string) => (xs.includes(x) ? xs.filter((y) => y !== x) : [...xs, x]);
 
   return (
-    <div style={{ display: "grid", gridTemplateColumns: "300px minmax(0,1fr)", gap: 24 }}>
+    <div className="agent-layout">
       <div>
-        <Section title="Runs" count={list.length}>
+        <Section title="Runs" count={list.length} actions={<button type="button" id="new-run" className="btn btn-g" onClick={() => setComposing(true)}>New run</button>}>
           {runs.state.status === "error" && <ErrorState error={runs.state.error} onRetry={runs.reload} />}
           {list.length === 0 && runs.state.status === "ready" && <p className="t-sm i3">No runs yet.</p>}
           {list.map((r) => (
@@ -279,6 +284,66 @@ function MedAgentBody({ projectId }: { projectId: string }) {
             </button>
           ))}
         </Section>
+      </div>
+      <div>
+        {(composing || !cur) && <form onSubmit={create} className="stack" style={{ gap: 8, marginBottom: 18 }}>
+          <h2 className="sec-t">New run</h2>
+          <label className="lbl" htmlFor="ag">Agent</label>
+          <select id="ag" value={agentId} onChange={(e) => setAgentId(e.target.value)}>
+            {!active.length && <option value="">Synthetic review agent (created on first run)</option>}
+            {active.map((a) => <option key={a.id} value={a.id}>{a.label}</option>)}
+          </select>
+          <span className="lbl">Sources this run may read ({picked.length} selected)</span>
+          <div className="stack" style={{ gap: 2, maxHeight: 150, overflow: "auto" }}>
+            {srcs.map((s) => (
+              <label key={s.id} className="row-gap t-sm" style={{ gap: 6 }}>
+                <input type="checkbox" checked={picked.includes(s.id)} onChange={() => setPicked(toggle(picked, s.id))} />
+                <span className="trunc">{s.resource_type} · {s.fixture} · {s.subject}</span>
+              </label>
+            ))}
+          </div>
+          <label className="lbl" htmlFor="ap">Prompt</label>
+          <textarea id="ap" value={prompt} onChange={(e) => setPrompt(e.target.value)} placeholder="Ask about the bound sources…" maxLength={2000} style={{ minHeight: 70 }} />
+          <div className="row-gap"><button type="submit" className="btn btn-p" disabled={!prompt.trim() || !picked.length || picked.length > 16 || !!pending}>{pending === "create" ? <Glyph kind="running" /> : null}Create run</button>{composing && cur && <button type="button" className="btn btn-g" onClick={() => { setComposing(false); document.getElementById("new-run")?.focus(); }}>Cancel</button>}</div>
+        </form>}
+        {cur ? <>
+          <Ledger items={[
+            { k: "run", v: cur.id, mono: true },
+            { k: "status", v: <Status kind={glyphFor(cur.status)} weight="strong">{cur.status}</Status> },
+            { k: "revision", v: cur.revision, mono: true },
+            ...(d ? [{ k: "agent", v: `${d.agent.label} (${d.agent.status})` }, { k: "model", v: `${d.agent.pack_id} · ${d.agent.pack_version}`, mono: true }, { k: "tools", v: d.agent.tools.join(", ") || "none" }] : []),
+          ]} />
+          <div className="row-gap" style={{ gap: 8, marginBottom: 16 }}>
+            <button type="button" className="btn btn-s" onClick={() => step("medagent_start", "Run started")} disabled={!!pending || cur.status !== "pending"}>Start</button>
+            <button type="button" className="btn btn-p" onClick={execute} disabled={!!pending || cur.status !== "running"}>{pending === "execute" ? <Glyph kind="running" /> : null}Execute on local runtime</button>
+            <button type="button" className="btn btn-s" onClick={() => step("medagent_complete", "Run completed · receipt recorded")} disabled={!!pending || cur.status !== "running"}>Complete</button>
+            <button type="button" className="btn btn-g" onClick={() => step("medagent_cancel", "Run cancelled")} disabled={!!pending || ["completed", "cancelled", "failed"].includes(cur.status)}>Cancel</button>
+          </div>
+          {proposal !== null && <Section title="Proposal" count="not accepted">
+            <div style={{ border: "1px dashed var(--line-strong)", borderRadius: "var(--r-2)", padding: "12px 14px" }}>
+              <Status kind="proposal" weight="strong">Proposal</Status>
+              <pre className="pre" style={{ marginTop: 10, border: 0, background: "transparent", padding: 0 }}>{JSON.stringify(proposal, null, 2)}</pre>
+            </div>
+          </Section>}
+          <Section title="Evidence" count={d ? d.evidence.length : "…"}>
+            {detail.state.status === "error" && <ErrorState error={detail.state.error} onRetry={detail.reload} />}
+            {d?.evidence.map((e) => (
+              <div key={e.id} className="lr" style={{ gridTemplateColumns: "minmax(0,1fr) auto", padding: "6px 12px" }}>
+                <span style={{ display: "flex", flexDirection: "column", minWidth: 0 }}><span className="t-sm trunc">{e.resource_type ?? "source"} · {e.fixture ?? e.id}</span><span className="mono t-mono-sm i3 trunc">{e.id}{e.subject ? ` · ${e.subject}` : ""}</span></span>
+                <Status kind={e.resolution === "current" ? "available" : "blocked"} weight="weak">{e.resolution ?? "unknown"}</Status>
+              </div>
+            ))}
+          </Section>
+          <Section title="Turns" count={turns.state.status === "ready" ? turns.state.data.length : "…"}>
+            <LoadError cmd={turns} />
+            {turns.state.status === "ready" && (turns.state.data.length ? turns.state.data.map((t) => (
+              <div key={t.seq} className="lr" style={{ gridTemplateColumns: "36px 140px minmax(0,1fr)", alignItems: "start", padding: "8px 12px" }}><span className="mono t-mono-sm i3">{t.seq}</span><span className="t-sm i2">{t.kind}</span><TurnPayload payload={t.payload} /></div>
+            )) : <p className="t-sm i3">No turns yet. Start, then execute the run.</p>)}
+          </Section>
+          <Authority>Proposal, not accepted. Nothing is written to a record. Runs, turns and evidence persist in the vault and resume after a restart.</Authority>
+        </> : <Empty icon="medagent" title="No run selected">Choose an agent and the sources it may read, then create a run.</Empty>}
+      </div>
+      <aside className="agent-side" aria-label="Agents and models">
         <Section title="Agents" count={agents.length}>
           {agents.map((a) => (
             <div key={a.id} className="row-gap" style={{ justifyContent: "space-between", minHeight: 30, gap: 8 }}>
@@ -323,64 +388,7 @@ function MedAgentBody({ projectId }: { projectId: string }) {
           </form>}
           <p className="t-sm i3" style={{ marginTop: 6 }}>Core verifies the manifest, digests and signature. Nothing is downloaded.</p>
         </Section>
-      </div>
-      <div>
-        <form onSubmit={create} className="stack" style={{ gap: 8, marginBottom: 18 }}>
-          <label className="lbl" htmlFor="ag">Agent</label>
-          <select id="ag" value={agentId} onChange={(e) => setAgentId(e.target.value)}>
-            {!active.length && <option value="">Synthetic review agent (created on first run)</option>}
-            {active.map((a) => <option key={a.id} value={a.id}>{a.label}</option>)}
-          </select>
-          <span className="lbl">Context · ingested synthetic sources ({picked.length} selected)</span>
-          <div className="stack" style={{ gap: 2, maxHeight: 150, overflow: "auto" }}>
-            {srcs.map((s) => (
-              <label key={s.id} className="row-gap t-sm" style={{ gap: 6 }}>
-                <input type="checkbox" checked={picked.includes(s.id)} onChange={() => setPicked(toggle(picked, s.id))} />
-                <span className="trunc">{s.resource_type} · {s.fixture} · {s.subject}</span>
-              </label>
-            ))}
-          </div>
-          <label className="lbl" htmlFor="ap">Prompt</label>
-          <textarea id="ap" value={prompt} onChange={(e) => setPrompt(e.target.value)} placeholder="Ask about the bound sources…" maxLength={2000} style={{ minHeight: 70 }} />
-          <div><button type="submit" className="btn btn-p" disabled={!prompt.trim() || !picked.length || picked.length > 16 || !!pending}>{pending === "create" ? <Glyph kind="running" /> : null}Create run</button></div>
-        </form>
-        {cur ? <>
-          <Ledger items={[
-            { k: "run", v: cur.id, mono: true },
-            { k: "status", v: <Status kind={glyphFor(cur.status)} weight="strong">{cur.status}</Status> },
-            { k: "revision", v: cur.revision, mono: true },
-            ...(d ? [{ k: "agent", v: `${d.agent.label} (${d.agent.status})` }, { k: "model", v: `${d.agent.pack_id} · ${d.agent.pack_version}`, mono: true }, { k: "tools", v: d.agent.tools.join(", ") || "none" }] : []),
-          ]} />
-          <div className="row-gap" style={{ gap: 8, marginBottom: 16 }}>
-            <button type="button" className="btn btn-s" onClick={() => step("medagent_start", "Run started")} disabled={!!pending || cur.status !== "pending"}>Start</button>
-            <button type="button" className="btn btn-p" onClick={execute} disabled={!!pending || cur.status !== "running"}>{pending === "execute" ? <Glyph kind="running" /> : null}Execute on local runtime</button>
-            <button type="button" className="btn btn-s" onClick={() => step("medagent_complete", "Run completed · receipt recorded")} disabled={!!pending || cur.status !== "running"}>Complete</button>
-            <button type="button" className="btn btn-g" onClick={() => step("medagent_cancel", "Run cancelled")} disabled={!!pending || ["completed", "cancelled", "failed"].includes(cur.status)}>Cancel</button>
-          </div>
-          <Section title="Evidence" count={d ? d.evidence.length : "…"}>
-            {detail.state.status === "error" && <ErrorState error={detail.state.error} onRetry={detail.reload} />}
-            {d?.evidence.map((e) => (
-              <div key={e.id} className="lr" style={{ gridTemplateColumns: "minmax(0,1fr) auto", padding: "6px 12px" }}>
-                <span style={{ display: "flex", flexDirection: "column", minWidth: 0 }}><span className="t-sm trunc">{e.resource_type ?? "source"} · {e.fixture ?? e.id}</span><span className="mono t-mono-sm i3 trunc">{e.id}{e.subject ? ` · ${e.subject}` : ""}</span></span>
-                <Status kind={e.resolution === "current" ? "available" : "blocked"} weight="weak">{e.resolution ?? "unknown"}</Status>
-              </div>
-            ))}
-          </Section>
-          <Section title="Turns" count={turns.state.status === "ready" ? turns.state.data.length : "…"}>
-            <LoadError cmd={turns} />
-            {turns.state.status === "ready" && (turns.state.data.length ? turns.state.data.map((t) => (
-              <div key={t.seq} className="lr" style={{ gridTemplateColumns: "36px 140px minmax(0,1fr)", alignItems: "start", padding: "8px 12px" }}><span className="mono t-mono-sm i3">{t.seq}</span><span className="t-sm i2">{t.kind}</span><TurnPayload payload={t.payload} /></div>
-            )) : <p className="t-sm i3">No turns yet. Start, then execute the run.</p>)}
-          </Section>
-          {proposal !== null && <Section title="Proposal" count="not accepted">
-            <div style={{ border: "1px dashed var(--line-strong)", borderRadius: "var(--r-2)", padding: "12px 14px" }}>
-              <Status kind="proposal" weight="strong">Proposal</Status>
-              <pre className="pre" style={{ marginTop: 10, border: 0, background: "transparent", padding: 0 }}>{JSON.stringify(proposal, null, 2)}</pre>
-            </div>
-          </Section>}
-          <Authority>Proposal, not accepted. Nothing is written to a record. Runs, turns and evidence persist in the vault and resume after a restart.</Authority>
-        </> : <Empty icon="medagent" title="No run selected">Choose an agent and the sources its context binds, then create a run.</Empty>}
-      </div>
+      </aside>
     </div>
   );
 }

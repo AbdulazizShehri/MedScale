@@ -1,7 +1,6 @@
 import { useApp } from "../lib/app";
 import { useCommand } from "../lib/ipc";
 import { MOD } from "../components/shell";
-import { Mark } from "../components/brand";
 import { ErrorState, Glyph, KV, Section, Skeleton, Stamp, Status } from "../components/ui";
 import { CoverageStrip, COVERAGE } from "./Patients";
 
@@ -11,7 +10,7 @@ type Models = { models: Array<{ model: string; state: string; trust: string; tas
 type Workflow = { tasks: Array<{ action_id: string; title: string; state: string }>; outbox_entries: number };
 
 export function Home() {
-  const { ws, navigate, openPalette } = useApp();
+  const { ws, navigate } = useApp();
   const subjects = useCommand<Subjects>("patients_list");
   const corpus = useCommand<Corpus>("evidence_corpus");
   const models = useCommand<Models>("models_overview");
@@ -51,22 +50,20 @@ export function Home() {
       <div className="pane">
         <div className="page-head">
           <div className="grow">
-            <div className="brand-hero" style={{ marginBottom: 6 }}><Mark height={28} className="mark" /><span className="brand-rule" aria-hidden="true" /></div>
             <h1 className="t-h1">Workspace</h1>
-            <p className="ph-sub">What needs a person, what changed, and what this workspace can and cannot assert.</p>
+            <p className="ph-sub">What needs a person, and what this workspace can and can't say.</p>
           </div>
-          <button type="button" className="btn btn-g" onClick={openPalette}>Search or run <span className="kbd">{MOD} K</span></button>
         </div>
 
-        <Section n="01" title="Needs review" count={loadingQueue ? "…" : queue.length}>
+        <Section title="Needs a person" count={loadingQueue ? "…" : queue.length}>
           {loadingQueue && !queue.length ? <Skeleton rows={3} /> : queue.length === 0 ? <p className="t-sm i3" style={{ padding: "12px 0" }}>{[subjects, corpus, models, workflow].some((c) => c.state.status === "error") ? "Some sources could not be read, so this list may be incomplete." : "Nothing is waiting for a person."}</p> : (
             <div style={{ borderTop: "1px solid var(--line-subtle)" }}>
               {queue.map((r) => (
-                <div key={r.key} className="lr" style={{ gridTemplateColumns: "16px minmax(150px, 1fr) minmax(0, 1.6fr) minmax(0, 200px) 72px", minHeight: "var(--row-2)" }}>
+                <div key={r.key} className="lr home-row" style={{ minHeight: "var(--row-2)" }}>
                   <Glyph kind={r.glyph} />
                   <div style={{ display: "flex", flexDirection: "column", minWidth: 0 }}><span className="trunc" style={{ fontSize: 13.5, fontWeight: 600 }}>{r.title}</span><span className="st weak" style={{ fontSize: 11.5 }}>{r.kind}</span></div>
                   <span className="t-sm i2 clamp-2" style={{ minWidth: 0 }} title={r.why}>{r.why}</span>
-                  <span className="hide-md" style={{ minWidth: 0, overflow: "hidden" }}><Stamp k={r.stampK} v={r.stampV} /></span>
+                  <span className="hide-md" style={{ minWidth: 0, overflow: "hidden" }} title={r.stampV}>{r.stampK !== "proj" && <Stamp k={r.stampK} v={r.stampV} />}</span>
                   <button type="button" className="btn btn-g" style={{ justifySelf: "end" }} onClick={r.go}>{r.act}</button>
                 </div>
               ))}
@@ -75,9 +72,9 @@ export function Home() {
           {[subjects, corpus, models, workflow].map((c, i) => c.state.status === "error" ? <ErrorState key={i} error={c.state.error} onRetry={c.reload} /> : null)}
         </Section>
 
-        <Section n="02" title="Subjects" count={subjects.state.status === "ready" ? subjects.state.data.subjects.length : "…"} actions={<button type="button" className="btn btn-g" style={{ height: 24 }} onClick={() => navigate("Patients")}>Open Patients</button>}>
+        <Section title="Subjects" count={subjects.state.status === "ready" ? subjects.state.data.subjects.length : "…"} actions={<button type="button" className="btn btn-g" style={{ height: 24 }} onClick={() => navigate("Patients")}>Open Patients</button>}>
           {subjects.state.status === "ready" && (
-            <table className="tb"><tbody>
+            <table className="tb"><thead><tr><th style={{ width: "36%" }}>Subject</th><th style={{ width: "28%" }} className="col-p2">Condition</th><th style={{ width: "20%" }}>Coverage</th><th className="num">Latest</th></tr></thead><tbody>
               {subjects.state.data.subjects.map((s) => (
                 <tr key={s.subject_ref} className="r2 clickable" tabIndex={0} onClick={() => navigate("Patients", s.subject_ref)} onKeyDown={(e) => e.key === "Enter" && navigate("Patients", s.subject_ref)}>
                   <td style={{ width: "36%" }}><div style={{ display: "flex", flexDirection: "column", minWidth: 0 }}><span className="pname trunc">{s.display_name}</span><span className="mono t-mono-sm i3 trunc">{s.subject_ref}</span></div></td>
@@ -94,12 +91,12 @@ export function Home() {
       <aside className="inspector" aria-label="Workspace state">
         <div className="ins-pad">
           <Section title="Workspace state">
-            <KV keyWidth={104} rows={[
+            <KV keyWidth={72} rows={[
               ["workspace", <Status kind={ws?.workspace?.kind === "synthetic" ? "synthetic" : "available"} weight="strong">{ws?.workspace?.label ?? "None"}</Status>],
               ["vault", <><span className="mono t-mono-sm">{ws?.workspace?.vault_id}</span><div className="t-sm i3">{ws?.workspace?.kind === "encrypted" ? "Encrypted at rest" : "Synthetic fixtures only"}</div></>],
               ["runtime", <><Status kind={ws?.local_only ? "available" : "unknown"} weight="strong">{ws?.local_only ? "Local" : "Unknown"}</Status><div className="t-sm i3">Core in-process</div></>],
               ["network", <><Status kind={ws?.network_default_deny ? "blocked" : "unknown"}>{ws?.network_default_deny ? "Default deny" : "Not verified"}</Status>{ws?.egress && <div className="t-sm i3">{ws.egress}</div>}</>],
-              ["real PHI", <Status kind="limited">{ws?.real_phi_authorized ? "Authorized" : "Not authorized"}</Status>],
+              ["Real data", <Status kind="limited">{ws?.real_phi_authorized ? "Authorized" : "Not authorized"}</Status>],
               ["evidence", corpus.state.status === "ready" ? <><span className="mono t-mono-sm">{corpus.state.data.source_identity}</span><div className="t-sm i3">{corpus.state.data.documents.length} docs · {corpus.state.data.documents.filter((d) => d.status === "retracted").length} retracted</div></> : "…"],
             ]} />
           </Section>
@@ -108,7 +105,7 @@ export function Home() {
               <div style={{ display: "flex", justifyContent: "space-between" }}><Status kind="proposal">Proposals open</Status><span className="mono t-mono-sm">{queue.filter((q) => q.glyph === "proposal").length}</span></div>
               <div style={{ display: "flex", justifyContent: "space-between" }}><Status kind="needs-review">Needs review</Status><span className="mono t-mono-sm">{queue.filter((q) => q.glyph === "needs-review").length}</span></div>
               <div style={{ display: "flex", justifyContent: "space-between" }}><Status kind="pending">Outbox entries</Status><span className="mono t-mono-sm">{workflow.state.status === "ready" ? workflow.state.data.outbox_entries : "…"}</span></div>
-              <p className="t-sm i3" style={{ marginTop: 4 }}>Desktop commits no external action. Consequential work goes through explicit review and the Core Host outbox. UNKNOWN effects fail closed.</p>
+              <p className="t-sm i3" style={{ marginTop: 4 }}>MedScale takes no external action on its own. Consequential work goes through explicit review, and if an outcome is unknown, it stops rather than retries.</p>
             </div>
           </Section>
           <Section title="Keyboard">

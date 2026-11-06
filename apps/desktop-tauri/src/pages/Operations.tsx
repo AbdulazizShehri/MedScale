@@ -174,7 +174,7 @@ function CollabBody({ projectId }: { projectId: string }) {
 type AudioVm = { sources: Array<{ id: string; label: string; kind: string; detail: string; health: string }>; captures: Array<{ id: string; label: string; state: string; detail: string }>; routes: string; native_capture: string };
 
 export function Audio() {
-  return <ProjectScope title="Audio" sub="Local audio lineage. Segmentation and transcripts are drafts, never clinical truth.">{(pid) => <AudioBody projectId={pid} />}</ProjectScope>;
+  return <ProjectScope title="Audio" sub="Recordings on this device. Segments and transcripts stay drafts, never clinical fact.">{(pid) => <AudioBody projectId={pid} />}</ProjectScope>;
 }
 
 type AsrStatus = { routes: Array<{ route: string; available: boolean; reason: string | null }>; asr_pack_dir: string | null };
@@ -370,9 +370,119 @@ function AudioBody({ projectId }: { projectId: string }) {
   return (
     <>
       <div className="row-gap" style={{ gap: 8, marginBottom: 14 }}><button type="button" className="btn btn-s" onClick={importSynthetic} disabled={!!pending}>{pending === "import" ? <Glyph kind="running" /> : null}Import synthetic tone sample</button><span className="t-sm i3">Generated tone and silence; no microphone, no person.</span></div>
-      <Ledger items={[{ k: "routes", v: v.routes }, { k: "native capture", v: v.native_capture }]} />
-      <Section title="Audio Model Manager" count={availableModels.state.status === "ready" ? availableModels.state.data.length : "…"}>
-        <p className="t-sm i2" style={{ marginBottom: 10 }}>Choose a pinned Whisper model. Check local disk space, approve the exact source, then download, verify and activate it. Previously downloaded Packs can be reactivated without downloading again.</p>
+      <Notice kind="proposal" title="Drafts only.">Segments and transcripts carry a receipt and stay drafts. You can correct a segment, but Desktop has no step that accepts a transcript as final. Medical accuracy is unmeasured.</Notice>
+      <Section title="Sources" count={v.sources.length} actions={
+        <select aria-label="Transcription route" value={route} onChange={(e) => setRoute(e.target.value)} style={{ height: 26 }}>
+          <option value="local_asr_pack">Local Whisper (Audio Pack)</option>
+          <option value="fixture_asr">Fixture engine (not recognition)</option>
+          <option value="segmentation_only">Segmentation only</option>
+        </select>}>
+        <label className="row-gap t-sm" style={{ gap: 8, marginBottom: 8 }}>
+          Transcription language
+          <select aria-label="Transcription language" value={language} onChange={(e) => setLanguage(e.target.value as "en" | "ar")}>
+            <option value="en">English</option>
+            <option value="ar">Arabic, experimental (needs a multilingual model)</option>
+          </select>
+        </label>
+        {language === "ar" && <p className="t-sm i3" role="status">Arabic is experimental. On 24 public read-speech clips, Whisper Tiny got about 65% of words wrong and Whisper Base about 46%. Check every line against the recording.</p>}
+        <label className="row-gap t-sm" style={{ gap: 6, marginBottom: 8 }}>
+          <input type="checkbox" checked={diarize} onChange={(e) => setDiarize(e.target.checked)} />
+          Group speakers (acoustic clustering, unvalidated; labels are never identity)
+        </label>
+        {v.sources.length ? v.sources.map((s) => <div key={s.id} className="lr lr-source"><span style={{ display: "flex", flexDirection: "column", minWidth: 0 }}><span className="trunc" style={{ fontWeight: 600 }}>{s.label}</span><span className="mono t-mono-sm i3 trunc">{s.id}</span></span><span className="t-sm i3 trunc">{s.kind} · {s.detail}</span><Status kind={glyphFor(s.health)} weight="weak">{s.health}</Status><div className="lr-actions"><button type="button" className="btn btn-g" disabled={!!pending} onClick={() => segment(s.id)}>Segment</button><button type="button" className="btn btn-g" disabled={!!pending} onClick={() => inspectStoredData(s.id)}>Stored data</button><button type="button" className="btn btn-g" disabled={!!pending} onClick={() => openTranscript(s.id)}>Open transcript</button><button type="button" className="btn btn-s" disabled={!!pending} onClick={() => transcribe(s.id)}>{pending === `t-${s.id}` ? <Glyph kind="running" /> : null}Transcribe</button></div></div>) : <p className="t-sm i3">No audio sources in this project.</p>}
+        {retentionPreview?.project_id === projectId && v.sources.some((s) => s.id === retentionPreview.source_id) && (
+          <div className="stack" style={{ gap: 8, marginTop: 10 }}>
+            <p className="t-sm i2" role="status" aria-live="polite">
+            Stored audio: {formatStorage(retentionPreview.recording_bytes)} · transcript revisions: {retentionPreview.revision_count} · audit receipts: {retentionPreview.receipt_count}.
+            {" "}{retentionPreview.has_huddle_media_link ? "Linked Huddles media is retained. " : ""}{retentionPreview.has_capture_reference ? "Capture-session evidence is retained. " : ""}{retentionPreview.unreferenced_imported_file ? "No linked evidence found in this active vault at inspection time. " : "Linked evidence may prevent removal. "}Read-only inspection: no deletion has been performed. Older backups may retain this recording; linked transcripts and audit receipts need separate retention handling.
+            </p>
+            {retentionPreview.delete_available && (
+              <div className="stack" style={{ gap: 8, padding: 12, maxWidth: 640, border: "1px solid var(--line-strong)", borderRadius: "var(--r-2)" }}>
+                <p className="t-sm">
+                  Remove only this unreferenced imported recording from the active vault. This cannot erase older backups or snapshots, and it will not remove linked transcript or audit evidence.
+                </p>
+                <label className="lbl" htmlFor="audio-removal-confirmation">Type the exact confirmation to remove this recording</label>
+                <code className="t-mono-sm">{`REMOVE ${retentionPreview.source_id} FROM ACTIVE VAULT`}</code>
+                <input id="audio-removal-confirmation" type="text" autoComplete="off" spellCheck={false}
+                  value={removalConfirmation} onChange={(e) => setRemovalConfirmation(e.target.value)}
+                  aria-label="Confirmation for removing the selected recording" />
+                <div className="row-gap" style={{ gap: 8 }}>
+                  <button type="button" className="btn btn-d" disabled={!!pending || removalConfirmation !== `REMOVE ${retentionPreview.source_id} FROM ACTIVE VAULT`}
+                    onClick={removeStoredRecording}>Remove this recording from active vault</button>
+                  <button type="button" className="btn btn-g" onClick={() => { setRemovalConfirmation(""); setRetentionPreview(null); }}>Cancel</button>
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+      </Section>
+      {seg && <Section title="Segmentation" count="draft"><p className="t-sm" style={{ marginBottom: 8 }}>{seg.summary}</p><pre className="pre">{seg.lines.join("\n") || "No segments."}</pre></Section>}
+      {result && <Section title="Transcript" count={result.transcript ? `revision ${result.transcript.revision_no} · ${result.transcript.state}` : result.decision.outcome}>
+        <Ledger items={[{ k: "decision", v: `${result.decision.outcome}${result.decision.reason ? ` · ${result.decision.reason}` : ""}` }, { k: "engine", v: result.engine ? `${result.engine.engine_id}${result.engine.is_fixture ? " (fixture)" : ""}` : "none", mono: true }, { k: "limitations", v: result.limitations.join(", ") }]} />
+        {result.transcript?.segments.map((x) => (
+          <div key={x.seq} className="lr" style={{ gridTemplateColumns: "24px 176px minmax(0,1fr) auto", alignItems: "baseline", padding: "4px 0" }}>
+            <span className="mono t-mono-sm i3">{x.seq}</span>
+            <span className="mono t-mono-sm i3">{clock(x.start_ms)}–{clock(x.end_ms)}{speakerLabel(x.speaker) ? ` · ${speakerLabel(x.speaker)}` : ""}</span>
+            <span className="t-sm" dir="auto">{x.text ?? <span className="i3">(untranscribed)</span>}</span>
+            <button type="button" className="btn btn-g" onClick={() => setEdit({ seq: x.seq, text: x.text ?? "", reason: "" })}>Correct</button>
+          </div>
+        ))}
+        {result.transcript && <div className="row-gap" style={{ gap: 8, marginTop: 12 }}>
+          <button type="button" className="btn btn-g" onClick={copyTranscript} disabled={!result.transcript.segments.length}>Copy transcript</button>
+          <select aria-label="Pack for the draft note" value={notePack} onChange={(e) => setNotePack(e.target.value)}>{runnable.map((m) => <option key={m.id} value={m.id}>{m.id}</option>)}</select>
+          <button type="button" className="btn btn-s" disabled={!notePack || !!pending} onClick={draftNote}>{pending === "draft" ? <Glyph kind="running" /> : null}Draft note from this revision</button>
+          {!runnable.length && <span className="t-sm i3">Drafting needs a local Pack that can run.{externalPacks ? " Add one in MedAgent." : ""}</span>}
+        </div>}
+        {visibleDraft && <div style={{ border: "1px dashed var(--line-strong)", borderRadius: "var(--r-2)", padding: "12px 14px", marginTop: 12 }}>
+          <Status kind="proposal" weight="strong">Draft note · proposal</Status>
+          <p className="t-sm i3" style={{ margin: "6px 0 10px" }}>{visibleDraft.note} Segments evaluated: {visibleDraft.segments_evaluated}.</p>
+          {Object.keys(visibleDraft.sections).length ? Object.entries(visibleDraft.sections).map(([label, items]) => (
+            <div key={label} style={{ marginBottom: 8 }}>
+              <div className="lbl">{label}</div>
+              {items.map((i, k) => <div key={k} className="row-gap t-sm" style={{ gap: 8 }}><span>{i.text}</span><span className="mono t-mono-sm i3">segment {i.segment_seq} · {i.start_ms}–{i.end_ms} ms</span></div>)}
+            </div>
+          )) : <p className="t-sm i3">No entities found in the transcribed segments.</p>}
+        </div>}
+        {edit && <form onSubmit={correct} className="stack" style={{ gap: 6, marginTop: 10, maxWidth: 640 }}>
+          <label className="lbl" htmlFor="ct">Segment {edit.seq} text</label>
+          <input id="ct" dir="auto" value={edit.text} maxLength={2000} onChange={(e) => setEdit({ ...edit, text: e.target.value })} />
+          <label className="lbl" htmlFor="cr">Reason</label>
+          <input id="cr" value={edit.reason} maxLength={200} placeholder="For example: reviewed against the recording" onChange={(e) => setEdit({ ...edit, reason: e.target.value })} />
+          <div className="row-gap" style={{ gap: 8 }}><button type="submit" className="btn btn-p" disabled={!edit.text.trim() || !edit.reason.trim() || !!pending}>Record correction</button><button type="button" className="btn btn-g" onClick={() => setEdit(null)}>Cancel</button></div>
+        </form>}
+      </Section>}
+      <Section title="Captures" count={v.captures.length}>
+        {v.captures.length ? v.captures.map((c) => <div key={c.id} className="lr" style={{ gridTemplateColumns: "minmax(0,1fr) 140px minmax(0,1.4fr)" }}><span className="trunc">{c.label}</span><Status kind={glyphFor(c.state)}>{c.state}</Status><span className="t-sm i3 trunc">{c.detail}</span></div>) : <p className="t-sm i3">No captures. Native capture requires an admitted backend.</p>}
+      </Section>
+      <Section title="Local speech recognition" count={local?.available ? "on" : "off"}>
+        {plaintextWorkspace && <p className="t-sm i3" style={{ marginBottom: 8 }}>The sample workspace isn&apos;t encrypted. Recordings and transcripts you import here are stored unencrypted on this computer, and they can stay in its files after you remove them. Use an encrypted vault for anything you want protected.</p>}
+        <LoadError cmd={asr} />
+        <div className="row-gap" style={{ gap: 10, marginBottom: 8 }}>
+          <Status kind={local?.available ? "available" : "unavailable"} weight="strong">{local?.available ? "Local Whisper engine installed" : (local?.reason ?? (asr.state.status === "error" ? "Status unavailable" : "Not installed"))}</Status>
+          {asr.state.status === "ready" && asr.state.data.asr_pack_dir && <span className="mono t-mono-sm i3 trunc">{asr.state.data.asr_pack_dir}</span>}
+        </div>
+        <div className="grid-2">
+          {externalPacks && <form onSubmit={admitPack} className="stack" style={{ gap: 6 }}>
+            <label className="lbl" htmlFor="ap1">Admit an Audio Pack folder</label>
+            <input id="ap1" value={packPath} maxLength={1024} placeholder="Absolute folder path" onChange={(e) => setPackPath(e.target.value)} />
+            <div className="row-gap" style={{ gap: 8 }}>
+              <button type="button" className="btn btn-g" onClick={browsePack} disabled={!!pending || !!choosing}>Browse folder…</button>
+              <button type="submit" className="btn btn-s" disabled={!packPath.trim() || !!pending || !!choosing}>Admit and install</button>
+            </div>
+          </form>}
+          <form onSubmit={importWav} className="stack" style={{ gap: 6 }}>
+            <label className="lbl" htmlFor="wp1">Import a WAV recording</label>
+            <input id="wp1" value={wavPath} maxLength={1024} placeholder="Absolute .wav path (16 kHz, 16-bit PCM, up to 32 MiB)" onChange={(e) => setWavPath(e.target.value)} />
+            <div className="row-gap" style={{ gap: 8 }}>
+              <button type="button" className="btn btn-g" onClick={browseWav} disabled={!!pending || !!choosing}>Browse WAV…</button>
+              <button type="submit" className="btn btn-s" disabled={!wavPath.trim() || !!pending || !!choosing}>Import</button>
+            </div>
+          </form>
+        </div>
+        <p className="t-sm i3" style={{ marginTop: 6 }}>Import PCM WAV (16 kHz, 16-bit, up to 32 MiB—about 17 minutes for mono audio). Core verifies the Audio Pack and transcribes on this device. Choose the language before transcription.</p>
+      </Section>
+      <Section title="Speech models" count={availableModels.state.status === "ready" ? availableModels.state.data.length : "…"}>
+        <p className="t-sm i2" style={{ marginBottom: 10 }}>Choose a Whisper model, check disk space and approve its exact source. MedScale then downloads, verifies and activates it. A model you already downloaded can be activated again without downloading.</p>
         {availableModels.state.status === "error" ? <ErrorState error={availableModels.state.error} onRetry={availableModels.reload} /> : (
           <div className="stack" style={{ gap: 8 }}>
             <label className="lbl" htmlFor="asr-model-choice">Available speech models</label>
@@ -424,121 +534,14 @@ function AudioBody({ projectId }: { projectId: string }) {
               {downloadStatus.message ? ` ${downloadStatus.message}` : ""}
               {downloadStatus.state === "ready" ? " Verified Pack is ready for Core activation." : ""}
             </div>}
-            {externalPacks && <p className="t-sm i3">Already have an Audio Pack from a source you trust? Select its folder below to admit it offline. MedScale checks the Pack's internal digests, which do not prove who made it. Downloads remain local, and only the dedicated in-progress cache is deleted on cancellation.</p>}
+            {externalPacks && <p className="t-sm i3">Already have an Audio Pack from a source you trust? Select its folder above to admit it offline. MedScale checks the Pack's internal digests, which do not prove who made it. Downloads remain local, and only the dedicated in-progress cache is deleted on cancellation.</p>}
           </div>
         )}
       </Section>
-      <Section title="Local speech recognition" count={local?.available ? "on" : "off"}>
-        {plaintextWorkspace && <p className="t-sm i3" style={{ marginBottom: 8 }}>The sample workspace isn&apos;t encrypted. Recordings and transcripts you import here are stored unencrypted on this computer, and they can stay in its files after you remove them. Use an encrypted vault for anything you want protected.</p>}
-        <LoadError cmd={asr} />
-        <div className="row-gap" style={{ gap: 10, marginBottom: 8 }}>
-          <Status kind={local?.available ? "available" : "unavailable"} weight="strong">{local?.available ? "Local Whisper engine installed" : (local?.reason ?? (asr.state.status === "error" ? "Status unavailable" : "Not installed"))}</Status>
-          {asr.state.status === "ready" && asr.state.data.asr_pack_dir && <span className="mono t-mono-sm i3 trunc">{asr.state.data.asr_pack_dir}</span>}
-        </div>
-        <div className="grid-2">
-          {externalPacks && <form onSubmit={admitPack} className="stack" style={{ gap: 6 }}>
-            <label className="lbl" htmlFor="ap1">Admit an Audio Pack folder</label>
-            <input id="ap1" value={packPath} maxLength={1024} placeholder="Absolute folder path" onChange={(e) => setPackPath(e.target.value)} />
-            <div className="row-gap" style={{ gap: 8 }}>
-              <button type="button" className="btn btn-g" onClick={browsePack} disabled={!!pending || !!choosing}>Browse folder…</button>
-              <button type="submit" className="btn btn-s" disabled={!packPath.trim() || !!pending || !!choosing}>Admit and install</button>
-            </div>
-          </form>}
-          <form onSubmit={importWav} className="stack" style={{ gap: 6 }}>
-            <label className="lbl" htmlFor="wp1">Import a WAV recording</label>
-            <input id="wp1" value={wavPath} maxLength={1024} placeholder="Absolute .wav path (16 kHz, 16-bit PCM, up to 32 MiB)" onChange={(e) => setWavPath(e.target.value)} />
-            <div className="row-gap" style={{ gap: 8 }}>
-              <button type="button" className="btn btn-g" onClick={browseWav} disabled={!!pending || !!choosing}>Browse WAV…</button>
-              <button type="submit" className="btn btn-s" disabled={!wavPath.trim() || !!pending || !!choosing}>Import</button>
-            </div>
-          </form>
-        </div>
-        <p className="t-sm i3" style={{ marginTop: 6 }}>Import PCM WAV (16 kHz, 16-bit, up to 32 MiB—about 17 minutes for mono audio). Core verifies the Audio Pack and transcribes on this device. Choose the language before transcription.</p>
-      </Section>
-      <Section title="Sources" count={v.sources.length} actions={
-        <select aria-label="Transcription route" value={route} onChange={(e) => setRoute(e.target.value)} style={{ height: 26 }}>
-          <option value="local_asr_pack">Local Whisper (Audio Pack)</option>
-          <option value="fixture_asr">Fixture engine (not recognition)</option>
-          <option value="segmentation_only">Segmentation only</option>
-        </select>}>
-        <label className="row-gap t-sm" style={{ gap: 8, marginBottom: 8 }}>
-          Transcription language
-          <select aria-label="Transcription language" value={language} onChange={(e) => setLanguage(e.target.value as "en" | "ar")}>
-            <option value="en">English</option>
-            <option value="ar">Arabic, experimental (needs a multilingual model)</option>
-          </select>
-        </label>
-        {language === "ar" && <p className="t-sm i3" role="status">Arabic is experimental. On 24 public read-speech clips, Whisper Tiny got about 65% of words wrong and Whisper Base about 46%. Check every line against the recording.</p>}
-        <label className="row-gap t-sm" style={{ gap: 6, marginBottom: 8 }}>
-          <input type="checkbox" checked={diarize} onChange={(e) => setDiarize(e.target.checked)} />
-          Group speakers (acoustic clustering, unvalidated; labels are never identity)
-        </label>
-        {v.sources.length ? v.sources.map((s) => <div key={s.id} className="lr" style={{ gridTemplateColumns: "minmax(0,1fr) minmax(0,1.2fr) 110px auto auto auto auto" }}><span style={{ display: "flex", flexDirection: "column", minWidth: 0 }}><span className="trunc" style={{ fontWeight: 600 }}>{s.label}</span><span className="mono t-mono-sm i3 trunc">{s.id}</span></span><span className="t-sm i3 trunc">{s.kind} · {s.detail}</span><Status kind={glyphFor(s.health)} weight="weak">{s.health}</Status><button type="button" className="btn btn-g" disabled={!!pending} onClick={() => segment(s.id)}>Segment</button><button type="button" className="btn btn-g" disabled={!!pending} onClick={() => inspectStoredData(s.id)}>Stored data</button><button type="button" className="btn btn-g" disabled={!!pending} onClick={() => openTranscript(s.id)}>Open transcript</button><button type="button" className="btn btn-s" disabled={!!pending} onClick={() => transcribe(s.id)}>{pending === `t-${s.id}` ? <Glyph kind="running" /> : null}Transcribe</button></div>) : <p className="t-sm i3">No audio sources in this project.</p>}
-        {retentionPreview?.project_id === projectId && v.sources.some((s) => s.id === retentionPreview.source_id) && (
-          <div className="stack" style={{ gap: 8, marginTop: 10 }}>
-            <p className="t-sm i2" role="status" aria-live="polite">
-            Stored audio: {formatStorage(retentionPreview.recording_bytes)} · transcript revisions: {retentionPreview.revision_count} · audit receipts: {retentionPreview.receipt_count}.
-            {" "}{retentionPreview.has_huddle_media_link ? "Linked Huddles media is retained. " : ""}{retentionPreview.has_capture_reference ? "Capture-session evidence is retained. " : ""}{retentionPreview.unreferenced_imported_file ? "No linked evidence found in this active vault at inspection time. " : "Linked evidence may prevent removal. "}Read-only inspection: no deletion has been performed. Older backups may retain this recording; linked transcripts and audit receipts need separate retention handling.
-            </p>
-            {retentionPreview.delete_available && (
-              <div className="stack" style={{ gap: 8, padding: 12, border: "1px solid var(--line-strong)", borderRadius: "var(--r-2)" }}>
-                <p className="t-sm">
-                  Remove only this unreferenced imported recording from the active vault. This cannot erase older backups or snapshots, and it will not remove linked transcript or audit evidence.
-                </p>
-                <label className="lbl" htmlFor="audio-removal-confirmation">Type the exact confirmation to remove this recording</label>
-                <code className="t-mono-sm">{`REMOVE ${retentionPreview.source_id} FROM ACTIVE VAULT`}</code>
-                <input id="audio-removal-confirmation" type="text" autoComplete="off" spellCheck={false}
-                  value={removalConfirmation} onChange={(e) => setRemovalConfirmation(e.target.value)}
-                  aria-label="Confirmation for removing the selected recording" />
-                <div className="row-gap" style={{ gap: 8 }}>
-                  <button type="button" className="btn btn-d" disabled={!!pending || removalConfirmation !== `REMOVE ${retentionPreview.source_id} FROM ACTIVE VAULT`}
-                    onClick={removeStoredRecording}>Remove this recording from active vault</button>
-                  <button type="button" className="btn btn-g" onClick={() => { setRemovalConfirmation(""); setRetentionPreview(null); }}>Cancel</button>
-                </div>
-              </div>
-            )}
-          </div>
-        )}
-      </Section>
-      {seg && <Section title="Segmentation" count="draft"><p className="t-sm" style={{ marginBottom: 8 }}>{seg.summary}</p><pre className="pre">{seg.lines.join("\n") || "No segments."}</pre></Section>}
-      {result && <Section title="Transcript" count={result.transcript ? `revision ${result.transcript.revision_no} · ${result.transcript.state}` : result.decision.outcome}>
-        <Ledger items={[{ k: "decision", v: `${result.decision.outcome}${result.decision.reason ? ` · ${result.decision.reason}` : ""}` }, { k: "engine", v: result.engine ? `${result.engine.engine_id}${result.engine.is_fixture ? " (fixture)" : ""}` : "none", mono: true }, { k: "limitations", v: result.limitations.join(", ") }]} />
-        {result.transcript?.segments.map((x) => (
-          <div key={x.seq} className="lr" style={{ gridTemplateColumns: "36px 130px minmax(0,1fr) auto", alignItems: "start", padding: "8px 12px" }}>
-            <span className="mono t-mono-sm i3">{x.seq}</span>
-            <span className="mono t-mono-sm i3">{clock(x.start_ms)}–{clock(x.end_ms)}{speakerLabel(x.speaker) ? ` · ${speakerLabel(x.speaker)}` : ""}</span>
-            <span className="t-sm" dir="auto">{x.text ?? <span className="i3">(untranscribed)</span>}</span>
-            <button type="button" className="btn btn-g" onClick={() => setEdit({ seq: x.seq, text: x.text ?? "", reason: "" })}>Correct</button>
-          </div>
-        ))}
-        {result.transcript && <div className="row-gap" style={{ gap: 8, marginTop: 12 }}>
-          <button type="button" className="btn btn-g" onClick={copyTranscript} disabled={!result.transcript.segments.length}>Copy transcript</button>
-          <select aria-label="Pack for the draft note" value={notePack} onChange={(e) => setNotePack(e.target.value)}>{runnable.map((m) => <option key={m.id} value={m.id}>{m.id}</option>)}</select>
-          <button type="button" className="btn btn-s" disabled={!notePack || !!pending} onClick={draftNote}>{pending === "draft" ? <Glyph kind="running" /> : null}Draft note from this revision</button>
-          {!runnable.length && <span className="t-sm i3">Drafting needs a local Pack that can run. Add one in MedAgent.</span>}
-        </div>}
-        {visibleDraft && <div style={{ border: "1px dashed var(--line-strong)", borderRadius: "var(--r-2)", padding: "12px 14px", marginTop: 12 }}>
-          <Status kind="proposal" weight="strong">Draft note · proposal</Status>
-          <p className="t-sm i3" style={{ margin: "6px 0 10px" }}>{visibleDraft.note} Segments evaluated: {visibleDraft.segments_evaluated}.</p>
-          {Object.keys(visibleDraft.sections).length ? Object.entries(visibleDraft.sections).map(([label, items]) => (
-            <div key={label} style={{ marginBottom: 8 }}>
-              <div className="lbl">{label}</div>
-              {items.map((i, k) => <div key={k} className="row-gap t-sm" style={{ gap: 8 }}><span>{i.text}</span><span className="mono t-mono-sm i3">segment {i.segment_seq} · {i.start_ms}–{i.end_ms} ms</span></div>)}
-            </div>
-          )) : <p className="t-sm i3">No entities found in the transcribed segments.</p>}
-        </div>}
-        {edit && <form onSubmit={correct} className="stack" style={{ gap: 6, marginTop: 10, maxWidth: 640 }}>
-          <label className="lbl" htmlFor="ct">Segment {edit.seq} text</label>
-          <input id="ct" dir="auto" value={edit.text} maxLength={2000} onChange={(e) => setEdit({ ...edit, text: e.target.value })} />
-          <label className="lbl" htmlFor="cr">Reason</label>
-          <input id="cr" value={edit.reason} maxLength={200} placeholder="For example: reviewed against the recording" onChange={(e) => setEdit({ ...edit, reason: e.target.value })} />
-          <div className="row-gap" style={{ gap: 8 }}><button type="submit" className="btn btn-p" disabled={!edit.text.trim() || !edit.reason.trim() || !!pending}>Record correction</button><button type="button" className="btn btn-g" onClick={() => setEdit(null)}>Cancel</button></div>
-        </form>}
-      </Section>}
-      <Section title="Captures" count={v.captures.length}>
-        {v.captures.length ? v.captures.map((c) => <div key={c.id} className="lr" style={{ gridTemplateColumns: "minmax(0,1fr) 140px minmax(0,1.4fr)" }}><span className="trunc">{c.label}</span><Status kind={glyphFor(c.state)}>{c.state}</Status><span className="t-sm i3 trunc">{c.detail}</span></div>) : <p className="t-sm i3">No captures. Native capture requires an admitted backend.</p>}
-      </Section>
-      <Notice kind="proposal" title="Drafts only.">Segments and transcripts carry a receipt and stay drafts. You can correct a segment, but Desktop has no step that accepts a transcript as final. Medical accuracy is unmeasured.</Notice>
+      <details className="access-details audio-technical">
+        <summary>Technical details</summary>
+        <div style={{ marginTop: 12 }}><Ledger items={[{ k: "routes", v: v.routes }, { k: "native capture", v: v.native_capture }]} /></div>
+      </details>
       <Authority>Audio never becomes a clinical fact on its own. Lineage is kept for every derived artifact.</Authority>
     </>
   );

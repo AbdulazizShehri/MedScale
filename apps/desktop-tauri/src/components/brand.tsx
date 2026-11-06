@@ -1,13 +1,10 @@
-// MedScale identity: Logo 12 symbol (founder-approved 2026-10-19) and the
+// MedScale identity: the founder-supplied symbol of 2026-11-05 and the
 // founder-approved wordmark of 2026-10-22. Generated from the brand
 // masters in assets/brand; the path data must stay identical to them
 // (crates/medscale-core/tests/brand_foundation_095.rs enforces this).
 // The wordmark is filled outline artwork; no font is loaded to draw it.
 
-const FRAMES = [
-  "M13.5 390.5L13.5 187Q13.5 136 59.93 114.91L270.07 19.47Q316.5 -1.62 316.5 49.38L316.5 449.56Q316.5 500.56 270.46 522.51L59.54 623.05Q13.5 645 13.5 594Z",
-  "M209.5 725L209.5 293.5Q209.5 242.5 255.93 221.41L468.57 124.83Q515 103.74 515 154.74L515 415Q515 466 471.46 492.56L154.54 685.94Q111 712.5 111 661.5L111 237.5Q111 186.5 157.43 165.41L364.07 71.56Q410.5 50.47 410.5 101.47L410.5 529.76"
-];
+const SYMBOL = "M210.83 0L579.63 0C596.18 0 606.46 10.69 611.45 23.3L792.93 482.11C803.53 508.91 787.93 520.61 768.81 520.61L27.28 520.61C2.08 520.61 -6.18 506.94 4.68 479L176.62 36.63C185.41 14.02 195.49 0 210.83 0ZM296.48 69.3L504.78 69.3L400.68 371.8ZM236.83 138.95L351.08 446.05L113.08 446.05ZM559.38 138.8L678.33 446.05L445.33 446.05Z";
 const WORDMARK = [
   "M0 182.9V2.9H26.09L93.63 96.86H80.65L147.14 2.9H173.23V182.9H145.3V36.22L155.71 39.1L88.02 131.92H85.22L18.8 39.1L27.94 36.22V182.9Z",
   "M264.81 185.8Q245.31 185.8 230.29 176.75Q215.28 167.7 206.82 152.12Q198.36 136.55 198.36 117.21Q198.36 97.52 206.86 82.25Q215.37 66.97 229.9 58.16Q244.44 49.35 262.65 49.35Q277.47 49.35 288.98 54.43Q300.49 59.51 308.5 68.38Q316.52 77.26 320.74 88.6Q324.97 99.94 324.97 112.57Q324.97 115.67 324.67 119.04Q324.37 122.4 323.66 125.31H219.26V103.81H308.45L295.73 113.58Q298.02 101.67 294.03 92.31Q290.04 82.94 281.81 77.47Q273.58 72 262.65 72Q251.83 72 243.23 77.48Q234.62 82.96 229.97 93.1Q225.32 103.25 226.3 117.45Q225.2 130.84 230.16 140.89Q235.12 150.93 244.32 156.46Q253.52 162 265.04 162Q277.12 162 285.46 156.61Q293.8 151.22 298.81 142.68L320.7 153.54Q316.84 162.69 308.69 170.01Q300.55 177.32 289.38 181.56Q278.21 185.8 264.81 185.8Z",
@@ -18,18 +15,16 @@ const WORDMARK = [
   "M929.48 182.9V0H956.2V182.9Z",
   "M1045.21 185.8Q1025.72 185.8 1010.7 176.75Q995.68 167.7 987.22 152.12Q978.77 136.55 978.77 117.21Q978.77 97.52 987.27 82.25Q995.77 66.97 1010.3 58.16Q1024.84 49.35 1043.05 49.35Q1057.87 49.35 1069.38 54.43Q1080.89 59.51 1088.91 68.38Q1096.92 77.26 1101.15 88.6Q1105.37 99.94 1105.37 112.57Q1105.37 115.67 1105.07 119.04Q1104.77 122.4 1104.06 125.31H999.66V103.81H1088.85L1076.13 113.58Q1078.42 101.67 1074.43 92.31Q1070.44 82.94 1062.21 77.47Q1053.98 72 1043.05 72Q1032.23 72 1023.63 77.48Q1015.02 82.96 1010.37 93.1Q1005.72 103.25 1006.7 117.45Q1005.61 130.84 1010.56 140.89Q1015.52 150.93 1024.72 156.46Q1033.92 162 1045.44 162Q1057.52 162 1065.86 156.61Q1074.21 151.22 1079.21 142.68L1101.1 153.54Q1097.24 162.69 1089.09 170.01Q1080.95 177.32 1069.78 181.56Q1058.62 185.8 1045.21 185.8Z"
 ];
-const SYMBOL_BOX = [528, 725] as const;
+const SYMBOL_BOX = [796.35, 520.61] as const;
 const WORDMARK_BOX = [1105.37, 185.8] as const;
 
-/** The three-frame symbol. Below 48 px it uses the small-size optical stroke. */
-export function Mark({ height = 32, className, title, weight }: { height?: number; className?: string; title?: string; weight?: number }) {
+/** The filled symbol at a given height; it is wider than it is tall. */
+export function Mark({ height = 22, className, title }: { height?: number; className?: string; title?: string }) {
   const [w, h] = SYMBOL_BOX;
   return (
     <svg height={height} width={Math.round((height * w) / h)} viewBox={`0 0 ${w} ${h}`} className={className}
       role={title ? "img" : undefined} aria-label={title} aria-hidden={title ? undefined : true}>
-      <g fill="none" stroke="currentColor" strokeWidth={weight ? 26.5 * weight : height < 48 ? 42.4 : 26.5} strokeLinejoin="round" strokeLinecap="butt">
-        {FRAMES.map((d) => <path key={d} d={d} />)}
-      </g>
+      <path d={SYMBOL} fill="currentColor" fillRule="evenodd" />
     </svg>
   );
 }
@@ -47,12 +42,12 @@ export function Wordmark({ height = 16, className, title = "MedScale" }: { heigh
 }
 
 /** Horizontal lockup at a given symbol height, with the approved proportions. */
-export function Logo({ height = 32, className }: { height?: number; className?: string }) {
-  const cap = height / 2.05;
+export function Logo({ height = 22, className }: { height?: number; className?: string }) {
+  const cap = height / 1.45;
   return (
     <span className={className} style={{ display: "inline-flex", alignItems: "flex-start", gap: cap * 0.5 }}>
-      <Mark height={height} weight={1.5} />
-      <span style={{ marginTop: height * 0.2082 }}><Wordmark height={cap * 1.0322} /></span>
+      <Mark height={height} />
+      <span style={{ marginTop: height * 0.1441 }}><Wordmark height={cap * 1.0322} /></span>
     </span>
   );
 }

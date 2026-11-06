@@ -15,20 +15,30 @@ fn repo_root() -> PathBuf {
 #[test]
 fn approved_monochrome_mark_is_runtime_bound() {
     let root = repo_root();
-    for asset in [
-        "crates/medscale-desktop/ui/assets/medscale-mark.svg",
-        "crates/medscale-desktop/ui/assets/medscale-app-icon.svg",
+    for (asset, approved) in [
+        (
+            "crates/medscale-desktop/ui/assets/medscale-mark.svg",
+            "#000000",
+        ),
+        (
+            "crates/medscale-desktop/ui/assets/medscale-app-icon.svg",
+            "#080808",
+        ),
     ] {
         let svg = std::fs::read_to_string(root.join(asset)).expect("logo asset");
-        // Founder-approved Logo 12 (2026-10-19) supersedes the Spec 095 paired mark and the historical circle.
+        // The founder-supplied mark (2026-11-05) supersedes Logo 12, the Spec 095 paired mark and the historical circle.
         assert!(
             !svg.contains("<circle"),
             "superseded field returned: {asset}"
         );
-        assert!(svg.contains("#000000"), "approved black missing: {asset}");
+        assert!(svg.contains(approved), "approved dark missing: {asset}");
         assert!(
-            svg.contains("id=\"medscale-frames\""),
-            "MedScale Logo 12 frames missing: {asset}"
+            svg.contains("id=\"medscale-symbol\""),
+            "MedScale symbol missing: {asset}"
+        );
+        assert!(
+            !svg.contains("medscale-frames") && !svg.contains("stroke"),
+            "superseded stroked frames returned: {asset}"
         );
         for forbidden in ["#0A66FF", "purple", "gradient", "heartbeat", "sparkle"] {
             assert!(

@@ -105,6 +105,8 @@ fn records_required_by_licenses_are_present() {
         "docs/qualification/EXTERNAL_GATES.md",
         "docs/qualification/PRODUCT_QUALIFICATION_STATUS.md",
         "third_party/provenance/095-approved-medscale-identity.md",
+        "third_party/provenance/logo-12-approved-identity.md",
+        "third_party/provenance/medscale-logo-2026-11-05.md",
     ] {
         assert!(Path::new(&root.join(path)).exists(), "{path} must exist");
     }

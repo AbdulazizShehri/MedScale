@@ -11,8 +11,8 @@ export function InstallGuide({ release }: { release: PublicRelease }) {
   return (
     <>
       <section className="page-section" aria-labelledby="install-title">
-        <div className="shell" style={{ display: "grid", gap: 24 }}>
-          <h2 id="install-title" className="h2" style={{ fontSize: "clamp(28px, 3.4vw, 40px)" }}><span className="mute">Install</span> in a few steps.</h2>
+        <div className="shell stack-lg">
+          <h2 id="install-title" className="h2 h2-sm"><span className="mute">Install</span> in a few steps.</h2>
           <p className="body">No account, app store or GitHub login. Compare the checksum before you open the file. If it differs, delete the file and report it.</p>
           <div className="install-steps">
             {windows && (
@@ -45,8 +45,8 @@ export function InstallGuide({ release }: { release: PublicRelease }) {
         </div>
       </section>
       <section className="page-section" aria-labelledby="notes-title">
-        <div className="shell" style={{ display: "grid", gap: 24 }}>
-          <h2 id="notes-title" className="h2" style={{ fontSize: "clamp(28px, 3.4vw, 40px)" }}><span className="mute">MedScale</span> {release.version} Beta.</h2>
+        <div className="shell stack-lg">
+          <h2 id="notes-title" className="h2 h2-sm"><span className="mute">MedScale</span> {release.version} Beta.</h2>
           <ul className="body release-notes">{release.notes.map((n) => <li key={n}>{n}</li>)}</ul>
           <p className="body">MedScale runs on your computer, with network access denied by default. Model downloads ask first. This isn&apos;t a certified no-network guarantee. Real patient records and clinical decisions aren&apos;t authorized, and MedScale isn&apos;t clinically validated.</p>
           {anyInstaller && (
@@ -61,8 +61,8 @@ export function InstallGuide({ release }: { release: PublicRelease }) {
         </div>
       </section>
       <section className="page-section" aria-labelledby="after-title">
-        <div className="shell" style={{ display: "grid", gap: 24 }}>
-          <h2 id="after-title" className="h2" style={{ fontSize: "clamp(28px, 3.4vw, 40px)" }}><span className="mute">Updates</span> and help.</h2>
+        <div className="shell stack-lg">
+          <h2 id="after-title" className="h2 h2-sm"><span className="mute">Updates</span> and help.</h2>
           <p className="body">MedScale doesn&apos;t update itself. Check this page for new versions and run the newer installer. This is the first Beta, so updating between versions hasn&apos;t been tested yet: before you update, quit MedScale and copy its data folder ({DATA_FOLDERS}). Keep your passphrase and recovery code somewhere safe: nobody can recover an encrypted workspace without them.</p>
           <p className="body">
             <a className="text-link" href={docs.firstRun}>First-run guide</a> ·{" "}

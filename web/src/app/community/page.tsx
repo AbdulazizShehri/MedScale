@@ -9,19 +9,19 @@ export default function Community() {
     <main id="main">
       <section className="shell page-hero">
         <span className="eyebrow">Community</span>
-        <h1 className="display" style={{ fontSize: "clamp(40px, 6vw, 72px)" }}>Built in the open.<br /><span className="mute">Better together.</span></h1>
+        <h1 className="display display-sub">Built in the open.<br /><span className="mute">Better together.</span></h1>
         <p className="lede">MedScale is Apache-2.0 open source. Read the code, run the tests, report what breaks and help shape what comes next.</p>
         <div className="actions"><a className="btn btn-primary" href={github}><GitHub size={16} /> Open the repository</a><a className="btn btn-secondary" href={docs.contributing}>Contributing guide <ArrowUpRight /></a></div>
       </section>
       <section className="page-section">
-        <div className="shell cards">
+        <div className="shell"><div className="cards">
           <a className="card" href={docs.issues}><div className="card-top"><small>Issues</small><ArrowUpRight /></div><strong>Report or pick up work</strong><p>Bugs, gaps and good first changes, tracked in the open.</p></a>
           <a className="card" href={docs.discussions}><div className="card-top"><small>Discussions</small><ArrowUpRight /></div><strong>Ask and propose</strong><p>Design questions, ideas and help with building from source.</p></a>
           <a className="card" href={`${github}/pulls`}><div className="card-top"><small>Pull requests</small><ArrowUpRight /></div><strong>Change the code</strong><p>Every pull request runs the Rust, desktop and supply-chain checks.</p></a>
-        </div>
+        </div></div>
       </section>
       <section className="page-section">
-        <div className="shell prose">
+        <div className="shell"><div className="prose">
           <h2>The one rule that never bends</h2>
           <p>Use synthetic data only. Issues, examples, tests, screenshots and logs must never contain real patient information or confidential material. If you are not sure whether something is synthetic, leave it out.</p>
           <h2>Good places to start</h2>
@@ -33,7 +33,7 @@ export default function Community() {
           <p>Security problems go through the <a className="text-link" href={docs.security}>security policy</a>, not public issues. Everyone follows the <a className="text-link" href={docs.conduct}>code of conduct</a>.</p>
           <h2>Support independent development</h2>
           <p>MedScale remains free and Apache-2.0 open source. Voluntary sponsorship helps sustain cross-platform testing, security review and accessible releases; it does not buy product access or change the licence. <a className="text-link" href={sponsors}>Sponsor the maintainer on GitHub</a>.</p>
-        </div>
+        </div></div>
       </section>
     </main>
   );

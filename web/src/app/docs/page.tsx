@@ -15,13 +15,13 @@ export default function Docs() {
     <main id="main">
       <section className="shell page-hero">
         <span className="eyebrow">Documentation</span>
-        <h1 className="display" style={{ fontSize: "clamp(40px, 6vw, 72px)" }}>Everything is<br /><span className="mute">in the repository.</span></h1>
+        <h1 className="display display-sub">Everything is<br /><span className="mute">in the repository.</span></h1>
         <p className="lede">MedScale&apos;s documentation lives next to the code, so it changes with it. Start here and follow the links into GitHub.</p>
       </section>
       {groups.map((g) => (
         <section key={g.id} className="page-section" aria-labelledby={`g-${g.id}`}>
-          <div className="shell" style={{ display: "grid", gap: 24 }}>
-            <h2 id={`g-${g.id}`} className="h3" style={{ fontSize: 24 }}>{g.title}</h2>
+          <div className="shell stack-lg">
+            <h2 id={`g-${g.id}`} className="h3 h2-xs">{g.title}</h2>
             <div className="cards">{g.items.map(([t, d, href]) => <a key={t} className="card" href={href}><div className="card-top"><small>GitHub</small><ArrowUpRight /></div><strong>{t}</strong><p>{d}</p></a>)}</div>
           </div>
         </section>

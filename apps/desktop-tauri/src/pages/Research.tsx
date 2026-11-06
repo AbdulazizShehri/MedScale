@@ -237,7 +237,7 @@ function AnalyticsBody({ projectId }: { projectId: string }) {
 
 /* ───────────────────────────── Knowledge ───────────────────────────── */
 export function Knowledge() {
-  return <ProjectScope title="Knowledge" sub="A local index over this project's sources, with search receipts and canvases.">{(pid) => <KnowledgeBody projectId={pid} />}</ProjectScope>;
+  return <ProjectScope title="Knowledge" sub="Search this project's sources with a local index. Every search leaves a receipt.">{(pid) => <KnowledgeBody projectId={pid} />}</ProjectScope>;
 }
 
 function KnowledgeBody({ projectId }: { projectId: string }) {
@@ -253,18 +253,25 @@ function KnowledgeBody({ projectId }: { projectId: string }) {
   return (
     <>
       {overview.state.status === "error" && <ErrorState error={overview.state.error} onRetry={overview.reload} />}
-      {overview.state.status === "ready" && <Ledger items={[{ k: "index", v: overview.state.data.index_status }, { k: "canvases", v: overview.state.data.canvases.length, mono: true }]} />}
-      <div className="row-gap" style={{ gap: 8, marginBottom: 12 }}>
-        <button type="button" className="btn btn-s" onClick={build} disabled={!!pending}>{pending === "build" ? <Glyph kind="running" /> : null}Build index</button>
-        <form onSubmit={search} className="field-row" style={{ flex: 1 }}>
-          <input type="text" value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search indexed sources" maxLength={256} aria-label="Search indexed sources" style={{ flex: "1 1 240px", maxWidth: 420 }} />
-          <button type="submit" className="btn btn-g" disabled={!q.trim() || !!pending}>Search</button>
-        </form>
-      </div>
-      <Section title="Results">{res ? <><p className="t-sm" style={{ marginBottom: 8 }}>{res.summary}</p><pre className="pre">{res.hits || "No hits."}</pre></> : <p className="t-sm i3">Build the index, then search. The index covers this project's data sources only.</p>}</Section>
-      {overview.state.status === "ready" && <Section title="Canvases" count={overview.state.data.canvases.length}>
-        {overview.state.data.canvases.length ? overview.state.data.canvases.map((c) => <div key={c.id} className="lr" style={{ gridTemplateColumns: "minmax(0,1fr) minmax(0,1.5fr)" }}><span className="trunc" style={{ fontWeight: 600 }}>{c.title}</span><span className="t-sm i3 trunc">{c.detail}</span></div>) : <p className="t-sm i3">No canvases in this project.</p>}
+      <div className="knowledge-layout">
+        <div>
+          <form onSubmit={search} className="field-row knowledge-search">
+            <input type="text" value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search indexed sources" maxLength={256} aria-label="Search indexed sources" style={{ flex: "1 1 240px" }} />
+            <button type="submit" className="btn btn-p" disabled={!q.trim() || !!pending}>Search</button>
+          </form>
+          <Section title="Results">{res ? <><p className="t-sm" style={{ marginBottom: 8 }}>{res.summary}</p><pre className="pre">{res.hits || "No hits."}</pre></> : <p className="t-sm i3">Build the index, then search. The index covers this project's data sources only.</p>}</Section>
+        </div>
+        <aside className="agent-side" aria-label="Index and canvases">
+          <Section title="Index">
+            {overview.state.status === "ready" && <p className="t-sm i2" style={{ marginBottom: 12 }}>{overview.state.data.index_status}</p>}
+            <button type="button" className="btn btn-s" onClick={build} disabled={!!pending}>{pending === "build" ? <Glyph kind="running" /> : null}Build index</button>
+            <p className="t-sm i3" style={{ marginTop: 12 }}>The index covers this project's sources and stays on this device.</p>
+          </Section>
+          {overview.state.status === "ready" && <Section title="Canvases" count={overview.state.data.canvases.length}>
+        {overview.state.data.canvases.length ? overview.state.data.canvases.map((c) => <div key={c.id} className="lr" style={{ gridTemplateColumns: "minmax(0,1fr)" }}><span className="trunc" style={{ fontWeight: 600 }}>{c.title}</span><span className="t-sm i3 trunc">{c.detail}</span></div>) : <p className="t-sm i3">No canvases in this project.</p>}
       </Section>}
+        </aside>
+      </div>
     </>
   );
 }

@@ -38,6 +38,12 @@ const model = () => {
     invoke: async (cmd) => {
       calls.push(cmd);
       if (cmd === "workspace_status") return open ? { ...initial, open: true, workspace: { subjects: 2, sources: 12 } } : initial;
+      if (cmd === "workspace_create_encrypted") {
+        await new Promise((resolve) => setTimeout(resolve, 500));
+        if (window.__failCreate) throw { kind: "unavailable", message: "Unavailable: test failure" };
+        open = true;
+        return { recovery_codes: ["qa-code-one", "qa-code-two"] };
+      }
       if (cmd === "workspace_open_synthetic") { open = true; return { subjects: 2, sources: 12 }; }
       if (cmd === "patients_list") return { subjects };
       if (cmd === "evidence_corpus") return { source_identity: "synthetic-qa", documents: [] };
@@ -75,7 +81,7 @@ async function run() {
       assert.equal(res.status(), 200, "served desktop bundle");
       await page.getByRole("heading", { name: /your local ai workspace/i }).waitFor();
       const primary = page.getByRole("button", { name: "Try MedScale with sample data" });
-      const advanced = page.getByRole("button", { name: "Set up or unlock encrypted vault" });
+      const advanced = page.getByRole("button", { name: "Create an encrypted workspace" });
       assert.equal(await primary.isVisible(), true);
       assert.equal(await advanced.isVisible(), true);
       assert.equal(await page.getByText("Beta · synthetic data only", { exact: false }).count() > 0, true);
@@ -132,12 +138,126 @@ async function run() {
     const advanced = await browser.newPage({ viewport: { width: 1280, height: 820 } });
     await advanced.addInitScript(model);
     await advanced.goto(origin, { waitUntil: "networkidle" });
-    await advanced.getByRole("button", { name: "Set up or unlock encrypted vault" }).click();
+    await advanced.getByRole("button", { name: "Create an encrypted workspace" }).click();
     await advanced.getByRole("heading", { name: "Create encrypted vault" }).waitFor({ timeout: 10000 });
     const advancedCmds = await advanced.evaluate(() => window.__firstRunCommands);
     assert.equal(advancedCmds.includes("workspace_open_synthetic"), false);
     checks.push({ viewport: 1280, route: "welcome -> encrypted vault (opt-in)", passed: true });
     await advanced.close();
+    // Existing encrypted vault: unlock comes first, and nothing opens without Core.
+    const existing = await browser.newPage({ viewport: { width: 1280, height: 820 }, reducedMotion: "reduce" });
+    await existing.addInitScript(model);
+    await existing.addInitScript(() => {
+      const invoke = window.__TAURI_INTERNALS__.invoke;
+      window.__TAURI_INTERNALS__.invoke = async (cmd, args) => {
+        const result = await invoke(cmd, args);
+        return cmd === "workspace_status" ? { ...result, encrypted_vault_exists: true } : result;
+      };
+    });
+    await existing.goto(origin, { waitUntil: "networkidle" });
+    await existing.getByRole("heading", { name: "Unlock workspace" }).waitFor({ timeout: 10000 });
+    assert.equal(await existing.locator("#pp").isVisible(), true, "passphrase field is shown");
+    assert.equal(await existing.getByRole("button", { name: "Unlock workspace" }).isDisabled(), true, "unlock needs a passphrase");
+    assert.equal((await existing.evaluate(() => window.__firstRunCommands)).includes("workspace_open_synthetic"), false, "no workspace opened by itself");
+    assert.equal(await existing.getByText("Real patient data is not authorized").count() > 0, true);
+    await existing.getByRole("button", { name: "Explore sample data instead" }).click();
+    await existing.getByRole("button", { name: "Try MedScale with sample data" }).waitFor({ timeout: 10000 });
+    await existing.getByRole("button", { name: "Unlock your encrypted workspace" }).click();
+    await existing.getByRole("heading", { name: "Unlock workspace" }).waitFor({ timeout: 10000 });
+    checks.push({ viewport: 1280, route: "existing vault -> unlock first, sample one explicit step away", passed: true });
+    await existing.close();
+    // A workspace that can't open: says what happened, offers a next step, changes nothing.
+    const busy = await browser.newPage({ viewport: { width: 1280, height: 820 }, reducedMotion: "reduce" });
+    await busy.addInitScript(model);
+    await busy.addInitScript(() => {
+      const invoke = window.__TAURI_INTERNALS__.invoke;
+      window.__TAURI_INTERNALS__.invoke = async (cmd, args) => {
+        if (cmd === "workspace_open_synthetic") { window.__firstRunCommands.push(cmd); throw { kind: "unavailable", message: "internal path", reason: "workspace_busy" }; }
+        return invoke(cmd, args);
+      };
+    });
+    await busy.goto(origin, { waitUntil: "networkidle" });
+    await busy.getByRole("button", { name: "Try MedScale with sample data" }).click();
+    await busy.getByRole("alert").getByText("This workspace is in use.").waitFor({ timeout: 10000 });
+    assert.equal(await busy.getByText("internal path").count(), 0, "guidance replaces Core's raw message");
+    const opens = () => busy.evaluate(() => window.__firstRunCommands.filter((c) => c === "workspace_open_synthetic").length);
+    assert.equal(await opens(), 1, "no automatic retry");
+    await busy.getByRole("button", { name: "Try again" }).click();
+    await busy.waitForTimeout(200);
+    assert.equal(await opens(), 2, "retry happens only when asked");
+    checks.push({ viewport: 1280, route: "unavailable workspace -> guidance, explicit retry, no automatic change", passed: true });
+    await busy.close();
+    // Returning to the sample: worded for a return, and still one explicit click.
+    const returning = await browser.newPage({ viewport: { width: 1280, height: 820 }, reducedMotion: "reduce" });
+    await returning.addInitScript(model);
+    await returning.addInitScript(() => {
+      const invoke = window.__TAURI_INTERNALS__.invoke;
+      window.__TAURI_INTERNALS__.invoke = async (cmd, args) => {
+        const result = await invoke(cmd, args);
+        return cmd === "workspace_status" ? { ...result, sample_workspace_exists: true } : result;
+      };
+    });
+    await returning.goto(origin, { waitUntil: "networkidle" });
+    await returning.getByRole("heading", { name: /return to your sample workspace/i }).waitFor({ timeout: 10000 });
+    assert.equal((await returning.evaluate(() => window.__firstRunCommands)).includes("workspace_open_synthetic"), false, "returning does not auto-open");
+    checks.push({ viewport: 1280, route: "returning sample user -> worded return, no auto-open", passed: true });
+    await returning.close();
+    // Shown-once recovery codes: the Settings shortcut and the logo cannot take them away.
+    const codes = await browser.newPage({ viewport: { width: 1280, height: 820 }, reducedMotion: "reduce" });
+    await codes.addInitScript(model);
+    await codes.goto(origin + "/#gate=access", { waitUntil: "networkidle" });
+    await codes.getByRole("heading", { name: "Create encrypted vault" }).waitFor({ timeout: 10000 });
+    await codes.locator("#pp").fill("qa-synthetic-passphrase");
+    await codes.locator("#pp2").fill("qa-synthetic-passphrase");
+    await codes.locator('form button[type="submit"]').click();
+    // Core is still creating the vault: leaving now is what would lose the codes.
+    await codes.keyboard.press("Control+,");
+    assert.equal(await codes.getByRole("button", { name: "Back to Welcome" }).count(), 0, "no way back while the vault is being created");
+    const saveHeading = codes.getByRole("heading", { name: "Save your recovery codes" });
+    await saveHeading.waitFor({ timeout: 10000 });
+    await codes.getByRole("button", { name: "Copy codes" }).waitFor({ timeout: 10000 });
+    await codes.keyboard.press("Control+,");
+    await codes.waitForTimeout(200);
+    assert.equal(await saveHeading.isVisible(), true, "the Settings shortcut must not replace recovery codes");
+    assert.equal(await codes.getByRole("button", { name: "Back to Welcome" }).count(), 0, "no way back while codes are shown");
+    await codes.getByRole("button", { name: /I saved them/ }).click();
+    await saveHeading.waitFor({ state: "detached", timeout: 10000 });
+    checks.push({ viewport: 1280, route: "recovery codes hold the screen until confirmed", passed: true });
+    await codes.close();
+    // A failed create lets go of the screen, so nobody is trapped on it.
+    const failed = await browser.newPage({ viewport: { width: 1280, height: 820 }, reducedMotion: "reduce" });
+    await failed.addInitScript(model);
+    await failed.addInitScript(() => { window.__failCreate = true; });
+    await failed.goto(origin + "/#gate=access", { waitUntil: "networkidle" });
+    await failed.locator("#pp").fill("qa-synthetic-passphrase");
+    await failed.locator("#pp2").fill("qa-synthetic-passphrase");
+    await failed.locator('form button[type="submit"]').click();
+    await failed.getByRole("alert").waitFor({ timeout: 10000 });
+    await failed.getByRole("button", { name: "Back to Welcome" }).click();
+    await failed.getByRole("button", { name: "Try MedScale with sample data" }).waitFor({ timeout: 10000 });
+    checks.push({ viewport: 1280, route: "failed vault create releases the screen", passed: true });
+    await failed.close();
+    // A create that fails after the vault exists says so and moves to unlock.
+    const partial = await browser.newPage({ viewport: { width: 1280, height: 820 }, reducedMotion: "reduce" });
+    await partial.addInitScript(model);
+    await partial.addInitScript(() => {
+      window.__failCreate = true;
+      const invoke = window.__TAURI_INTERNALS__.invoke;
+      let tried = false;
+      window.__TAURI_INTERNALS__.invoke = async (cmd, args) => {
+        if (cmd === "workspace_create_encrypted") tried = true;
+        const result = await invoke(cmd, args);
+        return cmd === "workspace_status" ? { ...result, encrypted_vault_exists: tried } : result;
+      };
+    });
+    await partial.goto(origin + "/#gate=access", { waitUntil: "networkidle" });
+    await partial.locator("#pp").fill("qa-synthetic-passphrase");
+    await partial.locator("#pp2").fill("qa-synthetic-passphrase");
+    await partial.locator('form button[type="submit"]').click();
+    await partial.getByRole("heading", { name: "Unlock workspace" }).waitFor({ timeout: 10000 });
+    await partial.getByText("its recovery codes couldn't be shown").waitFor({ timeout: 10000 });
+    checks.push({ viewport: 1280, route: "create failing after the vault exists says so and moves to unlock", passed: true });
+    await partial.close();
   } finally {
     await browser.close();
     await new Promise((resolve) => server.close(resolve));

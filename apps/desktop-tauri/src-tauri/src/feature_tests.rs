@@ -250,10 +250,33 @@ fn every_surface_runs_against_real_core() {
     assert_eq!(err["kind"], "unavailable", "{err}");
     let status = h.ok("workspace_status", json!({}));
     assert_eq!(status["open"], false);
+    assert_eq!(status["sample_workspace_exists"], false);
 
     // Open the synthetic workspace: fixtures are ingested and promoted.
     let ws = h.ok("workspace_open_synthetic", json!({}));
     assert_eq!(ws["subjects"], 2, "{ws}");
+    assert_eq!(
+        h.ok("workspace_status", json!({}))["sample_workspace_exists"],
+        true
+    );
+
+    // Display preferences outlive the WebView, and only known values are kept.
+    let prefs = h.ok("workspace_status", json!({}))["ui_prefs"].clone();
+    assert_eq!(prefs["theme"], Value::Null, "{prefs}");
+    h.ok(
+        "ui_prefs_set",
+        json!({ "theme": "light", "density": "compact" }),
+    );
+    let prefs = h.ok("workspace_status", json!({}))["ui_prefs"].clone();
+    assert_eq!(prefs["theme"], "light", "{prefs}");
+    assert_eq!(prefs["density"], "compact", "{prefs}");
+    let err = h
+        .call(
+            "ui_prefs_set",
+            json!({ "theme": "<script>", "density": "compact" }),
+        )
+        .unwrap_err();
+    assert_eq!(err["kind"], "invalid", "{err}");
     assert!(ws["sources"].as_u64().unwrap() >= 10);
     assert_eq!(
         h.ok("get_shell_status", json!({}))["coreConnection"],

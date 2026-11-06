@@ -23,7 +23,7 @@ function useGov() { return useCommand<Gov>("governance_overview"); }
 
 function RowList({ rows }: { rows: Row[] }) {
   return <>{rows.map((r) => (
-    <div key={r.label} style={{ display: "grid", gridTemplateColumns: "minmax(0,1fr) 240px", gap: 24, alignItems: "center", minHeight: 56, padding: "8px 0", borderBottom: "1px solid var(--line-subtle)" }}>
+    <div key={r.label} style={{ display: "grid", gridTemplateColumns: "minmax(0,1fr) 280px", gap: 24, alignItems: "center", minHeight: 56, padding: "8px 0", borderBottom: "1px solid var(--line-subtle)" }}>
       <div><div style={{ fontSize: 13, fontWeight: 500 }}>{r.label}</div><div className="t-sm i3" style={{ marginTop: 2 }}>{r.detail}</div></div>
       <div className="stack" style={{ gap: 2 }}><Status kind={glyphFor(r.status) === "unknown" ? glyphFor(r.value) : glyphFor(r.status)} weight="strong">{r.value}</Status><span className="t-sm i3">{r.status}</span></div>
     </div>
@@ -38,7 +38,7 @@ type PrivacyVm = {
 };
 
 export function Privacy() {
-  return <ProjectScope title="Privacy" sub="Data classes, transform receipts and egress decisions. Every boundary crossing is evaluated, never assumed.">{(pid) => <PrivacyBody projectId={pid} />}</ProjectScope>;
+  return <ProjectScope title="Privacy" sub="What kinds of data exist here, how they were transformed, and what may leave. Every crossing is checked, never assumed.">{(pid) => <PrivacyBody projectId={pid} />}</ProjectScope>;
 }
 
 function PrivacyBody({ projectId }: { projectId: string }) {
@@ -54,7 +54,7 @@ function PrivacyBody({ projectId }: { projectId: string }) {
   const v = o.state.data;
   return (
     <>
-      <Section n="01" title="Check egress" count="Core evaluates; Desktop only asks">
+      <Section title="Check whether data can leave" count="Core decides">
         <form onSubmit={check} className="field-row">
           <select value={artifact} onChange={(e) => setArtifact(e.target.value)} aria-label="Artifact" style={{ flex: 1 }}>
             <option value="">Choose an ingested source…</option>
@@ -64,16 +64,16 @@ function PrivacyBody({ projectId }: { projectId: string }) {
           <button type="submit" className="btn btn-s" disabled={!artifact || !!pending}>Evaluate</button>
         </form>
       </Section>
-      <Section n="02" title="Decisions" count={v.decisions.length}>
+      <Section title="Decisions" count={v.decisions.length}>
         {v.decisions.length ? <table className="tb"><thead><tr><th style={{ width: "34%" }}>Artifact</th><th style={{ width: "14%" }}>Boundary</th><th style={{ width: "16%" }}>Outcome</th><th>Reason</th></tr></thead><tbody>{v.decisions.map((d, i) => <tr key={i}><td><span className="mono t-mono-sm trunc">{d.artifact_id}</span></td><td className="t-sm">{d.boundary}</td><td><Status kind={glyphFor(d.outcome)} weight="strong">{d.outcome}</Status></td><td className="t-sm i2"><span>{d.reason}</span></td></tr>)}</tbody></table> : <p className="t-sm i3">No egress decisions recorded.</p>}
       </Section>
-      <Section n="03" title="Classifications" count={v.classifications.length}>
+      <Section title="Classifications" count={v.classifications.length}>
         {v.classifications.length ? v.classifications.map((c) => <div key={c.artifact_id} className="lr" style={{ gridTemplateColumns: "minmax(0,1fr) 160px minmax(0,1fr)" }}><span className="mono t-mono-sm trunc">{c.artifact_id}</span><span className="t-sm">{c.data_class}</span><span className="t-sm i3 trunc">{c.basis}</span></div>) : <p className="t-sm i3">No artifacts classified in this project.</p>}
       </Section>
-      <Section n="04" title="Transform receipts" count={v.receipts.length}>
+      <Section title="Transform receipts" count={v.receipts.length}>
         {v.receipts.length ? v.receipts.map((r) => <div key={r.id} className="lr" style={{ gridTemplateColumns: "minmax(0,1fr) 120px minmax(0,1fr)" }}><span className="mono t-mono-sm trunc">{r.id}</span><Status kind={glyphFor(r.status)}>{r.status}</Status><span className="t-sm i3 trunc">{r.residual}</span></div>) : <p className="t-sm i3">No pseudonymization receipts.</p>}
       </Section>
-      <Authority>Default deny. A positive decision covers one artifact at one boundary; it is not a standing permission.</Authority>
+      <Authority>Nothing leaves by default. A yes covers one item at one boundary, and is not a standing permission.</Authority>
     </>
   );
 }
@@ -83,11 +83,11 @@ export function AuditTrail() {
   const { state, reload } = useGov();
   return (
     <div className="pane">
-      <PageHead title="Audit Trail" sub="Disclosure history recorded by Core. Nothing here is editable." />
+      <PageHead title="Audit Trail" sub="Every disclosure, recorded by Core. There is no way to edit it here, though restoring an older backup can shorten it." />
       {state.status === "loading" && <Skeleton />}
       {state.status === "error" && <ErrorState error={state.error} onRetry={reload} />}
       {state.status === "ready" && <>
-        {state.data.audit_rows.length ? <table className="tb"><thead><tr><th style={{ width: "24%" }}>Record</th><th style={{ width: "18%" }}>Action</th><th style={{ width: "20%" }}>Subject</th><th style={{ width: "14%" }}>Status</th><th>Detail</th></tr></thead>
+        {state.data.audit_rows.length ? <table className="tb"><thead><tr><th style={{ width: "20%" }}>Record</th><th style={{ width: "17%" }}>Action</th><th style={{ width: "20%" }}>Subject</th><th style={{ width: "28%" }}>Status</th><th>Detail</th></tr></thead>
           <tbody>{state.data.audit_rows.map((r) => <tr key={r.record_id}><td><span className="mono t-mono-sm trunc">{r.record_id}</span></td><td className="t-sm">{r.action}</td><td className="t-sm i2"><span className="trunc">{r.subject}</span></td><td><Status kind={glyphFor(r.status)}>{r.status}</Status></td><td className="t-sm i3"><span className="trunc">{r.detail}</span></td></tr>)}</tbody></table>
           : <Empty icon="audit" title="No disclosures recorded">Core records a disclosure whenever data leaves the vault through an authorized path. None have happened in this workspace.</Empty>}
         <p className="t-sm i3" style={{ marginTop: 12 }}>{state.data.audit_boundary}</p>
@@ -249,14 +249,20 @@ export function Settings() {
 
   return (
     <div className="pane">
-      <div style={{ maxWidth: 860 }}>
-        <PageHead title="Settings" sub="Read-only facts are shown as status. Anything you can change is a control." />
-        <Section n="01" title="Appearance">
-          <SettingRow label="Theme" detail="Resets when MedScale closes. Also available from the command palette."><Seg label="Theme" value={theme} options={["dark", "light"]} onChange={setTheme} /></SettingRow>
-          <SettingRow label="Density" detail="Compact tightens rows, padding and gaps. Type size does not change. Resets when MedScale closes."><Seg label="Density" value={density} options={["standard", "compact"]} onChange={setDensity} /></SettingRow>
+      <PageHead title="Settings" sub="Read-only facts are shown as status. Anything you can change is a control." />
+      <div className="settings-layout">
+        <nav className="settings-nav" aria-label="Settings sections">
+          {[["set-appearance", "Appearance"], ["set-workspace", "Workspace"], ...(ws?.workspace?.kind === "encrypted" ? [["set-recovery", "Crash recovery"]] : []), ...(gov.state.status === "ready" ? [["set-privacy", "Privacy & network"], ["set-qualification", "Qualification"]] : []), ["set-keyboard", "Keyboard"]].map(([id, label]) => (
+            <button key={id} type="button" className="settings-link" onClick={() => { const target = document.getElementById(id!); target?.focus({ preventScroll: true }); target?.scrollIntoView({ block: "start" }); }}>{label}</button>
+          ))}
+        </nav>
+        <div className="settings-body">
+        <div id="set-appearance" tabIndex={-1}><Section title="Appearance">
+          <SettingRow label="Theme" detail="Saved on this device. Also available from the command palette."><Seg label="Theme" value={theme} options={["dark", "light"]} onChange={setTheme} /></SettingRow>
+          <SettingRow label="Density" detail="Compact tightens rows, padding and gaps. Type size does not change."><Seg label="Density" value={density} options={["standard", "compact"]} onChange={setDensity} /></SettingRow>
           <SettingRow label="Reduce motion" detail="Follows the operating system. State changes stay immediate."><Status kind="available">Follows system</Status></SettingRow>
-        </Section>
-        <Section n="02" title="Workspace">
+        </Section></div>
+        <div id="set-workspace" tabIndex={-1}><Section title="Workspace">
           <SettingRow label="Open workspace" detail={ws?.workspace ? `${ws.workspace.subjects} subjects · ${ws.workspace.sources} sources promoted by this desktop` : "No vault is open."}>
             {ws?.workspace ? <span className="mono" style={{ fontSize: 12 }}>{ws.workspace.vault_id}</span> : <Status kind="unavailable">None</Status>}
           </SettingRow>
@@ -264,16 +270,17 @@ export function Settings() {
           <SettingRow label="Lock workspace" detail="Closes the vault and releases keys from memory.">
             <span className="row-gap" style={{ gap: 8 }}><button type="button" className="btn btn-s" onClick={() => void lock()} disabled={!ws?.open}>Lock now</button><span className="kbd">{MOD} Shift L</span></span>
           </SettingRow>
-        </Section>
-        {ws?.workspace?.kind === "encrypted" && <RecoveryKept onRestored={() => void vaultClosed()} />}
+        </Section></div>
+        {ws?.workspace?.kind === "encrypted" && <div id="set-recovery" tabIndex={-1}><RecoveryKept onRestored={() => void vaultClosed()} /></div>}
         {gov.state.status === "ready" && <>
-          <Section title="Privacy & network"><RowList rows={gov.state.data.settings_rows.filter((r) => !/release|accessib/i.test(r.label))} /></Section>
-          <Section title="Qualification" count="read-only"><RowList rows={gov.state.data.settings_rows.filter((r) => /release|accessib/i.test(r.label))} /><p className="t-sm i3" style={{ marginTop: 10 }}>{gov.state.data.missing_release_evidence}</p></Section>
+          <div id="set-privacy" tabIndex={-1}><Section title="Privacy & network"><RowList rows={gov.state.data.settings_rows.filter((r) => !/release|accessib/i.test(r.label))} /></Section></div>
+          <div id="set-qualification" tabIndex={-1}><Section title="Qualification" count="read-only"><RowList rows={gov.state.data.settings_rows.filter((r) => /release|accessib/i.test(r.label))} /><p className="t-sm i3" style={{ marginTop: 10 }}>{gov.state.data.missing_release_evidence}</p></Section></div>
         </>}
         {gov.state.status === "error" && <ErrorState error={gov.state.error} onRetry={gov.reload} />}
-        <Section title="Keyboard">
+        <div id="set-keyboard" tabIndex={-1}><Section title="Keyboard">
           <KV keyWidth={150} rows={[[`${MOD} K`, "Search or run a command"], [`${MOD} ,`, "Settings"], [`${MOD} Shift L`, "Lock workspace"], ["Enter", "Open the focused row"], ["Space", "Preview the focused row"], ["Esc", "Close the palette or dialog"]]} />
-        </Section>
+        </Section></div>
+        </div>
       </div>
     </div>
   );
@@ -292,7 +299,7 @@ export function About() {
       <div style={{ maxWidth: 980 }} className="stack">
         <h1 className="sr-only">About MedScale</h1>
         <div className="row-gap" style={{ alignItems: "flex-end", gap: 40, paddingBottom: 32, borderBottom: "1px solid var(--line)", marginBottom: 28 }}>
-          <Mark height={96} />
+          <Mark height={66} />
           <div className="stack" style={{ gap: 6, flex: 1, minWidth: 260 }}><Wordmark height={34} title={a.product} /><span style={{ fontSize: 15, color: "var(--ink-2)" }}>{a.tagline}</span></div>
           <div className="stack" style={{ alignItems: "flex-end", gap: 6 }}><span className="mono" style={{ fontSize: 20 }}>{a.version}</span><span style={{ fontSize: 11, letterSpacing: "0.28em", textTransform: "uppercase", color: "var(--ink-3)" }}>Evidence. Privacy. Scale.</span></div>
         </div>

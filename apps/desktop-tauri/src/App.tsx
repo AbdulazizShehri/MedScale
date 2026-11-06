@@ -1,3 +1,4 @@
+import { gateView, type GateRequest } from "./lib/first-launch";
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { call, type CmdError } from "./lib/ipc";
 import { parseDensity, parseTheme } from "./lib/ui-preferences";
@@ -70,7 +71,8 @@ const PAGES: Record<RouteId, () => ReactNode> = {
 export function App() {
   const [ws, setWs] = useState<WorkspaceStatus | null>(null);
   const [wsError, setWsError] = useState<string | null>(null);
-  const [gate, setGate] = useState<"welcome" | "access">(hash.get("gate") === "access" ? "access" : "welcome");
+  const [gate, setGate] = useState<GateRequest>(hash.get("gate") === "access" ? "access" : "auto");
+  const [recoveryCodesShown, setRecoveryCodesShown] = useState(false);
   const [nav, setNav] = useState<Nav>(startNav);
   // Project selection belongs only to the currently unlocked workspace. Never persist its ID in WebView storage.
   const [project, setProjectState] = useState<string | null>(null);
@@ -97,8 +99,25 @@ export function App() {
   useEffect(() => { writePref("project", null); }, []);
   useEffect(() => { document.documentElement.dataset.theme = theme; }, [theme]);
 
-  const setTheme = useCallback((t: Theme) => { setThemeState(t); writePref("theme", t); }, []);
-  const setDensity = useCallback((d: Density) => { setDensityState(d); writePref("density", d); }, []);
+  // Saved through Core: the release WebView runs InPrivate and forgets localStorage on exit.
+  const savedPrefsApplied = useRef(false);
+  useEffect(() => {
+    if (!ws || savedPrefsApplied.current) return;
+    savedPrefsApplied.current = true;
+    const savedTheme = hash.get("theme") ? null : parseTheme(ws.ui_prefs?.theme ?? null);
+    const savedDensity = hash.get("density") ? null : parseDensity(ws.ui_prefs?.density ?? null);
+    if (savedTheme) setThemeState(savedTheme);
+    if (savedDensity) setDensityState(savedDensity);
+  }, [ws]);
+  const savingPrefs = useRef<Promise<unknown>>(Promise.resolve());
+  const savePrefs = useCallback((nextTheme: Theme, nextDensity: Density) => {
+    // One at a time, so the last choice is the one that stays saved.
+    savingPrefs.current = savingPrefs.current
+      .then(() => call("ui_prefs_set", { theme: nextTheme, density: nextDensity }))
+      .catch(() => { /* the choice still applies until the app closes */ });
+  }, []);
+  const setTheme = useCallback((t: Theme) => { setThemeState(t); writePref("theme", t); savePrefs(t, density); }, [density, savePrefs]);
+  const setDensity = useCallback((d: Density) => { setDensityState(d); writePref("density", d); savePrefs(theme, d); }, [theme, savePrefs]);
   const setProject = useCallback((id: string | null) => { setProjectState(id); }, []);
   const navigate = useCallback((route: RouteId, subject?: string) => { setNav({ route, subject }); setPalette(false); }, []);
   const vaultClosed = useCallback(async () => {
@@ -137,6 +156,7 @@ export function App() {
 
   useEffect(() => {
     function onKey(e: KeyboardEvent) {
+      if (recoveryCodesShown) return;
       const mod = e.ctrlKey || e.metaKey;
       if (mod && e.key.toLowerCase() === "k") { e.preventDefault(); setPalette((p) => !p); }
       else if (mod && e.shiftKey && e.key.toLowerCase() === "l" && ws?.open) { e.preventDefault(); void lock(); }
@@ -144,7 +164,7 @@ export function App() {
     }
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [lock, ws?.open]);
+  }, [lock, ws?.open, recoveryCodesShown]);
 
   const ctx: AppCtx = useMemo(() => ({
     ws, refreshWorkspace, vaultClosed, nav, navigate, project, setProject, theme, setTheme, density, setDensity, lock,
@@ -156,12 +176,15 @@ export function App() {
   if (nav.subject) crumbs.push(nav.subject);
 
   let body: ReactNode;
-  if (!ws) {
-    body = wsError
-      ? <div className="splash" role="alert"><div className="stack"><Mark height={56} className="mark" title="MedScale" /><span className="brand-rule" aria-hidden="true" /><p className="t-sm i2">Local runtime disconnected. {wsError}</p></div></div>
-      : <div className="splash" aria-busy="true"><div className="stack"><Mark height={56} className="mark" title="MedScale" /><span className="brand-rule" aria-hidden="true" /><p className="t-sm i3">Opening the local runtime…</p></div></div>;
-  } else if (!ws.open && route.scope !== "none") {
-    body = gate === "welcome" ? <Welcome onContinue={() => setGate("access")} /> : <Access onBack={() => setGate("welcome")} />;
+  const view = gateView({ runtimeError: !!wsError, status: ws, routeNeedsWorkspace: route.scope !== "none", request: gate, recoveryCodesShown });
+  if (view === "runtime-unavailable") {
+    body = <div className="splash" role="alert"><div className="stack"><Mark height={38} className="mark" title="MedScale" /><p className="t-sm i2">Local runtime disconnected. {wsError}</p><p className="t-sm i3">Your workspace stays closed until the runtime responds. If this keeps happening, close MedScale and open it again.</p><button type="button" className="btn btn-s" onClick={() => void refreshWorkspace()}>Try again</button></div></div>;
+  } else if (view === "loading") {
+    body = <div className="splash" aria-busy="true"><div className="stack"><Mark height={38} className="mark" title="MedScale" /><p className="t-sm i3">Opening the local runtime…</p></div></div>;
+  } else if (view === "welcome") {
+    body = <Welcome onContinue={() => setGate("access")} />;
+  } else if (view === "unlock" || view === "create") {
+    body = <Access onBack={() => setGate("welcome")} onRecoveryCodes={setRecoveryCodesShown} />;
   } else {
     body = (
       <div className="app">

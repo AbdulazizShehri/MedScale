@@ -15,6 +15,10 @@ export type WorkspaceStatus = {
   encrypted_vault_exists: boolean;
   /** Spec 108 step 5: a set-aside sample copy is stored on this device. */
   set_aside_exists?: boolean;
+  /** The sample workspace is on this device from an earlier open. */
+  sample_workspace_exists?: boolean;
+  /** Theme and density saved by Core, since the release WebView keeps no storage. */
+  ui_prefs?: { theme?: string | null; density?: string | null } | null;
   version: string;
   local_only: boolean;
   real_phi_authorized: boolean;
