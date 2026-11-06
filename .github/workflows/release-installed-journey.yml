@@ -13,8 +13,8 @@ permissions:
   actions: read
 
 env:
-  SOURCE_RUN: "42044042550"
-  SOURCE_SHA: "d48ae9b0ef0cab4ee0ae7dd8a2474bfb7540c9ed"
+  SOURCE_RUN: "42186007018"
+  SOURCE_SHA: "c77a2d7a97e28d58bb3f504120c41e589d91e0c3"
 
 jobs:
   windows:
@@ -70,6 +70,8 @@ jobs:
           "MEDSCALE_E2E_REAL_WAV_REFERENCE=$reference" | Out-File -Append -FilePath $env:GITHUB_ENV -Encoding utf8
       - name: Run the journey on the installed release build
         shell: pwsh
+        env:
+          MEDSCALE_E2E_EXPECT_NO_FOLDER_ADMISSION: "1"
         run: node scripts/e2e/installed-journey.mjs $env:RELEASE_INSTALLER $env:RELEASE_MANIFEST target/installed-journey/windows.json
       - uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v4.6.2
         if: ${{ !cancelled() }}
