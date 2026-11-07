@@ -288,6 +288,22 @@ async function main() {
     const pagesWithGaps = Object.entries(report_).filter(([, c]) => Object.keys(c).length > 0).map(([p]) => p);
     if (pagesWithGaps.length) throw new Error(`unnamed focusable controls on ${pagesWithGaps.join(", ")}`);
   });
+  await step("layout-measured-at-window-sizes", async () => {
+    // Synthetic workspace only, so names are safe to print. Measured, not asserted yet.
+    const result = {};
+    for (const [width, height] of [[1194, 938], [1180, 720], [1440, 900]]) {
+      const applied = await driver.send({ op: "resize", width, height });
+      for (const page of ["Home", "Patients", "Documents", "Insights", "Audio", "Settings"]) {
+        await nav(page);
+        await sleep(1200);
+        const { names = [] } = await driver.send({ op: "clipped" });
+        if (names.length) result[`${width}x${height}:${page}`] = names.length;
+        if (names.length) console.log(`CLIPPED ${applied.width ?? width}x${applied.height ?? height} ${page} ${names.length}: ${names.slice(0, 6).join(" | ").slice(0, 220)}`);
+      }
+    }
+    report.clipped_by_size_and_page = result;
+    console.log(`CLIPPED_TOTAL ${JSON.stringify(result)}`);
+  });
   await step("create-project", async () => {
     await nav("Projects");
     await type("pn", "Installed build study");

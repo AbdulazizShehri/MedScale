@@ -103,6 +103,24 @@ while ($null -ne ($line = [Console]::In.ReadLine())) {
                 }
                 $reply.unnamed = $counts
             }
+            'resize' {
+                $p = $null
+                if (-not $script:window.TryGetCurrentPattern([System.Windows.Automation.TransformPattern]::Pattern, [ref]$p)) { throw 'no transform pattern' }
+                $p.Resize([double]$c.width, [double]$c.height)
+                $r = $script:window.Current.BoundingRectangle
+                $reply.width = $r.Width; $reply.height = $r.Height
+            }
+            'clipped' {
+                # Named controls and text that extend past the window's right edge.
+                $w = $script:window.Current.BoundingRectangle
+                $names = New-Object System.Collections.Generic.List[string]
+                foreach ($e in $script:window.FindAll($scope::Descendants, $cond)) {
+                    $r = $e.Current.BoundingRectangle
+                    if ($r.IsEmpty -or $e.Current.IsOffscreen) { continue }
+                    if ($r.Right -gt ($w.Right + 1) -and $e.Current.Name) { $names.Add($e.Current.Name) }
+                }
+                $reply.width = $w.Width; $reply.names = $names.ToArray()
+            }
             'shape' {
                 # Counts by control type only, so it's always safe to print.
                 $counts = @{}
