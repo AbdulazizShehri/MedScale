@@ -2388,13 +2388,70 @@ pub fn encrypted_root(state: &State) -> CmdResult<PathBuf> {
     Ok(state.data_dir()?.join("encrypted-workspace"))
 }
 
+/// What vault creation writes before its first seal.
+const UNFINISHED_VAULT_FILES: &[&str] = &[
+    "vault_header.json",
+    "vault_header.json.tmp",
+    "meta.sealed.tmp",
+    "meta.work.sqlite3",
+    "meta.work.sqlite3-journal",
+    "meta.work.sqlite3-wal",
+    "meta.work.sqlite3-shm",
+    ".writer.lock",
+    ".session.lock",
+];
+
+/// Whether a vault folder is what an interrupted creation leaves: no seal, and
+/// nothing but the files creation writes. Such a folder can't be unlocked, so the
+/// app offers Create, which would otherwise refuse forever. Anything else, or a
+/// folder that can't be read, is treated as a real vault.
+pub fn only_unfinished_vault_files(vault_root: &Path) -> bool {
+    match std::fs::read_dir(vault_root) {
+        Err(error) => error.kind() == std::io::ErrorKind::NotFound,
+        Ok(entries) => entries.into_iter().all(|entry| {
+            entry.is_ok_and(|entry| {
+                entry.file_type().is_ok_and(|kind| kind.is_file())
+                    && entry
+                        .file_name()
+                        .to_str()
+                        .is_some_and(|name| UNFINISHED_VAULT_FILES.contains(&name))
+            })
+        }),
+    }
+}
+
+/// Moves an unfinished vault aside, never deleting it, and returns where it went.
+pub fn set_aside_unfinished_vault(vault_root: &Path, manifest: &Path) -> std::io::Result<PathBuf> {
+    let name = vault_root
+        .file_name()
+        .map(|n| n.to_string_lossy().into_owned())
+        .unwrap_or_else(|| "workspace".to_owned());
+    let target = (1u32..=1000)
+        .map(|n| vault_root.with_file_name(format!("{name}.unfinished-{n}")))
+        .find(|candidate| !candidate.exists())
+        .ok_or_else(|| std::io::Error::other("too many unfinished vaults"))?;
+    if vault_root.exists() {
+        std::fs::rename(vault_root, &target)?;
+    } else {
+        std::fs::create_dir_all(&target)?;
+    }
+    if let (true, Some(file)) = (manifest.exists(), manifest.file_name()) {
+        std::fs::rename(manifest, target.join(file))?;
+    }
+    Ok(target)
+}
+
 pub fn create_encrypted(state: &mut State, passphrase: &str) -> CmdResult<Vec<String>> {
     validate_passphrase(passphrase)?;
     let vault_root = encrypted_root(state)?;
     let occupied = std::fs::read_dir(&vault_root)
         .map(|mut entries| entries.next().is_some())
         .unwrap_or(false);
-    if occupied || manifest_path(&vault_root).exists() {
+    let manifest = manifest_path(&vault_root);
+    if (occupied || manifest.exists())
+        && (!only_unfinished_vault_files(&vault_root)
+            || set_aside_unfinished_vault(&vault_root, &manifest).is_err())
+    {
         return Err(CmdError::new(
             "conflict",
             "Conflict: an encrypted vault already exists here, nothing written",
