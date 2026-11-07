@@ -125,6 +125,39 @@ pkill -f "$app/Contents/MacOS/" >/dev/null 2>&1 || true
 pkill -f "CoreServicesUIAgent" >/dev/null 2>&1 || true
 sleep 3
 
+# Why a quarantined copy shows no window: runs each case in its own folder and
+# reports where the app ran and what macOS's policy services said. Diagnostic only.
+quarantine_case() {
+  local label="$1" flags="$2" dir copy before
+  dir="$(mktemp -d)"
+  copy="$dir/MedScale.app"
+  ditto "$app" "$copy"
+  xattr -dr com.apple.quarantine "$copy"
+  xattr -w com.apple.quarantine "$flags;$(printf %x "$(date +%s)");Safari;" "$copy"
+  before="$(date '+%Y-%m-%d %H:%M:%S')"
+  local code=0
+  bounded 30 open "$copy" >/dev/null 2>&1 || code=$?
+  sleep 20
+  local pid path windows
+  pid="$(pgrep -f 'MedScale.app/Contents/MacOS/' | head -1 || true)"
+  path="none"; windows="no process"
+  if [ -n "$pid" ]; then
+    path="$(ps -o command= -p "$pid" | cut -c1-140)"
+    windows="$(bounded 20 osascript -e "tell application \"System Events\" to return count of windows of (first application process whose unix id is $pid)" 2>&1 | tr '\n' ' ' | cut -c1-120)"
+  fi
+  say "CASE_$label OPEN_EXIT=$code PID=${pid:-none} WINDOWS=$windows"
+  say "CASE_${label}_PATH=$path"
+  log show --start "$before" --style compact --predicate 'process == "syspolicyd" OR process == "CoreServicesUIAgent" OR eventMessage CONTAINS[c] "translocat"' 2>/dev/null \
+    | grep -iE 'translocat|MedScale|org.medscale|prompt|reject|notariz|adhoc|code signature' | tail -8 | cut -c1-210 | sed "s/^/CASE_${label}_LOG: /" | tee -a "$report" || true
+  [ -z "$pid" ] || kill "$pid" 2>/dev/null || true
+  pkill -f 'MedScale.app/Contents/MacOS/' >/dev/null 2>&1 || true
+  pkill -x CoreServicesUIAgent >/dev/null 2>&1 || true
+  sleep 3
+  rm -rf "$dir"
+}
+quarantine_case DOWNLOADED 0081
+quarantine_case USER_APPROVED 01c1
+
 rm -rf "$app"
 [ ! -e "$app" ] && say "REMOVE_APP=PASS"
 [ -e "$data" ] && say "USER_DATA_AFTER_REMOVAL=kept" || say "USER_DATA_AFTER_REMOVAL=none"
