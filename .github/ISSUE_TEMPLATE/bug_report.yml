@@ -1,17 +1,41 @@
 name: Bug report
-description: Report a reproducible MedScale defect using synthetic data only
+description: Something in MedScale does not work as it should
 title: "[Bug]: "
+labels: ["bug", "needs-triage"]
 body:
   - type: markdown
     attributes:
       value: |
-        Thank you for helping improve MedScale. **Do not include real patient information, credentials, private keys or exploit details.** Security vulnerabilities belong in the private channel described in SECURITY.md.
+        Thank you for helping improve MedScale Beta.
+
+        **Never include patient data, passphrases, recovery codes, vault files, keys or passwords.** Use fictional data only. Real patient data is not authorized in MedScale.
+
+        Found a security problem? Do not open a public issue. Use [private security reporting](https://github.com/AbdulazizShehri/MedScale/security/advisories/new) instead.
   - type: input
     id: version
     attributes:
-      label: Commit or version
-      description: Commit SHA or engineering build identifier
-      placeholder: "e.g., main at <commit>"
+      label: MedScale version
+      description: Shown in About. If you built from source, give the commit SHA.
+      placeholder: "e.g., 0.1.0, or main at <commit>"
+    validations:
+      required: true
+  - type: input
+    id: os
+    attributes:
+      label: Operating system and version
+      placeholder: "e.g., Windows 11 24H2 x64, or macOS 26.1 on Apple silicon"
+    validations:
+      required: true
+  - type: dropdown
+    id: install_method
+    attributes:
+      label: How did you install MedScale?
+      options:
+        - Windows installer (.exe) from a GitHub release
+        - macOS disk image (.dmg) from a GitHub release
+        - Build artifact from GitHub Actions
+        - Built from source
+        - Other
     validations:
       required: true
   - type: dropdown
@@ -19,53 +43,59 @@ body:
     attributes:
       label: Affected area
       options:
-        - Rust Core / storage / contracts
-        - CLI
-        - Tauri desktop / UI
+        - Desktop app
+        - Encrypted vault, unlock or recovery
+        - Audio and transcription
         - Models and packs
-        - FHIR interchange
-        - Build / CI / documentation
+        - FHIR import
+        - Install, update or uninstall
+        - Command line (CLI)
+        - Website
         - Other
     validations:
       required: true
-  - type: input
-    id: environment
+  - type: textarea
+    id: description
     attributes:
-      label: Operating system and toolchain
-      placeholder: "Windows 11 x64 / macOS arm64 / Linux, rustc ..."
+      label: What went wrong?
+      description: One or two sentences.
     validations:
       required: true
   - type: textarea
-    id: reproduction
+    id: steps
     attributes:
       label: Steps to reproduce
-      description: Use only repository synthetic fixtures and redacted commands
-      placeholder: "1. ... 2. ..."
+      description: Start from opening the app. Use the sample workspace or other fictional data.
+      placeholder: |
+        1. Open MedScale
+        2. Click ...
+        3. See ...
     validations:
       required: true
   - type: textarea
     id: expected
     attributes:
-      label: Expected behavior
+      label: Expected result
     validations:
       required: true
   - type: textarea
     id: actual
     attributes:
-      label: Actual behavior
+      label: Actual result
+      description: Include any error message, word for word.
     validations:
       required: true
   - type: textarea
-    id: logs
+    id: screenshots
     attributes:
-      label: Redacted logs or screenshots (optional)
-      description: Do not attach PHI, secrets, live patient records or security exploit details
+      label: Screenshots or logs (optional)
+      description: Only add a screenshot or log if it shows no personal data. Check names, file paths and user names before you attach it.
     validations:
       required: false
   - type: checkboxes
     id: safety
     attributes:
-      label: Safety confirmation
+      label: Data safety
       options:
-        - label: This report contains synthetic data only and no confidential information or security exploit details
+        - label: This report contains no patient data, passphrases, recovery codes or vault files.
           required: true
