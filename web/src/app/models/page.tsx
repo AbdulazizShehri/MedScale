@@ -23,7 +23,7 @@ export default function Models() {
       </section>
       <section className="proof proof-page" aria-label="The model catalog in numbers">
         <div className="shell proof-row">
-          <div className="proof-item"><strong>{count(PROOF.catalogModels)}</strong><span>Models listed</span><small>From OpenMed&apos;s v3.0.0 public catalog, pinned by checksum.</small></div>
+          <div className="proof-item"><strong>{count(PROOF.catalogModels)}</strong><span>Models listed</span><small>From OpenMed&apos;s v3.0.0 public catalog, pinned by checksum. A catalog listing isn&apos;t a downloaded or runnable model.</small></div>
           <div className="proof-item"><strong>{count(PROOF.catalogExecuted)}</strong><span>Have a recorded run</span><small>Each ran on a disposable CI runner. A run shows it runs, not that it&apos;s accurate or safe.</small></div>
           <div className="proof-item"><strong>{PROOF.catalogOverBound}</strong><span>Measured over the size limit</span><small>Files above MedScale&apos;s 1 GiB limit. Other rows may not fit either.</small></div>
           <div className="proof-item"><strong>0</strong><span>Qualified for clinical use</span><small>Being listed or running doesn&apos;t make a model fit for care.</small></div>

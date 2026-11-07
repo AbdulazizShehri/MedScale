@@ -9,6 +9,7 @@
     "check": "node scripts/check-proof.mjs && node --experimental-strip-types scripts/check.mjs",
     "verify-release": "node --experimental-strip-types scripts/verify-release.mjs",
     "audit:layout": "node scripts/layout-audit.mjs",
+    "audit:a11y": "node scripts/a11y-audit.mjs",
     "test": "node --test --experimental-strip-types src/lib/release.test.ts"
   },
   "dependencies": {
