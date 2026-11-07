@@ -104,6 +104,8 @@ start_app
 if wait_for_window; then
   say "LAUNCH_FROM_APPLICATIONS=PASS"
   mkdir -p "$(dirname "$report")/screens"
+  screencapture -x "$(dirname "$report")/screens/macos-window-appeared.png" 2>/dev/null || say "SCREENSHOT=unavailable"
+  sleep 8
   screencapture -x "$(dirname "$report")/screens/macos-first-launch.png" 2>/dev/null || say "SCREENSHOT=unavailable"
 else
   say "LAUNCH_FROM_APPLICATIONS=FAIL"
