@@ -3,6 +3,8 @@
 Traceability for [#302](https://github.com/AbdulazizShehri/MedScale/issues/302):
 `journey → implementation → automated/integration test → native E2E → platform → status → evidence`.
 
+**Current installer evidence is in [RELEASE_PACKET.md](RELEASE_PACKET.md), bound to `main@f01323c`.** There, the journey runs on the exact Windows installer (23/23, 3 fresh runs), and the macOS DMG installs, launches, quits and reopens (3 fresh runs). That replaces rows 1, 1b and 1c below for install and launch; macOS still has no full journey on the DMG build.
+
 Reconciled 2026-11-05 against `main@80c937aa96ee2251294ded601379313700d0d366`. Run links are to that commit unless a row says otherwise. Statuses follow the classification below. A unit test alone never qualifies a user journey, and synthetic data never qualifies real-model accuracy. See [the Beta readiness report](BETA_READINESS.md).
 
 | Status | Meaning |
