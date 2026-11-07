@@ -47,7 +47,7 @@ Built by [tauri-preview 42361952161](https://github.com/AbdulazizShehri/MedScale
 | Check | Result | Run |
 |---|---|---|
 | Native journeys, test build | Pass | [desktop-e2e](https://github.com/AbdulazizShehri/MedScale/actions/runs/42361952153) |
-| Required CI | Was still running when this packet was written; must pass before GO | — |
+| Required CI | All pass | [ci 42361952115](https://github.com/AbdulazizShehri/MedScale/actions/runs/42361952115) |
 | **Journey on the exact Windows installer, 3 fresh runs** | **23/23 each**. Run 1 passed on rerun after a certificate-revocation network error, before the app had run | [1](https://github.com/AbdulazizShehri/MedScale/actions/runs/42367038824), [2](https://github.com/AbdulazizShehri/MedScale/actions/runs/42367044749), [3](https://github.com/AbdulazizShehri/MedScale/actions/runs/42367051199) |
 | **NVDA 2026.3.0 on the installed build** | **6/6 checks.** Rows named, nothing blank | [42367056610](https://github.com/AbdulazizShehri/MedScale/actions/runs/42367056610) |
 | Windows clean install and upgrade | Clean 18/18, upgrade from the published engineering preview 7/7 with vault files unchanged | [42367058081](https://github.com/AbdulazizShehri/MedScale/actions/runs/42367058081) |
