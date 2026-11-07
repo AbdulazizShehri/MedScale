@@ -50,6 +50,14 @@ impl AcquireFail {
     }
 }
 
+/// Most cells one import may hold. Rows and fields are bounded separately,
+/// but their product is what gets allocated, so it is bounded too.
+pub const TABLE_CELLS_MAX: usize = 16_000_000;
+
+fn cells_exceeded() -> AcquireFail {
+    AcquireFail::Rejected("input exceeds the table cell bound".to_owned())
+}
+
 fn push_warning(warnings: &mut Vec<String>, warning: String) {
     if warnings.len() < ACQUIRE_WARNINGS_MAX {
         warnings.push(warning);
@@ -68,7 +76,7 @@ pub fn parse_delimited(bytes: &[u8], delimiter: u8) -> Result<ParsedTable, Acqui
     }
     let text = std::str::from_utf8(bytes)
         .map_err(|_| AcquireFail::Quarantined("input is not valid UTF-8".to_owned()))?;
-    let records = split_records(text, delimiter);
+    let records = split_records(text, delimiter)?;
     if records.is_empty() {
         return Err(AcquireFail::Rejected("input has no rows".to_owned()));
     }
@@ -143,14 +151,20 @@ pub fn parse_delimited(bytes: &[u8], delimiter: u8) -> Result<ParsedTable, Acqui
 }
 
 /// Splits delimited text into records, honoring double-quote grouping.
-fn split_records(text: &str, delimiter: u8) -> Vec<Vec<String>> {
+/// Fails once the fields read exceed `TABLE_CELLS_MAX`, before the header
+/// and width checks, so a file of bare delimiters can't exhaust memory.
+fn split_records(text: &str, delimiter: u8) -> Result<Vec<Vec<String>>, AcquireFail> {
     let delim = delimiter as char;
     let mut records = Vec::new();
     let mut record = Vec::new();
     let mut field = String::new();
     let mut in_quotes = false;
+    let mut fields_read = 0_usize;
     let mut chars = text.chars().peekable();
     while let Some(ch) = chars.next() {
+        if fields_read > TABLE_CELLS_MAX {
+            return Err(cells_exceeded());
+        }
         if in_quotes {
             if ch == '"' {
                 if chars.peek() == Some(&'"') {
@@ -166,14 +180,17 @@ fn split_records(text: &str, delimiter: u8) -> Vec<Vec<String>> {
             in_quotes = true;
         } else if ch == delim {
             record.push(std::mem::take(&mut field));
+            fields_read += 1;
         } else if ch == '\n' {
             record.push(std::mem::take(&mut field));
+            fields_read += 1;
             push_record(&mut records, &mut record);
         } else if ch == '\r' {
             if chars.peek() == Some(&'\n') {
                 chars.next();
             }
             record.push(std::mem::take(&mut field));
+            fields_read += 1;
             push_record(&mut records, &mut record);
         } else {
             field.push(ch);
@@ -183,7 +200,7 @@ fn split_records(text: &str, delimiter: u8) -> Vec<Vec<String>> {
         record.push(field);
         push_record(&mut records, &mut record);
     }
-    records
+    Ok(records)
 }
 
 fn push_record(records: &mut Vec<Vec<String>>, record: &mut Vec<String>) {
@@ -350,6 +367,9 @@ pub fn parse_json_bytes(bytes: &[u8], lines: bool) -> Result<ParsedTable, Acquir
                 "JSON field names must be non-empty".to_owned(),
             ));
         }
+    }
+    if objects.len().saturating_mul(names.len()) > TABLE_CELLS_MAX {
+        return Err(cells_exceeded());
     }
     let mut warnings = Vec::new();
     let mut nested = 0_u64;
@@ -1117,6 +1137,25 @@ mod tests {
         assert!(table.rows[1][1].is_null());
         // age column inferred integer.
         assert_eq!(table.fields[2].field_type, FieldType::Integer);
+    }
+
+    #[test]
+    fn sparse_or_delimiter_only_input_hits_the_cell_bound() {
+        // 900,000 empty objects plus 1,024 distinct keys pass the row and
+        // field bounds separately but would allocate about 10^9 cells.
+        let mut jsonl = "{}\n".repeat(900_000);
+        for k in 0..1_024 {
+            jsonl.push_str(&format!("{{\"k{k}\":1}}\n"));
+        }
+        assert_eq!(
+            parse_json_bytes(jsonl.as_bytes(), true).unwrap_err(),
+            cells_exceeded()
+        );
+        let commas = ",".repeat(TABLE_CELLS_MAX + 10);
+        assert_eq!(
+            parse_delimited(commas.as_bytes(), b',').unwrap_err(),
+            cells_exceeded()
+        );
     }
 
     #[test]
