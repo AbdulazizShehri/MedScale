@@ -1,0 +1,60 @@
+# Real NVDA against the exact installer from a pinned tauri-preview run, on a
+# disposable runner. Automated evidence of what NVDA announces. It isn't accessibility
+# certification and doesn't replace a person using a screen reader.
+name: release-nvda
+
+on:
+  push:
+    branches:
+      - "test/release-nvda-*"
+
+permissions:
+  contents: read
+  actions: read
+
+env:
+  SOURCE_RUN: "42339761396"
+  SOURCE_SHA: "5be03be5c7e03bac8b73ae40a9bdedffcb33f1db"
+  NVDA_VERSION: "2026.3.0"
+
+jobs:
+  nvda:
+    name: NVDA on the installed build (Windows x64)
+    runs-on: windows-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v4
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: "24.19.0"
+      - name: Retrieve the source-bound installer and verify its release set
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $run = gh api "repos/AbdulazizShehri/MedScale/actions/runs/$env:SOURCE_RUN" | ConvertFrom-Json
+          if ($run.head_sha -ne $env:SOURCE_SHA -or $run.conclusion -ne 'success') { throw 'Source run is not qualified' }
+          gh run download $env:SOURCE_RUN --repo AbdulazizShehri/MedScale --name tauri-installer-windows-latest --dir target/release-archive
+          if ($LASTEXITCODE -ne 0) { throw 'Could not retrieve the installer' }
+          $manifest = @(Get-ChildItem -LiteralPath target/release-archive -Filter package-manifest.json -Recurse -File)
+          if ($manifest.Count -ne 1) { throw 'Expected one release manifest' }
+          ./scripts/verify-tauri-release.ps1 -Root $manifest[0].Directory.FullName -ExpectedSourceSha $env:SOURCE_SHA
+          $installer = @(Get-ChildItem -LiteralPath (Join-Path $manifest[0].Directory.FullName 'installer') -Filter '*-setup.exe' -File)
+          if ($installer.Count -ne 1) { throw 'Expected one installer' }
+          "RELEASE_INSTALLER=$($installer[0].FullName)" | Out-File -Append -FilePath $env:GITHUB_ENV -Encoding utf8
+      - name: Install NVDA
+        shell: pwsh
+        run: |
+          choco install nvda --version $env:NVDA_VERSION -y --no-progress
+          if ($LASTEXITCODE -ne 0) { throw 'NVDA install failed' }
+      - name: Run NVDA on the installed build
+        shell: pwsh
+        run: node scripts/e2e/nvda-journey.mjs $env:RELEASE_INSTALLER target/nvda
+      - uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v4.6.2
+        if: ${{ !cancelled() }}
+        with:
+          name: nvda-evidence
+          path: target/nvda/
+          if-no-files-found: warn
+          retention-days: 30
