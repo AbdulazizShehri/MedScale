@@ -121,6 +121,23 @@ while ($null -ne ($line = [Console]::In.ReadLine())) {
                 }
                 $reply.width = $w.Width; $reply.names = $names.ToArray()
             }
+            'screenshot' {
+                # The window as a person sees it. Callers use this only on synthetic screens.
+                Add-Type -AssemblyName System.Drawing
+                $r = $script:window.Current.BoundingRectangle
+                $bmp = New-Object System.Drawing.Bitmap([int]$r.Width, [int]$r.Height)
+                $g = [System.Drawing.Graphics]::FromImage($bmp)
+                $g.CopyFromScreen([int]$r.X, [int]$r.Y, 0, 0, $bmp.Size)
+                $bmp.Save([string]$c.path, [System.Drawing.Imaging.ImageFormat]::Png)
+                $g.Dispose(); $bmp.Dispose()
+            }
+            'file-icon' {
+                Add-Type -AssemblyName System.Drawing
+                $icon = [System.Drawing.Icon]::ExtractAssociatedIcon([string]$c.file)
+                $bmp = $icon.ToBitmap()
+                $bmp.Save([string]$c.path, [System.Drawing.Imaging.ImageFormat]::Png)
+                $bmp.Dispose(); $icon.Dispose()
+            }
             'shape' {
                 # Counts by control type only, so it's always safe to print.
                 $counts = @{}

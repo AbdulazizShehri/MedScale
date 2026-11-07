@@ -219,6 +219,11 @@ async function main() {
     await launch(installed.exe);
     await find(SAMPLE, 60000);
     await recordInPrivate("first");
+    await sleep(1500);
+    await capture("01-first-launch-welcome");
+    for (const [name, file] of [["installer-icon", installer], ["app-icon", installed.exe]]) {
+      await driver.send({ op: "file-icon", file, path: path.join(path.dirname(path.resolve(reportPath)), "screens", `${name}.png`) });
+    }
     if (/sign in|log in|create an account/i.test(await pageText())) throw new Error("the first screen asks for an account");
   });
   await step("sample-workspace-opens", async () => {
@@ -235,12 +240,22 @@ async function main() {
       await click({ kind: "RadioButton", name }, 30000);
       await sleep(1500);
     };
+    await nav("Home");
+    await sleep(1500);
+    await capture("02-home");
+    await nav("About");
+    await sleep(1500);
+    await capture("03-about");
     await setTheme("Light");
+    await sleep(500);
+    await capture("04-settings-light");
     await closeWindow();
     report.pref_on_disk_after_first_launch = webViewResidue(["medscale.theme"]);
     await launch(installed.exe);
     await find(SAMPLE, 60000);
     await recordInPrivate("second");
+    await sleep(1500);
+    await capture("05-returning-welcome");
     await click(SAMPLE, 60000);
     await find(OPENED, 180000);
     await setTheme("Dark");
@@ -465,6 +480,14 @@ function findFiles(root, name) {
     else if (entry.name === name) found.push(full);
   }
   return found;
+}
+
+/** Real captures for identity review: synthetic screens only, never after real speech. */
+async function capture(name) {
+  const dir = path.join(path.dirname(path.resolve(reportPath)), "screens");
+  fs.mkdirSync(dir, { recursive: true });
+  const r = await driver.send({ op: "screenshot", path: path.join(dir, `${name}.png`) });
+  if (!r.ok) console.log(`CAPTURE ${name} unavailable: ${r.error}`);
 }
 
 /** Whether this launch's WebView says it's in InPrivate mode. */

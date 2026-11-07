@@ -51,6 +51,9 @@ quit_app() {
 
 # Through LaunchServices as a person would. If `open` stalls, say so and run the
 # app's executable, so a stall there doesn't hide whether the app itself starts.
+# Stops only the app installed at this test's own path.
+stop_test_app() { for one in $(pgrep -f "$app/Contents/MacOS/" || true); do kill "$one" 2>/dev/null || true; done; }
+
 start_app() {
   local code=0 output
   output="$(bounded 45 open "$app" 2>&1)" || code=$?
@@ -85,6 +88,8 @@ source_app="$(find "$mount_point" -maxdepth 1 -name '*.app' -print -quit)"
 ditto "$source_app" "$app"
 hdiutil detach "$mount_point" -quiet || hdiutil detach "$mount_point" -force
 say "COPY_TO_APPLICATIONS=PASS"
+mkdir -p "$(dirname "$report")/screens"
+sips -s format png "$app/Contents/Resources/icon.icns" --out "$(dirname "$report")/screens/macos-app-icon.png" >/dev/null 2>&1 || say "ICON_EXPORT=unavailable"
 
 say "QUARANTINE_ON_APP=$(xattr -p com.apple.quarantine "$app" >/dev/null 2>&1 && echo yes || echo no)"
 codesign --verify --deep --strict "$app" >/dev/null 2>&1 && say "CODESIGN_VERIFY=PASS" || say "CODESIGN_VERIFY=FAIL"
@@ -92,12 +97,14 @@ say "CODESIGN_FLAGS=$(codesign -dv "$app" 2>&1 | sed -n 's/.*flags=\([^ ]*\).*/\
 say "SPCTL=$(spctl --assess --type execute "$app" 2>&1 | tr '\n' ' ' | cut -c1-200)"
 
 # Launch with quarantine cleared from this one app, which is what per-app approval
-# does. This runs before the Gatekeeper test, which has to kill a system prompt.
+# does. This runs before the Gatekeeper test, which leaves a system prompt waiting.
 saved_quarantine="$(xattr -p com.apple.quarantine "$app" 2>/dev/null || true)"
 xattr -dr com.apple.quarantine "$app"
 start_app
 if wait_for_window; then
   say "LAUNCH_FROM_APPLICATIONS=PASS"
+  mkdir -p "$(dirname "$report")/screens"
+  screencapture -x "$(dirname "$report")/screens/macos-first-launch.png" 2>/dev/null || say "SCREENSHOT=unavailable"
 else
   say "LAUNCH_FROM_APPLICATIONS=FAIL"
   say "PROCESSES=$(process_count)"
@@ -110,7 +117,7 @@ sleep 5
 quit_app && say "QUIT=PASS" || { say "QUIT=FAIL"; exit 1; }
 start_app
 if wait_for_window; then say "REOPEN=PASS"; else say "REOPEN=FAIL"; exit 1; fi
-quit_app || pkill -f "$app/Contents/MacOS/" || true
+quit_app || stop_test_app
 sleep 3
 
 # What Gatekeeper does with the build as downloaded. Recorded, not asserted.
@@ -121,42 +128,53 @@ say "QUARANTINED_OPEN_EXIT=$open_code"
 say "QUARANTINED_OPEN_OUTPUT=$(echo "$open_output" | tr '\n' ' ' | cut -c1-200)"
 say "QUARANTINED_OPEN_PROCESSES=$(process_count)"
 say "QUARANTINED_OPEN_WINDOWS=$(window_count)"
-pkill -f "$app/Contents/MacOS/" >/dev/null 2>&1 || true
-pkill -f "CoreServicesUIAgent" >/dev/null 2>&1 || true
+stop_test_app
 sleep 3
 
-# Why a quarantined copy shows no window: runs each case in its own folder and
-# reports where the app ran and what macOS's policy services said. Diagnostic only.
+# Why a quarantined copy shows no window. A changed quarantine flag is a simulation,
+# never user approval, and neither case can qualify a release. Each case stops only
+# the processes it started, and only windows count as a launch.
+pids_of_medscale() { pgrep -f 'MedScale\.app/Contents/MacOS/' | sort || true; }
+
 quarantine_case() {
-  local label="$1" flags="$2" dir copy before
+  local label="$1" flags="$2" dir copy before started=""
   dir="$(mktemp -d)"
   copy="$dir/MedScale.app"
   ditto "$app" "$copy"
   xattr -dr com.apple.quarantine "$copy"
   xattr -w com.apple.quarantine "$flags;$(printf %x "$(date +%s)");Safari;" "$copy"
+  local spctl_code=0 spctl_output
+  spctl_output="$(spctl --assess --type execute -vv "$copy" 2>&1)" || spctl_code=$?
+  say "CASE_${label}_SPCTL_EXIT=$spctl_code"
+  say "CASE_${label}_SPCTL=$(echo "$spctl_output" | tr '\n' ' ' | cut -c1-200)"
+  say "CASE_${label}_SIGNATURE=$(codesign -dv "$copy" 2>&1 | grep -E '^(Signature|TeamIdentifier)' | tr '\n' ' ' | cut -c1-120)"
+  local already pid="" windows=0 at_dyld="no" code=0 path="none"
+  already="$(pids_of_medscale)"
   before="$(date '+%Y-%m-%d %H:%M:%S')"
-  local code=0
   bounded 30 open "$copy" >/dev/null 2>&1 || code=$?
   sleep 20
-  local pid path windows
-  pid="$(pgrep -f 'MedScale.app/Contents/MacOS/' | head -1 || true)"
-  path="none"; windows="no process"
+  started="$(comm -13 <(echo "$already") <(pids_of_medscale) | tr '\n' ' ')"
+  pid="${started%% *}"
   if [ -n "$pid" ]; then
-    path="$(ps -o command= -p "$pid" | cut -c1-140)"
-    windows="$(bounded 20 osascript -e "tell application \"System Events\" to return count of windows of (first application process whose unix id is $pid)" 2>&1 | tr '\n' ' ' | cut -c1-120)"
+    path="$(ps -o command= -p "$pid" | sed 's#^.*/T/##' | cut -c1-120)"
+    windows="$(bounded 20 osascript -e "tell application \"System Events\" to return count of windows of (first application process whose unix id is $pid)" 2>/dev/null | tr -cd '0-9')"
+    windows="${windows:-0}"
+    bounded 20 sample "$pid" 1 2>/dev/null | grep -q '_dyld_start' && at_dyld="yes"
   fi
-  say "CASE_$label OPEN_EXIT=$code PID=${pid:-none} WINDOWS=$windows"
+  local verdict
+  if [ "$windows" -gt 0 ]; then verdict="WINDOW_VERIFIED"
+  elif [ "$spctl_code" -ne 0 ]; then verdict="GATEKEEPER_BLOCKED"
+  else verdict="APP_NO_WINDOW"; fi
+  say "CASE_$label VERDICT=$verdict OPEN_EXIT=$code PID=${pid:-none} WINDOWS=$windows AT_DYLD_START=$at_dyld"
   say "CASE_${label}_PATH=$path"
-  log show --start "$before" --style compact --predicate 'process == "syspolicyd" OR process == "CoreServicesUIAgent" OR eventMessage CONTAINS[c] "translocat"' 2>/dev/null \
-    | grep -iE 'translocat|MedScale|org.medscale|prompt|reject|notariz|adhoc|code signature' | tail -8 | cut -c1-210 | sed "s/^/CASE_${label}_LOG: /" | tee -a "$report" || true
-  [ -z "$pid" ] || kill "$pid" 2>/dev/null || true
-  pkill -f 'MedScale.app/Contents/MacOS/' >/dev/null 2>&1 || true
-  pkill -x CoreServicesUIAgent >/dev/null 2>&1 || true
+  log show --start "$before" --style compact --predicate 'process == "syspolicyd" OR process == "amfid"' 2>/dev/null \
+    | grep -iE 'MedScale|matching active rule|Prompt shown|AppleMobileFileIntegrityError' | tail -6 | sed 's#/private/var/folders/[^ ]*/T/#<tmp>/#g' | cut -c1-200 | sed "s/^/CASE_${label}_POLICY: /" | tee -a "$report" || true
+  for one in $started; do kill "$one" 2>/dev/null || true; done
   sleep 3
   rm -rf "$dir"
 }
-quarantine_case DOWNLOADED 0081
-quarantine_case USER_APPROVED 01c1
+quarantine_case DOWNLOADED_0081 0081
+quarantine_case SIMULATED_01C1 01c1
 
 rm -rf "$app"
 [ ! -e "$app" ] && say "REMOVE_APP=PASS"
