@@ -91,6 +91,18 @@ while ($null -ne ($line = [Console]::In.ReadLine())) {
                 if (-not $e.TryGetCurrentPattern([System.Windows.Automation.SelectionItemPattern]::Pattern, [ref]$p)) { throw 'no selection pattern' }
                 $reply.selected = $p.Current.IsSelected
             }
+            'unnamed' {
+                # Focusable controls with no accessible name. Counts only.
+                $by = New-Object System.Windows.Automation.PropertyCondition($ae::IsKeyboardFocusableProperty, $true)
+                $counts = @{}
+                foreach ($e in $script:window.FindAll($scope::Descendants, $by)) {
+                    if (-not $e.Current.Name) {
+                        $t = $e.Current.ControlType.ProgrammaticName
+                        $counts[$t] = 1 + [int]$counts[$t]
+                    }
+                }
+                $reply.unnamed = $counts
+            }
             'shape' {
                 # Counts by control type only, so it's always safe to print.
                 $counts = @{}

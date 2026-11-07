@@ -40,7 +40,7 @@ export function Models() {
         {tab === "packs" && (v.models.length ? (
           <table className="tb"><thead><tr><th style={{ width: "30%" }}>Model</th><th style={{ width: "18%" }}>Task</th><th className="col-p3" style={{ width: "16%" }}>Runtime</th><th style={{ width: "20%" }}>State</th><th>Trust</th></tr></thead>
             <tbody>{v.models.map((x, i) => (
-              <tr key={x.model + i} className={`r2 clickable ${m === x ? "sel" : ""}`} tabIndex={0} onClick={() => setSel(i)} onKeyDown={(e) => e.key === "Enter" && setSel(i)}>
+              <tr key={x.model + i} className={`r2 clickable ${m === x ? "sel" : ""}`} tabIndex={0} aria-label={`Select model ${x.model}`} onClick={() => setSel(i)} onKeyDown={(e) => e.key === "Enter" && setSel(i)}>
                 <td><div style={{ display: "flex", gap: 10, alignItems: "center", minWidth: 0 }}><Icon name="models" /><div style={{ display: "flex", flexDirection: "column", minWidth: 0 }}><span className="mono trunc" style={{ fontSize: 12.5, fontWeight: 500 }} title={x.model}>{x.model}</span><span className="t-sm i3 trunc" title={x.scope}>{x.scope}</span></div></div></td>
                 <td className="t-sm i2"><span className="trunc" title={x.task}>{x.task}</span></td><td className="col-p3 mono t-mono-sm i2"><span className="trunc" title={x.runtime}>{x.runtime}</span></td>
                 <td><Status kind={/candidate|proposal/i.test(x.state) ? "proposal" : glyphFor(x.state)}>{x.state}</Status></td>

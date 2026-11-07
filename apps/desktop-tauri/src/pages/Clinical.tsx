@@ -74,7 +74,7 @@ export function Documents() {
             <table className="tb" aria-label="Sources">
               <thead><tr><th style={{ width: "28%" }}>Source</th><th style={{ width: "19%" }}>Resource</th><th style={{ width: "16%" }}>Extraction</th><th className="col-p3" style={{ width: "22%" }}>Subject</th><th>Origin</th></tr></thead>
               <tbody>{rows.map((s, i) => (
-                <tr key={s.source_id + i} className={`r2 clickable ${cur === s ? "sel" : ""}`} tabIndex={0} aria-selected={cur === s} onClick={() => setSel(i)} onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); setSel(i); } }}>
+                <tr key={s.source_id + i} className={`r2 clickable ${cur === s ? "sel" : ""}`} tabIndex={0} aria-label={`Select source ${s.source_id}`} aria-selected={cur === s} onClick={() => setSel(i)} onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); setSel(i); } }}>
                   <td><div style={{ display: "flex", flexDirection: "column", minWidth: 0 }}><span className="mono trunc" style={{ fontSize: 12 }}>{s.source_id}</span><span className="t-sm i3">FHIR R4 · {s.fixture}</span></div></td>
                   <td className="t-sm">{s.resource_type}</td>
                   <td><div style={{ display: "flex", flexDirection: "column", gap: 2, minWidth: 0 }}><Status kind="present">Structured</Status><span className="mono t-mono-sm i3 trunc">{s.claim_kind}</span></div></td>
@@ -176,7 +176,7 @@ export function Evidence() {
                 {["Document", "Text and source", "Conflicts", "Status"].map((h) => <span key={h} role="columnheader" className="t-label">{h}</span>)}
               </div>
               {docs.map((d) => (
-                <div role="row" key={d.doc_id} tabIndex={0} className={`lr clickable ${cur?.doc_id === d.doc_id ? "sel" : ""}`} style={{ gridTemplateColumns: "190px minmax(0,1fr) 150px 110px", minHeight: "var(--row-2)" }} onClick={() => setSel(d.doc_id)} onKeyDown={(e) => e.key === "Enter" && setSel(d.doc_id)}>
+                <div role="row" key={d.doc_id} tabIndex={0} aria-label={`Select document ${d.doc_id}`} className={`lr clickable ${cur?.doc_id === d.doc_id ? "sel" : ""}`} style={{ gridTemplateColumns: "190px minmax(0,1fr) 150px 110px", minHeight: "var(--row-2)" }} onClick={() => setSel(d.doc_id)} onKeyDown={(e) => e.key === "Enter" && setSel(d.doc_id)}>
                   <span className={`mono ${d.status === "retracted" ? "i3" : ""}`} style={{ fontSize: 12 }}>{d.doc_id}</span>
                   <div style={{ display: "flex", flexDirection: "column", gap: 2, minWidth: 0, padding: "6px 0" }}>
                     <span className={`trunc ${d.status === "retracted" ? "i3" : ""}`} style={{ fontSize: 13 }}>{d.text}</span>
@@ -259,7 +259,7 @@ export function Insights() {
         <Section title="Subjects" count={v.cohorts.length}>
           <table className="tb"><thead><tr><th style={{ width: "22%" }}>Subject</th><th style={{ width: "16%" }}>Condition</th><th style={{ width: "37%" }}>Evidence</th><th>Review</th></tr></thead>
             <tbody>{v.cohorts.map((c) => (
-              <tr key={c.subject_ref} className="clickable" tabIndex={0} onClick={() => navigate("Patients", c.subject_ref)} onKeyDown={(e) => e.key === "Enter" && navigate("Patients", c.subject_ref)}>
+              <tr key={c.subject_ref} className="clickable" tabIndex={0} aria-label={`Open patient ${c.display_name}`} onClick={() => navigate("Patients", c.subject_ref)} onKeyDown={(e) => e.key === "Enter" && navigate("Patients", c.subject_ref)}>
                 <td><span className="pname trunc">{c.display_name}</span></td><td className="t-sm i2"><span className="trunc">{c.condition}</span></td>
                 <td title={c.evidence_state}><Status kind={glyphFor(c.evidence_state)}>{c.evidence_state}</Status></td>
                 <td><Status kind={/review/i.test(c.review_attention) ? "needs-review" : "present"} weight="weak">{c.review_attention}</Status></td>

@@ -54,7 +54,7 @@ export function Projects() {
           <table className="tb" aria-label="Projects">
             <thead><tr><th style={{ width: "34%" }}>Project</th><th style={{ width: "14%" }}>Status</th><th className="num" style={{ width: "12%" }} title="Revision">Rev</th><th className="num col-p3" style={{ width: "13%" }} title="Experiments">Exp</th><th className="num col-p3" style={{ width: "13%" }} title="References">Refs</th><th className="num">Edges</th></tr></thead>
             <tbody>{rows.map((p) => (
-              <tr key={p.id} className={`r2 clickable ${current?.id === p.id ? "sel" : ""}`} tabIndex={0} onClick={() => setProject(p.id)} onKeyDown={(e) => e.key === "Enter" && setProject(p.id)}>
+              <tr key={p.id} className={`r2 clickable ${current?.id === p.id ? "sel" : ""}`} tabIndex={0} aria-label={`Select project ${p.name}`} onClick={() => setProject(p.id)} onKeyDown={(e) => e.key === "Enter" && setProject(p.id)}>
                 <td><div style={{ display: "flex", flexDirection: "column", minWidth: 0 }}><span className="pname trunc">{p.name}</span><span className="mono t-mono-sm i3 trunc">{p.id}</span></div></td>
                 <td><Status kind={glyphFor(p.status)}>{p.status}</Status></td>
                 <td className="num mono t-mono-sm">{p.revision}</td><td className="num mono t-mono-sm col-p3">{p.experiments}</td><td className="num mono t-mono-sm col-p3">{p.refs}</td><td className="num mono t-mono-sm">{p.edges}</td>

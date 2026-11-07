@@ -105,7 +105,7 @@ export function Patients() {
                   <tr key={i} className="r2"><td colSpan={6}><span className="sk t" style={{ width: "40%" }} /></td></tr>
                 ))}
                 {rows.map((r) => (
-                  <tr key={r.subject_ref} className={`r2 clickable ${current?.subject_ref === r.subject_ref ? "sel" : ""}`} tabIndex={0} aria-selected={current?.subject_ref === r.subject_ref}
+                  <tr key={r.subject_ref} className={`r2 clickable ${current?.subject_ref === r.subject_ref ? "sel" : ""}`} tabIndex={0} aria-label={`Select patient ${r.display_name}`} aria-selected={current?.subject_ref === r.subject_ref}
                     onClick={() => setSelected(r.subject_ref)} onDoubleClick={() => navigate("Patients", r.subject_ref)}
                     onKeyDown={(e) => { if (e.key === "Enter") navigate("Patients", r.subject_ref); if (e.key === " ") { e.preventDefault(); setSelected(r.subject_ref); } }}>
                     <td><div style={{ display: "flex", alignItems: "center", gap: 10 }}>

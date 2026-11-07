@@ -273,6 +273,21 @@ async function main() {
     console.log(`LIGHT_KEPT_AFTER_RESTART ${report.light_kept_after_restart}`);
     console.log(`PREF_ON_DISK first=${report.pref_on_disk_after_first_launch.hits} second=${report.pref_on_disk_after_second_launch.hits}`);
   });
+  await step("focusable-controls-are-named", async () => {
+    // Web content takes focus as a whole, so the document itself is excluded.
+    const report_ = {};
+    for (const page of ["Home", "Patients", "Documents", "Projects", "Models"]) {
+      await nav(page);
+      await sleep(1500);
+      const { unnamed = {} } = await driver.send({ op: "unnamed" });
+      const { "ControlType.Document": _document, "ControlType.Pane": _pane, ...controls } = unnamed;
+      report_[page] = controls;
+    }
+    report.unnamed_focusable_by_page = report_;
+    console.log(`UNNAMED_FOCUSABLE ${JSON.stringify(report_)}`);
+    const pagesWithGaps = Object.entries(report_).filter(([, c]) => Object.keys(c).length > 0).map(([p]) => p);
+    if (pagesWithGaps.length) throw new Error(`unnamed focusable controls on ${pagesWithGaps.join(", ")}`);
+  });
   await step("create-project", async () => {
     await nav("Projects");
     await type("pn", "Installed build study");
