@@ -1,3 +1,4 @@
+import { ACTIVITY_EVENTS, shouldAutoLock } from "./lib/auto-lock";
 import { gateView, type GateRequest } from "./lib/first-launch";
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { call, type CmdError } from "./lib/ipc";
@@ -141,6 +142,22 @@ export function App() {
     }
     await vaultClosed();
   }, [refreshWorkspace, vaultClosed]);
+
+  // An open encrypted vault locks itself after a quiet spell, so a shared or
+  // unattended computer doesn't leave records open. The sample workspace has no
+  // secret, so it doesn't lock. Locking waits for any running command to finish.
+  const encryptedOpen = !!ws?.open && ws?.workspace?.kind === "encrypted";
+  useEffect(() => {
+    if (!encryptedOpen || recoveryCodesShown) return;
+    let last = Date.now();
+    const seen = () => { last = Date.now(); };
+    ACTIVITY_EVENTS.forEach((name) => window.addEventListener(name, seen, { passive: true }));
+    const timer = window.setInterval(() => { if (shouldAutoLock(last, Date.now())) void lock(); }, 15_000);
+    return () => {
+      ACTIVITY_EVENTS.forEach((name) => window.removeEventListener(name, seen));
+      window.clearInterval(timer);
+    };
+  }, [encryptedOpen, recoveryCodesShown, lock]);
 
   // A route change moves focus to the new page and names it, so keyboard and
   // screen-reader users are not left on a control in the previous view.
