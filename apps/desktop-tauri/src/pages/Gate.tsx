@@ -1,7 +1,8 @@
 import { useEffect, useMemo, useState, type FormEvent, type ReactNode } from "react";
 import { useApp } from "../lib/app";
 import { isReturningToSample } from "../lib/first-launch";
-import { useAction, type CmdError } from "../lib/ipc";
+import { call, useAction, type CmdError } from "../lib/ipc";
+import { ACTIVITY_EVENTS, AUTO_LOCK_MINUTES, shouldAutoLock } from "../lib/auto-lock";
 import { Logo } from "../components/brand";
 import { Glyph, useToast } from "../components/ui";
 import { DELETE_SET_ASIDE_DIALOG, MOVE_SESSION_ASIDE_DIALOG, RECOVERED_SEED_NOTICE, SET_ASIDE_DIALOG, SET_ASIDE_EXISTS_NOTICE, recoveredInterruptedSeed, vaultOpenNotice, seedFailureGuidance, setAsideOffered } from "../lib/seed-failure";
@@ -148,6 +149,7 @@ export function Access({ onBack, onRecoveryCodes }: { onBack: () => void; onReco
   const [codes, setCodes] = useState<string[] | null>(null);
   const [copy, setCopy] = useState<"idle" | "copied" | "failed">("idle");
   const [createFailed, setCreateFailed] = useState(false);
+  const [codesHidden, setCodesHidden] = useState(false);
   // Core can fail after sealing the vault, and then the only way forward is to unlock it.
   useEffect(() => {
     if (exists && createFailed) setMode("unlock");
@@ -178,6 +180,37 @@ export function Access({ onBack, onRecoveryCodes }: { onBack: () => void; onReco
       window.removeEventListener("contextmenu", noMenu, true);
     };
   }, [holdingCodes]);
+  // The new vault is open while its codes are on screen, so this screen locks
+  // like the rest of the app: after the idle limit, or on Ctrl+Shift+L. The
+  // codes leave the screen first, because they open the vault for good.
+  useEffect(() => {
+    if (!codes) return;
+    let last = Date.now();
+    let closing = false;
+    const hideAndLock = async () => {
+      if (closing) return;
+      closing = true;
+      setCodes(null);
+      setCopy("idle");
+      setCodesHidden(true);
+      setMode("unlock");
+      try { await call("workspace_lock"); } catch { /* the refreshed status shows what is open */ }
+      onRecoveryCodes(false);
+      await refreshWorkspace();
+    };
+    const seen = () => { last = Date.now(); };
+    const onKey = (e: KeyboardEvent) => {
+      if ((e.ctrlKey || e.metaKey) && e.shiftKey && e.key.toLowerCase() === "l") { e.preventDefault(); void hideAndLock(); }
+    };
+    ACTIVITY_EVENTS.forEach((name) => window.addEventListener(name, seen, { passive: true }));
+    window.addEventListener("keydown", onKey);
+    const timer = window.setInterval(() => { if (shouldAutoLock(last, Date.now())) void hideAndLock(); }, 15_000);
+    return () => {
+      ACTIVITY_EVENTS.forEach((name) => window.removeEventListener(name, seen));
+      window.removeEventListener("keydown", onKey);
+      window.clearInterval(timer);
+    };
+  }, [codes, onRecoveryCodes, refreshWorkspace]);
   // Unlocking is a short, familiar task: the explanation waits behind a disclosure.
   const compact = exists && mode === "unlock" && !codes;
 
@@ -302,6 +335,7 @@ export function Access({ onBack, onRecoveryCodes }: { onBack: () => void; onReco
                   </div>
                 )}
                 {error && <FailureAlert error={error} glyph={error.kind === "denied" ? "denied" : "failed"} />}
+                {codesHidden && <p className="t-sm i2" role="status" style={{ margin: 0 }}>The vault locked and its recovery codes were hidden after {AUTO_LOCK_MINUTES} minutes without activity, or when you locked it. They can&apos;t be shown again: your passphrase opens the vault.</p>}
                 {createFailed && exists && <p className="t-sm i2" role="status" style={{ margin: 0 }}>The vault was created, but its recovery codes couldn&apos;t be shown. Your passphrase is now the only way to open it.</p>}
                 {error?.reason === "work_session_check_failed" && !moveAside && (
                   <div><button type="button" className="btn btn-g" onClick={() => setMoveAside(true)} disabled={!!pending}>Move that session aside and open…</button></div>

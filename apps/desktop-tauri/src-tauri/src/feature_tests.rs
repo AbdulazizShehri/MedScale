@@ -1161,7 +1161,7 @@ fn medagent_workbench_agent_context_evidence_and_resume() {
     let err = h
         .call(
             "audio_import_wav",
-            json!({ "projectId": pid, "path": oversized_wav.display().to_string() }),
+            json!({ "projectId": pid, "path": oversized_wav.display().to_string(), "sampleConfirmed": true }),
         )
         .unwrap_err();
     assert_eq!(err["kind"], "invalid", "{err}");
@@ -1174,9 +1174,17 @@ fn medagent_workbench_agent_context_evidence_and_resume() {
     );
     std::fs::remove_file(&oversized_wav).unwrap();
 
+    // The sample workspace is plaintext: no recording without the confirmation.
+    let refused = h
+        .call(
+            "audio_import_wav",
+            json!({ "projectId": pid, "path": wav_path.display().to_string() }),
+        )
+        .unwrap_err();
+    assert_eq!(refused["kind"], "denied", "{refused}");
     let imported = h.ok(
         "audio_import_wav",
-        json!({ "projectId": pid, "path": wav_path.display().to_string() }),
+        json!({ "projectId": pid, "path": wav_path.display().to_string(), "sampleConfirmed": true }),
     );
     let preview = h.ok(
         "audio_source_retention_preview",
@@ -1216,7 +1224,7 @@ fn medagent_workbench_agent_context_evidence_and_resume() {
     // command. The first source remains intact for genuine Whisper ASR QA.
     let disposable = h.ok(
         "audio_import_wav",
-        json!({ "projectId": pid, "path": wav_path.display().to_string() }),
+        json!({ "projectId": pid, "path": wav_path.display().to_string(), "sampleConfirmed": true }),
     );
     let candidate = h.ok(
         "audio_source_retention_preview",
@@ -1557,7 +1565,7 @@ fn verified_public_human_wav_transcribes_via_native_tauri() {
     let imported = h
         .call(
             "audio_import_wav",
-            json!({"projectId": project_id, "path": wav}),
+            json!({"projectId": project_id, "path": wav, "sampleConfirmed": true}),
         )
         .unwrap_or_else(|_| panic!("native WAV import failed"));
     let source_id = imported["source_id"].as_str().expect("audio source ID");

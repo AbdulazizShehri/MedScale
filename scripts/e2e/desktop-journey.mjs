@@ -599,6 +599,9 @@ try {
         await see("Local Whisper engine installed", 180000);
       }
       await type("//input[@id='wp1']", process.env.MEDSCALE_E2E_REAL_WAV_PATH);
+      // The sample workspace asks for confirmation that the recording isn't real patient data.
+      const sampleOk = await wd("POST", `/session/${sid}/elements`, { using: "xpath", value: "//input[@id='wp1-sample']" });
+      if (sampleOk.length) await click("//input[@id='wp1-sample']");
       await click("//form[.//input[@id='wp1']]//button[@type='submit']");
       await see("Recording imported", 60000);
       const quotedFile = JSON.stringify(path.basename(process.env.MEDSCALE_E2E_REAL_WAV_PATH));
