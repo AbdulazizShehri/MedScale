@@ -76,7 +76,7 @@ export function Home() {
           {subjects.state.status === "ready" && (
             <table className="tb"><thead><tr><th style={{ width: "36%" }}>Subject</th><th style={{ width: "28%" }} className="col-p2">Condition</th><th style={{ width: "20%" }}>Coverage</th><th className="num">Latest</th></tr></thead><tbody>
               {subjects.state.data.subjects.map((s) => (
-                <tr key={s.subject_ref} className="r2 clickable" tabIndex={0} onClick={() => navigate("Patients", s.subject_ref)} onKeyDown={(e) => e.key === "Enter" && navigate("Patients", s.subject_ref)}>
+                <tr key={s.subject_ref} className="r2 clickable" tabIndex={0} aria-label={`Open patient ${s.display_name}`} onClick={() => navigate("Patients", s.subject_ref)} onKeyDown={(e) => e.key === "Enter" && navigate("Patients", s.subject_ref)}>
                   <td style={{ width: "36%" }}><div style={{ display: "flex", flexDirection: "column", minWidth: 0 }}><span className="pname trunc">{s.display_name}</span><span className="mono t-mono-sm i3 trunc">{s.subject_ref}</span></div></td>
                   <td style={{ width: "28%" }} className="t-sm i2 col-p2"><span className="trunc">{s.condition_summary}</span></td>
                   <td style={{ width: "20%" }}><CoverageStrip slots={s.coverage_slots} /></td>

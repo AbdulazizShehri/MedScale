@@ -127,8 +127,8 @@ export function Welcome({ onContinue }: { onContinue: () => void }) {
           )}
         </div>
         <div className="gate-welcome-foot">
-          <span className="st weak"><Glyph kind="available" />Beta · synthetic data only · runs on this device</span>
-          <span>{ws?.network_default_deny ? "No network access unless you allow it" : "Network status unknown"}</span>
+          <span className="st weak"><Glyph kind="available" />Beta · synthetic data only · runs on this device<span className="sr-only">. </span></span>
+          <span>{ws?.network_default_deny ? "No network access unless you allow it" : "Network status unknown"}<span className="sr-only">. </span></span>
           <span className="mono">v{ws?.version}</span>
         </div>
       </div>

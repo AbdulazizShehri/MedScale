@@ -219,6 +219,11 @@ async function main() {
     await launch(installed.exe);
     await find(SAMPLE, 60000);
     await recordInPrivate("first");
+    await sleep(1500);
+    await capture("01-first-launch-welcome");
+    for (const [name, file] of [["installer-icon", installer], ["app-icon", installed.exe]]) {
+      await driver.send({ op: "file-icon", file, path: path.join(path.dirname(path.resolve(reportPath)), "screens", `${name}.png`) });
+    }
     if (/sign in|log in|create an account/i.test(await pageText())) throw new Error("the first screen asks for an account");
   });
   await step("sample-workspace-opens", async () => {
@@ -235,12 +240,22 @@ async function main() {
       await click({ kind: "RadioButton", name }, 30000);
       await sleep(1500);
     };
+    await nav("Home");
+    await sleep(6000);
+    await capture("02-home");
+    await nav("About");
+    await sleep(6000);
+    await capture("03-about");
     await setTheme("Light");
+    await sleep(500);
+    await capture("04-settings-light");
     await closeWindow();
     report.pref_on_disk_after_first_launch = webViewResidue(["medscale.theme"]);
     await launch(installed.exe);
     await find(SAMPLE, 60000);
     await recordInPrivate("second");
+    await sleep(1500);
+    await capture("05-returning-welcome");
     await click(SAMPLE, 60000);
     await find(OPENED, 180000);
     await setTheme("Dark");
@@ -272,6 +287,48 @@ async function main() {
     report.light_kept_after_restart = (await driver.send({ op: "selected", kind: "RadioButton", name: "Light" })).selected ?? null;
     console.log(`LIGHT_KEPT_AFTER_RESTART ${report.light_kept_after_restart}`);
     console.log(`PREF_ON_DISK first=${report.pref_on_disk_after_first_launch.hits} second=${report.pref_on_disk_after_second_launch.hits}`);
+  });
+  await step("focusable-controls-are-named", async () => {
+    // Web content takes focus as a whole, so the document itself is excluded.
+    const report_ = {};
+    for (const page of ["Home", "Patients", "Documents", "Projects", "Models"]) {
+      await nav(page);
+      await sleep(1500);
+      const { unnamed = {} } = await driver.send({ op: "unnamed" });
+      const { "ControlType.Document": _document, "ControlType.Pane": _pane, ...controls } = unnamed;
+      report_[page] = controls;
+    }
+    report.unnamed_focusable_by_page = report_;
+    console.log(`UNNAMED_FOCUSABLE ${JSON.stringify(report_)}`);
+    const pagesWithGaps = Object.entries(report_).filter(([, c]) => Object.keys(c).length > 0).map(([p]) => p);
+    if (pagesWithGaps.length) throw new Error(`unnamed focusable controls on ${pagesWithGaps.join(", ")}`);
+  });
+  await step("layout-measured-at-window-sizes", async () => {
+    // Synthetic workspace only, so names are safe to print. Measured, not asserted yet.
+    const result = {};
+    for (const [width, height] of [[1194, 938], [1180, 720], [1440, 900]]) {
+      const applied = await driver.send({ op: "resize", width, height });
+      for (const page of ["Home", "Patients", "Documents", "Insights", "Audio", "Settings"]) {
+        await nav(page);
+        await sleep(1200);
+        const { names = [] } = await driver.send({ op: "clipped" });
+        if (names.length) result[`${width}x${height}:${page}`] = names.length;
+        if (names.length) console.log(`CLIPPED ${applied.width ?? width}x${applied.height ?? height} ${page} ${names.length}: ${names.slice(0, 6).join(" | ").slice(0, 220)}`);
+      }
+    }
+    report.clipped_by_size_and_page = result;
+    console.log(`CLIPPED_TOTAL ${JSON.stringify(result)}`);
+  });
+  await step("idle-network-connections-measured", async () => {
+    // Negative control. No model download has been approved at this point, so any
+    // connection here is one the user didn't ask for. Reported, then judged.
+    const samples = [];
+    for (let i = 0; i < 6; i++) {
+      samples.push(...remoteConnections(child.pid));
+      await sleep(5000);
+    }
+    report.idle_remote_connections = [...new Set(samples)];
+    console.log(`IDLE_REMOTE_CONNECTIONS ${JSON.stringify(report.idle_remote_connections)}`);
   });
   await step("create-project", async () => {
     await nav("Projects");
@@ -392,6 +449,18 @@ async function main() {
     await waitForText(VAULT_PROJECT, 30000);
     await closeWindow();
   });
+  await step("webview-scan-finds-a-planted-marker", async () => {
+    // Positive control: zero hits only mean something if the scan can hit.
+    const planted = path.join(appData, "EBWebView", "medscale-scan-control.bin");
+    const marker = "medscale-scan-positive-control";
+    for (const [encoding, expected] of [["utf8", 1], ["utf16le", 1]]) {
+      fs.writeFileSync(planted, Buffer.concat([Buffer.alloc(64, 7), Buffer.from(marker, encoding), Buffer.alloc(64, 7)]));
+      const seen = webViewResidue([marker]);
+      fs.rmSync(planted);
+      if (seen.hits !== expected) throw new Error(`the scan missed a planted ${encoding} marker`);
+    }
+    report.webview_scan_positive_control = "PASS";
+  });
   await step("webview-residue-measured", async () => {
     // Reported, not asserted yet: this journey is the first to look after real use.
     report.webview_residue = webViewResidue(["Installed build study", VAULT_PROJECT, "installed-fictional-patient"]);
@@ -436,12 +505,36 @@ function findFiles(root, name) {
   return found;
 }
 
+/** Real captures for identity review: synthetic screens only, never after real speech. */
+async function capture(name) {
+  const dir = path.join(path.dirname(path.resolve(reportPath)), "screens");
+  fs.mkdirSync(dir, { recursive: true });
+  const r = await driver.send({ op: "screenshot", path: path.join(dir, `${name}.png`) });
+  if (!r.ok) console.log(`CAPTURE ${name} unavailable: ${r.error}`);
+}
+
 /** Whether this launch's WebView says it's in InPrivate mode. */
 async function recordInPrivate(label) {
   const names = await pageNames();
   const inPrivate = names.some((n) => /InPrivate/.test(n));
   report.inprivate_by_launch.push({ launch: label, inprivate: inPrivate });
   console.log(`INPRIVATE ${label} ${inPrivate}`);
+}
+
+/**
+ * Non-local TCP connections held by the app and its WebView2 children. Addresses
+ * only. A sample in time, not a capture of all traffic.
+ */
+function remoteConnections(rootPid) {
+  const out = pwsh(`
+    $all = Get-CimInstance Win32_Process
+    $ids = New-Object System.Collections.Generic.HashSet[int]
+    [void]$ids.Add(${rootPid})
+    do { $grew = $false; foreach ($p in $all) { if ($ids.Contains([int]$p.ParentProcessId) -and $ids.Add([int]$p.ProcessId)) { $grew = $true } } } while ($grew)
+    @(Get-NetTCPConnection -ErrorAction SilentlyContinue | Where-Object {
+      $ids.Contains([int]$_.OwningProcess) -and $_.State -in 'Established','SynSent' -and $_.RemoteAddress -notmatch '^(127\\.|::1|0\\.0\\.0\\.0|::$)'
+    } | ForEach-Object { "$($_.RemoteAddress):$($_.RemotePort)" } | Sort-Object -Unique) -join ','`);
+  return out ? out.split(",") : [];
 }
 
 /** Files under the WebView profile holding this run's synthetic markers. */

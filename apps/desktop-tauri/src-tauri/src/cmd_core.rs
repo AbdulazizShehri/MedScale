@@ -605,7 +605,7 @@ pub fn about_info(host: tauri::State<'_, Host>) -> CmdResult<Value> {
     let report = doctor(&state);
     Ok(json!({
         "product": "MedScale",
-        "tagline": "Local Clinical Intelligence",
+        "tagline": "Your local AI workspace",
         "version": medscale_contracts::MEDSCALE_VERSION,
         "shell": "Tauri 2",
         "core": "Rust Core Host, in-process",
