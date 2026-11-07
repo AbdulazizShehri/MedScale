@@ -72,7 +72,7 @@ export function Sidebar() {
         <button type="button" className="rt" style={{ width: "100%", textAlign: "left" }} onClick={() => navigate("About")}>
           <Glyph kind={open ? "available" : "unavailable"} />
           <span style={{ display: "flex", flexDirection: "column", minWidth: 0 }}>
-            <span style={{ fontSize: 12.5, fontWeight: 600, lineHeight: "18px" }}>Local runtime</span>
+            <span style={{ fontSize: 12.5, fontWeight: 600, lineHeight: "18px" }}>Local runtime<span className="sr-only">. </span></span>
             <span style={{ fontSize: 11.5, lineHeight: "16px", color: "var(--ink-3)" }}>
               {open ? `${ws?.network_default_deny ? "No default egress" : "Egress open"} · v${ws?.version}` : "Idle · no vault loaded"}
             </span>
@@ -92,7 +92,7 @@ export function Sidebar() {
 
 function NavItem({ route, active, count, onClick }: { route: Route; active: boolean; count?: number; onClick: () => void }) {
   return (
-    <button type="button" className={`nav ${active ? "on" : ""}`} aria-current={active ? "page" : undefined} onClick={onClick}>
+    <button type="button" className={`nav ${active ? "on" : ""}`} aria-current={active ? "page" : undefined} aria-label={count !== undefined ? `${route.label}, ${count} ${count === 1 ? "item" : "items"}` : undefined} onClick={onClick}>
       <Icon name={route.icon as IconName} />
       <span>{route.label}</span>
       {count !== undefined && <span className="nav-n">{count}</span>}

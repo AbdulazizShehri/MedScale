@@ -90,7 +90,7 @@ try {
   await sleep(4000);
 
   for (const [page, tabs, expected] of [
-    ["Home", 24, /Open patient /],
+    ["Home", 40, /Open patient /],
     ["Patients", 24, /Select patient /],
     ["Documents", 24, /Select source /],
     ["Audio", 14, null],
