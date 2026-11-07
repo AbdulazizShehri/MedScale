@@ -13,8 +13,8 @@ permissions:
   actions: read
 
 env:
-  SOURCE_RUN: "42339761396"
-  SOURCE_SHA: "5be03be5c7e03bac8b73ae40a9bdedffcb33f1db"
+  SOURCE_RUN: "42361952161"
+  SOURCE_SHA: "f01323c9b3d09e6daf20b5753bbd8fbc54a5d960"
   NVDA_VERSION: "2026.3.0"
 
 jobs:
