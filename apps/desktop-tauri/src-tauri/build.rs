@@ -51,6 +51,8 @@ fn main() {
             "insights_ask",
             "governance_overview",
             "about_info",
+            "help_open",
+            "update_check",
             "projects_list",
             "project_detail",
             "project_create",
