@@ -26,6 +26,7 @@ export const routes = [
   { id: "Audit Trail", label: "Audit Trail", area: "Governance", icon: "audit", scope: "workspace", description: "Disclosure history", aliases: ["audit", "disclosures"] },
   { id: "Exports", label: "Exports", area: "Governance", icon: "exports", scope: "workspace", description: "FHIR R4 interchange posture", aliases: ["fhir", "export"] },
   { id: "Integrations", label: "Integrations", area: "Governance", icon: "integrations", scope: "workspace", description: "Brokered integration posture", aliases: ["connections", "nphies"] },
+  { id: "Help", label: "Help & Feedback", area: "Utility", icon: "help", scope: "none", description: "Report a bug, request a feature, check for updates", aliases: ["feedback", "bug", "report", "support", "issue", "update", "release notes", "security"] },
   { id: "Settings", label: "Settings", area: "Utility", icon: "settings", scope: "none", description: "Appearance, privacy and qualification", aliases: ["preferences", "theme"] },
   { id: "About", label: "About", area: "Utility", icon: "about", scope: "none", description: "Version, runtime and licenses", aliases: ["version", "licenses"] },
 ] as const satisfies ReadonlyArray<{ id: string; label: string; area: Area; icon: string; scope: "none" | "workspace" | "project"; description: string; aliases: readonly string[] }>;

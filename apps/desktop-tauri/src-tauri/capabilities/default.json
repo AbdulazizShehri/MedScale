@@ -29,6 +29,8 @@
     "allow-insights-ask",
     "allow-governance-overview",
     "allow-about-info",
+    "allow-help-open",
+    "allow-update-check",
     "allow-projects-list",
     "allow-project-detail",
     "allow-project-create",

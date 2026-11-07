@@ -2,9 +2,9 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { areas, isRouteId, routes, searchRoutes } from "./routes.ts";
 
-test("the closed registry preserves all 25 current desktop routes", () => {
-  assert.equal(routes.length, 25);
-  assert.equal(new Set(routes.map((route) => route.id)).size, 25);
+test("the closed registry preserves all 26 current desktop routes", () => {
+  assert.equal(routes.length, 26);
+  assert.equal(new Set(routes.map((route) => route.id)).size, 26);
   assert.ok(routes.every((route) => areas.includes(route.area)));
   assert.ok(isRouteId("Patients"));
   assert.equal(isRouteId("patients"), false);

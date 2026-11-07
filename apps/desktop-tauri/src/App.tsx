@@ -14,6 +14,7 @@ import { Documents, Evidence, Insights } from "./pages/Clinical";
 import { Analytics, Browse, Data, Knowledge, Projects, ResearchOS } from "./pages/Research";
 import { MedAgent, ModelFleet, Models } from "./pages/Intelligence";
 import { Audio, Collaboration, Messages, Tasks, Workflows } from "./pages/Operations";
+import { Help } from "./pages/Help";
 import { About, AuditTrail, Exports, Integrations, Privacy, Settings } from "./pages/Governance";
 
 /** Optional start state from the URL hash (route, subject, theme, density); used for
@@ -64,6 +65,7 @@ const PAGES: Record<RouteId, () => ReactNode> = {
   "Audit Trail": () => <AuditTrail />,
   Exports: () => <Exports />,
   Integrations: () => <Integrations />,
+  Help: () => <Help />,
   Settings: () => <Settings />,
   About: () => <About />,
 };

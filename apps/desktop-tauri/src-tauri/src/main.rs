@@ -15,6 +15,7 @@ mod audio_model_manager;
 mod cmd_core;
 mod cmd_ops;
 mod cmd_research;
+mod help;
 mod host;
 mod instance_lock;
 mod navigation_policy;
@@ -58,6 +59,8 @@ fn presentation_builder<R: tauri::Runtime>(builder: tauri::Builder<R>) -> tauri:
             cmd_core::insights_ask,
             cmd_core::governance_overview,
             cmd_core::about_info,
+            help::help_open,
+            help::update_check,
             cmd_research::projects_list,
             cmd_research::project_detail,
             cmd_research::project_create,
