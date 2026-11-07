@@ -1,5 +1,7 @@
 # MedScale Beta readiness report
 
+> **Superseded for release decisions by [RELEASE_PACKET.md](RELEASE_PACKET.md), bound to `main@207344c`.** This report records the earlier round at `80c937a`. Since then, the safety gaps it lists for vault size, folder Pack admission and interrupted downloads have been fixed.
+
 **Evidence commit:** `main@80c937aa96ee2251294ded601379313700d0d366`. Evidence is scoped to that commit; subsequent commits require fresh qualification.
 
 **Date:** 2026-11-05.
