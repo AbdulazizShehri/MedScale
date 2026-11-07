@@ -319,6 +319,17 @@ async function main() {
     report.clipped_by_size_and_page = result;
     console.log(`CLIPPED_TOTAL ${JSON.stringify(result)}`);
   });
+  await step("idle-network-connections-measured", async () => {
+    // Negative control. No model download has been approved at this point, so any
+    // connection here is one the user didn't ask for. Reported, then judged.
+    const samples = [];
+    for (let i = 0; i < 6; i++) {
+      samples.push(...remoteConnections(child.pid));
+      await sleep(5000);
+    }
+    report.idle_remote_connections = [...new Set(samples)];
+    console.log(`IDLE_REMOTE_CONNECTIONS ${JSON.stringify(report.idle_remote_connections)}`);
+  });
   await step("create-project", async () => {
     await nav("Projects");
     await type("pn", "Installed build study");
@@ -438,6 +449,18 @@ async function main() {
     await waitForText(VAULT_PROJECT, 30000);
     await closeWindow();
   });
+  await step("webview-scan-finds-a-planted-marker", async () => {
+    // Positive control: zero hits only mean something if the scan can hit.
+    const planted = path.join(appData, "EBWebView", "medscale-scan-control.bin");
+    const marker = "medscale-scan-positive-control";
+    for (const [encoding, expected] of [["utf8", 1], ["utf16le", 1]]) {
+      fs.writeFileSync(planted, Buffer.concat([Buffer.alloc(64, 7), Buffer.from(marker, encoding), Buffer.alloc(64, 7)]));
+      const seen = webViewResidue([marker]);
+      fs.rmSync(planted);
+      if (seen.hits !== expected) throw new Error(`the scan missed a planted ${encoding} marker`);
+    }
+    report.webview_scan_positive_control = "PASS";
+  });
   await step("webview-residue-measured", async () => {
     // Reported, not asserted yet: this journey is the first to look after real use.
     report.webview_residue = webViewResidue(["Installed build study", VAULT_PROJECT, "installed-fictional-patient"]);
@@ -496,6 +519,22 @@ async function recordInPrivate(label) {
   const inPrivate = names.some((n) => /InPrivate/.test(n));
   report.inprivate_by_launch.push({ launch: label, inprivate: inPrivate });
   console.log(`INPRIVATE ${label} ${inPrivate}`);
+}
+
+/**
+ * Non-local TCP connections held by the app and its WebView2 children. Addresses
+ * only. A sample in time, not a capture of all traffic.
+ */
+function remoteConnections(rootPid) {
+  const out = pwsh(`
+    $all = Get-CimInstance Win32_Process
+    $ids = New-Object System.Collections.Generic.HashSet[int]
+    [void]$ids.Add(${rootPid})
+    do { $grew = $false; foreach ($p in $all) { if ($ids.Contains([int]$p.ParentProcessId) -and $ids.Add([int]$p.ProcessId)) { $grew = $true } } } while ($grew)
+    @(Get-NetTCPConnection -ErrorAction SilentlyContinue | Where-Object {
+      $ids.Contains([int]$_.OwningProcess) -and $_.State -in 'Established','SynSent' -and $_.RemoteAddress -notmatch '^(127\\.|::1|0\\.0\\.0\\.0|::$)'
+    } | ForEach-Object { "$($_.RemoteAddress):$($_.RemotePort)" } | Sort-Object -Unique) -join ','`);
+  return out ? out.split(",") : [];
 }
 
 /** Files under the WebView profile holding this run's synthetic markers. */
