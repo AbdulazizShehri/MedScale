@@ -1691,3 +1691,61 @@ fn a_packaged_build_admits_packs_only_from_its_own_model_folder() {
     );
     let _ = std::fs::remove_dir_all(&root);
 }
+
+#[test]
+fn an_interrupted_vault_creation_is_moved_aside_and_a_real_vault_never_is() {
+    use crate::host::{only_unfinished_vault_files, set_aside_unfinished_vault};
+    let base = std::env::temp_dir().join(format!("medscale-unfinished-{}", std::process::id()));
+    let _ = std::fs::remove_dir_all(&base);
+    std::fs::create_dir_all(&base).unwrap();
+    let root = base.join("encrypted");
+    let manifest = base.join("encrypted.desktop-seed.json");
+
+    assert!(only_unfinished_vault_files(&root), "nothing there at all");
+
+    std::fs::create_dir(&root).unwrap();
+    for name in [
+        "vault_header.json",
+        "meta.work.sqlite3",
+        ".writer.lock",
+        ".session.lock",
+    ] {
+        std::fs::write(root.join(name), name).unwrap();
+    }
+    assert!(only_unfinished_vault_files(&root));
+
+    // A seal means a real vault, whatever else is there.
+    std::fs::write(root.join("meta.sealed"), b"sealed").unwrap();
+    assert!(!only_unfinished_vault_files(&root));
+    std::fs::remove_file(root.join("meta.sealed")).unwrap();
+
+    // So does anything creation doesn't write.
+    std::fs::write(root.join("something-else"), b"keep").unwrap();
+    assert!(!only_unfinished_vault_files(&root));
+    std::fs::remove_file(root.join("something-else")).unwrap();
+    std::fs::create_dir(root.join("sealed_blobs")).unwrap();
+    assert!(
+        !only_unfinished_vault_files(&root),
+        "a folder isn't a creation file"
+    );
+    std::fs::remove_dir(root.join("sealed_blobs")).unwrap();
+
+    // Moved, not deleted, and a second interrupted creation doesn't collide.
+    std::fs::write(&manifest, b"{}").unwrap();
+    let first = set_aside_unfinished_vault(&root, &manifest).unwrap();
+    assert!(!root.exists());
+    assert!(!manifest.exists());
+    assert_eq!(
+        std::fs::read(first.join("vault_header.json")).unwrap(),
+        b"vault_header.json",
+        "the moved files are intact"
+    );
+    assert!(first.join("encrypted.desktop-seed.json").is_file());
+
+    std::fs::create_dir(&root).unwrap();
+    std::fs::write(root.join("vault_header.json"), b"second").unwrap();
+    let second = set_aside_unfinished_vault(&root, &manifest).unwrap();
+    assert_ne!(first, second);
+    assert!(first.exists());
+    let _ = std::fs::remove_dir_all(&base);
+}
