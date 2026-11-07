@@ -33,7 +33,8 @@ const key = JSON.parse(pwsh(`Get-ItemProperty 'HKCU:\\Software\\Microsoft\\Windo
 const dir = (key.InstallLocation || path.dirname(key.UninstallString.replaceAll('"', ""))).replaceAll('"', "");
 const exe = path.join(dir, fs.readdirSync(dir).find((f) => f.endsWith(".exe") && !f.toLowerCase().startsWith("uninstall")));
 
-spawn(nvdaExe, ["-m", "-l", "12", "-f", logPath], { detached: true, stdio: "ignore" }).unref();
+// nvda.exe asks for UI access in its manifest, so it must start through the shell.
+pwsh(`Start-Process -FilePath '${nvdaExe}' -ArgumentList '-m','-l','12','-f','${logPath}'`);
 await sleep(15000);
 
 const app = spawn(exe, [], { stdio: "ignore" });
@@ -119,6 +120,6 @@ try {
   console.log(`NVDA_RESULT ${failed ? "FAIL" : "PASS"} log_bytes=${logSize()}`);
   driverProc.kill();
   if (app.exitCode === null) app.kill();
-  spawnSync(nvdaExe, ["-q"], { timeout: 20000, stdio: "ignore" });
+  try { pwsh(`Start-Process -FilePath '${nvdaExe}' -ArgumentList '-q'`); } catch {}
 }
 process.exit(failed ? 1 : 0);
