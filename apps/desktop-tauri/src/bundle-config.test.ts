@@ -114,6 +114,12 @@ test("ordinary packaged WebView keeps InPrivate; remote debugging remains test-o
   assert.match(native,
     /#\[cfg\(all\(windows,\s*feature\s*=\s*"e2e-webdriver"\)\)\]\s*let builder = builder\.additional_browser_args\(/);
   assert.match(native, /--remote-debugging-port=39517/);
+  // Packaged builds keep WebView2's background networking off, and never open a port.
+  const packaged = native.match(/#\[cfg\(all\(windows,\s*not\(feature\s*=\s*"e2e-webdriver"\)\)\)\]\s*let builder = builder\.additional_browser_args\(\s*"([^"]+)"/)?.[1];
+  assert.ok(packaged, "packaged builds must set WebView2 arguments");
+  assert.match(packaged, /--disable-background-networking/);
+  assert.match(packaged, /msSmartScreenProtection/, "setting arguments replaces wry's defaults");
+  assert.doesNotMatch(packaged, /remote-debugging/);
 
   // Neither default Cargo features nor the app bundle config may activate the
   // test-only debugger. Even a passing static test is NOT disk privacy proof.

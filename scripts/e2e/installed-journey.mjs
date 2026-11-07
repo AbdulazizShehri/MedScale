@@ -241,10 +241,10 @@ async function main() {
       await sleep(1500);
     };
     await nav("Home");
-    await sleep(1500);
+    await sleep(6000);
     await capture("02-home");
     await nav("About");
-    await sleep(1500);
+    await sleep(6000);
     await capture("03-about");
     await setTheme("Light");
     await sleep(500);

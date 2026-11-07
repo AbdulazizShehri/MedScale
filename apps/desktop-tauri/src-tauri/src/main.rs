@@ -174,6 +174,14 @@ fn main() {
             let builder = builder.additional_browser_args(
                 "--disable-features=msWebOOUI,msPdfOOUI,msSmartScreenProtection --remote-debugging-port=39517",
             );
+            // WebView2 otherwise opens its own connections to Microsoft while the
+            // app sits idle. A local-first app shouldn't, so its background
+            // networking stays off. wry's default flags are kept, because setting
+            // arguments replaces them.
+            #[cfg(all(windows, not(feature = "e2e-webdriver")))]
+            let builder = builder.additional_browser_args(
+                "--disable-features=msWebOOUI,msPdfOOUI,msSmartScreenProtection,AutofillServerCommunication,OptimizationHints,Translate --disable-background-networking --disable-component-update --disable-domain-reliability --disable-sync --no-pings",
+            );
             builder
                 .on_navigation(|url| {
                     navigation_policy::is_local_application_url(url, cfg!(debug_assertions))
