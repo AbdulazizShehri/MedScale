@@ -610,6 +610,17 @@ const ID_LABELS: &[&str] = &[
     "número",
     "numéro",
     "nummer",
+    "iqama",
+    "iqama no",
+    "national id",
+    "رقم",
+    "هوية",
+    "الهوية",
+    "رقم الهوية",
+    "إقامة",
+    "الإقامة",
+    "رقم الإقامة",
+    "السجل المدني",
 ];
 
 fn has_digit(s: &str) -> bool {
@@ -705,7 +716,47 @@ const LABELLED_CHECKSUMS: &[(&str, Validator)] = &[
         "tfn",
         medscale_pack::identifier_validators::validate_australian_tfn,
     ),
+    ("id", validate_saudi_national_id),
+    ("iqama", validate_saudi_national_id),
+    ("هوية", validate_saudi_national_id),
+    ("الهوية", validate_saudi_national_id),
+    ("إقامة", validate_saudi_national_id),
+    ("الإقامة", validate_saudi_national_id),
+    ("المدني", validate_saudi_national_id),
 ];
+
+/// Saudi national ID (citizens, first digit 1) or Iqama (residents, first
+/// digit 2): ten digits whose last is a Luhn check digit. Arabic-Indic and
+/// Eastern Arabic-Indic digits count, and spaces or dashes between groups
+/// are allowed. Ten-digit numbers are too common to flag without a label.
+fn validate_saudi_national_id(candidate: &str) -> bool {
+    let mut digits = Vec::with_capacity(10);
+    for c in candidate.chars() {
+        match c {
+            '0'..='9' => digits.push(u32::from(c) - u32::from('0')),
+            '\u{0660}'..='\u{0669}' => digits.push(u32::from(c) - 0x0660),
+            '\u{06F0}'..='\u{06F9}' => digits.push(u32::from(c) - 0x06F0),
+            ' ' | '-' => {}
+            _ => return false,
+        }
+    }
+    if digits.len() != 10 || !matches!(digits[0], 1 | 2) {
+        return false;
+    }
+    let sum: u32 = digits
+        .iter()
+        .enumerate()
+        .map(|(i, &d)| {
+            if i % 2 == 0 {
+                let doubled = d * 2;
+                doubled / 10 + doubled % 10
+            } else {
+                d
+            }
+        })
+        .sum();
+    sum.is_multiple_of(10)
+}
 
 /// `NNN NNN NNNN`, the printed grouping of a UK NHS number.
 fn nhs_grouping(candidate: &str) -> bool {
@@ -1535,6 +1586,33 @@ mod tests {
         let c = span(SensitiveSpanKind::PersonName, 13, 15);
         let out = resolve_overlaps(vec![a, b.clone(), c.clone()]);
         assert_eq!(out, vec![b, c]);
+    }
+
+    #[test]
+    fn saudi_national_ids_and_iqamas_are_recognized() {
+        let arabic_digits =
+            "\u{0661}\u{0660}\u{0669}\u{0668}\u{0667}\u{0666}\u{0665}\u{0664}\u{0663}\u{0669}";
+        assert!(validate_saudi_national_id("1098765439"));
+        assert!(validate_saudi_national_id("2034567897"));
+        assert!(validate_saudi_national_id(arabic_digits));
+        assert!(validate_saudi_national_id("2034 567 897"));
+        assert!(!validate_saudi_national_id("2034567898"), "bad check digit");
+        assert!(
+            !validate_saudi_national_id("3034567893"),
+            "first digit 1 or 2"
+        );
+        assert!(!validate_saudi_national_id("203456789"), "nine digits");
+
+        let english = "Iqama: 2034567897. National ID 1098765439.";
+        assert!(has(english, SensitiveSpanKind::Identifier, "2034567897"));
+        assert!(has(english, SensitiveSpanKind::Identifier, "1098765439"));
+        let arabic = format!("رقم الهوية: {arabic_digits} للمريض");
+        assert!(has(&arabic, SensitiveSpanKind::Identifier, arabic_digits));
+        assert!(has(
+            "الإقامة 2034567897",
+            SensitiveSpanKind::Identifier,
+            "2034567897"
+        ));
     }
 
     #[test]
