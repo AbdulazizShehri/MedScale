@@ -17,6 +17,16 @@ one immutable OpenMed commit. See [UPSTREAM.md](UPSTREAM.md) and the preserved
 upstream [LICENSE](third_party/openmed/LICENSE) and
 [NOTICE](third_party/openmed/NOTICE).
 
+## Additional audit and safety validators (tranche 2)
+
+A second, source-pinned port contributes 26 further modules including guarded
+clinical-decision-support envelopes, explicit uncertainty disclosures,
+NLI abstention/batching/premise guards, empty-evidence and omission gates for
+summaries, SDOH prohibited-use labels, lab reference-range provenance and
+human-review state transitions. See [FEATURE_PARITY_V2.md](FEATURE_PARITY_V2.md)
+for the exact file inventory, excluded whole-stack tests and implementation
+limits. Neither tranche is activated inside MedScale Desktop or Rust Core.
+
 ## Installation and tests
 
 From this directory in an isolated Python 3.11+ virtual environment:

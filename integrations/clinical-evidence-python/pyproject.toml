@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "medscale-clinical-evidence"
-version = "0.1.0"
+version = "0.2.0"
 description = "Local clinical evidence audit primitives for MedScale"
 requires-python = ">=3.11"
 dependencies = []

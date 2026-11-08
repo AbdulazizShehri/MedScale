@@ -62,6 +62,12 @@ def rebrand(source: str) -> str:
     )
 
 def run() -> None:
+    if (VENDOR / "FEATURE_PARITY_V2.md").exists():
+        raise SystemExit(
+            "Refusing tranche-1 refresh on a tranche-2 package: it would "
+            "overwrite the new clinical exports. Use a fresh pre-v2 tree, "
+            "then execute vendor_openmed_clinical_v2.py."
+        )
     for source in SOURCE_PATHS:
         destination = PACKAGE / source.removeprefix("openmed/")
         original = get(source)
