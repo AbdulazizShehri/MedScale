@@ -1,3 +1,8 @@
+# SPDX-License-Identifier: Apache-2.0
+# Modified from maziyarpanahi/openmed@3e232328 (tests/unit/clinical/test_nli_labels.py): namespace and
+# product-name substitution;
+# reduced to the tests that need no unshipped module (full original in
+# tests/upstream_reference/). See UPSTREAM.md.
 """Offline regression tests for the stable clinical NLI label contract."""
 
 from __future__ import annotations

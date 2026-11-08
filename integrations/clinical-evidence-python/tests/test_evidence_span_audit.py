@@ -1,3 +1,6 @@
+# SPDX-License-Identifier: Apache-2.0
+# Modified from maziyarpanahi/openmed@3e232328 (tests/unit/clinical/test_evidence_span_audit.py): namespace and
+# product-name substitution. See UPSTREAM.md.
 """Focused tests for the privacy-safe evidence-span overlap audit."""
 
 from __future__ import annotations

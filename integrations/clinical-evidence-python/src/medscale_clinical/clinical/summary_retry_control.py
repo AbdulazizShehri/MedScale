@@ -1,5 +1,6 @@
 # SPDX-License-Identifier: Apache-2.0
-# Adapted from maziyarpanahi/openmed at pinned commit. See UPSTREAM.md.
+# Modified from maziyarpanahi/openmed@3e232328 (openmed/clinical/summary_retry_control.py): namespace and
+# product-name substitution. See UPSTREAM.md.
 """Bounded, digest-keyed retry control for local summary generation.
 
 The controller fails closed at a caller-defined attempt ceiling and when the

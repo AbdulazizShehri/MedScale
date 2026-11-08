@@ -1,5 +1,6 @@
 # SPDX-License-Identifier: Apache-2.0
-# Adapted from maziyarpanahi/openmed at pinned commit. See UPSTREAM.md.
+# Modified from maziyarpanahi/openmed@3e232328 (openmed/clinical/summary_profiles.py): namespace and
+# product-name substitution. See UPSTREAM.md.
 """Versioned, local-only contracts for typed clinical summary templates.
 
 Summary profiles describe bounded output fields for a local generator.  They

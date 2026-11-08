@@ -1,5 +1,6 @@
 # SPDX-License-Identifier: Apache-2.0
-# Derived from maziyarpanahi/openmed; see UPSTREAM.md for origin and changes.
+# Modified from maziyarpanahi/openmed@3e232328 (openmed/clinical/claim_conflicts.py): namespace and
+# product-name substitution. See UPSTREAM.md.
 """Deterministic, privacy-safe review of summary-claim evidence.
 
 Summary claims are only as reviewable as the evidence they cite.  This module

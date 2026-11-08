@@ -1,3 +1,6 @@
+# SPDX-License-Identifier: Apache-2.0
+# Modified from maziyarpanahi/openmed@3e232328 (tests/unit/clinical/test_evidence_table.py): namespace and
+# product-name substitution. See UPSTREAM.md.
 """Tests for value-free clinical evidence table rendering."""
 
 from __future__ import annotations

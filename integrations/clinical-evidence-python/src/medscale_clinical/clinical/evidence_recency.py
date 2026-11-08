@@ -1,5 +1,6 @@
 # SPDX-License-Identifier: Apache-2.0
-# Derived from maziyarpanahi/openmed; see UPSTREAM.md for origin and changes.
+# Modified from maziyarpanahi/openmed@3e232328 (openmed/clinical/evidence_recency.py): namespace and
+# product-name substitution. See UPSTREAM.md.
 """Deterministic, value-free recency labels for guarded clinical evidence.
 
 Evidence recency is a disclosure signal, not a clinical conclusion.  This

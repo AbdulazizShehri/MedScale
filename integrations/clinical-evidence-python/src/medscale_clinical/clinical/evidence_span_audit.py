@@ -1,5 +1,6 @@
 # SPDX-License-Identifier: Apache-2.0
-# Derived from maziyarpanahi/openmed; see UPSTREAM.md for origin and changes.
+# Modified from maziyarpanahi/openmed@3e232328 (openmed/clinical/evidence_span_audit.py): namespace and
+# product-name substitution. See UPSTREAM.md.
 """Deterministic, privacy-conscious audits for overlapping evidence spans.
 
 The audit compares caller-supplied half-open offset ranges and retains only

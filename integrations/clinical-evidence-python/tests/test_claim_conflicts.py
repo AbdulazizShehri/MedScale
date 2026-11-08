@@ -1,3 +1,6 @@
+# SPDX-License-Identifier: Apache-2.0
+# Modified from maziyarpanahi/openmed@3e232328 (tests/unit/clinical/test_claim_conflicts.py): namespace and
+# product-name substitution. See UPSTREAM.md.
 """Synthetic offline tests for evidence-claim contradiction review."""
 
 from __future__ import annotations

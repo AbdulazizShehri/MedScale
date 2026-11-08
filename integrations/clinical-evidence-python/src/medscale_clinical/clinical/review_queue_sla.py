@@ -1,5 +1,6 @@
 # SPDX-License-Identifier: Apache-2.0
-# Adapted from maziyarpanahi/openmed at pinned commit. See UPSTREAM.md.
+# Modified from maziyarpanahi/openmed@3e232328 (openmed/clinical/review_queue_sla.py): namespace and
+# product-name substitution. See UPSTREAM.md.
 """Deterministic, PHI-safe SLA summaries for human-review queues.
 
 The module deliberately requires an injected clock.  Queue entries are

@@ -1,5 +1,6 @@
 # SPDX-License-Identifier: Apache-2.0
-# Derived from maziyarpanahi/openmed; see UPSTREAM.md for origin and changes.
+# Modified from maziyarpanahi/openmed@3e232328 (openmed/clinical/nli_numeric_precheck.py): namespace and
+# product-name substitution. See UPSTREAM.md.
 """Deterministic numeric contradiction checks for clinical NLI pairs.
 
 The precheck consumes structured values that a caller has already paired.  It

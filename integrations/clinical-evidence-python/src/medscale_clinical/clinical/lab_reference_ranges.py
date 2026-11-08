@@ -1,5 +1,6 @@
 # SPDX-License-Identifier: Apache-2.0
-# Adapted from maziyarpanahi/openmed at pinned commit. See UPSTREAM.md.
+# Modified from maziyarpanahi/openmed@3e232328 (openmed/clinical/lab_reference_ranges.py): namespace and
+# product-name substitution. See UPSTREAM.md.
 """Typed, offline provenance for laboratory reference ranges.
 
 Reference ranges are only comparable when their measurement context is explicit.

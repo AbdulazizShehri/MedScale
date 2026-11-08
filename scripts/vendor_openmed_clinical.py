@@ -1,4 +1,7 @@
 #!/usr/bin/env python3
+# Note: this records the original import. Later revisions (explicit exports,
+# per-file change notices, the file inventory) are listed in
+# integrations/clinical-evidence-python/UPSTREAM.md under "Revisions after import".
 """Reproducibly import selected Apache-2.0 OpenMed clinical modules into MedScale.
 
 Developer-only tool: never invoked by the MedScale runtime.  Source is pinned to

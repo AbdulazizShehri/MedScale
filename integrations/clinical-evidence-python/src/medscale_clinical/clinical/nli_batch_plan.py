@@ -1,5 +1,6 @@
 # SPDX-License-Identifier: Apache-2.0
-# Adapted from maziyarpanahi/openmed at pinned commit. See UPSTREAM.md.
+# Modified from maziyarpanahi/openmed@3e232328 (openmed/clinical/nli_batch_plan.py): namespace and
+# product-name substitution. See UPSTREAM.md.
 """Deterministic, resource-bounded batch planning for local clinical NLI."""
 
 from __future__ import annotations

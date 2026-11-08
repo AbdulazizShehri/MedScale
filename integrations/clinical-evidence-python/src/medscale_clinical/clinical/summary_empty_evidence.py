@@ -1,5 +1,6 @@
 # SPDX-License-Identifier: Apache-2.0
-# Adapted from maziyarpanahi/openmed at pinned commit. See UPSTREAM.md.
+# Modified from maziyarpanahi/openmed@3e232328 (openmed/clinical/summary_empty_evidence.py): namespace and
+# product-name substitution. See UPSTREAM.md.
 """Fail-closed handling for clinical summaries without approved evidence.
 
 This module is the boundary immediately before a local summary generator.  It

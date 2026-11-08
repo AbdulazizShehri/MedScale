@@ -1,5 +1,6 @@
 # SPDX-License-Identifier: Apache-2.0
-# Derived from maziyarpanahi/openmed; see UPSTREAM.md for origin and changes.
+# Modified from maziyarpanahi/openmed@3e232328 (openmed/core/iso_temporal.py): namespace and
+# product-name substitution. See UPSTREAM.md.
 """Interpreter-independent extended-calendar ISO date and time parsing.
 
 Only ASCII extended calendar dates and colon-separated times/offsets are

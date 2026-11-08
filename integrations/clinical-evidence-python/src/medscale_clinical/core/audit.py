@@ -1,5 +1,6 @@
 # SPDX-License-Identifier: Apache-2.0
-# Derived from maziyarpanahi/openmed; see UPSTREAM.md for origin and changes.
+# Modified from maziyarpanahi/openmed@3e232328 (openmed/core/audit.py): namespace and
+# product-name substitution. See UPSTREAM.md.
 """Deterministic audit reports for de-identification runs."""
 
 from __future__ import annotations
@@ -822,12 +823,14 @@ def stable_hash(data: Any) -> str:
 
 
 def manifest_hash(path: Path | None = None) -> str:
-    """Return the committed model manifest hash used by audit reports."""
-    manifest_path = path or Path(__file__).resolve().parents[2] / "models.jsonl"
-    try:
-        return _sha256_bytes(manifest_path.read_bytes())
-    except OSError:
-        return _sha256_bytes(b"")
+    """Return the hash of a model manifest file.
+
+    The upstream model manifest is not part of this package, so a path is
+    required, and a missing file raises instead of hashing empty input.
+    """
+    if path is None:
+        raise ValueError("this package ships no model manifest; pass its path")
+    return _sha256_bytes(Path(path).read_bytes())
 
 
 def _key_bytes(key: bytes | str | None) -> bytes:
@@ -1324,14 +1327,8 @@ class AuditReport:
             An ``AttestationReport`` with JSON and Markdown renderers.
         """
 
-        from .attestation import generate_attestation
-
-        return generate_attestation(
-            self,
-            profile,
-            model_artifacts=model_artifacts,
-            generated_at=generated_at,
-            template_path=template_path,
+        raise NotImplementedError(
+            "data-residency attestation is not part of this package"
         )
 
 
