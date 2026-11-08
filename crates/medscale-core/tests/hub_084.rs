@@ -1117,9 +1117,17 @@ fn a_hub_served_over_local_ipc_syncs_a_client() {
         panic!()
     };
     let c = Node::open(root.join("c"), "vault-c", "realm-c", "scope-c");
-    let mut t = IpcHubTransport::connect(&endpoint).unwrap();
+    // This test serves the full endpoint, which needs the host's token; a
+    // real Hub serves devices on its limited endpoint, which doesn't.
+    let device = || {
+        IpcHubTransport::from_client(
+            medscale_core::ipc::HostIpcClient::connect_authenticated(&endpoint, &host_lock)
+                .unwrap(),
+        )
+    };
+    let mut t = device();
     let link = hub_sync::join(&c.ctx(), &mut t, endpoint.clone(), *code).unwrap();
-    let mut t = IpcHubTransport::connect(&endpoint).unwrap();
+    let mut t = device();
     let report = hub_sync::sync(&c.ctx(), &mut t, &link.header.id).unwrap();
     assert_eq!((report.pulled, report.cursor), (1, 1));
 }
