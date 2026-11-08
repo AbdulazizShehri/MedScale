@@ -170,6 +170,7 @@ pub fn update_check() -> CmdResult<Value> {
         || CmdError::unavailable("Unavailable: couldn't reach GitHub. Nothing was downloaded.");
     let agent: ureq::Agent = ureq::Agent::config_builder()
         .https_only(true)
+        .proxy(None)
         .max_redirects(0)
         .timeout_global(Some(Duration::from_secs(20)))
         .user_agent(concat!(
