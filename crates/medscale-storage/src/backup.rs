@@ -40,12 +40,17 @@ pub fn backup_vault(vault: &SyntheticVault, dest: &Path) -> Result<BackupManifes
         .list_authority_objects()
         .map_err(|e| e.to_string())?
     {
-        if let Some(hex_d) = obj.content_digest_hex.as_ref()
-            && seen.insert(hex_d.clone())
-        {
-            let digest = parse_hex(hex_d);
+        let Some(hex_d) = obj.content_digest_hex.as_ref() else {
+            continue;
+        };
+        // The file name is rebuilt from the parsed digest, never taken from
+        // the stored string, so a row restored from a crafted backup cannot
+        // steer the write outside `dest`.
+        let digest = parse_hex(hex_d)?;
+        let name = hex(&digest);
+        if seen.insert(name.clone()) {
             let bytes = vault.blobs.get_blob(&digest).map_err(|e| e.to_string())?;
-            fs::write(dest.join("blobs").join(hex_d), &bytes).map_err(|e| e.to_string())?;
+            fs::write(dest.join("blobs").join(&name), &bytes).map_err(|e| e.to_string())?;
             blob_entries.push(BlobRef {
                 digest,
                 byte_length: bytes.len() as u64,
@@ -196,10 +201,10 @@ fn restore_v2(
                     .unwrap_or_default()
                     .to_owned(),
                 body_json: value["body_json"].as_str().unwrap_or_default().to_owned(),
-                content_digest_hex: value
-                    .get("content_digest_hex")
-                    .and_then(|v| v.as_str())
-                    .map(str::to_owned),
+                content_digest_hex: match value.get("content_digest_hex").and_then(|v| v.as_str()) {
+                    Some(stored) => Some(hex(&parse_hex(stored)?)),
+                    None => None,
+                },
                 updated_seq: value["updated_seq"].as_u64().unwrap_or(0),
             });
         }
@@ -1300,7 +1305,7 @@ fn insert_source_from_json(
         authority_scope_id: medscale_contracts::objects::AuthorityScopeId::new(
             value["authority_scope_id"].as_str().unwrap_or_default(),
         ),
-        digest: parse_hex(value["digest_hex"].as_str().unwrap_or_default()),
+        digest: parse_hex(value["digest_hex"].as_str().unwrap_or_default())?,
         byte_length: value["byte_length"].as_u64().unwrap_or(0),
         media_type: value["media_type"].as_str().unwrap_or_default().to_owned(),
         visible: value["visible"].as_bool().unwrap_or(false),
@@ -1325,14 +1330,38 @@ fn hex(digest: &DigestSha256) -> String {
         .collect()
 }
 
-fn parse_hex(name: &str) -> DigestSha256 {
+/// A SHA-256 digest written as exactly 64 hex digits; anything else is refused.
+fn parse_hex(name: &str) -> Result<DigestSha256, String> {
+    let invalid = || "invalid content digest".to_owned();
+    if name.len() != 64 || !name.bytes().all(|b| b.is_ascii_hexdigit()) {
+        return Err(invalid());
+    }
     let mut bytes = [0_u8; 32];
     for (i, chunk) in name.as_bytes().chunks(2).enumerate() {
-        if i >= 32 {
-            break;
-        }
-        let s = std::str::from_utf8(chunk).unwrap_or("00");
-        bytes[i] = u8::from_str_radix(s, 16).unwrap_or(0);
+        let pair = std::str::from_utf8(chunk).map_err(|_| invalid())?;
+        bytes[i] = u8::from_str_radix(pair, 16).map_err(|_| invalid())?;
     }
-    DigestSha256::from_bytes(bytes)
+    Ok(DigestSha256::from_bytes(bytes))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn digest_names_must_be_exactly_64_hex_digits() {
+        let good = "ab".repeat(32);
+        assert_eq!(hex(&parse_hex(&good).expect("valid")), good);
+        assert_eq!(hex(&parse_hex(&good.to_uppercase()).expect("valid")), good);
+        for bad in [
+            format!("{good}\\..\\..\\Users\\Public\\x.bat"),
+            format!("{good}/../x"),
+            good[..62].to_owned(),
+            format!("{}zz", &good[..62]),
+            format!("{}\u{e9}", &good[..63]),
+            String::new(),
+        ] {
+            assert!(parse_hex(&bad).is_err(), "{bad:?}");
+        }
+    }
 }
