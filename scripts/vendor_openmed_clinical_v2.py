@@ -1,4 +1,7 @@
 #!/usr/bin/env python3
+# Note: this records the original import. Later revisions (explicit exports,
+# per-file change notices, the file inventory) are listed in
+# integrations/clinical-evidence-python/UPSTREAM.md under "Revisions after import".
 """Copy the second, review-only OpenMed clinical safety tranche into MedScale.
 
 This is a developer-only, source-pinned, auditable vendor script. It performs

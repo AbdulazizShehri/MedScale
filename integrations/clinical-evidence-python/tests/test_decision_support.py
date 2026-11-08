@@ -1,3 +1,6 @@
+# SPDX-License-Identifier: Apache-2.0
+# Modified from maziyarpanahi/openmed@3e232328 (tests/unit/clinical/test_decision_support.py): namespace and
+# product-name substitution. See UPSTREAM.md.
 """Tests for the clinical decision-support guardrail layer (OM-802).
 
 These tests assert the CDS transparency invariants that keep MedScale out of the

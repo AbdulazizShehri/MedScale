@@ -1,5 +1,6 @@
 # SPDX-License-Identifier: Apache-2.0
-# Derived from maziyarpanahi/openmed; see UPSTREAM.md for origin and changes.
+# Modified from maziyarpanahi/openmed@3e232328 (openmed/clinical/citation_ordering.py): namespace and
+# product-name substitution. See UPSTREAM.md.
 """Deterministic, metadata-only ordering for guarded-output citations."""
 
 from __future__ import annotations

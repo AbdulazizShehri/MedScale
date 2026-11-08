@@ -1,3 +1,6 @@
+# SPDX-License-Identifier: Apache-2.0
+# Modified from maziyarpanahi/openmed@3e232328 (tests/unit/clinical/test_review_queue_sla.py): namespace and
+# product-name substitution. See UPSTREAM.md.
 """Tests for deterministic, PHI-safe human-review queue SLA reports."""
 
 from __future__ import annotations

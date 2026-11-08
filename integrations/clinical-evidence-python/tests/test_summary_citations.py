@@ -1,3 +1,6 @@
+# SPDX-License-Identifier: Apache-2.0
+# Modified from maziyarpanahi/openmed@3e232328 (tests/unit/clinical/test_summary_citations.py): namespace and
+# product-name substitution. See UPSTREAM.md.
 """Tests for deterministic, privacy-safe summary citation consistency."""
 
 from __future__ import annotations

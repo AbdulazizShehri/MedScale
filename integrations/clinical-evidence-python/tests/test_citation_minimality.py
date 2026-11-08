@@ -1,3 +1,6 @@
+# SPDX-License-Identifier: Apache-2.0
+# Modified from maziyarpanahi/openmed@3e232328 (tests/unit/clinical/test_citation_minimality.py): namespace and
+# product-name substitution. See UPSTREAM.md.
 """Focused tests for deterministic, value-free citation minimality checks."""
 
 from __future__ import annotations

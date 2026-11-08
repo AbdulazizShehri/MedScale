@@ -1,5 +1,6 @@
 # SPDX-License-Identifier: Apache-2.0
-# Derived from maziyarpanahi/openmed; see UPSTREAM.md for origin and changes.
+# Modified from maziyarpanahi/openmed@3e232328 (openmed/clinical/units/ucum.py): namespace and
+# product-name substitution. See UPSTREAM.md.
 """Deterministic UCUM-subset parsing for clinical measurements."""
 
 from __future__ import annotations

@@ -1,5 +1,6 @@
 # SPDX-License-Identifier: Apache-2.0
-# Adapted from maziyarpanahi/openmed at pinned commit. See UPSTREAM.md.
+# Modified from maziyarpanahi/openmed@3e232328 (openmed/clinical/evidence_table.py): namespace and
+# product-name substitution. See UPSTREAM.md.
 """Deterministic, value-free clinical evidence tables for review.
 
 This module retains only source offsets, controlled assertion states,

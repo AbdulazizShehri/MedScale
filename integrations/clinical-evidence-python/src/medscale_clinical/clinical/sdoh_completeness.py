@@ -1,5 +1,6 @@
 # SPDX-License-Identifier: Apache-2.0
-# Adapted from maziyarpanahi/openmed at pinned commit. See UPSTREAM.md.
+# Modified from maziyarpanahi/openmed@3e232328 (openmed/clinical/sdoh_completeness.py): namespace and
+# product-name substitution. See UPSTREAM.md.
 """Counts-only SDOH category processing completeness audits."""
 
 from __future__ import annotations

@@ -1,3 +1,6 @@
+# SPDX-License-Identifier: Apache-2.0
+# Modified from maziyarpanahi/openmed@3e232328 (tests/unit/clinical/test_citation_boundaries.py): namespace and
+# product-name substitution. See UPSTREAM.md.
 """Offline regression tests for de-identification-aware citation boundaries."""
 
 from __future__ import annotations

@@ -1,5 +1,6 @@
 # SPDX-License-Identifier: Apache-2.0
-# Derived from maziyarpanahi/openmed; see UPSTREAM.md for origin and changes.
+# Modified from maziyarpanahi/openmed@3e232328 (openmed/clinical/summary_citations.py): namespace and
+# product-name substitution. See UPSTREAM.md.
 """Deterministic citation-consistency checks for guarded clinical summaries.
 
 The checker accepts structured summary claims and a caller-supplied evidence

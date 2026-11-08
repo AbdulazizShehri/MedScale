@@ -1,10 +1,12 @@
 # SPDX-License-Identifier: Apache-2.0
-# Adapted from maziyarpanahi/openmed at pinned commit. See UPSTREAM.md.
+# Modified from maziyarpanahi/openmed@3e232328 (openmed/clinical/decision_support.py): namespace and
+# product-name substitution. See UPSTREAM.md.
 """Decision-support guardrail layer for clinical suggestions (OM-802).
 
 Any clinical-suggestion or decision-support output produced by MedScale must be
-wrapped so it is transparent and clinician-reviewable, keeping MedScale within
-FDA Clinical Decision Support (CDS) transparency expectations. Concretely, every
+wrapped so it is transparent and clinician-reviewable. It is designed to support
+the transparency that FDA guidance on Clinical Decision Support (CDS) describes;
+it is not a regulatory determination for MedScale. Concretely, every
 guarded suggestion carries:
 
 - a mandatory medical-device disclaimer (assist, do not decide; a clinician must

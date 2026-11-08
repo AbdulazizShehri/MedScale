@@ -1,5 +1,6 @@
 # SPDX-License-Identifier: Apache-2.0
-# Derived from maziyarpanahi/openmed; see UPSTREAM.md for origin and changes.
+# Modified from maziyarpanahi/openmed@3e232328 (openmed/clinical/lexicons/clinical_norm.py): namespace and
+# product-name substitution. See UPSTREAM.md.
 """Locale-aware clinical normalization lexicons.
 
 The tables in this module are compact synthetic/permissive language packs for

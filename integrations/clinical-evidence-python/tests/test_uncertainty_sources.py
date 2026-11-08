@@ -1,3 +1,6 @@
+# SPDX-License-Identifier: Apache-2.0
+# Modified from maziyarpanahi/openmed@3e232328 (tests/unit/clinical/test_uncertainty_sources.py): namespace and
+# product-name substitution. See UPSTREAM.md.
 """Focused regression tests for typed clinical uncertainty sources."""
 
 from __future__ import annotations

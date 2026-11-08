@@ -1,5 +1,6 @@
 # SPDX-License-Identifier: Apache-2.0
-# Adapted from maziyarpanahi/openmed at pinned commit. See UPSTREAM.md.
+# Modified from maziyarpanahi/openmed@3e232328 (openmed/clinical/review_state_machine.py): namespace and
+# product-name substitution. See UPSTREAM.md.
 """Deterministic, privacy-safe validation for clinical review transitions.
 
 This module models the human-review state machine independently from any

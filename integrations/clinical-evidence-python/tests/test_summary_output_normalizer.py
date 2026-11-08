@@ -1,3 +1,6 @@
+# SPDX-License-Identifier: Apache-2.0
+# Modified from maziyarpanahi/openmed@3e232328 (tests/unit/clinical/test_summary_output_normalizer.py): namespace and
+# product-name substitution. See UPSTREAM.md.
 """Focused synthetic tests for deterministic summary-output normalization."""
 
 from __future__ import annotations

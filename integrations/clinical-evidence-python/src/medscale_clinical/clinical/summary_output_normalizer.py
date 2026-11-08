@@ -1,5 +1,6 @@
 # SPDX-License-Identifier: Apache-2.0
-# Adapted from maziyarpanahi/openmed at pinned commit. See UPSTREAM.md.
+# Modified from maziyarpanahi/openmed@3e232328 (openmed/clinical/summary_output_normalizer.py): namespace and
+# product-name substitution. See UPSTREAM.md.
 """Deterministic formatting normalization for local clinical summaries.
 
 The normalizer changes presentation-only syntax: whitespace, Markdown-style

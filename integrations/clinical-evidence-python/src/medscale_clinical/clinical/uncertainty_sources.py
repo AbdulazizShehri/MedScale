@@ -1,5 +1,6 @@
 # SPDX-License-Identifier: Apache-2.0
-# Adapted from maziyarpanahi/openmed at pinned commit. See UPSTREAM.md.
+# Modified from maziyarpanahi/openmed@3e232328 (openmed/clinical/uncertainty_sources.py): namespace and
+# product-name substitution. See UPSTREAM.md.
 """Typed, composable uncertainty sources for guarded clinical outputs.
 
 Clinical uncertainty is not a single probability.  A result can be uncertain

@@ -1,5 +1,6 @@
 # SPDX-License-Identifier: Apache-2.0
-# Adapted from maziyarpanahi/openmed at pinned commit. See UPSTREAM.md.
+# Modified from maziyarpanahi/openmed@3e232328 (openmed/clinical/uncertainty_disclosure.py): namespace and
+# product-name substitution. See UPSTREAM.md.
 """Deterministic completeness checks for uncertainty disclosures.
 
 The audit accepts claim metadata and checks the structural parts of an

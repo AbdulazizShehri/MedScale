@@ -1,5 +1,6 @@
 # SPDX-License-Identifier: Apache-2.0
-# Adapted from maziyarpanahi/openmed at pinned commit. See UPSTREAM.md.
+# Modified from maziyarpanahi/openmed@3e232328 (openmed/clinical/output_use_policy.py): namespace and
+# product-name substitution. See UPSTREAM.md.
 """Deterministic, privacy-safe policy gates for clinical-output uses.
 
 The gate evaluates output metadata only. Callers declare an output category,

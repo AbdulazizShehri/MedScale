@@ -1,3 +1,6 @@
+# SPDX-License-Identifier: Apache-2.0
+# Modified from maziyarpanahi/openmed@3e232328 (tests/unit/clinical/test_summary_empty_evidence.py): namespace and
+# product-name substitution. See UPSTREAM.md.
 """Offline regressions for the empty-evidence summary refusal gate."""
 
 from __future__ import annotations

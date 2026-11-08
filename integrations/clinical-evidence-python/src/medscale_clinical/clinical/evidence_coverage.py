@@ -1,5 +1,6 @@
 # SPDX-License-Identifier: Apache-2.0
-# Adapted from maziyarpanahi/openmed at pinned commit. See UPSTREAM.md.
+# Modified from maziyarpanahi/openmed@3e232328 (openmed/clinical/evidence_coverage.py): namespace and
+# product-name substitution. See UPSTREAM.md.
 """Deterministic, value-free coverage reports for guarded clinical claims.
 
 The evidence coverage matrix is an operational review aid.  It records only

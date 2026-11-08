@@ -1,5 +1,6 @@
 # SPDX-License-Identifier: Apache-2.0
-# Derived from maziyarpanahi/openmed; see UPSTREAM.md for origin and changes.
+# Modified from maziyarpanahi/openmed@3e232328 (openmed/clinical/citation_minimality.py): namespace and
+# product-name substitution. See UPSTREAM.md.
 """Deterministic, value-free minimality checks for guarded claim citations.
 
 The caller supplies the source span that an atomic claim needs and the span

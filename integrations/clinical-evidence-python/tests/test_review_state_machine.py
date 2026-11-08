@@ -1,3 +1,8 @@
+# SPDX-License-Identifier: Apache-2.0
+# Modified from maziyarpanahi/openmed@3e232328 (tests/unit/clinical/test_review_state_machine.py): namespace and
+# product-name substitution;
+# reduced to the tests that need no unshipped module (full original in
+# tests/upstream_reference/). See UPSTREAM.md.
 """Focused tests for the deterministic clinical review state machine."""
 
 from __future__ import annotations

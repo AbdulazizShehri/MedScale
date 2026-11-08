@@ -1,3 +1,6 @@
+# SPDX-License-Identifier: Apache-2.0
+# Modified from maziyarpanahi/openmed@3e232328 (tests/unit/clinical/test_claim_integrity.py): namespace and
+# product-name substitution. See UPSTREAM.md.
 """Tests for deterministic, privacy-safe claim-packet integrity checks."""
 
 from __future__ import annotations

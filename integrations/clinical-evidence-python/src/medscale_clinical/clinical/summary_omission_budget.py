@@ -1,5 +1,6 @@
 # SPDX-License-Identifier: Apache-2.0
-# Adapted from maziyarpanahi/openmed at pinned commit. See UPSTREAM.md.
+# Modified from maziyarpanahi/openmed@3e232328 (openmed/clinical/summary_omission_budget.py): namespace and
+# product-name substitution. See UPSTREAM.md.
 """Severity-weighted, non-compensable omission gates for summaries.
 
 The gate consumes value-free evidence coordinates. Evidence and importance
