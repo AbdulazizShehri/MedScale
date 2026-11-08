@@ -1,6 +1,7 @@
 name: Documentation improvement
 description: Suggest a correction or submit a docs issue
 title: "[Docs]: "
+labels: ["needs-triage"]
 body:
   - type: input
     id: location
