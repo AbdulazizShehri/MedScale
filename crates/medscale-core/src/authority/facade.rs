@@ -6604,7 +6604,11 @@ fn enc_err(err: medscale_storage::EncryptedVaultError) -> AuthorityError {
 
 fn lease_err(err: LeaseError) -> AuthorityError {
     match err {
-        LeaseError::AlreadyHeld { holder_id } => AuthorityError::AlreadyHeld { holder_id },
+        // The holder id lets its owner open sessions, so a conflict never
+        // reveals it.
+        LeaseError::AlreadyHeld { .. } => AuthorityError::AlreadyHeld {
+            holder_id: OpaqueId::new("held"),
+        },
         LeaseError::NotHolder => AuthorityError::NotHolder,
         LeaseError::NotHeld => AuthorityError::NotHeld,
     }

@@ -1100,7 +1100,7 @@ fn a_hub_served_over_local_ipc_syncs_a_client() {
     let server = HostIpcServer::bind(&host_lock, &endpoint).expect("bind");
     let (endpoint, _facade, _join) = server.into_background();
     // The Hub operator uses the served facade through its own IPC client.
-    let mut hub = IpcNode::connect(&endpoint, root.join("hub"));
+    let mut hub = IpcNode::connect(&endpoint, &host_lock, root.join("hub"));
     let project = hub.project();
     hub.call(Capability::HubAdmin, RequestBody::HubInit)
         .unwrap();
@@ -1132,9 +1132,10 @@ struct IpcNode {
 }
 
 impl IpcNode {
-    fn connect(endpoint: &str, vault_dir: PathBuf) -> Self {
+    fn connect(endpoint: &str, host_root: &std::path::Path, vault_dir: PathBuf) -> Self {
         let mut n = IpcNode {
-            client: medscale_core::ipc::HostIpcClient::connect(endpoint).unwrap(),
+            client: medscale_core::ipc::HostIpcClient::connect_authenticated(endpoint, host_root)
+                .unwrap(),
             session: None,
             next: 0,
         };

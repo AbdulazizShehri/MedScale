@@ -65,8 +65,8 @@ fn ipc_session_open_mutate_revoke_across_two_clients() {
     let server = HostIpcServer::bind(&root, &endpoint).expect("bind");
     let (_endpoint, _facade, _join) = server.into_background();
 
-    let mut client_a = HostIpcClient::connect(&endpoint).expect("client a");
-    let mut client_b = HostIpcClient::connect(&endpoint).expect("client b");
+    let mut client_a = HostIpcClient::connect_authenticated(&endpoint, &root).expect("client a");
+    let mut client_b = HostIpcClient::connect_authenticated(&endpoint, &root).expect("client b");
 
     let lease = client_a
         .dispatch(req(
@@ -143,7 +143,15 @@ fn ipc_capability_deny_across_clients() {
     let server = HostIpcServer::bind(&root, &endpoint).expect("bind");
     let (_endpoint, _facade, _join) = server.into_background();
 
-    let mut client = HostIpcClient::connect(&endpoint).expect("connect");
+    // Reaching the socket is not enough: without the token nothing answers.
+    let mut stranger = HostIpcClient::connect(&endpoint).expect("connect");
+    assert!(
+        stranger
+            .dispatch(req(Capability::Ping, RequestBody::Ping))
+            .is_err(),
+        "a client without the token gets no reply"
+    );
+    let mut client = HostIpcClient::connect_authenticated(&endpoint, &root).expect("connect");
     let lease = client
         .dispatch(req(
             Capability::AcquireLease,

@@ -39,10 +39,16 @@ fn exclusive_lease_second_acquire_already_held() {
             holder_id_hint: None,
         },
     ));
-    assert!(matches!(
-        second.result,
-        Err(AuthorityError::AlreadyHeld { .. })
-    ));
+    match second.result {
+        Err(AuthorityError::AlreadyHeld { holder_id }) => {
+            assert_ne!(
+                holder_id,
+                OpaqueId::new("client-a"),
+                "the holder is never revealed"
+            );
+        }
+        other => panic!("unexpected {other:?}"),
+    }
 
     let release = facade.dispatch(req(
         Capability::ReleaseLease,
