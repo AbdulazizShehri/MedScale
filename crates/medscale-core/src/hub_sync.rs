@@ -48,6 +48,13 @@ impl IpcHubTransport {
         })?;
         Ok(Self { client })
     }
+
+    /// Wraps a client that is already connected, for example one that
+    /// presented a full endpoint's token.
+    #[must_use]
+    pub fn from_client(client: HostIpcClient) -> Self {
+        Self { client }
+    }
 }
 
 impl HubTransport for IpcHubTransport {

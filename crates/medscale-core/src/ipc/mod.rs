@@ -2,6 +2,11 @@
 //!
 //! Framing: little-endian u32 length prefix + JSON AuthorityRequest/Response.
 //! Transport: `interprocess` local sockets (Windows named pipe / Unix domain socket).
+//!
+//! The full endpoint answers only clients that first send the per-launch token
+//! the server writes to `IPC_TOKEN_FILE` in its vault root, so reaching the
+//! socket is not enough: a client must also be able to read the vault folder.
+//! The Hub's limited endpoint (`serve_connection_limited`) takes no token.
 
 mod framing;
 
@@ -23,6 +28,9 @@ use crate::CoreFacade;
 
 pub use framing::{MAX_FRAME_BYTES, read_frame, write_frame};
 
+/// File in the vault root holding the running server's per-launch token.
+pub const IPC_TOKEN_FILE: &str = ".host-ipc-token";
+
 /// Errors from host OS IPC bind/serve/connect.
 #[derive(Debug, Error)]
 pub enum HostIpcError {
@@ -38,6 +46,8 @@ pub enum HostIpcError {
     FrameTooLarge(usize),
     #[error("server stopped")]
     ServerStopped,
+    #[error("ipc token unavailable: start the host for this vault root first")]
+    TokenUnavailable,
 }
 
 /// Bound localhost IPC host: holds Spec 016 writer lock + Strict CoreFacade.
@@ -47,6 +57,7 @@ pub struct HostIpcServer {
     listener: Listener,
     endpoint: String,
     vault_root: PathBuf,
+    token: Arc<String>,
 }
 
 impl HostIpcServer {
@@ -62,12 +73,18 @@ impl HostIpcServer {
             .name(name)
             .create_sync()
             .map_err(HostIpcError::Io)?;
+        let token: String = medscale_keys::generate_key32()
+            .iter()
+            .map(|b| format!("{b:02x}"))
+            .collect();
+        write_token(&vault_root.join(IPC_TOKEN_FILE), &token)?;
         Ok(Self {
             facade: Arc::new(CoreFacade::new()),
             _writer: writer,
             listener,
             endpoint,
             vault_root: vault_root.to_path_buf(),
+            token: Arc::new(token),
         })
     }
 
@@ -92,7 +109,7 @@ impl HostIpcServer {
     /// Accept one client and serve request/response frames until EOF.
     pub fn serve_connection(&self) -> Result<(), HostIpcError> {
         let stream = self.listener.accept().map_err(HostIpcError::Io)?;
-        serve_stream(&self.facade, stream)
+        serve_stream(&self.facade, stream, &self.token)
     }
 
     /// Accept one client and serve it, answering only requests whose
@@ -101,7 +118,7 @@ impl HostIpcServer {
     /// it reaches Core, so a sessionless peer cannot use lease-holder reads.
     pub fn serve_connection_limited(&self, allowed: &[Capability]) -> Result<(), HostIpcError> {
         let stream = self.listener.accept().map_err(HostIpcError::Io)?;
-        serve_stream_limited(&self.facade, stream, Some(allowed))
+        serve_stream_limited(&self.facade, stream, Some(allowed), None)
     }
 
     /// Move this server into a background accept loop (one connection handler thread each).
@@ -111,8 +128,9 @@ impl HostIpcServer {
         let handle = thread::spawn(move || {
             while let Ok(stream) = self.listener.accept() {
                 let facade = Arc::clone(&self.facade);
+                let token = Arc::clone(&self.token);
                 let _ = thread::spawn(move || {
-                    let _ = serve_stream(&facade, stream);
+                    let _ = serve_stream(&facade, stream, &token);
                 });
             }
         });
@@ -120,15 +138,57 @@ impl HostIpcServer {
     }
 }
 
-fn serve_stream(facade: &CoreFacade, stream: Stream) -> Result<(), HostIpcError> {
-    serve_stream_limited(facade, stream, None)
+impl Drop for HostIpcServer {
+    fn drop(&mut self) {
+        let path = self.vault_root.join(IPC_TOKEN_FILE);
+        if std::fs::read_to_string(&path).is_ok_and(|t| t == *self.token) {
+            let _ = std::fs::remove_file(path);
+        }
+    }
+}
+
+fn write_token(path: &Path, token: &str) -> Result<(), HostIpcError> {
+    std::fs::write(path, token)?;
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::PermissionsExt;
+        std::fs::set_permissions(path, std::fs::Permissions::from_mode(0o600))?;
+    }
+    Ok(())
+}
+
+/// Compares without stopping at the first difference.
+fn token_matches(sent: &[u8], expected: &[u8]) -> bool {
+    sent.len() == expected.len()
+        && sent
+            .iter()
+            .zip(expected)
+            .fold(0_u8, |acc, (a, b)| acc | (a ^ b))
+            == 0
+}
+
+fn serve_stream(facade: &CoreFacade, stream: Stream, token: &str) -> Result<(), HostIpcError> {
+    serve_stream_limited(facade, stream, None, Some(token))
 }
 
 fn serve_stream_limited(
     facade: &CoreFacade,
     mut stream: Stream,
     allowed: Option<&[Capability]>,
+    token: Option<&str>,
 ) -> Result<(), HostIpcError> {
+    // The first frame must be the token; a client without it is dropped
+    // without any reply.
+    if let Some(token) = token {
+        let sent = match read_frame(&mut stream) {
+            Ok(b) => b,
+            Err(e) if e.kind() == std::io::ErrorKind::UnexpectedEof => return Ok(()),
+            Err(e) => return Err(HostIpcError::Io(e)),
+        };
+        if !token_matches(&sent, token.as_bytes()) {
+            return Ok(());
+        }
+    }
     loop {
         let req_bytes = match read_frame(&mut stream) {
             Ok(b) => b,
@@ -156,11 +216,22 @@ pub struct HostIpcClient {
 }
 
 impl HostIpcClient {
-    /// Connect to a namespaced local-socket endpoint.
+    /// Connect to a namespaced local-socket endpoint without a token. Only
+    /// the Hub's limited endpoint answers such a client.
     pub fn connect(endpoint: &str) -> Result<Self, HostIpcError> {
         let endpoint = sanitize_endpoint(endpoint)?;
         let stream = connect_with_retry(&endpoint, 50, Duration::from_millis(20))?;
         Ok(Self { stream, endpoint })
+    }
+
+    /// Connect to a full endpoint, presenting the token its server wrote in
+    /// `vault_root`.
+    pub fn connect_authenticated(endpoint: &str, vault_root: &Path) -> Result<Self, HostIpcError> {
+        let token = std::fs::read_to_string(vault_root.join(IPC_TOKEN_FILE))
+            .map_err(|_| HostIpcError::TokenUnavailable)?;
+        let mut client = Self::connect(endpoint)?;
+        write_frame(&mut client.stream, token.trim().as_bytes())?;
+        Ok(client)
     }
 
     /// Endpoint this client is connected to.

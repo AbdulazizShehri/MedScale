@@ -556,6 +556,9 @@ enum HostIpcCmd {
     Call {
         #[arg(long)]
         endpoint: String,
+        /// Vault root of the serving host; its per-launch token is read from there.
+        #[arg(long)]
+        vault_root: PathBuf,
         #[arg(long)]
         request_json: PathBuf,
     },
@@ -1471,13 +1474,14 @@ fn run() -> Result<()> {
             }
             HostIpcCmd::Call {
                 endpoint,
+                vault_root,
                 request_json,
             } => {
                 let bytes = std::fs::read(&request_json)
                     .with_context(|| format!("read {}", request_json.display()))?;
                 let req: medscale_contracts::envelopes::AuthorityRequest =
                     serde_json::from_slice(&bytes).context("parse AuthorityRequest JSON")?;
-                let mut client = HostIpcClient::connect(&endpoint)
+                let mut client = HostIpcClient::connect_authenticated(&endpoint, &vault_root)
                     .with_context(|| format!("connect endpoint={endpoint}"))?;
                 let resp = client.dispatch(req).context("ipc dispatch")?;
                 println!("{}", serde_json::to_string_pretty(&resp)?);

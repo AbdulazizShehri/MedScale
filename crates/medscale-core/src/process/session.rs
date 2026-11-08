@@ -52,7 +52,12 @@ impl SessionRegistry {
     ) -> (OpaqueId, u64) {
         let mut state = self.lock();
         state.next_seq = state.next_seq.saturating_add(1);
-        let session_id = OpaqueId::new(format!("session-{}", state.next_seq));
+        // A session id is a bearer token, so it is random, not a counter.
+        let random: String = medscale_keys::generate_key32()[..16]
+            .iter()
+            .map(|b| format!("{b:02x}"))
+            .collect();
+        let session_id = OpaqueId::new(format!("session-{random}"));
         let expires_at_tick = state.clock.saturating_add(ttl_ticks);
         state.sessions.insert(
             session_id.as_str().to_owned(),

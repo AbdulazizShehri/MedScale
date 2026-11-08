@@ -68,7 +68,11 @@ fn open_session_requires_lease_holder_match() {
             session_id,
             expires_at_tick,
         } => {
-            assert_eq!(session_id.as_str(), "session-1");
+            let random = session_id
+                .as_str()
+                .strip_prefix("session-")
+                .expect("prefix");
+            assert_eq!(random.len(), 32, "128 random bits, not a counter");
             assert_eq!(expires_at_tick, 5);
         }
         other => panic!("unexpected {other:?}"),

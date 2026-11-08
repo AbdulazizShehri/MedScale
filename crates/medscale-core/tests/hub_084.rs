@@ -1100,7 +1100,7 @@ fn a_hub_served_over_local_ipc_syncs_a_client() {
     let server = HostIpcServer::bind(&host_lock, &endpoint).expect("bind");
     let (endpoint, _facade, _join) = server.into_background();
     // The Hub operator uses the served facade through its own IPC client.
-    let mut hub = IpcNode::connect(&endpoint, root.join("hub"));
+    let mut hub = IpcNode::connect(&endpoint, &host_lock, root.join("hub"));
     let project = hub.project();
     hub.call(Capability::HubAdmin, RequestBody::HubInit)
         .unwrap();
@@ -1117,9 +1117,17 @@ fn a_hub_served_over_local_ipc_syncs_a_client() {
         panic!()
     };
     let c = Node::open(root.join("c"), "vault-c", "realm-c", "scope-c");
-    let mut t = IpcHubTransport::connect(&endpoint).unwrap();
+    // This test serves the full endpoint, which needs the host's token; a
+    // real Hub serves devices on its limited endpoint, which doesn't.
+    let device = || {
+        IpcHubTransport::from_client(
+            medscale_core::ipc::HostIpcClient::connect_authenticated(&endpoint, &host_lock)
+                .unwrap(),
+        )
+    };
+    let mut t = device();
     let link = hub_sync::join(&c.ctx(), &mut t, endpoint.clone(), *code).unwrap();
-    let mut t = IpcHubTransport::connect(&endpoint).unwrap();
+    let mut t = device();
     let report = hub_sync::sync(&c.ctx(), &mut t, &link.header.id).unwrap();
     assert_eq!((report.pulled, report.cursor), (1, 1));
 }
@@ -1132,9 +1140,10 @@ struct IpcNode {
 }
 
 impl IpcNode {
-    fn connect(endpoint: &str, vault_dir: PathBuf) -> Self {
+    fn connect(endpoint: &str, host_root: &std::path::Path, vault_dir: PathBuf) -> Self {
         let mut n = IpcNode {
-            client: medscale_core::ipc::HostIpcClient::connect(endpoint).unwrap(),
+            client: medscale_core::ipc::HostIpcClient::connect_authenticated(endpoint, host_root)
+                .unwrap(),
             session: None,
             next: 0,
         };
