@@ -263,19 +263,32 @@ test("the signing claim must match what was packaged", async () => {
 });
 
 // The GitHub records behind a release.
-function records(over: { release?: object; tagSha?: string; approvalBy?: string; approvalBody?: string; decisionBody?: string; run?: object } = {}) {
+function records(over: { release?: object; tagSha?: string; approvalBy?: string; approvalId?: number; approvalBody?: string; edited?: boolean; issue?: string; decisionBody?: string; run?: object } = {}) {
   const { release } = served();
   const w = release.platforms.windows!;
   const API = "https://api.github.com/repos/AbdulazizShehri/MedScale/";
   const routes: Record<string, unknown> = {
     [`releases/tags/${TAG}`]: { draft: false, immutable: true, ...over.release },
     [`commits/${TAG}`]: { sha: over.tagSha ?? release.sourceSha },
-    "issues/comments/1": { user: { login: over.approvalBy ?? "AbdulazizShehri" }, body: over.approvalBody ?? `GO for ${w.sha256}, unsigned` },
-    "actions/runs/1": { conclusion: "success", name: QUALIFICATION_WORKFLOW, ...over.run },
+    "issues/comments/1": {
+      user: { login: over.approvalBy ?? "AbdulazizShehri", id: over.approvalId ?? 222180173 },
+      body: over.approvalBody ?? `GO.\nAPPROVE ${w.sha256}\nSIGNING windows unsigned`,
+      created_at: "2026-11-08T10:00:00Z",
+      updated_at: over.edited ? "2026-11-08T11:00:00Z" : "2026-11-08T10:00:00Z",
+      issue_url: `https://api.github.com/repos/AbdulazizShehri/MedScale/issues/${over.issue ?? "436"}`,
+    },
+    "actions/runs/1": {
+      conclusion: "success", name: QUALIFICATION_WORKFLOW, path: ".github/workflows/release-installed-journey.yml",
+      event: "push", head_repository: { full_name: "AbdulazizShehri/MedScale" }, ...over.run,
+    },
   };
   if (over.decisionBody !== undefined) {
     release.platforms.windows!.signingDecision = "https://github.com/AbdulazizShehri/MedScale/issues/436#issuecomment-2";
-    routes["issues/comments/2"] = { user: { login: "AbdulazizShehri" }, body: over.decisionBody };
+    routes["issues/comments/2"] = {
+      user: { login: "AbdulazizShehri", id: 222180173 }, body: over.decisionBody,
+      created_at: "2026-11-08T10:00:00Z", updated_at: "2026-11-08T10:00:00Z",
+      issue_url: "https://api.github.com/repos/AbdulazizShehri/MedScale/issues/436",
+    };
   }
   const fetcher = async (url: string) => {
     const route = url.startsWith(API) ? url.slice(API.length) : "";
@@ -293,9 +306,17 @@ test("approval and qualification are checked against GitHub, not by URL shape", 
   assert.match(await check({ release: { draft: true } }), /still a draft/);
   assert.match(await check({ release: { immutable: false } }), /not immutable/);
   assert.match(await check({ tagSha: "2".repeat(40) }), /the tag is at/);
-  assert.match(await check({ approvalBy: "someone-else" }), /founder approval: written by someone-else/);
-  assert.match(await check({ approvalBody: "GO for something else" }), /doesn't name the windows installer/);
+  assert.match(await check({ approvalBy: "someone-else", approvalId: 1 }), /founder approval: written by someone-else/);
+  assert.match(await check({ approvalId: 7 }), /founder approval: written by AbdulazizShehri/, "a reused login is not the founder");
+  assert.match(await check({ edited: true }), /edited after it was posted/);
+  assert.match(await check({ issue: "999" }), /different issue/);
+  assert.match(await check({ approvalBody: "GO for something else" }), /APPROVE <windows installer SHA-256>/);
+  const w = records().release.platforms.windows!;
+  assert.match(await check({ approvalBody: `do NOT ship ${w.sha256}\nSIGNING windows unsigned` }), /APPROVE </, "naming the bytes is not approving them");
   assert.match(await check({ decisionBody: "signed" }), /doesn't name the state unsigned/);
   assert.match(await check({ run: { conclusion: "failure" } }), /concluded failure/);
   assert.match(await check({ run: { name: "other" } }), /run is from other/);
+  assert.match(await check({ run: { path: ".github/workflows/fork.yml" } }), /run used \.github\/workflows\/fork\.yml/);
+  assert.match(await check({ run: { event: "pull_request" } }), /triggered by pull_request/);
+  assert.match(await check({ run: { head_repository: { full_name: "someone/fork" } } }), /came from someone\/fork/);
 });

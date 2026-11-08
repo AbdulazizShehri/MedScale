@@ -85,7 +85,12 @@ Built by [tauri-preview 42361952161](https://github.com/AbdulazizShehri/MedScale
 1. **Ship unsigned**, with SmartScreen warnings, or buy a certificate first?
 2. **Human security review:** get one, or accept AI review for a Beta with no patient data, and say so publicly?
 3. **SmartScreen:** have someone download the installer through a browser on a real Windows PC first, or accept it as unmeasured?
-4. **GO:** post a comment naming SHA-256 `d1730031692ba4d549e0492c1ddc9d0eb92ffbc6a60f848369fbedbe59094098` and "unsigned". `verify-release` checks that the approval comment is yours and names those bytes.
+4. **GO:** post a new comment containing these two lines, and don't edit it afterwards:
+   ```
+   APPROVE d1730031692ba4d549e0492c1ddc9d0eb92ffbc6a60f848369fbedbe59094098
+   SIGNING windows unsigned
+   ```
+   `verify-release` checks that the comment comes from your account id, was never edited, belongs to the linked issue, and has those exact lines.
 
 Also needed:
 - **App identifier:** `org.medscale.desktop.preview` becomes permanent at release. Keep it, or change it now and requalify.
