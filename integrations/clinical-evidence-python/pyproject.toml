@@ -1,0 +1,21 @@
+[build-system]
+requires = ["setuptools>=77"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "medscale-clinical-evidence"
+version = "0.2.0"
+description = "Local clinical evidence audit primitives for MedScale"
+requires-python = ">=3.11"
+dependencies = []
+license = "Apache-2.0"
+license-files = ["third_party/openmed/LICENSE", "third_party/openmed/NOTICE"]
+
+[project.optional-dependencies]
+test = ["pytest>=8", "pytest-subtests>=0.13"]
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
