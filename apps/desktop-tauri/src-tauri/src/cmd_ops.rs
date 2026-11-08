@@ -1195,11 +1195,14 @@ pub fn audio_admit_asr_pack(host: tauri::State<'_, Host>, path: String) -> CmdRe
 const WAV_IMPORT_MAX_BYTES: u64 = MAX_AUDIO_BYTES as u64;
 
 /// Imports a user-selected bounded PCM WAV recording (absolute path) into a project.
+/// The sample workspace is not encrypted, so a recording goes there only when
+/// the user has confirmed it holds no real patient information.
 #[tauri::command(async)]
 pub fn audio_import_wav(
     host: tauri::State<'_, Host>,
     project_id: String,
     path: String,
+    sample_confirmed: Option<bool>,
 ) -> CmdResult<Value> {
     let project_id = host::bounded_id(&project_id)?.to_owned();
     let path = host::bounded_text(&path, 1024)?;
@@ -1215,6 +1218,13 @@ pub fn audio_import_wav(
         .map(|n| n.to_string_lossy().into_owned())
         .unwrap_or_else(|| "recording.wav".to_owned());
     let mut state = lock(&host)?;
+    if state.workspace()?.kind == host::VaultKind::Synthetic && sample_confirmed != Some(true) {
+        return Err(CmdError::new(
+            "denied",
+            "Denied: the sample workspace isn't encrypted. Confirm the recording holds no real \
+             patient information, or import it into an encrypted workspace",
+        ));
+    }
     let source = state
         .session()?
         .audio_import(OpaqueId::new(&project_id), label, wav)?;

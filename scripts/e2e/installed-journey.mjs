@@ -394,6 +394,9 @@ async function main() {
   await step("real-speech-transcribed", async () => {
     pageIsLoggable = false;
     await type("wp1", wavPath);
+    // The sample workspace asks for confirmation that the recording isn't real patient data.
+    const sampleOk = { name: "No real patient information in this recording", kind: "CheckBox" };
+    if ((await driver.send({ op: "exists", ...sampleOk })).found && !(await driver.send({ op: "checked", ...sampleOk })).checked) await click(sampleOk);
     await click(button("Import"));
     await waitForText("Recording imported", 60000);
     const before = new Set(await pageNames());

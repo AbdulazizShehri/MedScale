@@ -203,6 +203,7 @@ function AudioBody({ projectId }: { projectId: string }) {
   const [seg, setSeg] = useState<{ summary: string; lines: string[] } | null>(null);
   const [packPath, setPackPath] = useState("");
   const [wavPath, setWavPath] = useState("");
+  const [wavSampleOk, setWavSampleOk] = useState(false);
   const [choosing, setChoosing] = useState<"pack" | "wav" | null>(null);
   const [route, setRoute] = useState("local_asr_pack");
   const [language, setLanguage] = useState<"en" | "ar">("en");
@@ -322,7 +323,7 @@ function AudioBody({ projectId }: { projectId: string }) {
   async function importSynthetic() { const r = await run("import", "audio_import_synthetic", { projectId }); if (outcome(r, "Synthetic tone imported")) await o.reload(); }
   async function segment(id: string) { const r = await run<{ summary: string; lines: string[] }>(id, "audio_segment", { projectId, sourceId: id }); if (outcome(r, "Segmentation recorded")) setSeg(r.data); }
   async function admitPack(e: FormEvent) { e.preventDefault(); const r = await run("pack", "audio_admit_asr_pack", { path: packPath }); if (outcome(r, "Audio Pack admitted · local recognition on")) { setPackPath(""); await asr.reload(); } }
-  async function importWav(e: FormEvent) { e.preventDefault(); const r = await run("wav", "audio_import_wav", { projectId, path: wavPath }); if (outcome(r, "Recording imported")) { setWavPath(""); await o.reload(); } }
+  async function importWav(e: FormEvent) { e.preventDefault(); const r = await run("wav", "audio_import_wav", { projectId, path: wavPath, sampleConfirmed: wavSampleOk }); if (outcome(r, "Recording imported")) { setWavPath(""); setWavSampleOk(false); await o.reload(); } }
   async function inspectStoredData(id: string) {
     setRemovalConfirmation("");
     setRetentionPreview(null);
@@ -473,9 +474,15 @@ function AudioBody({ projectId }: { projectId: string }) {
           <form onSubmit={importWav} className="stack" style={{ gap: 6 }}>
             <label className="lbl" htmlFor="wp1">Import a WAV recording</label>
             <input id="wp1" value={wavPath} maxLength={1024} placeholder="Absolute .wav path (16 kHz, 16-bit PCM, up to 32 MiB)" onChange={(e) => setWavPath(e.target.value)} />
+            {plaintextWorkspace && (
+              <label className="t-sm" style={{ display: "flex", gap: 8, alignItems: "flex-start" }}>
+                <input id="wp1-sample" type="checkbox" checked={wavSampleOk} onChange={(e) => setWavSampleOk(e.target.checked)} />
+                <span>No real patient information in this recording<span className="i3"> · The sample workspace isn&apos;t encrypted. Use an encrypted workspace for anything real.</span></span>
+              </label>
+            )}
             <div className="row-gap" style={{ gap: 8 }}>
               <button type="button" className="btn btn-g" onClick={browseWav} disabled={!!pending || !!choosing}>Browse WAV…</button>
-              <button type="submit" className="btn btn-s" disabled={!wavPath.trim() || !!pending || !!choosing}>Import</button>
+              <button type="submit" className="btn btn-s" disabled={!wavPath.trim() || (plaintextWorkspace && !wavSampleOk) || !!pending || !!choosing}>Import</button>
             </div>
           </form>
         </div>
