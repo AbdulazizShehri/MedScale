@@ -656,6 +656,7 @@ fn safe_url(value: &Url) -> Result<(), String> {
 fn http_agent() -> ureq::Agent {
     ureq::Agent::config_builder()
         .https_only(true)
+        .proxy(None)
         .max_redirects(0)
         .timeout_per_call(Some(Duration::from_secs(90)))
         .timeout_recv_body(Some(Duration::from_secs(180)))
