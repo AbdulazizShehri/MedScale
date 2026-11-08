@@ -5,7 +5,9 @@ import { REPOSITORY, releaseAssetUrl, type InstallerPlatform, type PublicRelease
 
 const DOWNLOAD_HOSTS = new Set(["github.com", "release-assets.githubusercontent.com", "objects.githubusercontent.com"]);
 const MAX_COMPANION_BYTES = 64 * 1024 * 1024;
-const OWNER = REPOSITORY.split("/")[0];
+/** The founder's numeric GitHub account id. A login can be renamed and reused; the id can't. */
+const OWNER_ID = 222180173;
+const QUALIFICATION_PATH = ".github/workflows/release-installed-journey.yml";
 const API = `https://api.github.com/repos/${REPOSITORY}`;
 /** The workflow that runs the journey on the exact installer. */
 export const QUALIFICATION_WORKFLOW = "release-installed-journey";
@@ -115,11 +117,18 @@ export async function verifyReleaseRecords(release: PublicRelease, fetcher: Fetc
   const attempt = async (what: string, run: () => Promise<void>) => {
     try { await run(); } catch (e) { errors.push(`${what}: ${(e as Error).message}`); }
   };
+  // Anyone with write access can edit another person's comment, so an edited
+  // comment proves nothing about what the founder wrote.
   const founderComment = async (url: string) => {
-    const comment = await api(`issues/comments/${url.split("#issuecomment-")[1]}`);
-    if (comment.user?.login !== OWNER) throw new Error(`written by ${comment.user?.login}`);
-    return String(comment.body ?? "");
+    const [issuePart, id] = url.split("#issuecomment-");
+    const comment = await api(`issues/comments/${id}`);
+    if (comment.user?.id !== OWNER_ID) throw new Error(`written by ${comment.user?.login}`);
+    if (!comment.created_at || comment.updated_at !== comment.created_at) throw new Error("the comment was edited after it was posted");
+    const issue = issuePart.split("/").pop();
+    if (!String(comment.issue_url ?? "").endsWith(`/issues/${issue}`)) throw new Error("the comment belongs to a different issue");
+    return String(comment.body ?? "").replace(/\r/g, "");
   };
+  const hasLine = (body: string, line: string) => body.split("\n").some((l) => l.trim() === line);
 
   await attempt("release", async () => {
     const r = await api(`releases/tags/${release.tag}`);
@@ -133,18 +142,23 @@ export async function verifyReleaseRecords(release: PublicRelease, fetcher: Fetc
   await attempt("founder approval", async () => {
     const body = await founderComment(release.founderApproval);
     for (const [key, p] of Object.entries(release.platforms)) {
-      if (!body.includes(p.sha256)) errors.push(`founder approval doesn't name the ${key} installer's SHA-256`);
+      if (!hasLine(body, `APPROVE ${p.sha256}`)) errors.push(`founder approval doesn't have the line "APPROVE <${key} installer SHA-256>"`);
     }
   });
   for (const [key, p] of Object.entries(release.platforms)) {
     await attempt(`${key} signing decision`, async () => {
       const body = await founderComment(p.signingDecision);
-      if (!body.includes(p.signing)) errors.push(`${key}: signing decision doesn't name the state ${p.signing}`);
+      if (!hasLine(body, `SIGNING ${key} ${p.signing}`)) errors.push(`${key}: signing decision doesn't name the state ${p.signing}`);
     });
     await attempt(`${key} qualification run`, async () => {
       const run = await api(`actions/runs/${p.qualificationRun.split("/").pop()}`);
       if (run.conclusion !== "success") errors.push(`${key}: qualification run concluded ${run.conclusion}`);
       if (run.name !== QUALIFICATION_WORKFLOW) errors.push(`${key}: qualification run is from ${run.name}`);
+      // A run's name comes from whatever workflow file ran, so the file, trigger
+      // and repository are checked too.
+      if (run.path !== QUALIFICATION_PATH) errors.push(`${key}: qualification run used ${run.path}`);
+      if (run.event !== "push") errors.push(`${key}: qualification run was triggered by ${run.event}`);
+      if (run.head_repository?.full_name !== REPOSITORY) errors.push(`${key}: qualification run came from ${run.head_repository?.full_name}`);
     });
   }
   return errors;

@@ -4,8 +4,11 @@
 # qualifies signing only: that exact DMG still needs the installed journey.
 #
 # Needs an Apple Developer Program membership and a Developer ID Application
-# certificate. Set these secrets on the `macos-signing` environment, which should
-# require the founder's approval:
+# certificate. Before adding any secret, create the `macos-signing` environment
+# with the founder as required reviewer, self-review prevented, and deployments
+# limited to `main`; GitHub would otherwise create it unprotected on first use.
+# It builds only commits already on `main`, and only steps that sign see the
+# secrets. Set these secrets on that environment:
 #   APPLE_CERTIFICATE           base64 of the exported .p12
 #   APPLE_CERTIFICATE_PASSWORD  password of that .p12
 #   APPLE_SIGNING_IDENTITY      "Developer ID Application: Name (TEAMID)"
@@ -30,16 +33,22 @@ jobs:
     name: Developer ID signed and notarized DMG
     runs-on: macos-latest
     timeout-minutes: 120
+    if: github.ref == 'refs/heads/main'
     environment: macos-signing
     env:
-      APPLE_CERTIFICATE: ${{ secrets.APPLE_CERTIFICATE }}
-      APPLE_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
-      APPLE_SIGNING_IDENTITY: ${{ secrets.APPLE_SIGNING_IDENTITY }}
-      APPLE_ID: ${{ secrets.APPLE_ID }}
-      APPLE_PASSWORD: ${{ secrets.APPLE_PASSWORD }}
-      APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+      SOURCE_SHA: ${{ inputs.source_sha }}
     steps:
+      - name: Refuse anything but a full commit SHA
+        run: |
+          [[ "$SOURCE_SHA" =~ ^[0-9a-f]{40}$ ]] || { echo "::error::source_sha must be a full lowercase commit SHA"; exit 1; }
       - name: Refuse to run without every credential
+        env:
+          APPLE_CERTIFICATE: ${{ secrets.APPLE_CERTIFICATE }}
+          APPLE_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
+          APPLE_SIGNING_IDENTITY: ${{ secrets.APPLE_SIGNING_IDENTITY }}
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+          APPLE_PASSWORD: ${{ secrets.APPLE_PASSWORD }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
         run: |
           missing=""
           for name in APPLE_CERTIFICATE APPLE_CERTIFICATE_PASSWORD APPLE_SIGNING_IDENTITY APPLE_ID APPLE_PASSWORD APPLE_TEAM_ID; do
@@ -55,10 +64,13 @@ jobs:
           esac
       - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v4
         with:
-          ref: ${{ inputs.source_sha }}
-      - name: Build only the exact commit requested
+          ref: ${{ env.SOURCE_SHA }}
+          fetch-depth: 0
+      - name: Build only the exact commit requested, and only one already on main
         run: |
-          [ "$(git rev-parse HEAD)" = "${{ inputs.source_sha }}" ] || { echo "::error::checkout isn't the requested commit"; exit 1; }
+          [ "$(git rev-parse HEAD)" = "$SOURCE_SHA" ] || { echo "::error::checkout isn't the requested commit"; exit 1; }
+          git fetch --no-tags origin +refs/heads/main:refs/remotes/origin/main
+          git merge-base --is-ancestor "$SOURCE_SHA" origin/main || { echo "::error::$SOURCE_SHA is not on main"; exit 1; }
       - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
         with:
           node-version: "24.19.0"
@@ -74,8 +86,20 @@ jobs:
       # keychain, sign with the hardened runtime, then notarize and staple the app.
       - name: Build, sign and notarize the app
         working-directory: apps/desktop-tauri
+        env:
+          APPLE_CERTIFICATE: ${{ secrets.APPLE_CERTIFICATE }}
+          APPLE_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
+          APPLE_SIGNING_IDENTITY: ${{ secrets.APPLE_SIGNING_IDENTITY }}
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+          APPLE_PASSWORD: ${{ secrets.APPLE_PASSWORD }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
         run: npm run tauri -- build --bundles app,dmg --ci --features custom-protocol -- --locked
       - name: Notarize and staple the DMG itself
+        env:
+          APPLE_SIGNING_IDENTITY: ${{ secrets.APPLE_SIGNING_IDENTITY }}
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+          APPLE_PASSWORD: ${{ secrets.APPLE_PASSWORD }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
         run: |
           set -euo pipefail
           dmg="$(find apps/desktop-tauri/src-tauri/target -path '*/bundle/dmg/*.dmg' -type f | head -1)"
@@ -89,7 +113,7 @@ jobs:
           set -euo pipefail
           report=target/macos-signed/report.txt
           mkdir -p target/macos-signed
-          echo "SOURCE_SHA=${{ inputs.source_sha }}" | tee -a "$report"
+          echo "SOURCE_SHA=$SOURCE_SHA" | tee -a "$report"
           echo "DMG_SHA256=$(shasum -a 256 "$SIGNED_DMG" | cut -d' ' -f1)" | tee -a "$report"
           xcrun stapler validate "$SIGNED_DMG"
           spctl --assess --type open --context context:primary-signature -vv "$SIGNED_DMG" 2>&1 | tee -a "$report"
