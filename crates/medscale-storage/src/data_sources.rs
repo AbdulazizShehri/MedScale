@@ -1834,6 +1834,21 @@ fn open_external_readonly(db_path: &std::path::Path) -> Result<rusqlite::Connect
     if !db_path.is_file() {
         return Err(MetaError::NotFound);
     }
+    // RUSTSEC-2026-0459 (CVE-2026-119375): SQLite before 3.54 can return
+    // uninitialised memory when a database is opened with a crafted `-wal`
+    // sibling whose page size differs. The bundled SQLCipher has no fixed
+    // release yet, and an external database is the one file MedScale opens
+    // that someone else may have written, so one with a write-ahead log is
+    // refused. Checkpointing the source or copying the database file alone
+    // removes the log.
+    let mut wal = db_path.as_os_str().to_owned();
+    wal.push("-wal");
+    if std::path::Path::new(&wal).exists() {
+        return Err(MetaError::UnsupportedSchema(
+            "an external database with a write-ahead log (-wal file) is not admitted;              checkpoint it or copy the database file on its own first"
+                .to_owned(),
+        ));
+    }
     let conn =
         rusqlite::Connection::open_with_flags(db_path, rusqlite::OpenFlags::SQLITE_OPEN_READ_ONLY)?;
     // Defense in depth: read-only open plus query-only pragma.
