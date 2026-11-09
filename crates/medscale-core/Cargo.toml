@@ -8,6 +8,7 @@ publish.workspace = true
 rust-version.workspace = true
 
 [dependencies]
+medscale-clinical = { workspace = true }
 medscale-contracts = { workspace = true }
 medscale-fhir = { workspace = true }
 medscale-keys = { workspace = true }
