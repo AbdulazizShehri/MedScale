@@ -8,7 +8,20 @@ version = 2
 yanked = "deny"
 unmaintained = "workspace"
 unsound = "all"
-ignore = []
+# Each exception needs the founder's approval, a reason naming its
+# mitigation, and removal as soon as a fixed release exists.
+# scripts/ci/tauri_deny_config.py refuses entries without a reason.
+ignore = [
+    # C SQLite before 3.54 can return uninitialised memory when a database is
+    # opened with a crafted `-wal` sibling. MedScale builds SQLCipher, which has
+    # no fixed release (sqlcipher-src 419.0.6 bundles SQLite 3.53.4). The only
+    # database MedScale opens that someone else may have written is an external
+    # SQLite data source, and that open refuses a `-wal` sibling
+    # (crates/medscale-storage/src/data_sources.rs, open_external_readonly).
+    # Accepted by the founder on 2026-11-09. Remove when a SQLCipher release
+    # bundles SQLite 3.54 or later.
+    { id = "RUSTSEC-2026-0459", reason = "mitigated: external databases with a -wal sibling are refused; no fixed SQLCipher release" },
+]
 
 [licenses]
 version = 2

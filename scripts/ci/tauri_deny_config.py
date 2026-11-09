@@ -6,13 +6,15 @@ The Tauri desktop ships on Windows and macOS only (EXTERNAL_GATES.md,
 TAURI_GLIB_ADVISORY_F096_T01). Limiting the graph to those targets keeps every
 advisory, license, ban and source rule exactly as strict as the repository
 policy; the only change is that Linux-only crates (GTK 3, glib 0.18) are not in
-the shipped graph. The script refuses a base config that ignores advisories or
-relaxes the unsound policy.
+the shipped graph. The script refuses a base config that relaxes the unsound
+policy, or ignores an advisory without naming it and giving a reason (each
+exception is a founder decision recorded in deny.toml).
 
 Usage: tauri_deny_config.py BASE_DENY_TOML OUT_TOML
 """
 import re
 import sys
+import tomllib
 
 SHIPPED_TARGETS = [
     "x86_64-pc-windows-msvc",
@@ -25,8 +27,14 @@ SHIPPED_TARGETS = [
 def main() -> int:
     base, out = sys.argv[1], sys.argv[2]
     text = open(base, encoding="utf-8").read()
-    if not re.search(r"^ignore = \[\]$", text, re.M):
-        sys.exit("base deny config must not ignore advisories")
+    ignores = tomllib.loads(text).get("advisories", {}).get("ignore", [])
+    for entry in ignores:
+        if not (
+            isinstance(entry, dict)
+            and re.fullmatch(r"RUSTSEC-\d{4}-\d{4}", str(entry.get("id", "")))
+            and len(str(entry.get("reason", "")).strip()) >= 20
+        ):
+            sys.exit("every ignored advisory needs an id and a reason naming its mitigation")
     if not re.search(r'^unsound = "all"$', text, re.M):
         sys.exit('base deny config must keep unsound = "all"')
     if re.search(r"^targets\s*=", text, re.M):
