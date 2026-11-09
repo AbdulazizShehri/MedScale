@@ -1,0 +1,984 @@
+{
+  "cases": [
+    {
+      "expected": {
+        "advisory": "Evidence-span overlap findings are assistive review signals, not a clinical decision or automatic provenance resolution.",
+        "counts": {
+          "cross_source": 0,
+          "exact": 0,
+          "nested": 0,
+          "partial": 0
+        },
+        "fingerprint": "sha256:191f91481522086a80bd8cf81171796b1ee403f18ada4afd53bbca2869ab785c",
+        "overlap_count": 0,
+        "overlaps": [],
+        "schema_version": "1.0",
+        "source_count": 0,
+        "span_count": 0,
+        "spans": []
+      },
+      "expected_json": "{\"advisory\":\"Evidence-span overlap findings are assistive review signals, not a clinical decision or automatic provenance resolution.\",\"counts\":{\"cross_source\":0,\"exact\":0,\"nested\":0,\"partial\":0},\"fingerprint\":\"sha256:191f91481522086a80bd8cf81171796b1ee403f18ada4afd53bbca2869ab785c\",\"overlap_count\":0,\"overlaps\":[],\"schema_version\":\"1.0\",\"source_count\":0,\"span_count\":0,\"spans\":[]}",
+      "name": "empty",
+      "spans": []
+    },
+    {
+      "expected": {
+        "advisory": "Evidence-span overlap findings are assistive review signals, not a clinical decision or automatic provenance resolution.",
+        "counts": {
+          "cross_source": 0,
+          "exact": 0,
+          "nested": 0,
+          "partial": 0
+        },
+        "fingerprint": "sha256:e85df41131ed91ae64beb3bdbda773221b5251de65ad9085076fd52a01427694",
+        "overlap_count": 0,
+        "overlaps": [],
+        "schema_version": "1.0",
+        "source_count": 1,
+        "span_count": 1,
+        "spans": [
+          {
+            "end": 10,
+            "evidence_id": "sha256:8b5cc4df7eec7d32a7814eca4af047ae33b2d52342667715682e19c25b0b9faa",
+            "source_id": "sha256:ea503d892f34f0298079b79d21a57e4addd3ede7d0f2e7d608473f7d028fbd92",
+            "start": 0
+          }
+        ]
+      },
+      "expected_json": "{\"advisory\":\"Evidence-span overlap findings are assistive review signals, not a clinical decision or automatic provenance resolution.\",\"counts\":{\"cross_source\":0,\"exact\":0,\"nested\":0,\"partial\":0},\"fingerprint\":\"sha256:e85df41131ed91ae64beb3bdbda773221b5251de65ad9085076fd52a01427694\",\"overlap_count\":0,\"overlaps\":[],\"schema_version\":\"1.0\",\"source_count\":1,\"span_count\":1,\"spans\":[{\"end\":10,\"evidence_id\":\"sha256:8b5cc4df7eec7d32a7814eca4af047ae33b2d52342667715682e19c25b0b9faa\",\"source_id\":\"sha256:ea503d892f34f0298079b79d21a57e4addd3ede7d0f2e7d608473f7d028fbd92\",\"start\":0}]}",
+      "name": "single",
+      "spans": [
+        [
+          "note-1",
+          "e1",
+          0,
+          10
+        ]
+      ]
+    },
+    {
+      "expected": {
+        "advisory": "Evidence-span overlap findings are assistive review signals, not a clinical decision or automatic provenance resolution.",
+        "counts": {
+          "cross_source": 0,
+          "exact": 1,
+          "nested": 0,
+          "partial": 0
+        },
+        "fingerprint": "sha256:0d598119e20db6ea8a04525ad895a22dcf81b8326c9567c82b4d4d18e73b9b67",
+        "overlap_count": 1,
+        "overlaps": [
+          {
+            "fingerprint": "sha256:2db9987ce09d207afa86be79cae2ce9b374bd645484bb4dab480d2bbd1bea1c8",
+            "first": {
+              "end": 9,
+              "evidence_id": "sha256:8b5cc4df7eec7d32a7814eca4af047ae33b2d52342667715682e19c25b0b9faa",
+              "source_id": "sha256:ea503d892f34f0298079b79d21a57e4addd3ede7d0f2e7d608473f7d028fbd92",
+              "start": 5
+            },
+            "kind": "exact",
+            "overlap": [
+              5,
+              9
+            ],
+            "overlap_length": 4,
+            "second": {
+              "end": 9,
+              "evidence_id": "sha256:ac0f09c0f8bf5e7a4b063d863255f16d8ce9abe600e288d934cf313bcbff63eb",
+              "source_id": "sha256:ea503d892f34f0298079b79d21a57e4addd3ede7d0f2e7d608473f7d028fbd92",
+              "start": 5
+            }
+          }
+        ],
+        "schema_version": "1.0",
+        "source_count": 1,
+        "span_count": 2,
+        "spans": [
+          {
+            "end": 9,
+            "evidence_id": "sha256:8b5cc4df7eec7d32a7814eca4af047ae33b2d52342667715682e19c25b0b9faa",
+            "source_id": "sha256:ea503d892f34f0298079b79d21a57e4addd3ede7d0f2e7d608473f7d028fbd92",
+            "start": 5
+          },
+          {
+            "end": 9,
+            "evidence_id": "sha256:ac0f09c0f8bf5e7a4b063d863255f16d8ce9abe600e288d934cf313bcbff63eb",
+            "source_id": "sha256:ea503d892f34f0298079b79d21a57e4addd3ede7d0f2e7d608473f7d028fbd92",
+            "start": 5
+          }
+        ]
+      },
+      "expected_json": "{\"advisory\":\"Evidence-span overlap findings are assistive review signals, not a clinical decision or automatic provenance resolution.\",\"counts\":{\"cross_source\":0,\"exact\":1,\"nested\":0,\"partial\":0},\"fingerprint\":\"sha256:0d598119e20db6ea8a04525ad895a22dcf81b8326c9567c82b4d4d18e73b9b67\",\"overlap_count\":1,\"overlaps\":[{\"fingerprint\":\"sha256:2db9987ce09d207afa86be79cae2ce9b374bd645484bb4dab480d2bbd1bea1c8\",\"first\":{\"end\":9,\"evidence_id\":\"sha256:8b5cc4df7eec7d32a7814eca4af047ae33b2d52342667715682e19c25b0b9faa\",\"source_id\":\"sha256:ea503d892f34f0298079b79d21a57e4addd3ede7d0f2e7d608473f7d028fbd92\",\"start\":5},\"kind\":\"exact\",\"overlap\":[5,9],\"overlap_length\":4,\"second\":{\"end\":9,\"evidence_id\":\"sha256:ac0f09c0f8bf5e7a4b063d863255f16d8ce9abe600e288d934cf313bcbff63eb\",\"source_id\":\"sha256:ea503d892f34f0298079b79d21a57e4addd3ede7d0f2e7d608473f7d028fbd92\",\"start\":5}}],\"schema_version\":\"1.0\",\"source_count\":1,\"span_count\":2,\"spans\":[{\"end\":9,\"evidence_id\":\"sha256:8b5cc4df7eec7d32a7814eca4af047ae33b2d52342667715682e19c25b0b9faa\",\"source_id\":\"sha256:ea503d892f34f0298079b79d21a57e4addd3ede7d0f2e7d608473f7d028fbd92\",\"start\":5},{\"end\":9,\"evidence_id\":\"sha256:ac0f09c0f8bf5e7a4b063d863255f16d8ce9abe600e288d934cf313bcbff63eb\",\"source_id\":\"sha256:ea503d892f34f0298079b79d21a57e4addd3ede7d0f2e7d608473f7d028fbd92\",\"start\":5}]}",
+      "name": "exact_duplicate",
+      "spans": [
+        [
+          "note-1",
+          "e1",
+          5,
+          9
+        ],
+        [
+          "note-1",
+          "e2",
+          5,
+          9
+        ]
+      ]
+    },
+    {
+      "expected": {
+        "advisory": "Evidence-span overlap findings are assistive review signals, not a clinical decision or automatic provenance resolution.",
+        "counts": {
+          "cross_source": 0,
+          "exact": 0,
+          "nested": 1,
+          "partial": 0
+        },
+        "fingerprint": "sha256:cbe4b6579bb1c0d08b590852ec8f299e2260e838ddeb09287f989f3ef25c19b0",
+        "overlap_count": 1,
+        "overlaps": [
+          {
+            "fingerprint": "sha256:120e1ba9b09c888c70af1e6e6a79d1ee146d2a7b06cff0cde0e4b8f3771c8605",
+            "first": {
+              "end": 20,
+              "evidence_id": "sha256:560e3e12b1e0dafa161e62fb3327ad65c98b7cd53849b17c627e8d3e1d419d6a",
+              "source_id": "sha256:ea503d892f34f0298079b79d21a57e4addd3ede7d0f2e7d608473f7d028fbd92",
+              "start": 0
+            },
+            "kind": "nested",
+            "overlap": [
+              4,
+              8
+            ],
+            "overlap_length": 4,
+            "second": {
+              "end": 8,
+              "evidence_id": "sha256:33bf6fbd7cd8379785a21e233d8e09f824e7bab459168a96312c1c882c1d7e1f",
+              "source_id": "sha256:ea503d892f34f0298079b79d21a57e4addd3ede7d0f2e7d608473f7d028fbd92",
+              "start": 4
+            }
+          }
+        ],
+        "schema_version": "1.0",
+        "source_count": 1,
+        "span_count": 2,
+        "spans": [
+          {
+            "end": 20,
+            "evidence_id": "sha256:560e3e12b1e0dafa161e62fb3327ad65c98b7cd53849b17c627e8d3e1d419d6a",
+            "source_id": "sha256:ea503d892f34f0298079b79d21a57e4addd3ede7d0f2e7d608473f7d028fbd92",
+            "start": 0
+          },
+          {
+            "end": 8,
+            "evidence_id": "sha256:33bf6fbd7cd8379785a21e233d8e09f824e7bab459168a96312c1c882c1d7e1f",
+            "source_id": "sha256:ea503d892f34f0298079b79d21a57e4addd3ede7d0f2e7d608473f7d028fbd92",
+            "start": 4
+          }
+        ]
+      },
+      "expected_json": "{\"advisory\":\"Evidence-span overlap findings are assistive review signals, not a clinical decision or automatic provenance resolution.\",\"counts\":{\"cross_source\":0,\"exact\":0,\"nested\":1,\"partial\":0},\"fingerprint\":\"sha256:cbe4b6579bb1c0d08b590852ec8f299e2260e838ddeb09287f989f3ef25c19b0\",\"overlap_count\":1,\"overlaps\":[{\"fingerprint\":\"sha256:120e1ba9b09c888c70af1e6e6a79d1ee146d2a7b06cff0cde0e4b8f3771c8605\",\"first\":{\"end\":20,\"evidence_id\":\"sha256:560e3e12b1e0dafa161e62fb3327ad65c98b7cd53849b17c627e8d3e1d419d6a\",\"source_id\":\"sha256:ea503d892f34f0298079b79d21a57e4addd3ede7d0f2e7d608473f7d028fbd92\",\"start\":0},\"kind\":\"nested\",\"overlap\":[4,8],\"overlap_length\":4,\"second\":{\"end\":8,\"evidence_id\":\"sha256:33bf6fbd7cd8379785a21e233d8e09f824e7bab459168a96312c1c882c1d7e1f\",\"source_id\":\"sha256:ea503d892f34f0298079b79d21a57e4addd3ede7d0f2e7d608473f7d028fbd92\",\"start\":4}}],\"schema_version\":\"1.0\",\"source_count\":1,\"span_count\":2,\"spans\":[{\"end\":20,\"evidence_id\":\"sha256:560e3e12b1e0dafa161e62fb3327ad65c98b7cd53849b17c627e8d3e1d419d6a\",\"source_id\":\"sha256:ea503d892f34f0298079b79d21a57e4addd3ede7d0f2e7d608473f7d028fbd92\",\"start\":0},{\"end\":8,\"evidence_id\":\"sha256:33bf6fbd7cd8379785a21e233d8e09f824e7bab459168a96312c1c882c1d7e1f\",\"source_id\":\"sha256:ea503d892f34f0298079b79d21a57e4addd3ede7d0f2e7d608473f7d028fbd92\",\"start\":4}]}",
+      "name": "nested",
+      "spans": [
+        [
+          "note-1",
+          "outer",
+          0,
+          20
+        ],
+        [
+          "note-1",
+          "inner",
+          4,
+          8
+        ]
+      ]
+    },
+    {
+      "expected": {
+        "advisory": "Evidence-span overlap findings are assistive review signals, not a clinical decision or automatic provenance resolution.",
+        "counts": {
+          "cross_source": 0,
+          "exact": 0,
+          "nested": 0,
+          "partial": 1
+        },
+        "fingerprint": "sha256:86e01e6bf7928a5b38a0926a29c904344e2fcd069e4a8b7c2d8883a7ff309644",
+        "overlap_count": 1,
+        "overlaps": [
+          {
+            "fingerprint": "sha256:a5cf741849e87a6b1e733870dd58bf8606985b3badd6d6b23d7fb89d543d1481",
+            "first": {
+              "end": 10,
+              "evidence_id": "sha256:ca978112ca1bbdcafac231b39a23dc4da786eff8147c4e72b9807785afee48bb",
+              "source_id": "sha256:ea503d892f34f0298079b79d21a57e4addd3ede7d0f2e7d608473f7d028fbd92",
+              "start": 0
+            },
+            "kind": "partial",
+            "overlap": [
+              5,
+              10
+            ],
+            "overlap_length": 5,
+            "second": {
+              "end": 15,
+              "evidence_id": "sha256:3e23e8160039594a33894f6564e1b1348bbd7a0088d42c4acb73eeaed59c009d",
+              "source_id": "sha256:ea503d892f34f0298079b79d21a57e4addd3ede7d0f2e7d608473f7d028fbd92",
+              "start": 5
+            }
+          }
+        ],
+        "schema_version": "1.0",
+        "source_count": 1,
+        "span_count": 2,
+        "spans": [
+          {
+            "end": 10,
+            "evidence_id": "sha256:ca978112ca1bbdcafac231b39a23dc4da786eff8147c4e72b9807785afee48bb",
+            "source_id": "sha256:ea503d892f34f0298079b79d21a57e4addd3ede7d0f2e7d608473f7d028fbd92",
+            "start": 0
+          },
+          {
+            "end": 15,
+            "evidence_id": "sha256:3e23e8160039594a33894f6564e1b1348bbd7a0088d42c4acb73eeaed59c009d",
+            "source_id": "sha256:ea503d892f34f0298079b79d21a57e4addd3ede7d0f2e7d608473f7d028fbd92",
+            "start": 5
+          }
+        ]
+      },
+      "expected_json": "{\"advisory\":\"Evidence-span overlap findings are assistive review signals, not a clinical decision or automatic provenance resolution.\",\"counts\":{\"cross_source\":0,\"exact\":0,\"nested\":0,\"partial\":1},\"fingerprint\":\"sha256:86e01e6bf7928a5b38a0926a29c904344e2fcd069e4a8b7c2d8883a7ff309644\",\"overlap_count\":1,\"overlaps\":[{\"fingerprint\":\"sha256:a5cf741849e87a6b1e733870dd58bf8606985b3badd6d6b23d7fb89d543d1481\",\"first\":{\"end\":10,\"evidence_id\":\"sha256:ca978112ca1bbdcafac231b39a23dc4da786eff8147c4e72b9807785afee48bb\",\"source_id\":\"sha256:ea503d892f34f0298079b79d21a57e4addd3ede7d0f2e7d608473f7d028fbd92\",\"start\":0},\"kind\":\"partial\",\"overlap\":[5,10],\"overlap_length\":5,\"second\":{\"end\":15,\"evidence_id\":\"sha256:3e23e8160039594a33894f6564e1b1348bbd7a0088d42c4acb73eeaed59c009d\",\"source_id\":\"sha256:ea503d892f34f0298079b79d21a57e4addd3ede7d0f2e7d608473f7d028fbd92\",\"start\":5}}],\"schema_version\":\"1.0\",\"source_count\":1,\"span_count\":2,\"spans\":[{\"end\":10,\"evidence_id\":\"sha256:ca978112ca1bbdcafac231b39a23dc4da786eff8147c4e72b9807785afee48bb\",\"source_id\":\"sha256:ea503d892f34f0298079b79d21a57e4addd3ede7d0f2e7d608473f7d028fbd92\",\"start\":0},{\"end\":15,\"evidence_id\":\"sha256:3e23e8160039594a33894f6564e1b1348bbd7a0088d42c4acb73eeaed59c009d\",\"source_id\":\"sha256:ea503d892f34f0298079b79d21a57e4addd3ede7d0f2e7d608473f7d028fbd92\",\"start\":5}]}",
+      "name": "partial",
+      "spans": [
+        [
+          "note-1",
+          "a",
+          0,
+          10
+        ],
+        [
+          "note-1",
+          "b",
+          5,
+          15
+        ]
+      ]
+    },
+    {
+      "expected": {
+        "advisory": "Evidence-span overlap findings are assistive review signals, not a clinical decision or automatic provenance resolution.",
+        "counts": {
+          "cross_source": 0,
+          "exact": 0,
+          "nested": 0,
+          "partial": 0
+        },
+        "fingerprint": "sha256:f0918ef990022d9cc55bf09ef20b6107512811b0bab33104d63c24300fbb0ecc",
+        "overlap_count": 0,
+        "overlaps": [],
+        "schema_version": "1.0",
+        "source_count": 1,
+        "span_count": 2,
+        "spans": [
+          {
+            "end": 5,
+            "evidence_id": "sha256:ca978112ca1bbdcafac231b39a23dc4da786eff8147c4e72b9807785afee48bb",
+            "source_id": "sha256:ea503d892f34f0298079b79d21a57e4addd3ede7d0f2e7d608473f7d028fbd92",
+            "start": 0
+          },
+          {
+            "end": 9,
+            "evidence_id": "sha256:3e23e8160039594a33894f6564e1b1348bbd7a0088d42c4acb73eeaed59c009d",
+            "source_id": "sha256:ea503d892f34f0298079b79d21a57e4addd3ede7d0f2e7d608473f7d028fbd92",
+            "start": 5
+          }
+        ]
+      },
+      "expected_json": "{\"advisory\":\"Evidence-span overlap findings are assistive review signals, not a clinical decision or automatic provenance resolution.\",\"counts\":{\"cross_source\":0,\"exact\":0,\"nested\":0,\"partial\":0},\"fingerprint\":\"sha256:f0918ef990022d9cc55bf09ef20b6107512811b0bab33104d63c24300fbb0ecc\",\"overlap_count\":0,\"overlaps\":[],\"schema_version\":\"1.0\",\"source_count\":1,\"span_count\":2,\"spans\":[{\"end\":5,\"evidence_id\":\"sha256:ca978112ca1bbdcafac231b39a23dc4da786eff8147c4e72b9807785afee48bb\",\"source_id\":\"sha256:ea503d892f34f0298079b79d21a57e4addd3ede7d0f2e7d608473f7d028fbd92\",\"start\":0},{\"end\":9,\"evidence_id\":\"sha256:3e23e8160039594a33894f6564e1b1348bbd7a0088d42c4acb73eeaed59c009d\",\"source_id\":\"sha256:ea503d892f34f0298079b79d21a57e4addd3ede7d0f2e7d608473f7d028fbd92\",\"start\":5}]}",
+      "name": "touching_is_not_overlap",
+      "spans": [
+        [
+          "note-1",
+          "a",
+          0,
+          5
+        ],
+        [
+          "note-1",
+          "b",
+          5,
+          9
+        ]
+      ]
+    },
+    {
+      "expected": {
+        "advisory": "Evidence-span overlap findings are assistive review signals, not a clinical decision or automatic provenance resolution.",
+        "counts": {
+          "cross_source": 1,
+          "exact": 0,
+          "nested": 0,
+          "partial": 0
+        },
+        "fingerprint": "sha256:ab26669d3c34422e2faa24ea9f1d59752337e3a87ee9a54d0dac6d2d0c9ac8d9",
+        "overlap_count": 1,
+        "overlaps": [
+          {
+            "fingerprint": "sha256:e020ad7468c0b33c771a3d2e70625ac893598da92fa41a7430ee287c8c4b689c",
+            "first": {
+              "end": 6,
+              "evidence_id": "sha256:3e23e8160039594a33894f6564e1b1348bbd7a0088d42c4acb73eeaed59c009d",
+              "source_id": "sha256:813ea37e5c7cb6e3ef16319b9ec096f639d2423117f770b08b7529f27bda788c",
+              "start": 3
+            },
+            "kind": "cross_source",
+            "overlap": [
+              3,
+              6
+            ],
+            "overlap_length": 3,
+            "second": {
+              "end": 10,
+              "evidence_id": "sha256:ca978112ca1bbdcafac231b39a23dc4da786eff8147c4e72b9807785afee48bb",
+              "source_id": "sha256:ea503d892f34f0298079b79d21a57e4addd3ede7d0f2e7d608473f7d028fbd92",
+              "start": 0
+            }
+          }
+        ],
+        "schema_version": "1.0",
+        "source_count": 2,
+        "span_count": 2,
+        "spans": [
+          {
+            "end": 6,
+            "evidence_id": "sha256:3e23e8160039594a33894f6564e1b1348bbd7a0088d42c4acb73eeaed59c009d",
+            "source_id": "sha256:813ea37e5c7cb6e3ef16319b9ec096f639d2423117f770b08b7529f27bda788c",
+            "start": 3
+          },
+          {
+            "end": 10,
+            "evidence_id": "sha256:ca978112ca1bbdcafac231b39a23dc4da786eff8147c4e72b9807785afee48bb",
+            "source_id": "sha256:ea503d892f34f0298079b79d21a57e4addd3ede7d0f2e7d608473f7d028fbd92",
+            "start": 0
+          }
+        ]
+      },
+      "expected_json": "{\"advisory\":\"Evidence-span overlap findings are assistive review signals, not a clinical decision or automatic provenance resolution.\",\"counts\":{\"cross_source\":1,\"exact\":0,\"nested\":0,\"partial\":0},\"fingerprint\":\"sha256:ab26669d3c34422e2faa24ea9f1d59752337e3a87ee9a54d0dac6d2d0c9ac8d9\",\"overlap_count\":1,\"overlaps\":[{\"fingerprint\":\"sha256:e020ad7468c0b33c771a3d2e70625ac893598da92fa41a7430ee287c8c4b689c\",\"first\":{\"end\":6,\"evidence_id\":\"sha256:3e23e8160039594a33894f6564e1b1348bbd7a0088d42c4acb73eeaed59c009d\",\"source_id\":\"sha256:813ea37e5c7cb6e3ef16319b9ec096f639d2423117f770b08b7529f27bda788c\",\"start\":3},\"kind\":\"cross_source\",\"overlap\":[3,6],\"overlap_length\":3,\"second\":{\"end\":10,\"evidence_id\":\"sha256:ca978112ca1bbdcafac231b39a23dc4da786eff8147c4e72b9807785afee48bb\",\"source_id\":\"sha256:ea503d892f34f0298079b79d21a57e4addd3ede7d0f2e7d608473f7d028fbd92\",\"start\":0}}],\"schema_version\":\"1.0\",\"source_count\":2,\"span_count\":2,\"spans\":[{\"end\":6,\"evidence_id\":\"sha256:3e23e8160039594a33894f6564e1b1348bbd7a0088d42c4acb73eeaed59c009d\",\"source_id\":\"sha256:813ea37e5c7cb6e3ef16319b9ec096f639d2423117f770b08b7529f27bda788c\",\"start\":3},{\"end\":10,\"evidence_id\":\"sha256:ca978112ca1bbdcafac231b39a23dc4da786eff8147c4e72b9807785afee48bb\",\"source_id\":\"sha256:ea503d892f34f0298079b79d21a57e4addd3ede7d0f2e7d608473f7d028fbd92\",\"start\":0}]}",
+      "name": "cross_source",
+      "spans": [
+        [
+          "note-1",
+          "a",
+          0,
+          10
+        ],
+        [
+          "note-2",
+          "b",
+          3,
+          6
+        ]
+      ]
+    },
+    {
+      "expected": {
+        "advisory": "Evidence-span overlap findings are assistive review signals, not a clinical decision or automatic provenance resolution.",
+        "counts": {
+          "cross_source": 0,
+          "exact": 0,
+          "nested": 1,
+          "partial": 0
+        },
+        "fingerprint": "sha256:696284680f875c99963996573008cfdc937f23f736bcd6c2594b8517520631a2",
+        "overlap_count": 1,
+        "overlaps": [
+          {
+            "fingerprint": "sha256:a08f3b60855e36d6bb65686ae78806ea72d984a74b0ed10113f59f85cbd9d492",
+            "first": {
+              "end": 4,
+              "evidence_id": "sha256:abababababababababababababababababababababababababababababababab",
+              "source_id": "sha256:abababababababababababababababababababababababababababababababab",
+              "start": 1
+            },
+            "kind": "nested",
+            "overlap": [
+              2,
+              3
+            ],
+            "overlap_length": 1,
+            "second": {
+              "end": 3,
+              "evidence_id": "sha256:a116c9ed46d6207734a43317d30fd88f52ac8634c37d904bbf4e41d865f90475",
+              "source_id": "sha256:abababababababababababababababababababababababababababababababab",
+              "start": 2
+            }
+          }
+        ],
+        "schema_version": "1.0",
+        "source_count": 1,
+        "span_count": 2,
+        "spans": [
+          {
+            "end": 4,
+            "evidence_id": "sha256:abababababababababababababababababababababababababababababababab",
+            "source_id": "sha256:abababababababababababababababababababababababababababababababab",
+            "start": 1
+          },
+          {
+            "end": 3,
+            "evidence_id": "sha256:a116c9ed46d6207734a43317d30fd88f52ac8634c37d904bbf4e41d865f90475",
+            "source_id": "sha256:abababababababababababababababababababababababababababababababab",
+            "start": 2
+          }
+        ]
+      },
+      "expected_json": "{\"advisory\":\"Evidence-span overlap findings are assistive review signals, not a clinical decision or automatic provenance resolution.\",\"counts\":{\"cross_source\":0,\"exact\":0,\"nested\":1,\"partial\":0},\"fingerprint\":\"sha256:696284680f875c99963996573008cfdc937f23f736bcd6c2594b8517520631a2\",\"overlap_count\":1,\"overlaps\":[{\"fingerprint\":\"sha256:a08f3b60855e36d6bb65686ae78806ea72d984a74b0ed10113f59f85cbd9d492\",\"first\":{\"end\":4,\"evidence_id\":\"sha256:abababababababababababababababababababababababababababababababab\",\"source_id\":\"sha256:abababababababababababababababababababababababababababababababab\",\"start\":1},\"kind\":\"nested\",\"overlap\":[2,3],\"overlap_length\":1,\"second\":{\"end\":3,\"evidence_id\":\"sha256:a116c9ed46d6207734a43317d30fd88f52ac8634c37d904bbf4e41d865f90475\",\"source_id\":\"sha256:abababababababababababababababababababababababababababababababab\",\"start\":2}}],\"schema_version\":\"1.0\",\"source_count\":1,\"span_count\":2,\"spans\":[{\"end\":4,\"evidence_id\":\"sha256:abababababababababababababababababababababababababababababababab\",\"source_id\":\"sha256:abababababababababababababababababababababababababababababababab\",\"start\":1},{\"end\":3,\"evidence_id\":\"sha256:a116c9ed46d6207734a43317d30fd88f52ac8634c37d904bbf4e41d865f90475\",\"source_id\":\"sha256:abababababababababababababababababababababababababababababababab\",\"start\":2}]}",
+      "name": "digest_ids_kept",
+      "spans": [
+        [
+          "sha256:abababababababababababababababababababababababababababababababab",
+          "sha256:abababababababababababababababababababababababababababababababab",
+          1,
+          4
+        ],
+        [
+          "sha256:abababababababababababababababababababababababababababababababab",
+          "plain",
+          2,
+          3
+        ]
+      ]
+    },
+    {
+      "expected": {
+        "advisory": "Evidence-span overlap findings are assistive review signals, not a clinical decision or automatic provenance resolution.",
+        "counts": {
+          "cross_source": 0,
+          "exact": 0,
+          "nested": 1,
+          "partial": 0
+        },
+        "fingerprint": "sha256:f19999026d08bbd5839ee41c1121750be857ba27a89c8509144ecd221985140a",
+        "overlap_count": 1,
+        "overlaps": [
+          {
+            "fingerprint": "sha256:28de79da1c550c88a19bc63537cc554a656ff07120e3015f8102c9fbf535c2f0",
+            "first": {
+              "end": 4,
+              "evidence_id": "sha256:8b5cc4df7eec7d32a7814eca4af047ae33b2d52342667715682e19c25b0b9faa",
+              "source_id": "sha256:ea503d892f34f0298079b79d21a57e4addd3ede7d0f2e7d608473f7d028fbd92",
+              "start": 0
+            },
+            "kind": "nested",
+            "overlap": [
+              1,
+              2
+            ],
+            "overlap_length": 1,
+            "second": {
+              "end": 2,
+              "evidence_id": "sha256:ac0f09c0f8bf5e7a4b063d863255f16d8ce9abe600e288d934cf313bcbff63eb",
+              "source_id": "sha256:ea503d892f34f0298079b79d21a57e4addd3ede7d0f2e7d608473f7d028fbd92",
+              "start": 1
+            }
+          }
+        ],
+        "schema_version": "1.0",
+        "source_count": 1,
+        "span_count": 2,
+        "spans": [
+          {
+            "end": 4,
+            "evidence_id": "sha256:8b5cc4df7eec7d32a7814eca4af047ae33b2d52342667715682e19c25b0b9faa",
+            "source_id": "sha256:ea503d892f34f0298079b79d21a57e4addd3ede7d0f2e7d608473f7d028fbd92",
+            "start": 0
+          },
+          {
+            "end": 2,
+            "evidence_id": "sha256:ac0f09c0f8bf5e7a4b063d863255f16d8ce9abe600e288d934cf313bcbff63eb",
+            "source_id": "sha256:ea503d892f34f0298079b79d21a57e4addd3ede7d0f2e7d608473f7d028fbd92",
+            "start": 1
+          }
+        ]
+      },
+      "expected_json": "{\"advisory\":\"Evidence-span overlap findings are assistive review signals, not a clinical decision or automatic provenance resolution.\",\"counts\":{\"cross_source\":0,\"exact\":0,\"nested\":1,\"partial\":0},\"fingerprint\":\"sha256:f19999026d08bbd5839ee41c1121750be857ba27a89c8509144ecd221985140a\",\"overlap_count\":1,\"overlaps\":[{\"fingerprint\":\"sha256:28de79da1c550c88a19bc63537cc554a656ff07120e3015f8102c9fbf535c2f0\",\"first\":{\"end\":4,\"evidence_id\":\"sha256:8b5cc4df7eec7d32a7814eca4af047ae33b2d52342667715682e19c25b0b9faa\",\"source_id\":\"sha256:ea503d892f34f0298079b79d21a57e4addd3ede7d0f2e7d608473f7d028fbd92\",\"start\":0},\"kind\":\"nested\",\"overlap\":[1,2],\"overlap_length\":1,\"second\":{\"end\":2,\"evidence_id\":\"sha256:ac0f09c0f8bf5e7a4b063d863255f16d8ce9abe600e288d934cf313bcbff63eb\",\"source_id\":\"sha256:ea503d892f34f0298079b79d21a57e4addd3ede7d0f2e7d608473f7d028fbd92\",\"start\":1}}],\"schema_version\":\"1.0\",\"source_count\":1,\"span_count\":2,\"spans\":[{\"end\":4,\"evidence_id\":\"sha256:8b5cc4df7eec7d32a7814eca4af047ae33b2d52342667715682e19c25b0b9faa\",\"source_id\":\"sha256:ea503d892f34f0298079b79d21a57e4addd3ede7d0f2e7d608473f7d028fbd92\",\"start\":0},{\"end\":2,\"evidence_id\":\"sha256:ac0f09c0f8bf5e7a4b063d863255f16d8ce9abe600e288d934cf313bcbff63eb\",\"source_id\":\"sha256:ea503d892f34f0298079b79d21a57e4addd3ede7d0f2e7d608473f7d028fbd92\",\"start\":1}]}",
+      "name": "ids_trimmed",
+      "spans": [
+        [
+          "  note-1 ",
+          " e1",
+          0,
+          4
+        ],
+        [
+          "note-1",
+          "e2",
+          1,
+          2
+        ]
+      ]
+    },
+    {
+      "expected": {
+        "advisory": "Evidence-span overlap findings are assistive review signals, not a clinical decision or automatic provenance resolution.",
+        "counts": {
+          "cross_source": 0,
+          "exact": 0,
+          "nested": 1,
+          "partial": 0
+        },
+        "fingerprint": "sha256:6004f1ad30352458b8630ca900ff64d39413bf8f05456c66900089c3e912ed57",
+        "overlap_count": 1,
+        "overlaps": [
+          {
+            "fingerprint": "sha256:507829df50015694cf80e31f51369503ebe81acdff54d3ec5c52976a6e9fe1e9",
+            "first": {
+              "end": 6,
+              "evidence_id": "sha256:eff53cb59c3a1695582efb76626650632a1313c111d07ed854a895fd1869de61",
+              "source_id": "sha256:f7810869900f2ed1501adeddac9c5ebcfe956c352e7c58464d4f39d0f2751bc9",
+              "start": 0
+            },
+            "kind": "nested",
+            "overlap": [
+              2,
+              4
+            ],
+            "overlap_length": 2,
+            "second": {
+              "end": 4,
+              "evidence_id": "sha256:4a99557e4033c3539de2eb65472017cad5f9557f7a0625a09f1c3f6e2ba69c4c",
+              "source_id": "sha256:f7810869900f2ed1501adeddac9c5ebcfe956c352e7c58464d4f39d0f2751bc9",
+              "start": 2
+            }
+          }
+        ],
+        "schema_version": "1.0",
+        "source_count": 1,
+        "span_count": 2,
+        "spans": [
+          {
+            "end": 6,
+            "evidence_id": "sha256:eff53cb59c3a1695582efb76626650632a1313c111d07ed854a895fd1869de61",
+            "source_id": "sha256:f7810869900f2ed1501adeddac9c5ebcfe956c352e7c58464d4f39d0f2751bc9",
+            "start": 0
+          },
+          {
+            "end": 4,
+            "evidence_id": "sha256:4a99557e4033c3539de2eb65472017cad5f9557f7a0625a09f1c3f6e2ba69c4c",
+            "source_id": "sha256:f7810869900f2ed1501adeddac9c5ebcfe956c352e7c58464d4f39d0f2751bc9",
+            "start": 2
+          }
+        ]
+      },
+      "expected_json": "{\"advisory\":\"Evidence-span overlap findings are assistive review signals, not a clinical decision or automatic provenance resolution.\",\"counts\":{\"cross_source\":0,\"exact\":0,\"nested\":1,\"partial\":0},\"fingerprint\":\"sha256:6004f1ad30352458b8630ca900ff64d39413bf8f05456c66900089c3e912ed57\",\"overlap_count\":1,\"overlaps\":[{\"fingerprint\":\"sha256:507829df50015694cf80e31f51369503ebe81acdff54d3ec5c52976a6e9fe1e9\",\"first\":{\"end\":6,\"evidence_id\":\"sha256:eff53cb59c3a1695582efb76626650632a1313c111d07ed854a895fd1869de61\",\"source_id\":\"sha256:f7810869900f2ed1501adeddac9c5ebcfe956c352e7c58464d4f39d0f2751bc9\",\"start\":0},\"kind\":\"nested\",\"overlap\":[2,4],\"overlap_length\":2,\"second\":{\"end\":4,\"evidence_id\":\"sha256:4a99557e4033c3539de2eb65472017cad5f9557f7a0625a09f1c3f6e2ba69c4c\",\"source_id\":\"sha256:f7810869900f2ed1501adeddac9c5ebcfe956c352e7c58464d4f39d0f2751bc9\",\"start\":2}}],\"schema_version\":\"1.0\",\"source_count\":1,\"span_count\":2,\"spans\":[{\"end\":6,\"evidence_id\":\"sha256:eff53cb59c3a1695582efb76626650632a1313c111d07ed854a895fd1869de61\",\"source_id\":\"sha256:f7810869900f2ed1501adeddac9c5ebcfe956c352e7c58464d4f39d0f2751bc9\",\"start\":0},{\"end\":4,\"evidence_id\":\"sha256:4a99557e4033c3539de2eb65472017cad5f9557f7a0625a09f1c3f6e2ba69c4c\",\"source_id\":\"sha256:f7810869900f2ed1501adeddac9c5ebcfe956c352e7c58464d4f39d0f2751bc9\",\"start\":2}]}",
+      "name": "non_ascii_ids",
+      "spans": [
+        [
+          "ملاحظة-1",
+          "دليل",
+          0,
+          6
+        ],
+        [
+          "ملاحظة-1",
+          "é",
+          2,
+          4
+        ]
+      ]
+    },
+    {
+      "expected": {
+        "advisory": "Evidence-span overlap findings are assistive review signals, not a clinical decision or automatic provenance resolution.",
+        "counts": {
+          "cross_source": 3,
+          "exact": 1,
+          "nested": 3,
+          "partial": 3
+        },
+        "fingerprint": "sha256:86b56fe547fa9fc4b69d3da76ad1379b4719cf08d1662a6ba19ee7fcd0dfd208",
+        "overlap_count": 10,
+        "overlaps": [
+          {
+            "fingerprint": "sha256:1f0adc5cacd85ee1754a870ac62db62a1827a38f2df906cefc14b9d9b5528e3a",
+            "first": {
+              "end": 10,
+              "evidence_id": "sha256:3e23e8160039594a33894f6564e1b1348bbd7a0088d42c4acb73eeaed59c009d",
+              "source_id": "sha256:ea503d892f34f0298079b79d21a57e4addd3ede7d0f2e7d608473f7d028fbd92",
+              "start": 0
+            },
+            "kind": "exact",
+            "overlap": [
+              0,
+              10
+            ],
+            "overlap_length": 10,
+            "second": {
+              "end": 10,
+              "evidence_id": "sha256:ca978112ca1bbdcafac231b39a23dc4da786eff8147c4e72b9807785afee48bb",
+              "source_id": "sha256:ea503d892f34f0298079b79d21a57e4addd3ede7d0f2e7d608473f7d028fbd92",
+              "start": 0
+            }
+          },
+          {
+            "fingerprint": "sha256:30056b495e8041267f0d8190bc854d322a465a760442ba25d421caf302de7059",
+            "first": {
+              "end": 60,
+              "evidence_id": "sha256:594e519ae499312b29433b7dd8a97ff068defcba9755b6d5d00e84c524d67b06",
+              "source_id": "sha256:0230dfd73fea8e0191ca50aa59696b4f072910f52b1981b9987908243ccdb1d9",
+              "start": 40
+            },
+            "kind": "nested",
+            "overlap": [
+              50,
+              55
+            ],
+            "overlap_length": 5,
+            "second": {
+              "end": 55,
+              "evidence_id": "sha256:a1fce4363854ff888cff4b8e7875d600c2682390412a8cf79b37d0b11148b0fa",
+              "source_id": "sha256:0230dfd73fea8e0191ca50aa59696b4f072910f52b1981b9987908243ccdb1d9",
+              "start": 50
+            }
+          },
+          {
+            "fingerprint": "sha256:37347c1f17281b7fe4d8bbfd667f47feabc9f6be808decb9693028d18dccf23a",
+            "first": {
+              "end": 10,
+              "evidence_id": "sha256:3e23e8160039594a33894f6564e1b1348bbd7a0088d42c4acb73eeaed59c009d",
+              "source_id": "sha256:ea503d892f34f0298079b79d21a57e4addd3ede7d0f2e7d608473f7d028fbd92",
+              "start": 0
+            },
+            "kind": "nested",
+            "overlap": [
+              2,
+              5
+            ],
+            "overlap_length": 3,
+            "second": {
+              "end": 5,
+              "evidence_id": "sha256:2e7d2c03a9507ae265ecf5b5356885a53393a2029d241394997265a1a25aefc6",
+              "source_id": "sha256:ea503d892f34f0298079b79d21a57e4addd3ede7d0f2e7d608473f7d028fbd92",
+              "start": 2
+            }
+          },
+          {
+            "fingerprint": "sha256:dfa97c8ab06c8dc07349d102392ce1e7c29f65c5159bb06101c71bef0df85bd8",
+            "first": {
+              "end": 10,
+              "evidence_id": "sha256:ca978112ca1bbdcafac231b39a23dc4da786eff8147c4e72b9807785afee48bb",
+              "source_id": "sha256:ea503d892f34f0298079b79d21a57e4addd3ede7d0f2e7d608473f7d028fbd92",
+              "start": 0
+            },
+            "kind": "nested",
+            "overlap": [
+              2,
+              5
+            ],
+            "overlap_length": 3,
+            "second": {
+              "end": 5,
+              "evidence_id": "sha256:2e7d2c03a9507ae265ecf5b5356885a53393a2029d241394997265a1a25aefc6",
+              "source_id": "sha256:ea503d892f34f0298079b79d21a57e4addd3ede7d0f2e7d608473f7d028fbd92",
+              "start": 2
+            }
+          },
+          {
+            "fingerprint": "sha256:0021982784e9f97ae26136df0283cf06160dd5a47087541b53b45cacfe1dc6d2",
+            "first": {
+              "end": 60,
+              "evidence_id": "sha256:594e519ae499312b29433b7dd8a97ff068defcba9755b6d5d00e84c524d67b06",
+              "source_id": "sha256:0230dfd73fea8e0191ca50aa59696b4f072910f52b1981b9987908243ccdb1d9",
+              "start": 40
+            },
+            "kind": "partial",
+            "overlap": [
+              55,
+              60
+            ],
+            "overlap_length": 5,
+            "second": {
+              "end": 70,
+              "evidence_id": "sha256:2d711642b726b04401627ca9fbac32f5c8530fb1903cc4db02258717921a4881",
+              "source_id": "sha256:0230dfd73fea8e0191ca50aa59696b4f072910f52b1981b9987908243ccdb1d9",
+              "start": 55
+            }
+          },
+          {
+            "fingerprint": "sha256:0fd2ec1f6070e367bdcf49348f146da3a85cc38dbe18456b6bd817c93442e2bf",
+            "first": {
+              "end": 10,
+              "evidence_id": "sha256:3e23e8160039594a33894f6564e1b1348bbd7a0088d42c4acb73eeaed59c009d",
+              "source_id": "sha256:ea503d892f34f0298079b79d21a57e4addd3ede7d0f2e7d608473f7d028fbd92",
+              "start": 0
+            },
+            "kind": "partial",
+            "overlap": [
+              9,
+              10
+            ],
+            "overlap_length": 1,
+            "second": {
+              "end": 30,
+              "evidence_id": "sha256:3f79bb7b435b05321651daefd374cdc681dc06faa65e374e38337b88ca046dea",
+              "source_id": "sha256:ea503d892f34f0298079b79d21a57e4addd3ede7d0f2e7d608473f7d028fbd92",
+              "start": 9
+            }
+          },
+          {
+            "fingerprint": "sha256:508580a9fba03441a64332f93bbbd8a90da441ae3ff937fc4adc22054261f88b",
+            "first": {
+              "end": 10,
+              "evidence_id": "sha256:ca978112ca1bbdcafac231b39a23dc4da786eff8147c4e72b9807785afee48bb",
+              "source_id": "sha256:ea503d892f34f0298079b79d21a57e4addd3ede7d0f2e7d608473f7d028fbd92",
+              "start": 0
+            },
+            "kind": "partial",
+            "overlap": [
+              9,
+              10
+            ],
+            "overlap_length": 1,
+            "second": {
+              "end": 30,
+              "evidence_id": "sha256:3f79bb7b435b05321651daefd374cdc681dc06faa65e374e38337b88ca046dea",
+              "source_id": "sha256:ea503d892f34f0298079b79d21a57e4addd3ede7d0f2e7d608473f7d028fbd92",
+              "start": 9
+            }
+          },
+          {
+            "fingerprint": "sha256:84084e9089d32d94794ae20f1c3521c81aea8b92bdcb93df3120abee33ff59e4",
+            "first": {
+              "end": 12,
+              "evidence_id": "sha256:18ac3e7343f016890c510e93f935261169d9e3f565436429830faf0934f4f8e4",
+              "source_id": "sha256:813ea37e5c7cb6e3ef16319b9ec096f639d2423117f770b08b7529f27bda788c",
+              "start": 8
+            },
+            "kind": "cross_source",
+            "overlap": [
+              8,
+              10
+            ],
+            "overlap_length": 2,
+            "second": {
+              "end": 10,
+              "evidence_id": "sha256:3e23e8160039594a33894f6564e1b1348bbd7a0088d42c4acb73eeaed59c009d",
+              "source_id": "sha256:ea503d892f34f0298079b79d21a57e4addd3ede7d0f2e7d608473f7d028fbd92",
+              "start": 0
+            }
+          },
+          {
+            "fingerprint": "sha256:0df182c53cbd17070cb3eb12f3e08ca66c537f47f35387c0268731e23b2daf1a",
+            "first": {
+              "end": 12,
+              "evidence_id": "sha256:18ac3e7343f016890c510e93f935261169d9e3f565436429830faf0934f4f8e4",
+              "source_id": "sha256:813ea37e5c7cb6e3ef16319b9ec096f639d2423117f770b08b7529f27bda788c",
+              "start": 8
+            },
+            "kind": "cross_source",
+            "overlap": [
+              8,
+              10
+            ],
+            "overlap_length": 2,
+            "second": {
+              "end": 10,
+              "evidence_id": "sha256:ca978112ca1bbdcafac231b39a23dc4da786eff8147c4e72b9807785afee48bb",
+              "source_id": "sha256:ea503d892f34f0298079b79d21a57e4addd3ede7d0f2e7d608473f7d028fbd92",
+              "start": 0
+            }
+          },
+          {
+            "fingerprint": "sha256:79364a1b5eabc67cb9fda879746bfca7412fb77e5cb885e0dcf6099774111b83",
+            "first": {
+              "end": 12,
+              "evidence_id": "sha256:18ac3e7343f016890c510e93f935261169d9e3f565436429830faf0934f4f8e4",
+              "source_id": "sha256:813ea37e5c7cb6e3ef16319b9ec096f639d2423117f770b08b7529f27bda788c",
+              "start": 8
+            },
+            "kind": "cross_source",
+            "overlap": [
+              9,
+              12
+            ],
+            "overlap_length": 3,
+            "second": {
+              "end": 30,
+              "evidence_id": "sha256:3f79bb7b435b05321651daefd374cdc681dc06faa65e374e38337b88ca046dea",
+              "source_id": "sha256:ea503d892f34f0298079b79d21a57e4addd3ede7d0f2e7d608473f7d028fbd92",
+              "start": 9
+            }
+          }
+        ],
+        "schema_version": "1.0",
+        "source_count": 3,
+        "span_count": 8,
+        "spans": [
+          {
+            "end": 60,
+            "evidence_id": "sha256:594e519ae499312b29433b7dd8a97ff068defcba9755b6d5d00e84c524d67b06",
+            "source_id": "sha256:0230dfd73fea8e0191ca50aa59696b4f072910f52b1981b9987908243ccdb1d9",
+            "start": 40
+          },
+          {
+            "end": 55,
+            "evidence_id": "sha256:a1fce4363854ff888cff4b8e7875d600c2682390412a8cf79b37d0b11148b0fa",
+            "source_id": "sha256:0230dfd73fea8e0191ca50aa59696b4f072910f52b1981b9987908243ccdb1d9",
+            "start": 50
+          },
+          {
+            "end": 70,
+            "evidence_id": "sha256:2d711642b726b04401627ca9fbac32f5c8530fb1903cc4db02258717921a4881",
+            "source_id": "sha256:0230dfd73fea8e0191ca50aa59696b4f072910f52b1981b9987908243ccdb1d9",
+            "start": 55
+          },
+          {
+            "end": 12,
+            "evidence_id": "sha256:18ac3e7343f016890c510e93f935261169d9e3f565436429830faf0934f4f8e4",
+            "source_id": "sha256:813ea37e5c7cb6e3ef16319b9ec096f639d2423117f770b08b7529f27bda788c",
+            "start": 8
+          },
+          {
+            "end": 10,
+            "evidence_id": "sha256:3e23e8160039594a33894f6564e1b1348bbd7a0088d42c4acb73eeaed59c009d",
+            "source_id": "sha256:ea503d892f34f0298079b79d21a57e4addd3ede7d0f2e7d608473f7d028fbd92",
+            "start": 0
+          },
+          {
+            "end": 10,
+            "evidence_id": "sha256:ca978112ca1bbdcafac231b39a23dc4da786eff8147c4e72b9807785afee48bb",
+            "source_id": "sha256:ea503d892f34f0298079b79d21a57e4addd3ede7d0f2e7d608473f7d028fbd92",
+            "start": 0
+          },
+          {
+            "end": 5,
+            "evidence_id": "sha256:2e7d2c03a9507ae265ecf5b5356885a53393a2029d241394997265a1a25aefc6",
+            "source_id": "sha256:ea503d892f34f0298079b79d21a57e4addd3ede7d0f2e7d608473f7d028fbd92",
+            "start": 2
+          },
+          {
+            "end": 30,
+            "evidence_id": "sha256:3f79bb7b435b05321651daefd374cdc681dc06faa65e374e38337b88ca046dea",
+            "source_id": "sha256:ea503d892f34f0298079b79d21a57e4addd3ede7d0f2e7d608473f7d028fbd92",
+            "start": 9
+          }
+        ]
+      },
+      "expected_json": "{\"advisory\":\"Evidence-span overlap findings are assistive review signals, not a clinical decision or automatic provenance resolution.\",\"counts\":{\"cross_source\":3,\"exact\":1,\"nested\":3,\"partial\":3},\"fingerprint\":\"sha256:86b56fe547fa9fc4b69d3da76ad1379b4719cf08d1662a6ba19ee7fcd0dfd208\",\"overlap_count\":10,\"overlaps\":[{\"fingerprint\":\"sha256:1f0adc5cacd85ee1754a870ac62db62a1827a38f2df906cefc14b9d9b5528e3a\",\"first\":{\"end\":10,\"evidence_id\":\"sha256:3e23e8160039594a33894f6564e1b1348bbd7a0088d42c4acb73eeaed59c009d\",\"source_id\":\"sha256:ea503d892f34f0298079b79d21a57e4addd3ede7d0f2e7d608473f7d028fbd92\",\"start\":0},\"kind\":\"exact\",\"overlap\":[0,10],\"overlap_length\":10,\"second\":{\"end\":10,\"evidence_id\":\"sha256:ca978112ca1bbdcafac231b39a23dc4da786eff8147c4e72b9807785afee48bb\",\"source_id\":\"sha256:ea503d892f34f0298079b79d21a57e4addd3ede7d0f2e7d608473f7d028fbd92\",\"start\":0}},{\"fingerprint\":\"sha256:30056b495e8041267f0d8190bc854d322a465a760442ba25d421caf302de7059\",\"first\":{\"end\":60,\"evidence_id\":\"sha256:594e519ae499312b29433b7dd8a97ff068defcba9755b6d5d00e84c524d67b06\",\"source_id\":\"sha256:0230dfd73fea8e0191ca50aa59696b4f072910f52b1981b9987908243ccdb1d9\",\"start\":40},\"kind\":\"nested\",\"overlap\":[50,55],\"overlap_length\":5,\"second\":{\"end\":55,\"evidence_id\":\"sha256:a1fce4363854ff888cff4b8e7875d600c2682390412a8cf79b37d0b11148b0fa\",\"source_id\":\"sha256:0230dfd73fea8e0191ca50aa59696b4f072910f52b1981b9987908243ccdb1d9\",\"start\":50}},{\"fingerprint\":\"sha256:37347c1f17281b7fe4d8bbfd667f47feabc9f6be808decb9693028d18dccf23a\",\"first\":{\"end\":10,\"evidence_id\":\"sha256:3e23e8160039594a33894f6564e1b1348bbd7a0088d42c4acb73eeaed59c009d\",\"source_id\":\"sha256:ea503d892f34f0298079b79d21a57e4addd3ede7d0f2e7d608473f7d028fbd92\",\"start\":0},\"kind\":\"nested\",\"overlap\":[2,5],\"overlap_length\":3,\"second\":{\"end\":5,\"evidence_id\":\"sha256:2e7d2c03a9507ae265ecf5b5356885a53393a2029d241394997265a1a25aefc6\",\"source_id\":\"sha256:ea503d892f34f0298079b79d21a57e4addd3ede7d0f2e7d608473f7d028fbd92\",\"start\":2}},{\"fingerprint\":\"sha256:dfa97c8ab06c8dc07349d102392ce1e7c29f65c5159bb06101c71bef0df85bd8\",\"first\":{\"end\":10,\"evidence_id\":\"sha256:ca978112ca1bbdcafac231b39a23dc4da786eff8147c4e72b9807785afee48bb\",\"source_id\":\"sha256:ea503d892f34f0298079b79d21a57e4addd3ede7d0f2e7d608473f7d028fbd92\",\"start\":0},\"kind\":\"nested\",\"overlap\":[2,5],\"overlap_length\":3,\"second\":{\"end\":5,\"evidence_id\":\"sha256:2e7d2c03a9507ae265ecf5b5356885a53393a2029d241394997265a1a25aefc6\",\"source_id\":\"sha256:ea503d892f34f0298079b79d21a57e4addd3ede7d0f2e7d608473f7d028fbd92\",\"start\":2}},{\"fingerprint\":\"sha256:0021982784e9f97ae26136df0283cf06160dd5a47087541b53b45cacfe1dc6d2\",\"first\":{\"end\":60,\"evidence_id\":\"sha256:594e519ae499312b29433b7dd8a97ff068defcba9755b6d5d00e84c524d67b06\",\"source_id\":\"sha256:0230dfd73fea8e0191ca50aa59696b4f072910f52b1981b9987908243ccdb1d9\",\"start\":40},\"kind\":\"partial\",\"overlap\":[55,60],\"overlap_length\":5,\"second\":{\"end\":70,\"evidence_id\":\"sha256:2d711642b726b04401627ca9fbac32f5c8530fb1903cc4db02258717921a4881\",\"source_id\":\"sha256:0230dfd73fea8e0191ca50aa59696b4f072910f52b1981b9987908243ccdb1d9\",\"start\":55}},{\"fingerprint\":\"sha256:0fd2ec1f6070e367bdcf49348f146da3a85cc38dbe18456b6bd817c93442e2bf\",\"first\":{\"end\":10,\"evidence_id\":\"sha256:3e23e8160039594a33894f6564e1b1348bbd7a0088d42c4acb73eeaed59c009d\",\"source_id\":\"sha256:ea503d892f34f0298079b79d21a57e4addd3ede7d0f2e7d608473f7d028fbd92\",\"start\":0},\"kind\":\"partial\",\"overlap\":[9,10],\"overlap_length\":1,\"second\":{\"end\":30,\"evidence_id\":\"sha256:3f79bb7b435b05321651daefd374cdc681dc06faa65e374e38337b88ca046dea\",\"source_id\":\"sha256:ea503d892f34f0298079b79d21a57e4addd3ede7d0f2e7d608473f7d028fbd92\",\"start\":9}},{\"fingerprint\":\"sha256:508580a9fba03441a64332f93bbbd8a90da441ae3ff937fc4adc22054261f88b\",\"first\":{\"end\":10,\"evidence_id\":\"sha256:ca978112ca1bbdcafac231b39a23dc4da786eff8147c4e72b9807785afee48bb\",\"source_id\":\"sha256:ea503d892f34f0298079b79d21a57e4addd3ede7d0f2e7d608473f7d028fbd92\",\"start\":0},\"kind\":\"partial\",\"overlap\":[9,10],\"overlap_length\":1,\"second\":{\"end\":30,\"evidence_id\":\"sha256:3f79bb7b435b05321651daefd374cdc681dc06faa65e374e38337b88ca046dea\",\"source_id\":\"sha256:ea503d892f34f0298079b79d21a57e4addd3ede7d0f2e7d608473f7d028fbd92\",\"start\":9}},{\"fingerprint\":\"sha256:84084e9089d32d94794ae20f1c3521c81aea8b92bdcb93df3120abee33ff59e4\",\"first\":{\"end\":12,\"evidence_id\":\"sha256:18ac3e7343f016890c510e93f935261169d9e3f565436429830faf0934f4f8e4\",\"source_id\":\"sha256:813ea37e5c7cb6e3ef16319b9ec096f639d2423117f770b08b7529f27bda788c\",\"start\":8},\"kind\":\"cross_source\",\"overlap\":[8,10],\"overlap_length\":2,\"second\":{\"end\":10,\"evidence_id\":\"sha256:3e23e8160039594a33894f6564e1b1348bbd7a0088d42c4acb73eeaed59c009d\",\"source_id\":\"sha256:ea503d892f34f0298079b79d21a57e4addd3ede7d0f2e7d608473f7d028fbd92\",\"start\":0}},{\"fingerprint\":\"sha256:0df182c53cbd17070cb3eb12f3e08ca66c537f47f35387c0268731e23b2daf1a\",\"first\":{\"end\":12,\"evidence_id\":\"sha256:18ac3e7343f016890c510e93f935261169d9e3f565436429830faf0934f4f8e4\",\"source_id\":\"sha256:813ea37e5c7cb6e3ef16319b9ec096f639d2423117f770b08b7529f27bda788c\",\"start\":8},\"kind\":\"cross_source\",\"overlap\":[8,10],\"overlap_length\":2,\"second\":{\"end\":10,\"evidence_id\":\"sha256:ca978112ca1bbdcafac231b39a23dc4da786eff8147c4e72b9807785afee48bb\",\"source_id\":\"sha256:ea503d892f34f0298079b79d21a57e4addd3ede7d0f2e7d608473f7d028fbd92\",\"start\":0}},{\"fingerprint\":\"sha256:79364a1b5eabc67cb9fda879746bfca7412fb77e5cb885e0dcf6099774111b83\",\"first\":{\"end\":12,\"evidence_id\":\"sha256:18ac3e7343f016890c510e93f935261169d9e3f565436429830faf0934f4f8e4\",\"source_id\":\"sha256:813ea37e5c7cb6e3ef16319b9ec096f639d2423117f770b08b7529f27bda788c\",\"start\":8},\"kind\":\"cross_source\",\"overlap\":[9,12],\"overlap_length\":3,\"second\":{\"end\":30,\"evidence_id\":\"sha256:3f79bb7b435b05321651daefd374cdc681dc06faa65e374e38337b88ca046dea\",\"source_id\":\"sha256:ea503d892f34f0298079b79d21a57e4addd3ede7d0f2e7d608473f7d028fbd92\",\"start\":9}}],\"schema_version\":\"1.0\",\"source_count\":3,\"span_count\":8,\"spans\":[{\"end\":60,\"evidence_id\":\"sha256:594e519ae499312b29433b7dd8a97ff068defcba9755b6d5d00e84c524d67b06\",\"source_id\":\"sha256:0230dfd73fea8e0191ca50aa59696b4f072910f52b1981b9987908243ccdb1d9\",\"start\":40},{\"end\":55,\"evidence_id\":\"sha256:a1fce4363854ff888cff4b8e7875d600c2682390412a8cf79b37d0b11148b0fa\",\"source_id\":\"sha256:0230dfd73fea8e0191ca50aa59696b4f072910f52b1981b9987908243ccdb1d9\",\"start\":50},{\"end\":70,\"evidence_id\":\"sha256:2d711642b726b04401627ca9fbac32f5c8530fb1903cc4db02258717921a4881\",\"source_id\":\"sha256:0230dfd73fea8e0191ca50aa59696b4f072910f52b1981b9987908243ccdb1d9\",\"start\":55},{\"end\":12,\"evidence_id\":\"sha256:18ac3e7343f016890c510e93f935261169d9e3f565436429830faf0934f4f8e4\",\"source_id\":\"sha256:813ea37e5c7cb6e3ef16319b9ec096f639d2423117f770b08b7529f27bda788c\",\"start\":8},{\"end\":10,\"evidence_id\":\"sha256:3e23e8160039594a33894f6564e1b1348bbd7a0088d42c4acb73eeaed59c009d\",\"source_id\":\"sha256:ea503d892f34f0298079b79d21a57e4addd3ede7d0f2e7d608473f7d028fbd92\",\"start\":0},{\"end\":10,\"evidence_id\":\"sha256:ca978112ca1bbdcafac231b39a23dc4da786eff8147c4e72b9807785afee48bb\",\"source_id\":\"sha256:ea503d892f34f0298079b79d21a57e4addd3ede7d0f2e7d608473f7d028fbd92\",\"start\":0},{\"end\":5,\"evidence_id\":\"sha256:2e7d2c03a9507ae265ecf5b5356885a53393a2029d241394997265a1a25aefc6\",\"source_id\":\"sha256:ea503d892f34f0298079b79d21a57e4addd3ede7d0f2e7d608473f7d028fbd92\",\"start\":2},{\"end\":30,\"evidence_id\":\"sha256:3f79bb7b435b05321651daefd374cdc681dc06faa65e374e38337b88ca046dea\",\"source_id\":\"sha256:ea503d892f34f0298079b79d21a57e4addd3ede7d0f2e7d608473f7d028fbd92\",\"start\":9}]}",
+      "name": "mixed_unordered",
+      "spans": [
+        [
+          "note-3",
+          "z",
+          40,
+          60
+        ],
+        [
+          "note-1",
+          "a",
+          0,
+          10
+        ],
+        [
+          "note-1",
+          "b",
+          0,
+          10
+        ],
+        [
+          "note-1",
+          "c",
+          2,
+          5
+        ],
+        [
+          "note-2",
+          "d",
+          8,
+          12
+        ],
+        [
+          "note-1",
+          "e",
+          9,
+          30
+        ],
+        [
+          "note-3",
+          "y",
+          50,
+          55
+        ],
+        [
+          "note-3",
+          "x",
+          55,
+          70
+        ]
+      ]
+    }
+  ],
+  "errors": [
+    {
+      "error": "invalid evidence span at index 1: end must be greater than start",
+      "name": "empty_range",
+      "spans": [
+        [
+          "note-1",
+          "a",
+          0,
+          4
+        ],
+        [
+          "note-1",
+          "b",
+          7,
+          7
+        ]
+      ]
+    },
+    {
+      "error": "invalid evidence span at index 0: end must be greater than start",
+      "name": "reversed_range",
+      "spans": [
+        [
+          "note-1",
+          "a",
+          9,
+          3
+        ]
+      ]
+    },
+    {
+      "error": "invalid evidence span at index 1: invalid record",
+      "name": "blank_source",
+      "spans": [
+        [
+          "note-1",
+          "a",
+          0,
+          4
+        ],
+        [
+          "   ",
+          "b",
+          0,
+          4
+        ]
+      ]
+    },
+    {
+      "error": "invalid evidence span at index 0: invalid record",
+      "name": "blank_evidence",
+      "spans": [
+        [
+          "note-1",
+          "",
+          0,
+          4
+        ]
+      ]
+    }
+  ],
+  "generator": "integrations/clinical-evidence-python/conformance/generate_vectors.py",
+  "module": "medscale_clinical.clinical.evidence_span_audit"
+}

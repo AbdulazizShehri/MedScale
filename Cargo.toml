@@ -11,6 +11,7 @@ members = [
     "crates/medscale-desktop-vm",
     "crates/medscale-network",
     "crates/medscale-pack",
+    "crates/medscale-clinical",
 ]
 # Vendored, patched third-party sources are not workspace members.
 exclude = ["vendor"]
@@ -25,6 +26,7 @@ default-members = [
     "crates/medscale-desktop-vm",
     "crates/medscale-network",
     "crates/medscale-pack",
+    "crates/medscale-clinical",
 ]
 
 [workspace.package]
