@@ -2962,6 +2962,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "medscale-clinical"
+version = "0.1.0"
+dependencies = [
+ "medscale-contracts",
+ "serde_json",
+ "sha2 0.11.0",
+ "thiserror 2.0.21",
+]
+
+[[package]]
 name = "medscale-contracts"
 version = "0.1.0"
 dependencies = [
@@ -2978,6 +2988,7 @@ name = "medscale-core"
 version = "0.1.0"
 dependencies = [
  "interprocess",
+ "medscale-clinical",
  "medscale-contracts",
  "medscale-fhir",
  "medscale-keys",
