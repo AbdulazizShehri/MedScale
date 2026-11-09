@@ -13,7 +13,10 @@ use medscale_contracts::data_sources::{
 use medscale_contracts::objects::{
     AuthorityScopeId, DigestSha256, ObjectHeader, OpaqueId, RealmId,
 };
-use medscale_storage::{MetaError, SqliteMetaStore, backup_vault, restore_vault};
+use medscale_storage::{
+    MetaError, SqliteMetaStore, backup_vault, list_external_sqlite_tables,
+    read_external_sqlite_table, restore_vault,
+};
 
 fn temp_root(name: &str) -> std::path::PathBuf {
     let p = std::env::temp_dir().join(format!("medscale-075-{name}-{}", std::process::id()));
@@ -463,4 +466,28 @@ fn tampered_snapshot_status_fails_closed() {
         ),
         "{err:?}"
     );
+}
+
+#[test]
+fn an_external_database_with_a_write_ahead_log_is_refused() {
+    // RUSTSEC-2026-0459: a crafted `-wal` sibling can make SQLite before 3.54
+    // return uninitialised memory, so external databases with one are refused.
+    let root = temp_root("wal-sibling");
+    let db = root.join("external.sqlite3");
+    let conn = rusqlite::Connection::open(&db).unwrap();
+    conn.execute_batch("CREATE TABLE notes (id INTEGER, note TEXT);")
+        .unwrap();
+    drop(conn);
+    assert!(list_external_sqlite_tables(&db).is_ok());
+    fs::write(root.join("external.sqlite3-wal"), b"not a real log").unwrap();
+    for result in [
+        list_external_sqlite_tables(&db).map(|_| ()),
+        read_external_sqlite_table(&db, "notes", 10).map(|_| ()),
+    ] {
+        assert!(
+            matches!(result, Err(MetaError::UnsupportedSchema(ref m)) if m.contains("-wal")),
+            "{result:?}"
+        );
+    }
+    let _ = fs::remove_dir_all(&root);
 }
