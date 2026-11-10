@@ -856,7 +856,14 @@ try {
     await type(`//input[@aria-label='Search corpus text']`, "asthma");
     await click(`//button[@type='submit' and ${text("Search")}]`);
     const hit = await find(`//div[@role='button' and starts-with(@aria-label,'Open ')]`, 30000);
-    await wd("POST", `/session/${sid}/element/${hit}/value`, { text: "" });
+    if (MACOS) {
+      // The embedded macOS WebDriver does not turn WebDriver key codes into key
+      // events. Focus the row and deliver Enter to its own handler; native macOS
+      // keyboard input is qualified by macos-native-keyboard-a11y-qualification.
+      await evalJs("arguments[0].focus(); arguments[0].dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }));", [{ [ELEMENT]: hit }]);
+    } else {
+      await wd("POST", `/session/${sid}/element/${hit}/value`, { text: "" });
+    }
     await poll(`return !!document.querySelector("div[role='button'][aria-label^='Open '].sel");`, "Enter on a search hit did not select it");
     await nav("Settings");
     const radio = await find(`//div[@role='radiogroup' and @aria-label='Theme']/button[@aria-checked='false']`);
