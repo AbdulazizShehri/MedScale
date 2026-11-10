@@ -14,8 +14,8 @@ MedScale is a free, local-first open-source Beta project with real, user-approve
 | `MACOS_SIGNED_PRODUCT_QUALIFICATION` | NOT_GRANTED | Signed/notarized macOS and sandbox enforcement qualification remain open. |
 | `FINAL_V0_UI_ACCESSIBILITY_QUALIFICATION` | EXTERNAL_MEASUREMENT_REQUIRED | Final keyboard, assistive-technology, text scaling and contrast checks remain open. |
 | `TAURI_WEBVIEW_PRIVACY_QUALIFICATION` | OPEN | WebView storage, logs, cache and other private-data surfaces require end-to-end proof. |
-| `TAURI_GLIB_ADVISORY_F096_T01` | RESOLVED_BY_PLATFORM_SCOPE | The desktop targets Windows/macOS; this does not qualify or authorize a Linux Tauri desktop. |
-| `TAURI_LINUX_DESKTOP_GTK3` | OPEN_UPSTREAM | Linux desktop packaging is deferred. Linux Rust Core/CLI testing is a separate supported surface. |
+| `TAURI_GLIB_ADVISORY_F096_T01` | RESOLVED_BY_VENDORED_FIX | The Linux desktop uses `vendor/glib-0.18.5` with the upstream RUSTSEC-2024-0429 fix (gtk-rs-core #1343). cargo-deny checks the Linux desktop graph with no advisory ignored, and CI fails if the Linux graph uses any other glib. Remove the vendored copy when Tauri moves to glib 0.20+. |
+| `TAURI_LINUX_DESKTOP_GTK3` | RESOLVED_ENGINEERING_BUILD | The GTK 3 unmaintained advisories were withdrawn on 2026-08-14 and glib is fixed (above). Engineering build only: an unsigned x86_64 `.deb` (and an unqualified `.rpm`) built on Ubuntu 22.04 in CI, installed, launched under Xvfb and removed on a disposable runner. No user-journey E2E on Linux yet, and no AppImage. |
 | `WORKER_OS_SANDBOX_PLATFORM_QUALIFIED` | OPEN | Worker confinement and platform-specific enforcement are not fully qualified across supported operating systems. |
 | `PARTNER_EHR_NPHIES_ENDPOINT` | NOT_GRANTED | No live EHR/NPHIES/partner endpoint is authorized. Synthetic stubs only. |
 | `SMART_LIVE_PARTNER_AUTHORIZATION` | NOT_GRANTED | No live SMART partner authorization or token exchange is authorized. |

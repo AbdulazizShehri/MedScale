@@ -14,7 +14,7 @@ This replaces the `207344c` packet. Native QA on that build found defects, which
 |---|---|---|
 | **Windows x64** | **Ready for your decision.** Every automated gate passes on the exact installer. | Four founder decisions below. Without them it stays NO-GO. |
 | **macOS Apple silicon** | **NO-GO** | No Developer ID or notarization, so Gatekeeper blocks a downloaded copy. Also no VoiceOver run, and no full journey on the DMG. |
-| **Linux desktop** | Deferred | No desktop package exists. |
+| **Linux desktop** | Engineering build | Engineering build only: an unsigned x86_64 `.deb` (and an unqualified `.rpm`) built on Ubuntu 22.04 in CI, installed, launched under Xvfb and removed on a disposable runner. No user-journey E2E on Linux yet, and no AppImage. |
 
 Passing these checks is not clinical validation or a full privacy assurance. All tests use fictional data or lawful public recordings. Real patient data remains not authorized.
 
