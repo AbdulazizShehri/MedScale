@@ -296,7 +296,15 @@ mod tests {
             .expect("install onnx pack");
         let pack_id = pack.pack_id.expect("admitted pack id");
         let mut lane_ids = Vec::new();
-        for (n, artifact) in ["artifact-1", "artifact-2"].iter().enumerate() {
+        // Each lane's context is a real source: a run cites only evidence
+        // that resolves, and refuses to generate without any.
+        for n in 0..2 {
+            let artifact = session
+                .create_source_record(
+                    "text/plain".to_owned(),
+                    format!("synthetic note for lane {n}").into_bytes(),
+                )
+                .expect("source record");
             let (identity, _) = session
                 .medagent_identity_register(
                     project_id.clone(),
@@ -309,7 +317,7 @@ mod tests {
                 .medagent_context_create(
                     project_id.clone(),
                     vec![ArtifactDescriptor {
-                        object_id: OpaqueId::new(*artifact),
+                        object_id: artifact,
                         kind: ArtifactKind::SourceRecord,
                         binding: ArtifactVersionBinding::IdentityOnly,
                     }],
