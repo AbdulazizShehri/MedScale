@@ -1006,7 +1006,8 @@ impl MedAgent<'_> {
         let evidence_refs = require_approved_evidence(candidates).map_err(|refusal| {
             AuthorityError::StaleReference {
                 message: format!(
-                    "{SUMMARY_EMPTY_EVIDENCE_REFUSAL_CODE}: none of the {} context artifacts                      resolves to its current version; nothing was generated",
+                    "{SUMMARY_EMPTY_EVIDENCE_REFUSAL_CODE}: none of the {} context artifacts \
+                     resolves to its current version; nothing was generated",
                     refusal.input_evidence_count
                 ),
             }

@@ -2,7 +2,7 @@
 //! collaboration, workflows and audio.
 
 use medscale_contracts::audio::{MAX_AUDIO_BYTES, PcmFormat};
-use medscale_contracts::envelopes::ResponseBody;
+use medscale_contracts::envelopes::{AuthorityError, ResponseBody};
 use medscale_contracts::medagent::ToolKind;
 use medscale_contracts::objects::OpaqueId;
 use medscale_contracts::project_graph::{ArtifactDescriptor, ArtifactKind, ArtifactVersionBinding};
@@ -631,11 +631,31 @@ pub fn medagent_execute(host: tauri::State<'_, Host>, run_id: String) -> CmdResu
     let run = session.medagent_run_get(OpaqueId::new(&run_id))?;
     let (identity, _) = session.medagent_identity_get(run.agent_identity_id)?;
     let dir = pack_dir(&mut state, identity.pack_id.as_str())?;
-    let (turn, proposal) =
-        state
-            .session()?
-            .medagent_run_execute(OpaqueId::new(&run_id), dir, 4, true)?;
+    let (turn, proposal) = state
+        .session()?
+        .medagent_run_execute(OpaqueId::new(&run_id), dir, 4, true)
+        .map_err(execute_error)?;
     Ok(json!({ "turn": turn, "proposal": proposal }))
+}
+
+/// Core's refusal code when none of a run's sources is still current
+/// (`medscale_clinical::summary_empty_evidence`).
+const EMPTY_EVIDENCE_REFUSAL: &str = "empty_approved_evidence";
+
+/// The empty-evidence gate is a refusal the person can act on, not a stale
+/// screen to reload.
+fn execute_error(err: AuthorityError) -> CmdError {
+    match &err {
+        AuthorityError::StaleReference { message }
+            if message.starts_with(EMPTY_EVIDENCE_REFUSAL) =>
+        {
+            CmdError::new(
+                "blocked",
+                "Refused: none of this run's sources is still current, so the model was not run and nothing was generated. Create a new run with current sources.",
+            )
+        }
+        _ => CmdError::from(err),
+    }
 }
 
 // ───────────────────────────── model fleet ─────────────────────────────
@@ -1463,4 +1483,29 @@ pub fn audio_segment(
         host::bounded_id(&source_id)?,
     )?;
     Ok(json!({ "summary": summary, "lines": lines }))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn the_empty_evidence_gate_is_shown_as_a_refusal() {
+        let refused = execute_error(AuthorityError::StaleReference {
+            message: "empty_approved_evidence: none of the 2 context artifacts resolves to its \
+                      current version; nothing was generated"
+                .to_owned(),
+        });
+        assert_eq!(refused.kind, "blocked");
+        assert!(
+            refused
+                .message
+                .starts_with("Refused: none of this run's sources")
+        );
+
+        let other = execute_error(AuthorityError::StaleReference {
+            message: "something else".to_owned(),
+        });
+        assert_eq!(other.kind, "stale");
+    }
 }
