@@ -4,6 +4,8 @@
 
 The list comes from a code audit of `main@8ce2119` on 2026-11-07. That audit was done by an AI reviewer, not an independent human security assessor.
 
+The founder's decision options, the scope a decision must name, and the record to sign are in [REAL_PHI_AUTHORIZATION_PACKAGE.md](REAL_PHI_AUTHORIZATION_PACKAGE.md).
+
 ## Blockers
 
 | # | Problem | Why it matters | Fix | Proof needed | Status |
