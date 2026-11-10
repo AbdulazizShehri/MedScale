@@ -304,7 +304,8 @@ async function main() {
     if (pagesWithGaps.length) throw new Error(`unnamed focusable controls on ${pagesWithGaps.join(", ")}`);
   });
   await step("layout-measured-at-window-sizes", async () => {
-    // Synthetic workspace only, so names are safe to print. Measured, not asserted yet.
+    // Synthetic workspace only, so names are safe to print. Measured, not asserted yet:
+    // this step cannot fail, and release documents must say so.
     const result = {};
     for (const [width, height] of [[1194, 938], [1180, 720], [1440, 900]]) {
       const applied = await driver.send({ op: "resize", width, height });
@@ -321,7 +322,8 @@ async function main() {
   });
   await step("idle-network-connections-measured", async () => {
     // Negative control. No model download has been approved at this point, so any
-    // connection here is one the user didn't ask for. Reported, then judged.
+    // connection here is one the user didn't ask for. Reported, then judged by a
+    // person: this step cannot fail, and release documents must say so.
     const samples = [];
     for (let i = 0; i < 6; i++) {
       samples.push(...remoteConnections(child.pid));
@@ -466,6 +468,7 @@ async function main() {
   });
   await step("webview-residue-measured", async () => {
     // Reported, not asserted yet: this journey is the first to look after real use.
+    // This step cannot fail, and release documents must say so.
     report.webview_residue = webViewResidue(["Installed build study", VAULT_PROJECT, "installed-fictional-patient"]);
     console.log(`WEBVIEW_RESIDUE ${JSON.stringify(report.webview_residue)}`);
   });

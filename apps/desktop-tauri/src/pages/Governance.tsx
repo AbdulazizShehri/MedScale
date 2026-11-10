@@ -390,7 +390,7 @@ function ReportProblem({ about }: { about: AboutVm }) {
   }
   return (
     <Section n="05" title="Report a problem">
-      <p className="t-sm i2" style={{ margin: "0 0 10px" }}>Open this address in your web browser and choose the bug-report template. MedScale does not open the browser for you.</p>
+      <p className="t-sm i2" style={{ margin: "0 0 10px" }}>Open this address in your web browser and choose the bug-report template. MedScale does not open this link for you.</p>
       <div className="row-gap" style={{ gap: 8, marginBottom: 12 }}>
         <code className="mono t-mono-sm" style={{ userSelect: "all", overflowWrap: "anywhere" }} aria-label="Support address">{SUPPORT_ISSUES_URL}</code>
         <button type="button" className="btn btn-g" onClick={() => copy("link", SUPPORT_ISSUES_URL)}>Copy link</button>
