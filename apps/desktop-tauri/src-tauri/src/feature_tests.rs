@@ -430,11 +430,73 @@ fn every_surface_runs_against_real_core() {
 
     // Knowledge.
     h.ok("knowledge_build", json!({ "projectId": pid }));
-    h.ok(
+    let found = h.ok(
         "knowledge_search",
         json!({ "projectId": pid, "query": "alpha" }),
     );
     h.ok("knowledge_overview", json!({ "projectId": pid }));
+
+    // Research Canvas (R3): create, note, cite a search hit, link, inspect.
+    let receipt_id = found["citable"]["receipt_id"].as_str().unwrap().to_owned();
+    let first_rank = found["citable"]["hits"][0]["rank"]
+        .as_u64()
+        .expect("the search has a citable hit");
+    let v = h.ok(
+        "canvas_create",
+        json!({ "projectId": pid, "title": "Alpha review" }),
+    );
+    let cid = v["canvas"]["header"]["id"].as_str().unwrap().to_owned();
+    let rev = |v: &Value| v["canvas"]["revision"].as_u64().unwrap();
+    let v = h.ok(
+        "canvas_add_note",
+        json!({ "canvasId": cid, "revision": rev(&v), "text": "Alpha appears in the data" }),
+    );
+    assert_eq!(v["unsupported_notes"], json!(["n1"]), "{v}");
+    let v = h.ok(
+        "canvas_cite",
+        json!({ "canvasId": cid, "revision": rev(&v), "receiptId": receipt_id, "rank": first_rank }),
+    );
+    assert_eq!(v["resolutions"][0]["key"], "e1");
+    assert_eq!(v["resolutions"][0]["freshness"], "current");
+    let v = h.ok(
+        "canvas_link",
+        json!({ "canvasId": cid, "revision": rev(&v), "from": "e1", "to": "n1", "relation": "supports" }),
+    );
+    assert_eq!(
+        v["unsupported_notes"],
+        json!([]),
+        "the note is now supported: {v}"
+    );
+    assert!(
+        !v["evidence_coverage"].as_array().unwrap().is_empty(),
+        "{v}"
+    );
+    assert!(v["coverage_hash"].as_str().unwrap().starts_with("sha256:"));
+    // A stale revision is refused, never applied over newer work.
+    assert!(
+        h.call(
+            "canvas_add_note",
+            json!({ "canvasId": cid, "revision": 1, "text": "late" })
+        )
+        .is_err()
+    );
+    assert!(
+        h.call(
+            "canvas_link",
+            json!({ "canvasId": cid, "revision": rev(&v), "from": "e1", "to": "n1", "relation": "endorses" })
+        )
+        .is_err(),
+        "unknown relation"
+    );
+    let v = h.ok(
+        "canvas_remove",
+        json!({ "canvasId": cid, "revision": rev(&v), "key": "e1" }),
+    );
+    assert_eq!(v["unsupported_notes"], json!(["n1"]));
+    assert_eq!(
+        h.ok("canvas_view", json!({ "canvasId": cid }))["canvas"]["revision"],
+        v["canvas"]["revision"]
+    );
 
     // Browse: denied with an empty allowlist, then fetched from the offline fixture.
     let overview = h.ok("browse_overview", json!({ "projectId": pid }));

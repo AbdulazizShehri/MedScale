@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-canvas-create"
+description = "Enables the canvas_create command without any pre-configured scope."
+commands.allow = ["canvas_create"]
+
+[[permission]]
+identifier = "deny-canvas-create"
+description = "Denies the canvas_create command without any pre-configured scope."
+commands.deny = ["canvas_create"]
