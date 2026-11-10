@@ -478,6 +478,8 @@ try {
         ...process.env,
         WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS: `--remote-debugging-port=${DEBUG_PORT}`,
         MEDSCALE_E2E_HEADLESS_SECOND_INSTANCE: "1",
+        // macOS: the embedded WebDriver of the first copy holds its port.
+        TAURI_WEBDRIVER_PORT: String(MAC_WEBDRIVER_PORT + 1),
       },
       stdio: "ignore",
     });
