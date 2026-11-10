@@ -87,6 +87,7 @@ jobs:
       - name: Rust format
         run: cargo fmt --manifest-path apps/desktop-tauri/src-tauri/Cargo.toml -- --check
       - name: Rust Clippy and tests
+        shell: bash
         run: |
           cargo clippy --manifest-path apps/desktop-tauri/src-tauri/Cargo.toml --features custom-protocol --all-targets --locked -- -D warnings
           if [ "$RUNNER_OS" = "Linux" ]; then
@@ -189,7 +190,7 @@ jobs:
       - name: Linux glib is the vendored copy with the RUSTSEC-2024-0429 fix
         run: |
           set -euo pipefail
-          glib=$(cargo tree -q --locked --all-features --manifest-path apps/desktop-tauri/src-tauri/Cargo.toml             --target x86_64-unknown-linux-gnu -e normal,build --prefix none | grep -E '^glib v' | sort -u)
+          glib=$(cargo tree -q --locked --all-features --manifest-path apps/desktop-tauri/src-tauri/Cargo.toml             --target x86_64-unknown-linux-gnu -e normal,build --prefix none | grep -E '^glib v' | sed 's/ (\*)$//' | sort -u)
           echo "$glib"
           if [ "$(echo "$glib" | wc -l)" -ne 1 ] || ! echo "$glib" | grep -q 'vendor/glib-0.18.5'; then
             echo "::error::the Linux graph must use exactly vendor/glib-0.18.5"; exit 1

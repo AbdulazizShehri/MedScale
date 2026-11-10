@@ -25,7 +25,11 @@ shared reference. That is undefined behaviour. The fix makes the binding
 mutable and passes `&mut p`. It is the same change upstream made in
 gtk-rs-core PR #1343, released in glib 0.20.
 
-Nothing else is changed.
+One more line, in `src/lib.rs`: `#![allow(warnings, clippy::all)]`. A path
+dependency gets the repository's `-D warnings`, and rustc 1.97 lints this 2023
+code (`mismatched_lifetime_syntaxes`, `unused_parens`) where a registry crate
+would have its lints capped. `vendor/candle-core-0.9.1` does the same. Nothing
+else is changed.
 
 ## When to remove it
 

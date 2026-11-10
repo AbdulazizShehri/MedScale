@@ -2,6 +2,10 @@
 
 #![cfg_attr(docsrs, feature(doc_cfg))]
 #![allow(clippy::missing_safety_doc)]
+// MedScale: third-party code built as a path dependency, so the repository's
+// `-D warnings` would apply to it; newer rustc lints it never targeted are
+// silenced here (vendor/glib-0.18.5/MEDSCALE_PATCH.md).
+#![allow(warnings, clippy::all)]
 #![allow(renamed_and_removed_lints)]
 #![doc = include_str!("../README.md")]
 
