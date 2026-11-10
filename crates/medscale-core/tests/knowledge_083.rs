@@ -764,7 +764,7 @@ fn a_canvas_holds_live_references_and_inspects_its_evidence() {
     assert!(v.overlapping_evidence.is_empty());
     // Coverage: the chart cell supports the claim; the visit contradicts the
     // question. Each kind of source is its own cell.
-    let cell = |note: &str, class: &str, state| NoteCoverage {
+    let coverage_cell = |note: &str, class: &str, state| NoteCoverage {
         note: note.to_owned(),
         evidence_class: class.to_owned(),
         state,
@@ -773,8 +773,8 @@ fn a_canvas_holds_live_references_and_inspects_its_evidence() {
     assert_eq!(
         v.evidence_coverage,
         vec![
-            cell("claim", "data_snapshot", CoverageState::Present),
-            cell("question", "transcript", CoverageState::Conflicting),
+            coverage_cell("claim", "data_snapshot", CoverageState::Present),
+            coverage_cell("question", "transcript", CoverageState::Conflicting),
         ]
     );
     assert!(v.coverage_hash.starts_with("sha256:") && v.coverage_hash.len() == 71);
