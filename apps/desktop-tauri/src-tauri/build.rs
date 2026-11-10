@@ -39,6 +39,8 @@ fn main() {
             "vault_recovery_items",
             "vault_recovery_delete",
             "vault_recovery_restore",
+            "vault_backup",
+            "vault_restore",
             "workspace_lock",
             "patients_list",
             "patient_detail",

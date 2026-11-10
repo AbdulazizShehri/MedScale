@@ -272,6 +272,10 @@ pub fn vault_recovery_restore(host: tauri::State<'_, Host>, id: String) -> CmdRe
 #[tauri::command(async)]
 pub fn workspace_lock(host: tauri::State<'_, Host>) -> CmdResult<()> {
     let mut state = lock(&host)?;
+    seal_and_close(&mut state)
+}
+
+fn seal_and_close(state: &mut State) -> CmdResult<()> {
     // Seal first: if Core cannot seal the encrypted vault the workspace stays
     // open so nothing written since unlock is lost, and the error is shown.
     if let Some(ws) = state.workspace.as_mut() {
@@ -285,6 +289,49 @@ pub fn workspace_lock(host: tauri::State<'_, Host>) -> CmdResult<()> {
     // Dropping the session releases the lease and the in-memory keys.
     state.workspace = None;
     Ok(())
+}
+
+/// Locks the encrypted vault if it is open, then copies its sealed files into
+/// a new `MedScale-backup-<time>` folder inside the chosen folder and checks
+/// every copied file. The copy stays encrypted under the same passphrase and
+/// recovery codes.
+#[tauri::command(async)]
+pub fn vault_backup(host: tauri::State<'_, Host>, folder: String) -> CmdResult<Value> {
+    let parent = chosen_folder(&folder)?;
+    let mut state = lock(&host)?;
+    if matches!(
+        state.workspace.as_ref().map(|ws| ws.kind),
+        Some(VaultKind::Encrypted)
+    ) {
+        seal_and_close(&mut state)?;
+    }
+    let root = host::encrypted_root(&state)?;
+    host::backup_encrypted(&root, &parent)
+}
+
+/// Replaces the encrypted vault with a backup. The vault it replaces is kept
+/// beside it, never deleted. Only from the lock screen.
+#[tauri::command(async)]
+pub fn vault_restore(host: tauri::State<'_, Host>, folder: String) -> CmdResult<Value> {
+    let backup = chosen_folder(&folder)?;
+    let state = lock(&host)?;
+    if state.workspace.is_some() {
+        return Err(CmdError::invalid(
+            "Invalid: lock the workspace before restoring a backup",
+        ));
+    }
+    let root = host::encrypted_root(&state)?;
+    host::restore_encrypted(&backup, &root)
+}
+
+fn chosen_folder(raw: &str) -> CmdResult<std::path::PathBuf> {
+    let folder = std::path::PathBuf::from(host::bounded_text(raw, 1024)?);
+    if !host::is_local_absolute(&folder) || !folder.is_dir() {
+        return Err(CmdError::invalid(
+            "Invalid: choose an existing folder on this computer",
+        ));
+    }
+    Ok(folder)
 }
 
 // ───────────────────────────── clinical ─────────────────────────────

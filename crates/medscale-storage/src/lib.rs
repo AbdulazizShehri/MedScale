@@ -44,7 +44,10 @@ pub use data_sources::{
     RECEIPT_KIND_TRANSFORMATION, SnapshotRecord, TransformationRecord, list_external_sqlite_tables,
     read_external_sqlite_table, validate_external_identifier,
 };
-pub use encrypted_vault::{EncryptedVault, EncryptedVaultError, WorkSource, default_vault_root};
+pub use encrypted_vault::{
+    BackupReport, EncryptedVault, EncryptedVaultError, RestoreReport, WorkSource,
+    default_vault_root,
+};
 pub use extensions::{EXTENSION_TABLES, InstallChange};
 pub use federation::{FEDERATION_TABLES, FederationChange, ImportedItemRow};
 pub use gc::{GcStats, run_gc};
