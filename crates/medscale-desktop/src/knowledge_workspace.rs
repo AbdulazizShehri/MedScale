@@ -131,7 +131,9 @@ pub fn search(
 }
 
 /// [`search`], also returning the receipt the search left, so a hit can be
-/// cited on a Research Canvas.
+/// cited on a Research Canvas. Used by the Tauri desktop (through
+/// medscale-desktop-vm); this file is also compiled into the older binary.
+#[allow(dead_code)]
 pub fn search_with_receipt(
     session: &mut CliSession,
     project_id: &str,
