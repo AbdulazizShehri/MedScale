@@ -10,7 +10,6 @@ use clap::Subcommand;
 use medscale_contracts::envelopes::AuthorityError;
 use medscale_contracts::institutional::AdapterActRequest;
 use medscale_contracts::objects::OpaqueId;
-use medscale_core::CliSession;
 
 use super::{fail_json, print_json_or_debug};
 
@@ -37,12 +36,8 @@ fn open_session(
     vault_id: &str,
     vault_root: &std::path::Path,
     json: bool,
-) -> anyhow::Result<CliSession> {
-    let mut session = CliSession::connect(vault_id).map_err(|err| adapter_fail(&err, json))?;
-    session
-        .open_synthetic_vault(&vault_root.display().to_string())
-        .map_err(|err| adapter_fail(&err, json))?;
-    Ok(session)
+) -> anyhow::Result<crate::vault_session::VaultSession> {
+    crate::vault_session::open(vault_id, vault_root).map_err(|err| adapter_fail(&err, json))
 }
 
 /// Parses one act strictly.

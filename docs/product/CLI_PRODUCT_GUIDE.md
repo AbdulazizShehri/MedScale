@@ -15,23 +15,38 @@ medscale doctor --json
 ## Patient reads
 
 ```text
-medscale patient show --vault-id demo --subject synthetic-subject --json
-medscale patient timeline --vault-id demo --subject synthetic-subject --json
-medscale patient brief --vault-id demo --subject synthetic-subject --json
-medscale patient coverage --vault-id demo --subject synthetic-subject --json
+medscale patient show --vault-id demo --vault-root <vault folder> --subject synthetic-subject --json
+medscale patient timeline --vault-id demo --vault-root <vault folder> --subject synthetic-subject --json
+medscale patient brief --vault-id demo --vault-root <vault folder> --subject synthetic-subject --json
+medscale patient coverage --vault-id demo --vault-root <vault folder> --subject synthetic-subject --json
 ```
+
+`--vault-root` opens the vault for the read. Leave it out only when a persistent Core Host already has the vault open.
 
 Legacy top-level `timeline`, `brief`, and `coverage` paths remain compatible.
 
 ## Authority and audit reads
 
 ```text
-medscale actions outbox --vault-id demo --json
-medscale audit disclosures --vault-id demo --json
+medscale actions outbox --vault-id demo --vault-root <vault folder> --json
+medscale audit disclosures --vault-id demo --vault-root <vault folder> --json
 medscale fhir support --vault-id demo --json
 ```
 
 Outbox and disclosure commands are read-only. `UNKNOWN` action state is not a retry authorization. FHIR support is a narrow support matrix, not a full-conformance claim.
+
+## Encrypted vaults
+
+Every command that takes `--vault-root` works on an encrypted vault as well as a synthetic one. When the folder holds an encrypted vault, MedScale opens it with the passphrase in `MEDSCALE_PASSPHRASE`, or, if that is unset, a recovery code in `MEDSCALE_RECOVERY_CODE`. It seals the vault again when the command finishes. Any other folder opens as a synthetic vault, as before.
+
+```text
+medscale vault create --vault-id demo --vault-root <vault folder>
+medscale vault open --vault-id demo --vault-root <vault folder> --recovery-code-env MEDSCALE_RECOVERY_CODE
+```
+
+`vault create` prints the recovery codes once, on standard error, so a redirected output log never holds them. Write them down and keep them offline. They can't be shown again.
+
+`REAL_PHI` is still not authorized: an encrypted vault is for synthetic or permitted development data until the founder says otherwise.
 
 ## Vault, Packs, journey, and Host IPC
 

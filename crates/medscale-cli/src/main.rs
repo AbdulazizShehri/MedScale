@@ -32,6 +32,7 @@ mod privacy_gate;
 mod project;
 mod r_workspace;
 mod research_packs;
+mod vault_session;
 
 #[derive(Debug, Parser)]
 #[command(
@@ -74,6 +75,11 @@ enum Commands {
     Timeline {
         #[arg(long)]
         vault_id: String,
+        /// Vault folder to open: encrypted when it holds one (passphrase in
+        /// MEDSCALE_PASSPHRASE or a code in MEDSCALE_RECOVERY_CODE). Omit only
+        /// with a persistent Core Host that already has the vault open.
+        #[arg(long)]
+        vault_root: Option<PathBuf>,
         #[arg(long)]
         subject: String,
         #[arg(long)]
@@ -83,6 +89,11 @@ enum Commands {
     Brief {
         #[arg(long)]
         vault_id: String,
+        /// Vault folder to open: encrypted when it holds one (passphrase in
+        /// MEDSCALE_PASSPHRASE or a code in MEDSCALE_RECOVERY_CODE). Omit only
+        /// with a persistent Core Host that already has the vault open.
+        #[arg(long)]
+        vault_root: Option<PathBuf>,
         #[arg(long)]
         subject: String,
         #[arg(long)]
@@ -92,6 +103,11 @@ enum Commands {
     Coverage {
         #[arg(long)]
         vault_id: String,
+        /// Vault folder to open: encrypted when it holds one (passphrase in
+        /// MEDSCALE_PASSPHRASE or a code in MEDSCALE_RECOVERY_CODE). Omit only
+        /// with a persistent Core Host that already has the vault open.
+        #[arg(long)]
+        vault_root: Option<PathBuf>,
         #[arg(long)]
         subject: String,
         #[arg(long)]
@@ -291,6 +307,11 @@ enum PatientCmd {
     Show {
         #[arg(long)]
         vault_id: String,
+        /// Vault folder to open: encrypted when it holds one (passphrase in
+        /// MEDSCALE_PASSPHRASE or a code in MEDSCALE_RECOVERY_CODE). Omit only
+        /// with a persistent Core Host that already has the vault open.
+        #[arg(long)]
+        vault_root: Option<PathBuf>,
         #[arg(long)]
         subject: String,
         #[arg(long)]
@@ -300,6 +321,11 @@ enum PatientCmd {
     Timeline {
         #[arg(long)]
         vault_id: String,
+        /// Vault folder to open: encrypted when it holds one (passphrase in
+        /// MEDSCALE_PASSPHRASE or a code in MEDSCALE_RECOVERY_CODE). Omit only
+        /// with a persistent Core Host that already has the vault open.
+        #[arg(long)]
+        vault_root: Option<PathBuf>,
         #[arg(long)]
         subject: String,
         #[arg(long)]
@@ -309,6 +335,11 @@ enum PatientCmd {
     Brief {
         #[arg(long)]
         vault_id: String,
+        /// Vault folder to open: encrypted when it holds one (passphrase in
+        /// MEDSCALE_PASSPHRASE or a code in MEDSCALE_RECOVERY_CODE). Omit only
+        /// with a persistent Core Host that already has the vault open.
+        #[arg(long)]
+        vault_root: Option<PathBuf>,
         #[arg(long)]
         subject: String,
         #[arg(long)]
@@ -318,6 +349,11 @@ enum PatientCmd {
     Coverage {
         #[arg(long)]
         vault_id: String,
+        /// Vault folder to open: encrypted when it holds one (passphrase in
+        /// MEDSCALE_PASSPHRASE or a code in MEDSCALE_RECOVERY_CODE). Omit only
+        /// with a persistent Core Host that already has the vault open.
+        #[arg(long)]
+        vault_root: Option<PathBuf>,
         #[arg(long)]
         subject: String,
         #[arg(long)]
@@ -331,6 +367,11 @@ enum ActionsCmd {
     Outbox {
         #[arg(long)]
         vault_id: String,
+        /// Vault folder to open: encrypted when it holds one (passphrase in
+        /// MEDSCALE_PASSPHRASE or a code in MEDSCALE_RECOVERY_CODE). Omit only
+        /// with a persistent Core Host that already has the vault open.
+        #[arg(long)]
+        vault_root: Option<PathBuf>,
         #[arg(long)]
         json: bool,
     },
@@ -342,6 +383,11 @@ enum AuditCmd {
     Disclosures {
         #[arg(long)]
         vault_id: String,
+        /// Vault folder to open: encrypted when it holds one (passphrase in
+        /// MEDSCALE_PASSPHRASE or a code in MEDSCALE_RECOVERY_CODE). Omit only
+        /// with a persistent Core Host that already has the vault open.
+        #[arg(long)]
+        vault_root: Option<PathBuf>,
         #[arg(long)]
         json: bool,
     },
@@ -376,6 +422,10 @@ enum VaultCmd {
         vault_root: PathBuf,
         #[arg(long, default_value = "MEDSCALE_PASSPHRASE")]
         passphrase_env: String,
+        /// Open with a recovery code from this environment variable instead
+        /// of the passphrase (never argv).
+        #[arg(long)]
+        recovery_code_env: Option<String>,
     },
     OpenSynthetic {
         #[arg(long)]
@@ -1018,6 +1068,11 @@ fn run() -> Result<()> {
                 println!("vault_created: {}", vault_root.display());
                 println!("vault_sealed: true");
                 println!("recovery_codes_count: {}", codes.len());
+                // Shown once, on stderr so a redirected stdout log never holds them.
+                eprintln!("recovery codes (shown once; write them down and keep them offline):");
+                for code in &codes {
+                    eprintln!("  {code}");
+                }
                 println!("note: store recovery codes offline; not re-printed by doctor");
                 Ok(())
             }
@@ -1025,10 +1080,20 @@ fn run() -> Result<()> {
                 vault_id,
                 vault_root,
                 passphrase_env,
+                recovery_code_env,
             } => {
-                let pw = std::env::var(&passphrase_env)
-                    .with_context(|| format!("set passphrase in env var {passphrase_env}"))?;
-                vault_open_sealed(&vault_id, &vault_root, &pw)?;
+                let secret = match &recovery_code_env {
+                    Some(env) => VaultSecret::RecoveryCode(
+                        std::env::var(env)
+                            .with_context(|| format!("set the recovery code in env var {env}"))?,
+                    ),
+                    None => {
+                        VaultSecret::Passphrase(std::env::var(&passphrase_env).with_context(
+                            || format!("set passphrase in env var {passphrase_env}"),
+                        )?)
+                    }
+                };
+                vault_open_sealed_with(&vault_id, &vault_root, &secret)?;
                 println!("vault_open: {}", vault_root.display());
                 println!("vault_sealed: true");
                 Ok(())
@@ -1066,38 +1131,46 @@ fn run() -> Result<()> {
         }
         Commands::Timeline {
             vault_id,
+            vault_root,
             subject,
             json,
         } => {
-            let mut session = CliSession::connect(&vault_id).map_err(auth)?;
+            let mut session =
+                vault_session::open_or_connect(&vault_id, vault_root.as_deref()).map_err(auth)?;
             let body = session.timeline(&subject).map_err(auth)?;
             print_json_or_debug(&body, json)
         }
         Commands::Brief {
             vault_id,
+            vault_root,
             subject,
             json,
         } => {
-            let mut session = CliSession::connect(&vault_id).map_err(auth)?;
+            let mut session =
+                vault_session::open_or_connect(&vault_id, vault_root.as_deref()).map_err(auth)?;
             let body = session.brief(&subject).map_err(auth)?;
             print_json_or_debug(&body, json)
         }
         Commands::Coverage {
             vault_id,
+            vault_root,
             subject,
             json,
         } => {
-            let mut session = CliSession::connect(&vault_id).map_err(auth)?;
+            let mut session =
+                vault_session::open_or_connect(&vault_id, vault_root.as_deref()).map_err(auth)?;
             let body = session.coverage(&subject).map_err(auth)?;
             print_json_or_debug(&body, json)
         }
         Commands::Patient { action } => match action {
             PatientCmd::Show {
                 vault_id,
+                vault_root,
                 subject,
                 json,
             } => {
-                let mut session = CliSession::connect(&vault_id).map_err(auth)?;
+                let mut session = vault_session::open_or_connect(&vault_id, vault_root.as_deref())
+                    .map_err(auth)?;
                 let timeline = session.timeline(&subject).map_err(auth)?;
                 let brief = session.brief(&subject).map_err(auth)?;
                 let coverage = session.coverage(&subject).map_err(auth)?;
@@ -1122,35 +1195,46 @@ fn run() -> Result<()> {
             }
             PatientCmd::Timeline {
                 vault_id,
+                vault_root,
                 subject,
                 json,
             } => {
-                let mut session = CliSession::connect(&vault_id).map_err(auth)?;
+                let mut session = vault_session::open_or_connect(&vault_id, vault_root.as_deref())
+                    .map_err(auth)?;
                 let body = session.timeline(&subject).map_err(auth)?;
                 print_json_or_debug(&body, json)
             }
             PatientCmd::Brief {
                 vault_id,
+                vault_root,
                 subject,
                 json,
             } => {
-                let mut session = CliSession::connect(&vault_id).map_err(auth)?;
+                let mut session = vault_session::open_or_connect(&vault_id, vault_root.as_deref())
+                    .map_err(auth)?;
                 let body = session.brief(&subject).map_err(auth)?;
                 print_json_or_debug(&body, json)
             }
             PatientCmd::Coverage {
                 vault_id,
+                vault_root,
                 subject,
                 json,
             } => {
-                let mut session = CliSession::connect(&vault_id).map_err(auth)?;
+                let mut session = vault_session::open_or_connect(&vault_id, vault_root.as_deref())
+                    .map_err(auth)?;
                 let body = session.coverage(&subject).map_err(auth)?;
                 print_json_or_debug(&body, json)
             }
         },
         Commands::Actions { action } => match action {
-            ActionsCmd::Outbox { vault_id, json } => {
-                let mut session = CliSession::connect(&vault_id).map_err(auth)?;
+            ActionsCmd::Outbox {
+                vault_id,
+                vault_root,
+                json,
+            } => {
+                let mut session = vault_session::open_or_connect(&vault_id, vault_root.as_deref())
+                    .map_err(auth)?;
                 let entries = session.outbox().map_err(auth)?;
                 if json {
                     println!("{}", serde_json::to_string_pretty(&entries)?);
@@ -1172,8 +1256,13 @@ fn run() -> Result<()> {
             }
         },
         Commands::Audit { action } => match action {
-            AuditCmd::Disclosures { vault_id, json } => {
-                let mut session = CliSession::connect(&vault_id).map_err(auth)?;
+            AuditCmd::Disclosures {
+                vault_id,
+                vault_root,
+                json,
+            } => {
+                let mut session = vault_session::open_or_connect(&vault_id, vault_root.as_deref())
+                    .map_err(auth)?;
                 let records = session.disclosures().map_err(auth)?;
                 if json {
                     println!("{}", serde_json::to_string_pretty(&records)?);
@@ -1540,11 +1629,31 @@ fn vault_create_sealed(vault_id: &str, vault_root: &Path, passphrase: &str) -> R
 
 /// Opens (verifies the passphrase for) an encrypted vault and seals it again
 /// before returning, for the same reason as [`vault_create_sealed`].
+#[cfg(test)]
 fn vault_open_sealed(vault_id: &str, vault_root: &Path, passphrase: &str) -> Result<()> {
+    vault_open_sealed_with(
+        vault_id,
+        vault_root,
+        &VaultSecret::Passphrase(passphrase.to_owned()),
+    )
+}
+
+/// What opens an encrypted vault.
+enum VaultSecret {
+    Passphrase(String),
+    RecoveryCode(String),
+}
+
+fn vault_open_sealed_with(vault_id: &str, vault_root: &Path, secret: &VaultSecret) -> Result<()> {
     let mut session = CliSession::connect(vault_id).map_err(auth)?;
-    session
-        .open_encrypted_vault(&vault_root.display().to_string(), passphrase)
-        .map_err(auth)?;
+    let root = vault_root.display().to_string();
+    match secret {
+        VaultSecret::Passphrase(passphrase) => session.open_encrypted_vault(&root, passphrase),
+        VaultSecret::RecoveryCode(code) => {
+            session.open_encrypted_vault_with_recovery_code(&root, code)
+        }
+    }
+    .map_err(auth)?;
     match session.last_open_outcome() {
         Some(medscale_contracts::envelopes::VaultOpenOutcome::RecoveredInterruptedSession) => {
             eprintln!(

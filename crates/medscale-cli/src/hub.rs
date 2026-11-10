@@ -12,7 +12,6 @@ use clap::Subcommand;
 use medscale_contracts::envelopes::AuthorityError;
 use medscale_contracts::hub::{HubEvent, HubEventKind, HubInvitationCode, SyncIntent, SyncOutcome};
 use medscale_contracts::objects::OpaqueId;
-use medscale_core::CliSession;
 use medscale_core::hub_sync::{self, IpcHubTransport};
 
 use super::{fail_json, print_json_or_debug};
@@ -41,12 +40,8 @@ fn open_session(
     vault_id: &str,
     vault_root: &std::path::Path,
     json: bool,
-) -> anyhow::Result<CliSession> {
-    let mut session = CliSession::connect(vault_id).map_err(|err| hub_fail(&err, json))?;
-    session
-        .open_synthetic_vault(&vault_root.display().to_string())
-        .map_err(|err| hub_fail(&err, json))?;
-    Ok(session)
+) -> anyhow::Result<crate::vault_session::VaultSession> {
+    crate::vault_session::open(vault_id, vault_root).map_err(|err| hub_fail(&err, json))
 }
 
 fn outcome_label(o: &SyncOutcome) -> String {
@@ -514,6 +509,7 @@ pub fn run_hub(cmd: HubCmd) -> anyhow::Result<()> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use medscale_core::CliSession;
 
     #[test]
     fn hub_commands_run_through_core_over_local_ipc() {

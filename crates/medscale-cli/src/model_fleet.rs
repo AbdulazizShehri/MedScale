@@ -16,7 +16,6 @@ use medscale_contracts::model_fleet::{
     AgentLane, AgentLaneStatus, ComparisonReport, FleetRun, FleetRunState, LaneRunRef,
 };
 use medscale_contracts::objects::OpaqueId;
-use medscale_core::CliSession;
 
 use super::{fail_json, print_json_or_debug};
 
@@ -50,12 +49,8 @@ fn open_fleet_session(
     vault_id: &str,
     vault_root: &std::path::Path,
     json: bool,
-) -> anyhow::Result<CliSession> {
-    let mut session = CliSession::connect(vault_id).map_err(|err| fleet_fail(&err, json))?;
-    session
-        .open_synthetic_vault(&vault_root.display().to_string())
-        .map_err(|err| fleet_fail(&err, json))?;
-    Ok(session)
+) -> anyhow::Result<crate::vault_session::VaultSession> {
+    crate::vault_session::open(vault_id, vault_root).map_err(|err| fleet_fail(&err, json))
 }
 
 fn parse_tool_kinds(value: &str) -> Result<Vec<ToolKind>, String> {
@@ -623,6 +618,7 @@ mod tests {
     use medscale_contracts::project_graph::{
         ArtifactDescriptor, ArtifactKind, ArtifactVersionBinding,
     };
+    use medscale_core::CliSession;
 
     const VAULT: &str = "cli-fleet";
 
