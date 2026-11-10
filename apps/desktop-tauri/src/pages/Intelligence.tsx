@@ -1,6 +1,6 @@
 import { useEffect, useState, type FormEvent } from "react";
 import { formatDecimalMegabytes } from "../model-storage";
-import { useAction, useCommand } from "../lib/ipc";
+import { useAction, useCommand, type CmdError } from "../lib/ipc";
 import { ProjectScope } from "../components/project";
 import { Authority, Empty, ErrorState, Glyph, Icon, KV, Ledger, Notice, PageHead, Section, Skeleton, Status, glyphFor, useOutcome, LoadError } from "../components/ui";
 
@@ -218,6 +218,8 @@ function MedAgentBody({ projectId }: { projectId: string }) {
   const [agentId, setAgentId] = useState("");
   const [picked, setPicked] = useState<string[]>([]);
   const [proposal, setProposal] = useState<unknown>(null);
+  // The last execute refusal, kept on screen with the run it belongs to.
+  const [refusal, setRefusal] = useState<{ runId: string; error: CmdError } | null>(null);
   const [newAgent, setNewAgent] = useState<{ name: string; packId: string; tools: string[] } | null>(null);
   const [packPath, setPackPath] = useState("");
   const desktop = useCommand<{ external_packs_allowed: boolean }>("workspace_status");
@@ -252,7 +254,8 @@ function MedAgentBody({ projectId }: { projectId: string }) {
   async function execute() {
     if (!cur) return;
     const r = await run<{ turn: unknown; proposal: unknown }>("execute", "medagent_execute", { runId: cur.id });
-    if (outcome(r, "Run executed · proposal recorded")) { setProposal(r.data.proposal); await after(); }
+    if (outcome(r, "Run executed · proposal recorded")) { setRefusal(null); setProposal(r.data.proposal); await after(); }
+    else if (!r.ok) { setRefusal({ runId: cur.id, error: r.error }); await after(); }
   }
   async function createAgent(e: FormEvent) {
     e.preventDefault();
@@ -278,7 +281,7 @@ function MedAgentBody({ projectId }: { projectId: string }) {
           {runs.state.status === "error" && <ErrorState error={runs.state.error} onRetry={runs.reload} />}
           {list.length === 0 && runs.state.status === "ready" && <p className="t-sm i3">No runs yet.</p>}
           {list.map((r) => (
-            <button type="button" key={r.id} className={`lr clickable ${sel === r.id ? "sel" : ""}`} style={{ gridTemplateColumns: "minmax(0,1fr) auto", width: "100%", textAlign: "left" }} onClick={() => { setSel(r.id); setProposal(null); }}>
+            <button type="button" key={r.id} className={`lr clickable ${sel === r.id ? "sel" : ""}`} style={{ gridTemplateColumns: "minmax(0,1fr) auto", width: "100%", textAlign: "left" }} onClick={() => { setSel(r.id); setProposal(null); setRefusal(null); }}>
               <span style={{ display: "flex", flexDirection: "column", minWidth: 0 }}><span className="trunc">{r.prompt}</span><span className="mono t-mono-sm i3 trunc">{r.id}</span></span>
               <Status kind={glyphFor(r.status)} weight="weak">{r.status}</Status>
             </button>
@@ -319,6 +322,9 @@ function MedAgentBody({ projectId }: { projectId: string }) {
             <button type="button" className="btn btn-s" onClick={() => step("medagent_complete", "Run completed · receipt recorded")} disabled={!!pending || cur.status !== "running"}>Complete</button>
             <button type="button" className="btn btn-g" onClick={() => step("medagent_cancel", "Run cancelled")} disabled={!!pending || ["completed", "cancelled", "failed"].includes(cur.status)}>Cancel</button>
           </div>
+          {refusal?.runId === cur.id && <ErrorState error={refusal.error} />}
+          {d && d.evidence.length > 0 && d.evidence.every((e) => e.resolution !== "current") && cur.status !== "completed" && cur.status !== "cancelled" && cur.status !== "failed" && refusal?.runId !== cur.id &&
+            <Notice kind="blocked" title="Execute will be refused.">None of this run&apos;s sources is still current, so Core won&apos;t run the model. Create a new run with current sources.</Notice>}
           {proposal !== null && <Section title="Proposal" count="not accepted">
             <div style={{ border: "1px dashed var(--line-strong)", borderRadius: "var(--r-2)", padding: "12px 14px" }}>
               <Status kind="proposal" weight="strong">Proposal</Status>
@@ -498,6 +504,8 @@ function TurnPayload({ payload }: { payload: string }) {
   try { const parsed: unknown = JSON.parse(payload); if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) v = parsed as Record<string, unknown>; } catch { /* raw text */ }
   if (!v) return <span className="mono t-mono-sm i2" style={{ whiteSpace: "pre-wrap", wordBreak: "break-word" }}>{payload}</span>;
   if (typeof v.prompt === "string" && Object.keys(v).length === 1) return <span className="t-sm">“{v.prompt}”</span>;
+  // Core records a refused tool call as {status: "refused", reason}.
+  if (v.status === "refused") return <span className="row-gap" style={{ gap: 8, alignItems: "baseline" }}><Status kind="blocked" weight="strong">Refused</Status><span className="t-sm i2 wrap-any">{typeof v.reason === "string" ? v.reason : "No reason recorded"}</span></span>;
   const preds = Array.isArray(v.predictions) ? (v.predictions as Array<Record<string, unknown>>) : null;
   if (preds) {
     const { predictions: _p, note, ...meta } = v;
