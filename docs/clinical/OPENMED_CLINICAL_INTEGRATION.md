@@ -43,7 +43,7 @@ MedScale's Core can't run Python, R or shell code (founder decision 2026-09-23),
 | `sdoh_sensitive_use` | #478 | yes | yes | no | no | no | no |
 | `summary_citations` | #477 | yes | yes | no | no | no | no |
 | `summary_demographic_minimizer` | #478 | yes | yes | no | no | no | no |
-| `summary_empty_evidence` | #478 | yes | yes | no | no | no | no |
+| `summary_empty_evidence` | #478 | yes | yes | yes (#482) | yes: MedAgent run execution (#482) | no | no |
 | `summary_length_budget` | #478 | yes | yes | no | no | no | no |
 | `summary_omission_budget` | #478 | yes | yes | no | no | no | no |
 | `summary_output_normalizer` | #478 | yes | yes | no | no | no | no |
@@ -75,6 +75,8 @@ Three upstream test files exercise modules not shipped here (the SDOH extractor 
 ## Where each port runs
 
 - **Evidence-span audit:** `CanvasView` (Core) inspects each Canvas revision for evidence nodes whose spans overlap within one source location (exact, nested or partial). Cross-location pairs are dropped because their offsets count different text. The CLI `knowledge canvas-show` prints the pairs. The desktop app lists canvases but does not show canvas views yet, so this is not desktop-verified.
+
+- **Empty-evidence gate:** `execute_agent_run` (Core) re-resolves the run's context before the model runs. Only artifacts that are current now are cited on the proposal; missing, stale, out-of-scope, unsupported or corrupt ones are left out, and with none left the run is refused (`StaleReference`, code `empty_approved_evidence`) without generating anything. A fleet lane closes as failed with reason `no_current_evidence`. Desktop runs use the same path, but no desktop journey exercises the refusal yet.
 
 ## Qualification status
 
