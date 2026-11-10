@@ -10,7 +10,7 @@ Found something not on this list? [Open an issue](https://github.com/AbdulazizSh
 
 - **Windows x64:** the installer is unsigned. What SmartScreen shows a person who downloads it through a browser has not been measured.
 - **macOS Apple silicon:** not ready. The app is only ad-hoc signed, with no Developer ID and no notarization, so Gatekeeper blocks a downloaded copy. VoiceOver has not been run, and the full journey has not been run on the DMG. The signing and notarization workflow exists but has never run.
-- **Linux desktop:** deferred. No desktop package exists.
+- **Linux desktop:** Engineering build only: an unsigned x86_64 `.deb` (and an unqualified `.rpm`) built on Ubuntu 22.04 in CI, installed, launched under Xvfb and removed on a disposable runner. No user-journey E2E on Linux yet, and no AppImage.
 - **Not tested:** power loss, a wide range of real desktop hardware, and Intel Macs.
 
 ## Build and release

@@ -10,7 +10,7 @@ MedScale Beta is a free, open-source, local-first desktop health AI workspace. G
 |---|---|
 | Windows x64 | First target. Tested on Windows 11. The installer is unsigned. |
 | macOS Apple silicon | Planned. Not ready until Developer ID signing and notarization exist and VoiceOver has been run. |
-| Linux desktop | Deferred. No desktop package exists. The Core and CLI are tested on Linux. |
+| Linux desktop | Engineering build only: an unsigned x86_64 `.deb` (and an unqualified `.rpm`) built on Ubuntu 22.04 in CI, installed, launched under Xvfb and removed on a disposable runner. No user-journey E2E on Linux yet, and no AppImage. The Core and CLI are tested on Linux. |
 
 Only the newest Beta release gets fixes. If you report a problem on an older build, we will ask you to try the newest one first. No Beta release has been published yet; see the [release packet](RELEASE_PACKET.md) for the current candidate and [known issues](KNOWN_ISSUES.md) for what is still open.
 

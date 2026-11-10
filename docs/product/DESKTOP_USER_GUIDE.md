@@ -2,7 +2,7 @@
 
 MedScale is an engineering preview for **synthetic health workspaces** and optional, deliberately selected, licensed **nonpatient audio**. It is not clinically validated; real patient records, PHI and clinical decisions are not authorized. Every model output is a **proposal**; nothing becomes a record until a person accepts it through review. The [first-run guide](../BETA_FIRST_RUN.md) and [qualification record](../qualification/EXTERNAL_GATES.md) define the release and privacy boundaries.
 
-The desktop runs on **Windows and macOS**. A Linux desktop waits on an upstream Tauri change (`TAURI_LINUX_DESKTOP_GTK3`); the CLI runs on Linux.
+The desktop runs on **Windows and macOS**, and on **Linux** (x86_64, Ubuntu 22.04 or newer) as an unsigned engineering `.deb`. The CLI runs on all three.
 
 ## 1. Open a workspace
 

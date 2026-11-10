@@ -51,10 +51,10 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        # Shipped desktop platforms only. A Linux desktop waits on an upstream
-        # Tauri move off GTK 3 / glib 0.18 (EXTERNAL_GATES.md,
-        # TAURI_GLIB_ADVISORY_F096_T01); the Linux CLI and Core are covered by ci.yml.
-        os: [windows-latest, macos-latest]
+        # Shipped desktop platforms. Linux builds on Ubuntu 22.04 so the .deb
+        # runs on 22.04 and newer (glibc and WebKitGTK 4.1 baselines). Its glib
+        # is the vendored copy with the RUSTSEC-2024-0429 fix.
+        os: [windows-latest, macos-latest, ubuntu-22.04]
     steps:
       - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v4
         with:
@@ -71,6 +71,11 @@ jobs:
       - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2
         with:
           workspaces: apps/desktop-tauri/src-tauri -> target
+      - name: Linux system libraries for Tauri (WebKitGTK 4.1, GTK 3)
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends libwebkit2gtk-4.1-dev libgtk-3-dev             libayatana-appindicator3-dev librsvg2-dev libsoup-3.0-dev libjavascriptcoregtk-4.1-dev             patchelf xvfb xdg-utils rpm
       - name: Install locked frontend without lifecycle scripts
         working-directory: apps/desktop-tauri
         run: npm ci --ignore-scripts --no-audit --no-fund
@@ -84,7 +89,11 @@ jobs:
       - name: Rust Clippy and tests
         run: |
           cargo clippy --manifest-path apps/desktop-tauri/src-tauri/Cargo.toml --features custom-protocol --all-targets --locked -- -D warnings
-          cargo test --manifest-path apps/desktop-tauri/src-tauri/Cargo.toml --features custom-protocol --locked
+          if [ "$RUNNER_OS" = "Linux" ]; then
+            xvfb-run -a cargo test --manifest-path apps/desktop-tauri/src-tauri/Cargo.toml --features custom-protocol --locked
+          else
+            cargo test --manifest-path apps/desktop-tauri/src-tauri/Cargo.toml --features custom-protocol --locked
+          fi
       - name: Build native preview
         run: cargo build --manifest-path apps/desktop-tauri/src-tauri/Cargo.toml --features custom-protocol --release --locked
       - name: Package unqualified preview with sources and notices
@@ -100,6 +109,7 @@ jobs:
           case "$RUNNER_OS" in
             Windows) bundles=nsis; sign=--no-sign ;;
             macOS) bundles=app,dmg; sign= ;;
+            Linux) bundles=deb,rpm; sign= ;;
           esac
           npm run tauri -- build --bundles "$bundles" $sign --ci --features custom-protocol -- --locked
       - name: Record build-time tool hashes (Spec 101 FR-003)
@@ -113,7 +123,7 @@ jobs:
         shell: pwsh
         run: |
           ./scripts/package-tauri-release.ps1
-          $platform = if ($IsWindows) { 'windows' } else { 'macos' }
+          $platform = if ($IsWindows) { 'windows' } elseif ($IsMacOS) { 'macos' } else { 'linux' }
           ./scripts/verify-tauri-release.ps1 -Root "target/tauri-release/$platform" -ExpectedSourceSha '${{ github.event.pull_request.head.sha || github.sha }}'
           ./scripts/test-verify-tauri-release.ps1
       - name: Install, launch and uninstall qualification (Spec 101 T101-07)
@@ -124,6 +134,17 @@ jobs:
         if: runner.os == 'macOS'
         shell: pwsh
         run: ./scripts/qualify-tauri-package-macos.ps1 -ReleaseRoot target/tauri-release/macos -ReportPath target/tauri-release-qualification/macos.json
+      - name: Package install, launch and removal qualification (Spec 101 T101-09)
+        if: runner.os == 'Linux'
+        shell: pwsh
+        run: ./scripts/qualify-tauri-package-linux.ps1 -ReleaseRoot target/tauri-release/linux -ReportPath target/tauri-release-qualification/linux.json
+      - name: Keep the unqualified rpm beside the release set
+        if: runner.os == 'Linux'
+        shell: bash
+        run: |
+          mkdir -p target/tauri-release-extra
+          cp apps/desktop-tauri/src-tauri/target/release/bundle/rpm/*.rpm target/tauri-release-extra/
+          (cd target/tauri-release-extra && sha256sum *.rpm > SHA256SUMS)
       - uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v4.6.2
         if: ${{ !cancelled() }}
         with:
@@ -131,6 +152,7 @@ jobs:
           path: |
             target/tauri-release/
             target/tauri-release-qualification/
+            target/tauri-release-extra/
           if-no-files-found: warn
           retention-days: 30
           compression-level: 0
@@ -156,7 +178,7 @@ jobs:
         # Same advisories, licenses, bans and sources as deny.toml; only the
         # graph is limited to Windows and macOS. No advisory is ignored.
         run: python3 scripts/ci/tauri_deny_config.py deny.toml deny-tauri.toml
-      - name: Shipped desktop graphs contain no GTK or glib crate
+      - name: Windows and macOS graphs contain no GTK or glib crate
         run: |
           set -euo pipefail
           for target in x86_64-pc-windows-msvc aarch64-pc-windows-msvc x86_64-apple-darwin aarch64-apple-darwin; do
@@ -164,6 +186,14 @@ jobs:
             if [ -n "$found" ]; then echo "::error::$target graph contains: $found"; exit 1; fi
             echo "$target: no GTK/glib crates"
           done
+      - name: Linux glib is the vendored copy with the RUSTSEC-2024-0429 fix
+        run: |
+          set -euo pipefail
+          glib=$(cargo tree -q --locked --all-features --manifest-path apps/desktop-tauri/src-tauri/Cargo.toml             --target x86_64-unknown-linux-gnu -e normal,build --prefix none | grep -E '^glib v' | sort -u)
+          echo "$glib"
+          if [ "$(echo "$glib" | wc -l)" -ne 1 ] || ! echo "$glib" | grep -q 'vendor/glib-0.18.5'; then
+            echo "::error::the Linux graph must use exactly vendor/glib-0.18.5"; exit 1
+          fi
       - uses: EmbarkStudios/cargo-deny-action@3c6349835b2b7b196a839186cb8b78e02f7b5f25 # v2
         with:
           command: check
