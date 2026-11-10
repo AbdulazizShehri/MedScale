@@ -49,9 +49,18 @@ foreach ($id in ($seen | Sort-Object)) {
     if ($p.name -in 'openssl-src', 'libsqlite3-sys') {
         $files += @(Get-ChildItem -LiteralPath $dir -Recurse -Depth 2 -File | Where-Object { $_.Name -match '^(LICENSE|LICENCE|COPYING)' -and $_.DirectoryName -ne $dir })
     }
-    if (-not $files.Count) { throw "no license file for $($p.name) $($p.version)" }
     $dest = Join-Path $stage "licenses/$($p.name)-$($p.version)"
     New-Item -ItemType Directory -Path $dest -Force | Out-Null
+    if (-not $files.Count) {
+        # A few crates publish no license file. Record what the crate declares.
+        if (-not $p.license) { throw "no license file or declared license for $($p.name) $($p.version)" }
+        @"
+$($p.name) $($p.version) ships no license file in its published crate.
+Declared license (Cargo.toml): $($p.license)
+Authors: $(@($p.authors) -join ', ')
+Repository: $($p.repository)
+"@ | Set-Content -LiteralPath (Join-Path $dest 'DECLARED-LICENSE.txt') -Encoding utf8
+    }
     foreach ($f in $files) {
         $rel = $f.FullName.Substring($dir.Length + 1) -replace '[\\/]', '__'
         Copy-Item -LiteralPath $f.FullName -Destination (Join-Path $dest $rel)
