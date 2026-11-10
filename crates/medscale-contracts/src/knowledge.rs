@@ -652,6 +652,33 @@ pub struct EvidenceOverlap {
     pub second: String,
 }
 
+/// How well one note is covered by one kind of evidence source.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum CoverageState {
+    /// Current evidence of this kind supports the note.
+    Present,
+    /// The evidence of this kind linked to the note is no longer readable.
+    Missing,
+    /// Evidence of this kind both supports and contradicts the note, or
+    /// current evidence contradicts it.
+    Conflicting,
+    /// The evidence of this kind linked to the note has been superseded.
+    Unreviewed,
+}
+
+/// One cell of a Canvas's evidence coverage: a note and one kind of source
+/// (`data_snapshot`, `analytics_result`, `transcript` or `web_evidence`).
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct NoteCoverage {
+    pub note: String,
+    pub evidence_class: String,
+    pub state: CoverageState,
+    /// Distinct source revisions behind this cell.
+    pub source_count: u32,
+}
+
 /// A Canvas revision with every evidence node resolved live, plus the
 /// contradiction and missing-evidence inspection.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -671,6 +698,12 @@ pub struct CanvasView {
     /// location, so one piece of evidence may be counted twice. Sorted by
     /// kind, then keys.
     pub overlapping_evidence: Vec<EvidenceOverlap>,
+    /// For each note linked to evidence by `supports` or `contradicts`, how
+    /// each kind of source covers it. Sorted by note, then kind.
+    pub evidence_coverage: Vec<NoteCoverage>,
+    /// Hash of the coverage matrix (clinical evidence-coverage report), so a
+    /// review can cite exactly what it saw.
+    pub coverage_hash: String,
 }
 
 /// Summary row for listings.

@@ -12,5 +12,6 @@
 //! resolves them, reads source text, or reaches the network.
 
 pub mod canonical;
+pub mod evidence_coverage;
 pub mod evidence_span_audit;
 pub mod summary_empty_evidence;

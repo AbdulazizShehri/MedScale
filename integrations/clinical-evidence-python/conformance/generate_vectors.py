@@ -23,6 +23,7 @@ sys.path.insert(0, str(PACKAGE_ROOT / "src"))
 
 from medscale_clinical.clinical.evidence_span_audit import audit_evidence_spans  # noqa: E402
 from medscale_clinical.clinical import summary_empty_evidence as see  # noqa: E402
+from medscale_clinical.clinical import evidence_coverage as ec  # noqa: E402
 
 DIGEST = "sha256:" + "ab" * 32
 
@@ -141,7 +142,73 @@ def summary_empty_evidence_vectors() -> dict[str, object]:
     }
 
 
+D1 = "sha256:" + "11" * 32
+D2 = "sha256:" + "22" * 32
+D3 = "sha256:" + "AB" * 32  # upper case is normalized
+
+COVERAGE_CASES: list[tuple[str, list[list[object]]]] = [
+    ("empty", []),
+    ("one_present", [["claim-a", "local_record", "present", [D1]]]),
+    ("missing_and_unreviewed", [
+        ["claim-a", "review_note", "missing", []],
+        ["claim-a", "second_source", "unreviewed", [D2]],
+    ]),
+    ("same_status_merges", [
+        ["claim-a", "local_record", "present", [D1]],
+        ["claim-a", "local_record", "present", [D2]],
+    ]),
+    ("different_statuses_conflict", [
+        ["claim-a", "local_record", "present", [D1]],
+        ["claim-a", "local_record", "missing", []],
+        ["claim-b", "review_note", "unreviewed", []],
+        ["claim-b", "review_note", "present", [D3]],
+    ]),
+    ("private_class_is_hashed", [["claim-a", "transcript_revision", "present", [D1]]]),
+    ("digest_claim_id_kept", [[D2, "imaging", "conflicting", [D1]]]),
+    ("several_claims_sorted", [
+        ["zeta", "lab_result", "present", [D2]],
+        ["alpha", "lab_result", "present", [D1]],
+        ["alpha", "imaging", "missing", []],
+    ]),
+]
+
+COVERAGE_ERRORS: list[tuple[str, list[list[object]]]] = [
+    ("present_without_fingerprint", [["claim-a", "local_record", "present", []]]),
+    ("missing_with_fingerprint", [["claim-a", "local_record", "missing", [D1]]]),
+    ("bad_claim_id", [["-starts-with-dash", "local_record", "missing", []]]),
+]
+
+
+def _coverage_input(rows: list[list[object]]) -> list[dict[str, object]]:
+    return [
+        {"claim_id": c, "required_evidence": [{"evidence_class": k, "status": s, "source_fingerprints": f}]}
+        for c, k, s, f in rows
+    ]
+
+
+def evidence_coverage_vectors() -> dict[str, object]:
+    cases = []
+    for name, rows in COVERAGE_CASES:
+        matrix = ec.build_evidence_coverage_matrix(_coverage_input(rows))
+        cases.append({"name": name, "requirements": rows, "expected": matrix.to_dict(), "expected_json": matrix.to_json()})
+    errors = []
+    for name, rows in COVERAGE_ERRORS:
+        try:
+            ec.build_evidence_coverage_matrix(_coverage_input(rows))
+        except ec.EvidenceCoverageError as exc:
+            errors.append({"name": name, "requirements": rows, "error": str(exc)})
+        else:
+            raise AssertionError(f"{name} was expected to fail")
+    return {
+        "module": "medscale_clinical.clinical.evidence_coverage",
+        "generator": "integrations/clinical-evidence-python/conformance/generate_vectors.py",
+        "cases": cases,
+        "errors": errors,
+    }
+
+
 VECTORS = {
+    "evidence_coverage.json": evidence_coverage_vectors,
     "evidence_span_audit.json": evidence_span_audit_vectors,
     "summary_empty_evidence.json": summary_empty_evidence_vectors,
 }
