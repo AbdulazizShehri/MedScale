@@ -6,7 +6,11 @@
 // `ms:edgeOptions.debuggerAddress` (Microsoft's documented WebView2
 // automation path). Plain HTTP to the WebDriver endpoint. Synthetic data only; the app opens its own synthetic
 // workspace from a fresh data directory. Each step saves a screenshot for
-// visual review. Usage:
+// visual review.
+//
+// Linux: the same journeys through tauri-driver and WebKitWebDriver
+// (WebKitGTK's WebDriver). Each launch starts its own tauri-driver with that
+// launch's environment, so every journey runs unchanged. Usage:
 //   node scripts/e2e/desktop-journey.mjs <path-to-app.exe> <screenshot-dir>
 import fs from "node:fs";
 import os from "node:os";
@@ -16,7 +20,19 @@ import { auditProfiles, auditProfilesWithTransientRetry, hasObservedProfileBytes
 
 const [app, shots = "target/e2e-shots"] = process.argv.slice(2);
 if (!app) throw new Error("usage: desktop-journey.mjs <app> [shots]");
-const WD = process.env.WEBDRIVER_URL ?? "http://127.0.0.1:9515";
+const LINUX = process.platform === "linux";
+const WINDOWS = process.platform === "win32";
+const TAURI_DRIVER_PORT = Number(process.env.TAURI_DRIVER_PORT ?? 4444);
+const WD = process.env.WEBDRIVER_URL ?? (LINUX ? `http://127.0.0.1:${TAURI_DRIVER_PORT}` : "http://127.0.0.1:9515");
+/** Where Tauri keeps app data for this identifier on this OS. */
+const APP_DATA = WINDOWS
+  ? path.join(process.env.LOCALAPPDATA ?? "", "org.medscale.desktop.preview")
+  : path.join(process.env.XDG_DATA_HOME ?? path.join(os.homedir(), ".local", "share"), "org.medscale.desktop.preview");
+/** Ends every copy of the app at once, as a crash would. */
+function killApp() {
+  if (WINDOWS) execFileSync("taskkill", ["/F", "/T", "/IM", path.basename(app)], { stdio: "ignore" });
+  else execFileSync("pkill", ["-9", "-f", path.resolve(app)], { stdio: "ignore" });
+}
 const DEBUG_PORT = Number(process.env.WEBVIEW2_DEBUG_PORT ?? 39517);
 fs.mkdirSync(shots, { recursive: true });
 
@@ -38,7 +54,28 @@ let step = 0;
 const results = [];
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
+async function launchLinux(extraEnv) {
+  child = spawn(process.env.TAURI_DRIVER ?? "tauri-driver", ["--port", String(TAURI_DRIVER_PORT)], {
+    env: { ...process.env, ...extraEnv },
+    stdio: "ignore",
+  });
+  const end = Date.now() + 30000;
+  for (;;) {
+    try {
+      const r = await fetch(`${WD}/status`);
+      if (r.ok) break;
+    } catch {}
+    if (Date.now() > end) throw new Error("tauri-driver did not start");
+    await sleep(250);
+  }
+  const s = await wd("POST", "/session", {
+    capabilities: { alwaysMatch: { browserName: "wry", "tauri:options": { application: path.resolve(app) } } },
+  });
+  sid = s.sessionId;
+}
+
 async function launch(extraEnv = {}) {
+  if (LINUX) return launchLinux(extraEnv);
   child = spawn(path.resolve(app), [], {
     env: { ...process.env, ...extraEnv, WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS: `--remote-debugging-port=${DEBUG_PORT}` },
     stdio: "ignore",
@@ -84,12 +121,16 @@ async function launch(extraEnv = {}) {
   sid = s.sessionId;
 }
 async function quit() {
-  if (sid) await wd("DELETE", `/session/${sid}`).catch(() => {});
+  // An app blocked mid-seed may never answer a close; don't wait forever.
+  if (sid) await Promise.race([wd("DELETE", `/session/${sid}`).catch(() => {}), sleep(15000)]);
   sid = undefined;
   if (child) {
     child.kill();
     await new Promise((r) => (child.exitCode !== null ? r() : child.once("exit", r)));
     child = undefined;
+    // WebKitWebDriver starts the app as its own child; make sure it is gone
+    // before the next launch, or that launch is a refused second instance.
+    if (LINUX) { try { killApp(); } catch {} }
     await sleep(2000);
   }
 }
@@ -859,7 +900,7 @@ try {
   // Spec 108 step 5: an un-openable sample (manifest removed after quit, on
   // a disposable Windows runner only) is set aside and replaced. The
   // set-aside copy holds the earlier user FHIR import.
-  if (process.env.GITHUB_ACTIONS === "true" && process.platform === "win32" && process.env.LOCALAPPDATA) {
+  if (process.env.GITHUB_ACTIONS === "true" && (LINUX || (WINDOWS && process.env.LOCALAPPDATA))) {
     // Spec 109 Part C through the real screens. A throwaway passphrase on a
     // disposable runner. The code is read from the page and never printed,
     // and this journey takes no screenshot because the page shows the codes.
@@ -905,7 +946,7 @@ try {
       await type(`//input[@id='pn']`, "E2E work from before the kill");
       await click(`//button[@type='submit' and ${text("Create project")}]`);
       await see("E2E work from before the kill");
-      execFileSync("taskkill", ["/F", "/T", "/IM", path.basename(app)], { stdio: "ignore" });
+      killApp();
       await quit();
       await launch();
       // A closed encrypted vault opens straight on unlock, with no Welcome first.
@@ -940,7 +981,7 @@ try {
       await find(`//button[starts-with(@aria-label,'Restore Earlier saved copy')]`, 30000);
     }, { screenshot: false });
     await quit();
-    const appData = path.join(process.env.LOCALAPPDATA, "org.medscale.desktop.preview");
+    const appData = APP_DATA;
     const manifest = path.join(appData, "synthetic-workspace.desktop-seed.json");
     if (!fs.existsSync(manifest)) throw new Error("expected the committed sample manifest before breaking it");
     fs.rmSync(manifest);
