@@ -490,9 +490,15 @@ try {
       throw new Error("second MedScale copy did not exit within 30 s");
     }
     if (code !== 3) throw new Error(`second MedScale copy exited ${code}, expected 3 (already running)`);
-    const targets = await (await fetch(`http://127.0.0.1:${DEBUG_PORT}/json/list`)).json();
-    const pages = targets.filter((t) => t.type === "page");
-    if (pages.length !== 1) throw new Error(`expected one MedScale page target, found ${pages.length}`);
+    if (WINDOWS) {
+      const targets = await (await fetch(`http://127.0.0.1:${DEBUG_PORT}/json/list`)).json();
+      const pages = targets.filter((t) => t.type === "page");
+      if (pages.length !== 1) throw new Error(`expected one MedScale page target, found ${pages.length}`);
+    } else {
+      // No DevTools endpoint here: count the app's own window handles instead.
+      const handles = await wd("GET", `/session/${sid}/window/handles`);
+      if (handles.length !== 1) throw new Error(`expected one MedScale window, found ${handles.length}`);
+    }
     await find(`//button[contains(@class,'nav') and ${text("Patients")}]`, 30000);
   }, { screenshot: false });
   await journey("patients", async () => {
