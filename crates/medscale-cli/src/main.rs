@@ -676,9 +676,11 @@ struct CliCapabilityRow {
 }
 
 /// Stable CLI exit codes (Spec 021).
+/// Exit codes are part of the CLI contract (docs/product/CLI_PRODUCT_GUIDE.md).
+/// 2 is clap's usage error, so a `--json` failure has its own code.
 const EXIT_OK: u8 = 0;
 const EXIT_ERROR: u8 = 1;
-const EXIT_JSON_ERROR: u8 = 2;
+const EXIT_JSON_ERROR: u8 = 3;
 
 /// Main-thread stack budget.
 ///

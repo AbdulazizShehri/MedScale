@@ -54,6 +54,21 @@ Use `medscale vault --help`, `medscale packs --help`, `medscale journey --help`,
 
 The current CLI may own a transient in-process Core Host when no persistent host is used. A transient command does not imply a long-running shared-vault session. Use Host IPC when operating an explicitly running Core Host.
 
+## Exit codes and output
+
+| Exit code | Meaning |
+|---|---|
+| 0 | Success |
+| 1 | Failure. The reason is on standard error as `error: ...` |
+| 2 | Usage error: an unknown command, or a missing or invalid argument |
+| 3 | Failure of a command run with `--json`. Standard error holds one JSON object with `error`, `code` and `message`, and standard output is empty |
+
+With `--json`, a successful command prints exactly one JSON value on standard output. Secrets (passphrases, recovery codes) never go to standard output.
+
+## Install
+
+Release archives hold one `medscale` (Windows: `medscale.exe`) binary, `LICENSE`, `NOTICE.md` and `SHA256SUMS`. Nothing else is needed: no Rust toolchain, no runtime and no network. Check the archive with `sha256sum -c SHA256SUMS` (Windows: `Get-FileHash`), unpack it anywhere, and put the folder on `PATH`. Builds are unsigned engineering builds: Windows SmartScreen and macOS Gatekeeper warn on first run. On macOS, remove the quarantine attribute with `xattr -d com.apple.quarantine medscale` only if you checked the hash.
+
 ## Privacy / release boundary
 
 Current product scope is synthetic/permitted development data only. `REAL_PHI` is not authorized. JSON/text output must not contain secrets. `RELEASE_READY`, `PRIVATE_DATA_READY`, `MULTI_CLIENT_RELEASE_READY`, full FHIR conformance, and WCAG conformance remain false unless separately evidenced.
