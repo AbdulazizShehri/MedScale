@@ -159,6 +159,32 @@ fn encrypted_vault_lifecycle_through_the_binary() {
     assert_eq!(code(&out), 0, "{}", text(&out.stderr));
     assert_eq!(json(&out)["projects"].as_array().unwrap().len(), 1);
 
+    // FHIR export from the encrypted vault records a disclosure.
+    let out = medscale()
+        .args([
+            "fhir",
+            "export",
+            "--vault-id",
+            "bin-vault",
+            "--subject",
+            "bin-subject",
+            "--purpose",
+            "binary test",
+            "--json",
+            "--vault-root",
+        ])
+        .arg(&root)
+        .env("MEDSCALE_PASSPHRASE", PASSPHRASE)
+        .output()
+        .unwrap();
+    assert_eq!(code(&out), 0, "{}", text(&out.stderr));
+    let exported = json(&out);
+    assert!(exported["exports"].is_array(), "{exported}");
+    assert!(
+        exported["disclosure"]["disclosure_id"].is_string(),
+        "{exported}"
+    );
+
     // Back up, then restore over the vault: the old one is kept.
     let backups = base.join("backups");
     std::fs::create_dir_all(&backups).unwrap();

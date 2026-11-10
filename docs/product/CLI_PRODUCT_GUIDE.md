@@ -31,9 +31,10 @@ Legacy top-level `timeline`, `brief`, and `coverage` paths remain compatible.
 medscale actions outbox --vault-id demo --vault-root <vault folder> --json
 medscale audit disclosures --vault-id demo --vault-root <vault folder> --json
 medscale fhir support --vault-id demo --json
+medscale fhir export --vault-id demo --vault-root <vault folder> --subject synthetic-subject --purpose "why it leaves" --json
 ```
 
-Outbox and disclosure commands are read-only. `UNKNOWN` action state is not a retry authorization. FHIR support is a narrow support matrix, not a full-conformance claim.
+`fhir export` prints a loss-aware FHIR R4 export of one subject and records a disclosure for it in the same step; it writes no file. Outbox and disclosure commands are read-only. `UNKNOWN` action state is not a retry authorization. FHIR support is a narrow support matrix, not a full-conformance claim.
 
 ## Encrypted vaults
 

@@ -402,6 +402,22 @@ enum FhirCmd {
         #[arg(long)]
         json: bool,
     },
+    /// Loss-aware FHIR R4 export of one subject. Core records a disclosure
+    /// for the export in the same step. The export is printed, not written
+    /// to a file; redirect it only to a place you trust.
+    Export {
+        #[arg(long)]
+        vault_id: String,
+        #[arg(long)]
+        vault_root: PathBuf,
+        #[arg(long)]
+        subject: String,
+        /// Why the data leaves the vault; stored in the disclosure record.
+        #[arg(long)]
+        purpose: String,
+        #[arg(long)]
+        json: bool,
+    },
 }
 
 #[derive(Debug, Subcommand)]
@@ -1354,6 +1370,37 @@ fn run() -> Result<()> {
             }
         },
         Commands::Fhir { action } => match action {
+            FhirCmd::Export {
+                vault_id,
+                vault_root,
+                subject,
+                purpose,
+                json,
+            } => {
+                let mut session = vault_session::open(&vault_id, &vault_root).map_err(auth)?;
+                let (exports, record) = session
+                    .export_subject_fhir(
+                        medscale_contracts::objects::OpaqueId::new(&subject),
+                        purpose,
+                    )
+                    .map_err(auth)?;
+                if json {
+                    println!(
+                        "{}",
+                        serde_json::to_string_pretty(&serde_json::json!({
+                            "exports": exports,
+                            "disclosure": record,
+                        }))?
+                    );
+                } else {
+                    println!("exported_resources: {}", exports.len());
+                    println!("disclosure_id: {}", record.disclosure_id.as_str());
+                    for export in &exports {
+                        println!("{}", serde_json::to_string(export)?);
+                    }
+                }
+                Ok(())
+            }
             FhirCmd::Support { vault_id, json } => {
                 let mut session = CliSession::connect(&vault_id).map_err(auth)?;
                 let matrix = session.fhir_support_matrix().map_err(auth)?;
