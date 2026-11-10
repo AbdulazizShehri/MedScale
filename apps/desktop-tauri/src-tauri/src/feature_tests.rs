@@ -342,6 +342,10 @@ fn every_surface_runs_against_real_core() {
     );
     let corpus = h.ok("evidence_corpus", json!({}));
     assert!(!corpus["documents"].as_array().unwrap().is_empty());
+    assert_eq!(
+        corpus["origin"], "bundled_synthetic_fixture",
+        "the Evidence page must say this is the bundled sample"
+    );
     let hits = h.ok(
         "evidence_search",
         json!({ "query": "diabetes", "includeRetracted": false }),

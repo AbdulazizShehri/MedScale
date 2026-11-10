@@ -441,6 +441,9 @@ pub fn exports_subject(
 fn corpus_json() -> Value {
     let corpus = default_synthetic_corpus();
     json!({
+        // The one corpus this build has: a synthetic fixture bundled with the
+        // app, the same in every workspace. Nothing a person imports is in it.
+        "origin": "bundled_synthetic_fixture",
         "corpus_id": corpus.corpus_id,
         "version": corpus.version,
         "source_identity": corpus.source_identity(),

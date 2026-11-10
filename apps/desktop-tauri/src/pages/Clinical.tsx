@@ -105,7 +105,7 @@ export function Documents() {
 }
 
 /* ───────────────────────────── Evidence ───────────────────────────── */
-type Corpus = { corpus_id: string; version: string; source_identity: string; content_digest: string; rights: string; rights_uri: string;
+type Corpus = { origin: "bundled_synthetic_fixture"; corpus_id: string; version: string; source_identity: string; content_digest: string; rights: string; rights_uri: string;
   documents: Array<{ doc_id: string; text: string; content_digest: string; status: string; freshness_marker: string | null; conflict_marker: string | null }> };
 type Hit = { doc_id: string; score: number; snippet: string; retracted: boolean; freshness_marker: string | null; conflict_marker: string | null; relevance_only: boolean };
 type Retrieval = { corpus_source_identity: string; query: string; hits: Hit[]; evaluation_id: string; relevance_is_not_authority: boolean };
@@ -139,8 +139,9 @@ export function Evidence() {
   return (
     <>
       <div className="pane">
-        <PageHead title="Evidence" sub="The documents in this workspace, and where each one came from. A fixed sample, not live literature." />
+        <PageHead title="Evidence" sub="A fixed synthetic sample bundled with MedScale, the same in every workspace. Not live literature, and not documents you imported." />
         <Ledger items={[
+          { k: "origin", v: <Status kind="synthetic" weight="strong">Bundled sample</Status> },
           { k: "source", v: c.source_identity, mono: true },
           { k: "rights", v: <Status kind="synthetic" weight="strong">{c.rights}</Status> },
           { k: "content_digest", v: short(c.content_digest), mono: true },
