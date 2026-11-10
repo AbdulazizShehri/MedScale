@@ -167,3 +167,47 @@ jobs:
           path: target/e2e-shots/
           if-no-files-found: warn
           retention-days: 14
+
+  macos:
+    # The same journeys on macOS (Apple Silicon) through the test-only embedded
+    # WKWebView WebDriver, built only on this disposable runner.
+    name: desktop e2e (macos)
+    runs-on: macos-latest
+    timeout-minutes: 90
+    env:
+      CARGO_BUILD_JOBS: "3"
+      MEDSCALE_E2E_WEBDRIVER_CI: "1"
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: "24.19.0"
+          cache: npm
+          cache-dependency-path: apps/desktop-tauri/package-lock.json
+      - uses: dtolnay/rust-toolchain@d1031067263f94b142dd6c0ce24c5eb9d02d52a0
+        with:
+          toolchain: "1.97.1"
+      - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2
+        with:
+          workspaces: apps/desktop-tauri/src-tauri -> target
+          key: desktop-e2e-macos
+      - name: Test-only WebDriver instrumentation (this runner's checkout only)
+        run: python3 scripts/ci/macos-webdriver-instrument.py
+      - name: Build the frontend
+        working-directory: apps/desktop-tauri
+        run: |
+          npm ci --ignore-scripts --no-audit --no-fund
+          npm run build
+      - name: Build the release desktop
+        run: cargo build --manifest-path apps/desktop-tauri/src-tauri/Cargo.toml --features custom-protocol,e2e-webdriver,macos-webdriver-ci --release
+      - name: Run the journeys
+        run: node scripts/e2e/desktop-journey.mjs apps/desktop-tauri/src-tauri/target/release/medscale-desktop-tauri target/e2e-shots
+      - uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v4.6.2
+        if: ${{ !cancelled() }}
+        with:
+          name: desktop-e2e-screenshots-macos
+          path: target/e2e-shots/
+          if-no-files-found: warn
+          retention-days: 14
