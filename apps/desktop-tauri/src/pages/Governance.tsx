@@ -1,4 +1,5 @@
 import { useEffect, useState, type FormEvent, type ReactNode } from "react";
+import { open } from "@tauri-apps/plugin-dialog";
 import { useApp } from "../lib/app";
 import { call, useAction, useCommand, type CmdError } from "../lib/ipc";
 import { ProjectScope } from "../components/project";
@@ -243,6 +244,35 @@ function RecoveryKept({ onRestored }: { onRestored: () => void }) {
   );
 }
 
+/** Copies the sealed vault into a folder the person chooses. Locks first. */
+function BackupRow({ onLocked }: { onLocked: () => void }) {
+  const { ws } = useApp();
+  const { pending, run } = useAction();
+  const outcome = useOutcome();
+  const toast = useToast();
+  async function backUp() {
+    let folder: string | null = null;
+    try {
+      const selected = await open({ multiple: false, directory: true, title: "Choose where to save the vault backup" });
+      folder = typeof selected === "string" ? selected : null;
+    } catch {
+      toast({ kind: "blocked", title: "Cannot open folder chooser", detail: "Try again, or back up from the command line with medscale vault backup." });
+      return;
+    }
+    if (!folder) return;
+    const wasOpen = ws?.workspace?.kind === "encrypted";
+    const r = await run<{ path: string; files: number; bytes: number }>("backup", "vault_backup", { folder });
+    if (r.ok) toast({ kind: "completed", title: "Vault backed up and checked", detail: `${r.data.files} files, ${formatStorage(r.data.bytes)}, in ${r.data.path}` });
+    else outcome(r, "");
+    if (wasOpen) onLocked();
+  }
+  return (
+    <SettingRow label="Back up vault" detail="Locks the vault, copies its encrypted files into a new folder you choose, and checks every copy. The backup opens with the same passphrase and recovery codes.">
+      <button type="button" className="btn btn-s" onClick={() => void backUp()} disabled={!!pending}>{pending === "backup" ? "Backing up…" : "Lock and back up…"}</button>
+    </SettingRow>
+  );
+}
+
 export function Settings() {
   const { theme, setTheme, density, setDensity, ws, lock, vaultClosed } = useApp();
   const gov = useCommand<Gov>(ws?.open ? "governance_overview" : null);
@@ -267,6 +297,7 @@ export function Settings() {
             {ws?.workspace ? <span className="mono" style={{ fontSize: 12 }}>{ws.workspace.vault_id}</span> : <Status kind="unavailable">None</Status>}
           </SettingRow>
           {ws?.workspace?.kind === "encrypted" && <SettingRow label="Clinical ingest" detail="Core admits FHIR ingest into synthetic vaults only until private-data authorization is granted. This encrypted vault holds projects, data, analytics and collaboration."><Status kind="limited">Not authorized</Status></SettingRow>}
+          {ws?.encrypted_vault_exists && <BackupRow onLocked={() => void vaultClosed()} />}
           <SettingRow label="Lock workspace" detail="Closes the vault and releases keys from memory.">
             <span className="row-gap" style={{ gap: 8 }}><button type="button" className="btn btn-s" onClick={() => void lock()} disabled={!ws?.open}>Lock now</button><span className="kbd">{MOD} Shift L</span></span>
           </SettingRow>
@@ -359,7 +390,7 @@ function ReportProblem({ about }: { about: AboutVm }) {
   }
   return (
     <Section n="05" title="Report a problem">
-      <p className="t-sm i2" style={{ margin: "0 0 10px" }}>Open this address in your web browser and choose the bug-report template. MedScale does not open the browser for you.</p>
+      <p className="t-sm i2" style={{ margin: "0 0 10px" }}>Open this address in your web browser and choose the bug-report template. MedScale does not open this link for you.</p>
       <div className="row-gap" style={{ gap: 8, marginBottom: 12 }}>
         <code className="mono t-mono-sm" style={{ userSelect: "all", overflowWrap: "anywhere" }} aria-label="Support address">{SUPPORT_ISSUES_URL}</code>
         <button type="button" className="btn btn-g" onClick={() => copy("link", SUPPORT_ISSUES_URL)}>Copy link</button>

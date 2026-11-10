@@ -1016,6 +1016,16 @@ impl CoreFacade {
         }
     }
 
+    /// Backup and restore work on sealed files only, so no vault may be open.
+    fn require_no_open_vault(&self) -> Result<(), AuthorityError> {
+        if self.vault().is_some() || self.encrypted().is_some() {
+            return Err(AuthorityError::InvalidArgument {
+                message: "lock the vault before backing it up or restoring".to_owned(),
+            });
+        }
+        Ok(())
+    }
+
     /// Dispatches a versioned authority request.
     pub fn dispatch(&self, req: AuthorityRequest) -> AuthorityResponse {
         let request_id = req.request_id.clone();
@@ -1618,6 +1628,43 @@ impl CoreFacade {
             } => {
                 self.require_lease(&req.vault_id)?;
                 ingest_ops::restore(&source, &destination)
+            }
+            RequestBody::BackupEncryptedVault {
+                vault_root,
+                parent,
+                label,
+            } => {
+                self.require_lease(&req.vault_id)?;
+                self.require_no_open_vault()?;
+                let report = EncryptedVault::backup_locked(
+                    std::path::Path::new(&vault_root),
+                    std::path::Path::new(&parent),
+                    &label,
+                )
+                .map_err(enc_err)?;
+                Ok(ResponseBody::EncryptedVaultBackedUp {
+                    path: report.path.display().to_string(),
+                    files: report.files,
+                    bytes: report.bytes,
+                })
+            }
+            RequestBody::RestoreEncryptedVault {
+                backup,
+                vault_root,
+                label,
+            } => {
+                self.require_lease(&req.vault_id)?;
+                self.require_no_open_vault()?;
+                let report = EncryptedVault::restore_replacing(
+                    std::path::Path::new(&backup),
+                    std::path::Path::new(&vault_root),
+                    &label,
+                )
+                .map_err(enc_err)?;
+                Ok(ResponseBody::EncryptedVaultRestored {
+                    vault_root,
+                    previous_kept_at: report.previous_kept_at.map(|p| p.display().to_string()),
+                })
             }
             RequestBody::RunBlobGc => {
                 self.require_lease(&req.vault_id)?;
@@ -5931,8 +5978,14 @@ fn capability_matches(cap: &Capability, body: &RequestBody) -> bool {
                 RequestBody::ReadCanonicalVisibility { .. }
             )
             | (Capability::VerifyBlob, RequestBody::VerifyBlob { .. })
-            | (Capability::BackupVault, RequestBody::BackupVault { .. })
-            | (Capability::RestoreVault, RequestBody::RestoreVault { .. })
+            | (
+                Capability::BackupVault,
+                RequestBody::BackupVault { .. } | RequestBody::BackupEncryptedVault { .. }
+            )
+            | (
+                Capability::RestoreVault,
+                RequestBody::RestoreVault { .. } | RequestBody::RestoreEncryptedVault { .. }
+            )
             | (Capability::RunBlobGc, RequestBody::RunBlobGc)
             | (Capability::GetTimeline, RequestBody::GetTimeline { .. })
             | (Capability::GetBrief, RequestBody::GetBrief { .. })

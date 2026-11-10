@@ -59,7 +59,7 @@ Built by [tauri-preview 42361952161](https://github.com/AbdulazizShehri/MedScale
 | English, public read speech | 100 clips, 5.58% WER | [42367064166](https://github.com/AbdulazizShehri/MedScale/actions/runs/42367064166) |
 | Arabic, public read speech, Whisper Tiny | 24 clips, **65.3% WER**, 25.5% CER | [42367064986](https://github.com/AbdulazizShehri/MedScale/actions/runs/42367064986) |
 
-**What each Windows journey covers:** checksum, install with Mark of the Web, first launch with no account, sample workspace, preference storage probe, focusable controls named, layout at three window sizes, idle network check, FHIR import, folder admission absent, blocked download, kill during download, consented model download, real speech scored against the reference, close and reopen, encrypted vault create and unlock, scanner positive control, WebView residue scan, uninstall keeping data, reinstall reopening the vault, final uninstall.
+**What each Windows journey covers:** checksum, install with Mark of the Web, first launch with no account, sample workspace, preference storage probe, focusable controls named, layout at three window sizes (measured and reported, not pass/fail), idle network check (measured and reported, not pass/fail), FHIR import, folder admission absent, blocked download, kill during download, consented model download, real speech scored against the reference, close and reopen, encrypted vault create and unlock, scanner positive control, WebView residue scan after real use (measured and reported, not pass/fail), uninstall keeping data, reinstall reopening the vault, final uninstall.
 
 **Native QA on real hardware** ran on the previous `207344c` build: Windows 11 found the defects fixed above, and the owner's Mac on macOS 26.6.2 passed navigation 13/13 and traced Gatekeeper. **Neither has run on this candidate yet.** A fresh run on your Mac and PC would add real-hardware evidence for these exact bytes.
 
@@ -112,5 +112,5 @@ Asset URL that step 2 would create: `https://github.com/AbdulazizShehri/MedScale
 
 - **Stop offering a download:** revert the manifest PR and redeploy.
 - **A bad release:** publish a fixed `v0.1.0-beta.2`, requalified.
-- **User data:** uninstalling keeps it, verified on Windows and macOS. Upgrading keeps vault files unchanged, verified on Windows.
+- **User data:** uninstalling keeps it, verified on Windows only. The macOS journey removes the app but creates no data before, and checks none after. Upgrading keeps vault files unchanged, verified on Windows.
 - **Support:** [GitHub Issues](https://github.com/AbdulazizShehri/MedScale/issues), and [private security advisories](https://github.com/AbdulazizShehri/MedScale/security/advisories/new). Never include patient data, passphrases, recovery codes or vault files in a report.

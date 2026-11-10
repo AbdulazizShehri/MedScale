@@ -342,6 +342,10 @@ fn every_surface_runs_against_real_core() {
     );
     let corpus = h.ok("evidence_corpus", json!({}));
     assert!(!corpus["documents"].as_array().unwrap().is_empty());
+    assert_eq!(
+        corpus["origin"], "bundled_synthetic_fixture",
+        "the Evidence page must say this is the bundled sample"
+    );
     let hits = h.ok(
         "evidence_search",
         json!({ "query": "diabetes", "includeRetracted": false }),
@@ -718,6 +722,84 @@ fn recovery_commands_list_refuse_bad_ids_and_need_an_encrypted_vault() {
         h.ok("workspace_status", json!({}))["open"],
         true,
         "a refused restore leaves the vault open"
+    );
+    h.ok("workspace_lock", json!({}));
+}
+
+/// Settings "Lock and back up" and the lock screen's "Restore from a backup":
+/// the backup locks an open vault first, restore is refused while a vault is
+/// open, and the replaced vault is kept beside the restored one.
+#[test]
+fn encrypted_vault_backup_and_restore_through_ipc() {
+    let h = Harness::new("enc-backup");
+    let data_dir = h
+        ._app
+        .state::<crate::host::Host>()
+        .state
+        .lock()
+        .unwrap()
+        .data_dir
+        .clone()
+        .unwrap();
+    let backups = data_dir.join("backups-chosen");
+    std::fs::create_dir_all(&backups).unwrap();
+    let folder = backups.display().to_string();
+
+    assert_eq!(
+        h.call("vault_backup", json!({ "folder": folder }))
+            .unwrap_err()["kind"],
+        "missing",
+        "nothing to back up before a vault exists"
+    );
+    h.ok(
+        "workspace_create_encrypted",
+        json!({ "passphrase": "correct horse battery" }),
+    );
+    assert_eq!(
+        h.call("vault_backup", json!({ "folder": "relative/folder" }))
+            .unwrap_err()["kind"],
+        "invalid"
+    );
+    let made = h.ok("vault_backup", json!({ "folder": folder }));
+    assert_eq!(
+        h.ok("workspace_status", json!({}))["open"],
+        false,
+        "backing up locks the vault first"
+    );
+    let path = made["path"].as_str().unwrap().to_owned();
+    assert!(path.contains("MedScale-backup-"), "{path}");
+    assert!(made["files"].as_u64().unwrap() >= 2);
+    assert!(
+        std::path::Path::new(&path)
+            .join("vault_header.json")
+            .is_file()
+    );
+
+    h.ok(
+        "workspace_unlock",
+        json!({ "passphrase": "correct horse battery" }),
+    );
+    assert_eq!(
+        h.call("vault_restore", json!({ "folder": path }))
+            .unwrap_err()["kind"],
+        "invalid",
+        "restore only from the lock screen"
+    );
+    h.ok("workspace_lock", json!({}));
+    assert_eq!(
+        h.call("vault_restore", json!({ "folder": folder }))
+            .unwrap_err()["kind"],
+        "invalid",
+        "the parent folder is not a backup"
+    );
+
+    let restored = h.ok("vault_restore", json!({ "folder": path }));
+    let kept = restored["previous_kept_at"].as_str().unwrap().to_owned();
+    assert!(kept.contains(".before-restore-"), "{kept}");
+    assert!(std::path::Path::new(&kept).join("meta.sealed").is_file());
+    h.ok(
+        "workspace_unlock",
+        json!({ "passphrase": "correct horse battery" }),
     );
     h.ok("workspace_lock", json!({}));
 }

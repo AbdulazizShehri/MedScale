@@ -1114,6 +1114,89 @@ impl EncryptedVault {
         Ok(())
     }
 
+    /// Backs up a locked vault into a new folder `MedScale-backup-<label>`
+    /// inside `parent`, then checks every copied file against the original.
+    /// The copy holds only sealed files, so it stays encrypted under the same
+    /// passphrase and recovery codes. A vault that is open, or that has an
+    /// unsealed session left over, is refused: its newest changes are not in
+    /// the seal yet.
+    pub fn backup_locked(
+        vault_root: &Path,
+        parent: &Path,
+        label: &str,
+    ) -> Result<BackupReport, EncryptedVaultError> {
+        let root = assert_claim_path(vault_root)?;
+        let parent = assert_claim_path(parent)?;
+        check_label(label)?;
+        if !root.join(HEADER_FILE).is_file() || !root.join(META_SEALED).is_file() {
+            return Err(EncryptedVaultError::Invalid(
+                "there is no sealed vault to back up".to_owned(),
+            ));
+        }
+        let _session = Self::take_session_lock(&root, "backup")?;
+        if Self::leftover_work_present(&root) {
+            return Err(EncryptedVaultError::Invalid(
+                "the vault has an unsealed session; unlock it and lock it again first".to_owned(),
+            ));
+        }
+        if inside(&parent, &root) {
+            return Err(EncryptedVaultError::Invalid(
+                "a backup cannot go inside the vault folder".to_owned(),
+            ));
+        }
+        fs::create_dir_all(&parent)?;
+        let dest = unused_path(&parent.join(format!("MedScale-backup-{label}")));
+        Self::backup(&root, &dest)?;
+        let (files, bytes) = same_sealed_files(&root, &dest)?;
+        Ok(BackupReport {
+            path: dest,
+            files,
+            bytes,
+        })
+    }
+
+    /// Replaces the vault at `vault_root` with the backup at `backup`. The
+    /// current vault folder, if any, is kept beside it as
+    /// `<name>.before-restore-<label>`, never deleted. The restored files are
+    /// checked against the backup. The restored vault opens with the
+    /// passphrase and recovery codes it had when it was backed up.
+    pub fn restore_replacing(
+        backup: &Path,
+        vault_root: &Path,
+        label: &str,
+    ) -> Result<RestoreReport, EncryptedVaultError> {
+        let backup = assert_claim_path(backup)?;
+        let root = assert_claim_path(vault_root)?;
+        check_label(label)?;
+        if !backup.join(HEADER_FILE).is_file() || !backup.join(META_SEALED).is_file() {
+            return Err(EncryptedVaultError::Invalid(
+                "that folder is not a MedScale vault backup".to_owned(),
+            ));
+        }
+        if inside(&backup, &root) || inside(&root, &backup) {
+            return Err(EncryptedVaultError::Invalid(
+                "the backup and the vault must be separate folders".to_owned(),
+            ));
+        }
+        let mut previous_kept_at = None;
+        let occupied = root.is_dir() && fs::read_dir(&root)?.next().is_some();
+        if occupied {
+            // Refuse a vault that is open. The lock is released before the
+            // move because Windows cannot rename a folder with an open file.
+            drop(Self::take_session_lock(&root, "restore")?);
+            let name = root
+                .file_name()
+                .map(|n| n.to_string_lossy().into_owned())
+                .unwrap_or_else(|| "vault".to_owned());
+            let kept = unused_path(&root.with_file_name(format!("{name}.before-restore-{label}")));
+            rename_with_retry(&root, &kept)?;
+            previous_kept_at = Some(kept);
+        }
+        Self::restore(&backup, &root)?;
+        same_sealed_files(&backup, &root)?;
+        Ok(RestoreReport { previous_kept_at })
+    }
+
     /// Migrate Spec 003 SyntheticVault plaintext into a new EncryptedVault.
     pub fn migrate_from_synthetic(
         synthetic_root: &Path,
@@ -1376,6 +1459,113 @@ fn sqlite_sidecar(work: &Path, suffix: &str) -> PathBuf {
     let mut os = work.as_os_str().to_owned();
     os.push(suffix);
     PathBuf::from(os)
+}
+
+/// Where a verified backup was written.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct BackupReport {
+    pub path: PathBuf,
+    pub files: u64,
+    pub bytes: u64,
+}
+
+/// The outcome of a restore.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct RestoreReport {
+    /// Where the vault that was replaced now lives, if there was one.
+    pub previous_kept_at: Option<PathBuf>,
+}
+
+/// Labels become part of folder names, so only `[A-Za-z0-9-]`.
+fn check_label(label: &str) -> Result<(), EncryptedVaultError> {
+    if label.is_empty()
+        || label.len() > 64
+        || !label
+            .bytes()
+            .all(|b| b.is_ascii_alphanumeric() || b == b'-')
+    {
+        return Err(EncryptedVaultError::Invalid(
+            "invalid backup label".to_owned(),
+        ));
+    }
+    Ok(())
+}
+
+/// True when `path` is `base` or lies inside it (compared component-wise
+/// after making both absolute when possible).
+fn inside(path: &Path, base: &Path) -> bool {
+    resolved(path).starts_with(resolved(base))
+}
+
+/// `path` with its longest existing prefix canonicalized, so an existing and a
+/// not-yet-created path compare alike (Windows canonical paths are verbatim).
+fn resolved(path: &Path) -> PathBuf {
+    let mut rest = Vec::new();
+    let mut current = path.to_path_buf();
+    loop {
+        if let Ok(real) = fs::canonicalize(&current) {
+            return rest.iter().rev().fold(real, |acc, part| acc.join(part));
+        }
+        match (current.file_name().map(ToOwned::to_owned), current.parent()) {
+            (Some(name), Some(parent)) => {
+                rest.push(name);
+                current = parent.to_path_buf();
+            }
+            _ => return path.to_path_buf(),
+        }
+    }
+}
+
+/// `path`, or `path-2`, `path-3` and so on: the first that doesn't exist.
+fn unused_path(path: &Path) -> PathBuf {
+    if !path.exists() {
+        return path.to_path_buf();
+    }
+    let name = path
+        .file_name()
+        .map(|n| n.to_string_lossy().into_owned())
+        .unwrap_or_default();
+    (2..)
+        .map(|n| path.with_file_name(format!("{name}-{n}")))
+        .find(|candidate| !candidate.exists())
+        .unwrap_or_else(|| path.to_path_buf())
+}
+
+/// Checks that `dest` holds byte-identical copies of the sealed files of
+/// `src` (header, sealed metadata, every sealed blob). Returns the number of
+/// files and bytes compared.
+fn same_sealed_files(src: &Path, dest: &Path) -> Result<(u64, u64), EncryptedVaultError> {
+    let mut names: Vec<PathBuf> = vec![PathBuf::from(HEADER_FILE), PathBuf::from(META_SEALED)];
+    let blobs = src.join("sealed_blobs");
+    if blobs.is_dir() {
+        let mut stack = vec![PathBuf::from("sealed_blobs")];
+        while let Some(rel) = stack.pop() {
+            for entry in fs::read_dir(src.join(&rel))? {
+                let entry = entry?;
+                let child = rel.join(entry.file_name());
+                if entry.file_type()?.is_dir() {
+                    stack.push(child);
+                } else {
+                    names.push(child);
+                }
+            }
+        }
+    }
+    let mut bytes = 0_u64;
+    for rel in &names {
+        let original = fs::read(src.join(rel))?;
+        let copy = fs::read(dest.join(rel)).map_err(|_| {
+            EncryptedVaultError::Invalid(format!("the copy is missing {}", rel.display()))
+        })?;
+        if DigestSha256::of(&original) != DigestSha256::of(&copy) {
+            return Err(EncryptedVaultError::Invalid(format!(
+                "the copy of {} differs from the original",
+                rel.display()
+            )));
+        }
+        bytes += original.len() as u64;
+    }
+    Ok((names.len() as u64, bytes))
 }
 
 fn copy_dir(src: &Path, dest: &Path) -> Result<(), EncryptedVaultError> {
