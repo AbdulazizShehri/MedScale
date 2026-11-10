@@ -726,6 +726,91 @@ fn recovery_commands_list_refuse_bad_ids_and_need_an_encrypted_vault() {
     h.ok("workspace_lock", json!({}));
 }
 
+/// B1: FHIR import into an encrypted vault. The resource and the patient list
+/// stay sealed: after lock and unlock the patient is listed again from Core,
+/// and no file outside the sealed vault holds the subject or the resource.
+#[test]
+fn fhir_import_into_an_encrypted_vault_stays_sealed() {
+    let h = Harness::new("enc-import");
+    let data_dir = h
+        ._app
+        .state::<crate::host::Host>()
+        .state
+        .lock()
+        .unwrap()
+        .data_dir
+        .clone()
+        .unwrap();
+    h.ok(
+        "workspace_create_encrypted",
+        json!({ "passphrase": "correct horse battery" }),
+    );
+    let outside = std::env::temp_dir().join(format!(
+        "medscale-tauri-enc-import-src-{}",
+        std::process::id()
+    ));
+    std::fs::create_dir_all(&outside).unwrap();
+    let file = outside.join("condition.json");
+    std::fs::write(
+        &file,
+        br#"{"resourceType":"Condition","id":"cond-sealed","code":{"text":"Marker sealed condition zq7"},"subject":{"reference":"Patient/enc-marker-subject-zq7"}}"#,
+    )
+    .unwrap();
+    let imported = h.ok(
+        "documents_import_fhir",
+        json!({ "path": file.display().to_string(), "subjectRef": "enc-marker-subject-zq7" }),
+    );
+    assert_eq!(imported["resource_type"], "Condition", "{imported}");
+    let listed = |h: &Harness| {
+        h.ok("patients_list", json!({}))["subjects"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .any(|s| s.to_string().contains("enc-marker-subject-zq7"))
+    };
+    assert!(listed(&h), "listed after import");
+    h.ok("workspace_lock", json!({}));
+    h.ok(
+        "workspace_unlock",
+        json!({ "passphrase": "correct horse battery" }),
+    );
+    assert!(listed(&h), "listed again after unlock, from Core");
+    assert!(
+        h.ok("documents_list", json!({}))["sources"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .any(|s| s["source_id"] == imported["source_id"]),
+        "the source is listed after unlock"
+    );
+    h.ok("workspace_lock", json!({}));
+
+    // Nothing in the data folder holds the subject or the resource in plaintext.
+    let mut stack = vec![data_dir.clone()];
+    while let Some(dir) = stack.pop() {
+        for entry in std::fs::read_dir(&dir).unwrap() {
+            let path = entry.unwrap().path();
+            if path.is_dir() {
+                stack.push(path);
+            } else {
+                let bytes = std::fs::read(&path).unwrap_or_default();
+                for marker in [
+                    &b"enc-marker-subject-zq7"[..],
+                    &b"Marker sealed condition zq7"[..],
+                ] {
+                    assert!(
+                        !bytes.windows(marker.len()).any(|w| w == marker),
+                        "{} holds plaintext {}",
+                        path.display(),
+                        String::from_utf8_lossy(marker)
+                    );
+                }
+            }
+        }
+    }
+    let _ = std::fs::remove_dir_all(&outside);
+}
+
 /// Settings "Lock and back up" and the lock screen's "Restore from a backup":
 /// the backup locks an open vault first, restore is refused while a vault is
 /// open, and the replaced vault is kept beside the restored one.

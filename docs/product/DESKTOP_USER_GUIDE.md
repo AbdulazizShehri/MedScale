@@ -19,7 +19,8 @@ Lock the workspace from Settings or with `Ctrl/Cmd + Shift + L`. Locking closes 
   1. Give the absolute path of a FHIR R4 JSON file (at most 1 MiB) and a subject id.
   2. Core ingests and promotes the file exactly as it does the bundled fixtures.
 - The source then appears in Documents and Patients, and it can be bound to an agent's context.
-- The synthetic workspace only.
+- In the encrypted workspace the resource and the patient list stay sealed in the vault. The sample workspace is not encrypted.
+- Synthetic or permitted test data only: real patient data is not authorized.
 
 ## 3. Models
 

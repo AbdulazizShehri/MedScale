@@ -446,7 +446,7 @@ pub fn documents_list(host: tauri::State<'_, Host>) -> CmdResult<Value> {
 }
 
 /// Imports one synthetic FHIR R4 JSON file for a subject through Core's
-/// governed ingest and promotion (synthetic workspace only).
+/// governed ingest and promotion into the open vault.
 #[tauri::command(async)]
 pub fn documents_import_fhir(
     host: tauri::State<'_, Host>,

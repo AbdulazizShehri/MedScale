@@ -357,13 +357,6 @@ fn manifest_path(vault_root: &Path) -> PathBuf {
     vault_root.with_file_name(name)
 }
 
-fn load_manifest(vault_root: &Path) -> SeedManifest {
-    std::fs::read(manifest_path(vault_root))
-        .ok()
-        .and_then(|bytes| serde_json::from_slice(&bytes).ok())
-        .unwrap_or_default()
-}
-
 /// A persisted synthetic seed is complete only when every bundled fixture
 /// was promoted exactly once. Imported FHIR rows may be present in addition.
 fn complete_synthetic_seed(seed: &SeedManifest) -> bool {
@@ -1508,12 +1501,9 @@ pub fn import_fhir(
     path: &Path,
     subject: &str,
 ) -> CmdResult<SeededSource> {
-    if workspace.kind != VaultKind::Synthetic {
-        return Err(CmdError::new(
-            "denied",
-            "Denied: clinical ingest is admitted into the synthetic workspace only",
-        ));
-    }
+    // B1: an encrypted vault keeps the resource and the patient list sealed;
+    // the sample workspace is plaintext. Real patient data is still not
+    // authorized in either (REAL_PHI_AUTHORIZATION=NOT_AUTHORIZED).
     if workspace.seed.pending {
         return Err(CmdError::unavailable(
             "Unavailable: the sample workspace is still being prepared",
@@ -1535,13 +1525,20 @@ pub fn import_fhir(
         claim_kind,
         resource,
     )?;
-    let file = path
-        .file_name()
-        .map(|n| n.to_string_lossy().into_owned())
-        .unwrap_or_else(|| "resource.json".to_owned());
+    // The encrypted vault's list comes from Core, which never sees the file
+    // name, so the name isn't shown there either.
+    let fixture = match workspace.kind {
+        VaultKind::Encrypted => "imported".to_owned(),
+        VaultKind::Synthetic => format!(
+            "imported:{}",
+            path.file_name()
+                .map(|n| n.to_string_lossy().into_owned())
+                .unwrap_or_else(|| "resource.json".to_owned())
+        ),
+    };
     let source = SeededSource {
         source_id: source_id.as_str().to_owned(),
-        fixture: format!("imported:{file}"),
+        fixture,
         resource_type,
         claim_kind: claim_kind.to_owned(),
         subject_ref: subject.to_owned(),
@@ -1550,7 +1547,10 @@ pub fn import_fhir(
     if !workspace.seed.subjects.iter().any(|s| s == subject) {
         workspace.seed.subjects.push(subject.to_owned());
     }
-    save_manifest(&workspace.vault_root, &workspace.seed)?;
+    // Only the sample workspace keeps its list in a file beside the vault.
+    if workspace.kind == VaultKind::Synthetic {
+        save_manifest(&workspace.vault_root, &workspace.seed)?;
+    }
     Ok(source)
 }
 
@@ -2461,7 +2461,6 @@ pub fn create_encrypted(state: &mut State, passphrase: &str) -> CmdResult<Vec<St
         .map_err(|_| CmdError::unavailable("Unavailable: vault folder not writable"))?;
     let mut session = CliSession::connect("desktop-encrypted")?;
     let codes = session.create_encrypted_vault(&vault_root.display().to_string(), passphrase)?;
-    save_manifest(&vault_root, &SeedManifest::default())?;
     state.workspace = Some(Workspace {
         session,
         kind: VaultKind::Encrypted,
@@ -2549,6 +2548,28 @@ fn backup_error(err: AuthorityError) -> CmdError {
         )),
         other => CmdError::from(other),
     }
+}
+
+/// The encrypted vault's patient list, from Core's sealed records. Nothing
+/// about its patients is kept in a file beside the vault.
+fn roster_from_core(session: &mut CliSession) -> CmdResult<SeedManifest> {
+    let mut seed = SeedManifest::default();
+    for entry in session.subject_roster()? {
+        let subject = entry.subject_ref.as_str().to_owned();
+        if !seed.subjects.contains(&subject) {
+            seed.subjects.push(subject.clone());
+        }
+        if let Some(source_id) = entry.source_id {
+            seed.sources.push(SeededSource {
+                source_id: source_id.as_str().to_owned(),
+                fixture: "imported".to_owned(),
+                resource_type: entry.resource_type.unwrap_or_default(),
+                claim_kind: entry.claim_kind,
+                subject_ref: subject,
+            });
+        }
+    }
+    Ok(seed)
 }
 
 /// Returns what unlocking did with a session that never sealed.
@@ -2639,7 +2660,7 @@ fn open_encrypted_workspace(
         other => CmdError::from(other),
     })?;
     let outcome = session.last_open_outcome();
-    let seed = load_manifest(&vault_root);
+    let seed = roster_from_core(&mut session)?;
     state.workspace = Some(Workspace {
         session,
         kind: VaultKind::Encrypted,
