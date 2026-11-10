@@ -296,7 +296,7 @@ export function Settings() {
           <SettingRow label="Open workspace" detail={ws?.workspace ? `${ws.workspace.subjects} subjects · ${ws.workspace.sources} sources promoted by this desktop` : "No vault is open."}>
             {ws?.workspace ? <span className="mono" style={{ fontSize: 12 }}>{ws.workspace.vault_id}</span> : <Status kind="unavailable">None</Status>}
           </SettingRow>
-          {ws?.workspace?.kind === "encrypted" && <SettingRow label="Clinical ingest" detail="Core admits FHIR ingest into synthetic vaults only until private-data authorization is granted. This encrypted vault holds projects, data, analytics and collaboration."><Status kind="limited">Not authorized</Status></SettingRow>}
+          {ws?.workspace?.kind === "encrypted" && <SettingRow label="Clinical ingest" detail="FHIR imports, the patient list, projects, data, analytics and collaboration stay sealed in this vault. Real patient data is still not authorized: use synthetic or permitted test data only."><Status kind="limited">Synthetic or test data only</Status></SettingRow>}
           {ws?.encrypted_vault_exists && <BackupRow onLocked={() => void vaultClosed()} />}
           <SettingRow label="Lock workspace" detail="Closes the vault and releases keys from memory.">
             <span className="row-gap" style={{ gap: 8 }}><button type="button" className="btn btn-s" onClick={() => void lock()} disabled={!ws?.open}>Lock now</button><span className="kbd">{MOD} Shift L</span></span>

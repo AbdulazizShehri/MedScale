@@ -1472,8 +1472,26 @@ impl CoreFacade {
                 attach_validator_fixture_id,
             } => {
                 self.require_lease(&req.vault_id)?;
+                // B1: into whichever vault is open. An encrypted vault keeps the
+                // resource sealed; the synthetic vault is plaintext on disk.
+                // Lock order as elsewhere: a vault before the store.
                 let vault_guard = self.vault();
-                let vault = vault_guard.as_ref().ok_or(AuthorityError::VaultRequired)?;
+                if let Some(vault) = vault_guard.as_ref() {
+                    let mut store = self.store();
+                    return ingest_ops::ingest_fhir(
+                        vault,
+                        &mut store,
+                        req.realm_id,
+                        req.authority_scope_id,
+                        media_type,
+                        bytes,
+                        fhir_version_hint,
+                        attach_validator_fixture_id,
+                    );
+                }
+                drop(vault_guard);
+                let enc = self.encrypted();
+                let vault = enc.as_ref().ok_or(AuthorityError::VaultRequired)?;
                 let mut store = self.store();
                 ingest_ops::ingest_fhir(
                     vault,
@@ -1671,6 +1689,16 @@ impl CoreFacade {
                 let vault_guard = self.vault();
                 let vault = vault_guard.as_ref().ok_or(AuthorityError::VaultRequired)?;
                 ingest_ops::gc(vault)
+            }
+            RequestBody::ListSubjectRoster => {
+                self.require_lease(&req.vault_id)?;
+                if self.vault().is_none() && self.encrypted().is_none() {
+                    return Err(AuthorityError::VaultRequired);
+                }
+                let store = self.store();
+                Ok(ResponseBody::SubjectRoster {
+                    entries: subject_roster(&store),
+                })
             }
             RequestBody::GetTimeline { subject_ref } => {
                 self.require_lease(&req.vault_id)?;
@@ -5955,7 +5983,10 @@ fn capability_matches(cap: &Capability, body: &RequestBody) -> bool {
                 Capability::TransitionEffect,
                 RequestBody::TransitionEffect { .. }
             )
-            | (Capability::ReadObject, RequestBody::ReadObject { .. })
+            | (
+                Capability::ReadObject,
+                RequestBody::ReadObject { .. } | RequestBody::ListSubjectRoster
+            )
             | (
                 Capability::OpenSyntheticVault,
                 RequestBody::OpenSyntheticVault { .. }
@@ -6611,6 +6642,46 @@ fn recovery_check_error(error: AuthorityError) -> AuthorityError {
     AuthorityError::Unavailable {
         message: format!("the interrupted session could not be checked: {error:?}"),
     }
+}
+
+/// Current (not superseded) assertions as roster rows, ordered by subject then
+/// assertion id so the list is stable.
+fn subject_roster(
+    store: &InMemoryAuthorityStore,
+) -> Vec<medscale_contracts::envelopes::SubjectRosterEntry> {
+    let superseded = store.superseded_assertion_ids();
+    let mut entries: Vec<_> = store
+        .objects_raw()
+        .values()
+        .filter_map(|object| match object {
+            StoredObject::Assertion(a) if !superseded.contains(a.header.id.as_str()) => Some(a),
+            _ => None,
+        })
+        .map(|a| {
+            let source_id = a.promoted_from_proposal_id.as_ref().and_then(|id| {
+                match store.objects_raw().get(id.as_str()) {
+                    Some(StoredObject::Proposal(p)) => p.evidence_refs.first().cloned(),
+                    _ => None,
+                }
+            });
+            medscale_contracts::envelopes::SubjectRosterEntry {
+                subject_ref: a.subject_ref.clone(),
+                assertion_id: a.header.id.clone(),
+                claim_kind: a.claim_kind.clone(),
+                resource_type: a
+                    .payload
+                    .pointer("/resource/resourceType")
+                    .and_then(serde_json::Value::as_str)
+                    .map(str::to_owned),
+                source_id,
+            }
+        })
+        .collect();
+    entries.sort_by(|x, y| {
+        (x.subject_ref.as_str(), x.assertion_id.as_str())
+            .cmp(&(y.subject_ref.as_str(), y.assertion_id.as_str()))
+    });
+    entries
 }
 
 fn enc_err(err: medscale_storage::EncryptedVaultError) -> AuthorityError {

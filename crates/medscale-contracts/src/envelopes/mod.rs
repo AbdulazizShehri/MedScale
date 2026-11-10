@@ -557,6 +557,16 @@ impl Capability {
     }
 }
 
+/// One row of [`RequestBody::ListSubjectRoster`].
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct SubjectRosterEntry {
+    pub subject_ref: OpaqueId,
+    pub assertion_id: OpaqueId,
+    pub claim_kind: String,
+    pub resource_type: Option<String>,
+    pub source_id: Option<OpaqueId>,
+}
+
 /// Request body variants.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(tag = "op", rename_all = "snake_case")]
@@ -615,6 +625,11 @@ pub enum RequestBody {
     ReadObject {
         object_id: OpaqueId,
     },
+    /// Every current clinical assertion in the open vault as a patient-list
+    /// row: subject, claim kind, FHIR resource type and the source it came
+    /// from. Read from Core's own (sealed, for an encrypted vault) records, so
+    /// no patient list has to live in a plaintext file beside the vault.
+    ListSubjectRoster,
     OpenSyntheticVault {
         vault_root: String,
     },
@@ -1887,6 +1902,9 @@ pub enum ResponseBody {
     },
     DrillDown {
         result: DrillDownResult,
+    },
+    SubjectRoster {
+        entries: Vec<SubjectRosterEntry>,
     },
     EncryptedVaultBackedUp {
         path: String,
