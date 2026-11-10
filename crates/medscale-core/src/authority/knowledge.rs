@@ -12,17 +12,21 @@
 
 use std::collections::{BTreeMap, BTreeSet, HashMap};
 
+use medscale_clinical::evidence_coverage::{
+    CoverageStatus, Requirement, build_coverage_matrix, normalize_claim_id,
+    normalize_evidence_class,
+};
 use medscale_clinical::evidence_span_audit::{OverlapKind, audit_evidence_spans, span_from_ref};
 use medscale_contracts::data_sources::{CellValue, SourceStatus};
 use medscale_contracts::envelopes::AuthorityError;
 use medscale_contracts::knowledge::{
     CANVAS_OPS_MAX, CHUNK_MAX_CHARS, CanvasNodeContent, CanvasOp, CanvasRelation, CanvasRevision,
-    CanvasSummary, CanvasView, EvidenceOverlap, EvidenceOverlapKind, EvidenceSpanRef, Freshness,
-    HITS_DEFAULT, HITS_MAX, INDEX_CHUNKS_MAX, IndexChunk, IndexManifest, IndexSourceRef,
-    IndexStatus, KNOWLEDGE_SCHEMA_VERSION, KnowledgeSourceKind, LEXICAL_TOKENIZER, NodeResolution,
-    QUERY_MAX_CHARS, QUERY_TERMS_MAX, ReceiptHit, RetrievalDenyReason, RetrievalHit,
-    RetrievalOutcome, RetrievalPlan, RetrievalReceipt, RetrievalRequest, RetrievalResult,
-    RetrievalStage, SpanLocator, chunks_digest,
+    CanvasSummary, CanvasView, CoverageState, EvidenceOverlap, EvidenceOverlapKind,
+    EvidenceSpanRef, Freshness, HITS_DEFAULT, HITS_MAX, INDEX_CHUNKS_MAX, IndexChunk,
+    IndexManifest, IndexSourceRef, IndexStatus, KNOWLEDGE_SCHEMA_VERSION, KnowledgeSourceKind,
+    LEXICAL_TOKENIZER, NodeResolution, NoteCoverage, QUERY_MAX_CHARS, QUERY_TERMS_MAX, ReceiptHit,
+    RetrievalDenyReason, RetrievalHit, RetrievalOutcome, RetrievalPlan, RetrievalReceipt,
+    RetrievalRequest, RetrievalResult, RetrievalStage, SpanLocator, chunks_digest,
 };
 use medscale_contracts::objects::{DigestSha256, ObjectHeader, OpaqueId};
 use medscale_storage::MetaError;
@@ -55,6 +59,106 @@ pub fn tokenize(text: &str) -> Vec<String> {
         .filter(|t| !t.is_empty())
         .map(str::to_owned)
         .collect()
+}
+
+/// The coverage class of a source kind, in MedScale's own terms.
+fn coverage_class(kind: KnowledgeSourceKind) -> &'static str {
+    match kind {
+        KnowledgeSourceKind::DataSnapshot => "data_snapshot",
+        KnowledgeSourceKind::AnalyticsResult => "analytics_result",
+        KnowledgeSourceKind::TranscriptRevision => "transcript",
+        KnowledgeSourceKind::WebEvidence => "web_evidence",
+    }
+}
+
+/// How each kind of source covers each note, from the clinical
+/// evidence-coverage matrix. A `supports` edge from current evidence makes
+/// its cell present and a `contradicts` edge from current evidence makes it
+/// conflicting; evidence that was superseded leaves the cell unreviewed and
+/// evidence that is no longer readable leaves it missing. Cells that disagree
+/// merge to conflicting. Notes without such edges have no cells (they are in
+/// `unsupported_notes`).
+fn evidence_coverage(
+    canvas: &CanvasRevision,
+    resolutions: &[NodeResolution],
+) -> (Vec<NoteCoverage>, String) {
+    let notes: BTreeSet<&str> = canvas
+        .nodes
+        .iter()
+        .filter(|n| matches!(n.content, CanvasNodeContent::Note { .. }))
+        .map(|n| n.key.as_str())
+        .collect();
+    let mut requirements = Vec::new();
+    let mut claims = HashMap::new();
+    let mut classes = HashMap::new();
+    for edge in &canvas.edges {
+        let supports = match edge.relation {
+            CanvasRelation::Supports => true,
+            CanvasRelation::Contradicts => false,
+            _ => continue,
+        };
+        if !notes.contains(edge.to.as_str()) {
+            continue;
+        }
+        let Some(CanvasNodeContent::Evidence { span }) = canvas
+            .nodes
+            .iter()
+            .find(|n| n.key == edge.from)
+            .map(|n| &n.content)
+        else {
+            continue;
+        };
+        let Some(freshness) = resolutions
+            .iter()
+            .find(|r| r.key == edge.from)
+            .map(|r| r.freshness)
+        else {
+            continue;
+        };
+        let source = format!("sha256:{}", span.source.content_digest.to_hex());
+        let (status, fingerprints) = match (freshness, supports) {
+            (Freshness::Current, true) => (CoverageStatus::Present, vec![source]),
+            (Freshness::Current, false) => (CoverageStatus::Conflicting, vec![source]),
+            (Freshness::Superseded, _) => (CoverageStatus::Unreviewed, vec![source]),
+            (Freshness::Tombstoned, _) => (CoverageStatus::Missing, Vec::new()),
+        };
+        // Node keys may start with `-` or `_`, which the matrix's identifier
+        // rule refuses, so claims are named `note:<key>`.
+        let claim = format!("note:{}", edge.to);
+        let class = coverage_class(span.source.kind);
+        if let (Ok(c), Ok(k)) = (normalize_claim_id(&claim), normalize_evidence_class(class)) {
+            claims.insert(c, edge.to.clone());
+            classes.insert(k, class);
+        }
+        requirements.push(Requirement {
+            claim_id: claim,
+            evidence_class: class.to_owned(),
+            status,
+            source_fingerprints: fingerprints,
+        });
+    }
+    let Ok(matrix) = build_coverage_matrix(requirements) else {
+        return (Vec::new(), String::new());
+    };
+    let mut cells: Vec<NoteCoverage> = matrix
+        .records
+        .iter()
+        .filter_map(|r| {
+            Some(NoteCoverage {
+                note: claims.get(&r.claim_id)?.clone(),
+                evidence_class: (*classes.get(&r.evidence_class)?).to_owned(),
+                state: match r.status {
+                    CoverageStatus::Present => CoverageState::Present,
+                    CoverageStatus::Missing => CoverageState::Missing,
+                    CoverageStatus::Conflicting => CoverageState::Conflicting,
+                    CoverageStatus::Unreviewed => CoverageState::Unreviewed,
+                },
+                source_count: u32::try_from(r.source_fingerprints.len()).unwrap_or(u32::MAX),
+            })
+        })
+        .collect();
+    cells.sort();
+    (cells, matrix.matrix_hash())
 }
 
 /// Evidence nodes of one Canvas whose spans overlap within one source
@@ -850,6 +954,7 @@ impl DataSources<'_> {
             .cloned()
             .collect();
         let overlapping_evidence = evidence_overlaps(&canvas);
+        let (evidence_coverage, coverage_hash) = evidence_coverage(&canvas, &resolutions);
         Ok(CanvasView {
             canvas,
             resolutions,
@@ -858,6 +963,8 @@ impl DataSources<'_> {
             superseded_evidence,
             missing_evidence,
             overlapping_evidence,
+            evidence_coverage,
+            coverage_hash,
         })
     }
 

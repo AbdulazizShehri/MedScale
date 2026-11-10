@@ -24,7 +24,7 @@ MedScale's Core can't run Python, R or shell code (founder decision 2026-09-23),
 | `claim_conflicts` | #477 | yes | yes | no | no | no | no |
 | `claim_integrity` | #477 | yes | yes | no | no | no | no |
 | `decision_support` | #478 | yes | yes | no | no | no | no |
-| `evidence_coverage` | #478 | yes | yes | no | no | no | no |
+| `evidence_coverage` | #478 | yes | yes | yes (#483) | yes: Research Canvas view (#483) | no | no |
 | `evidence_recency` | #477 | yes | yes | no | no | no | no |
 | `evidence_span_audit` | #477 | yes | yes | yes (#479) | yes: Research Canvas view (#480) | no | no |
 | `evidence_table` | #478 | yes | yes | no | no | no | no |
@@ -77,6 +77,8 @@ Three upstream test files exercise modules not shipped here (the SDOH extractor 
 - **Evidence-span audit:** `CanvasView` (Core) inspects each Canvas revision for evidence nodes whose spans overlap within one source location (exact, nested or partial). Cross-location pairs are dropped because their offsets count different text. The CLI `knowledge canvas-show` prints the pairs. The desktop app lists canvases but does not show canvas views yet, so this is not desktop-verified.
 
 - **Empty-evidence gate:** `execute_agent_run` (Core) re-resolves the run's context before the model runs. Only artifacts that are current now are cited on the proposal; missing, stale, out-of-scope, unsupported or corrupt ones are left out, and with none left the run is refused (`StaleReference`, code `empty_approved_evidence`) without generating anything. A fleet lane closes as failed with reason `no_current_evidence`. Desktop runs use the same path, but no desktop journey exercises the refusal yet.
+
+- **Evidence coverage:** `CanvasView.evidence_coverage` (Core) gives, for each note linked to evidence by `supports` or `contradicts`, one cell per kind of source (`data_snapshot`, `analytics_result`, `transcript`, `web_evidence`): present (current evidence supports it), conflicting (current evidence contradicts it, or support and contradiction disagree), unreviewed (the evidence was superseded) or missing (no longer readable). `coverage_hash` is the reference matrix hash. The CLI `knowledge canvas-show` prints the cells; not desktop-verified.
 
 ## Qualification status
 

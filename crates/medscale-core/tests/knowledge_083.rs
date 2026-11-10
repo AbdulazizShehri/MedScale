@@ -16,9 +16,10 @@ use medscale_contracts::envelopes::{
     AuthorityError, AuthorityRequest, Capability, RequestBody, ResponseBody,
 };
 use medscale_contracts::knowledge::{
-    CanvasOp, CanvasRelation, CanvasRevision, CanvasView, EvidenceOverlap, EvidenceOverlapKind,
-    EvidenceSpanRef, Freshness, IndexManifest, IndexStatus, KnowledgeSourceKind,
-    RetrievalDenyReason, RetrievalOutcome, RetrievalRequest, RetrievalResult, RetrievalStage,
+    CanvasOp, CanvasRelation, CanvasRevision, CanvasView, CoverageState, EvidenceOverlap,
+    EvidenceOverlapKind, EvidenceSpanRef, Freshness, IndexManifest, IndexStatus,
+    KnowledgeSourceKind, NoteCoverage, RetrievalDenyReason, RetrievalOutcome, RetrievalRequest,
+    RetrievalResult, RetrievalStage,
 };
 use medscale_contracts::objects::{AuthorityScopeId, OpaqueId, RealmId, VaultId};
 use medscale_core::authority::FixtureAsrEngine;
@@ -761,6 +762,24 @@ fn a_canvas_holds_live_references_and_inspects_its_evidence() {
     assert!(v.superseded_evidence.is_empty() && v.missing_evidence.is_empty());
     // A cell and a transcript segment are different locations: no overlap.
     assert!(v.overlapping_evidence.is_empty());
+    // Coverage: the chart cell supports the claim; the visit contradicts the
+    // question. Each kind of source is its own cell.
+    let coverage_cell = |note: &str, class: &str, state| NoteCoverage {
+        note: note.to_owned(),
+        evidence_class: class.to_owned(),
+        state,
+        source_count: 1,
+    };
+    assert_eq!(
+        v.evidence_coverage,
+        vec![
+            coverage_cell("claim", "data_snapshot", CoverageState::Present),
+            coverage_cell("question", "transcript", CoverageState::Conflicting),
+        ]
+    );
+    assert!(v.coverage_hash.starts_with("sha256:") && v.coverage_hash.len() == 71);
+    // The same revision always yields the same coverage hash.
+    assert_eq!(h.view(&c.header.id, None).coverage_hash, v.coverage_hash);
 
     // Stale writers are refused; evidence must resolve.
     assert!(matches!(

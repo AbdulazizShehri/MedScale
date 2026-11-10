@@ -156,6 +156,13 @@ fn print_canvas(v: &CanvasView, json: bool) -> anyhow::Result<()> {
         .map(|o| format!("{} = {} ({:?})", o.first, o.second, o.kind).to_lowercase())
         .collect();
     println!("overlapping evidence: {}", overlaps.join(", "));
+    for c in &v.evidence_coverage {
+        println!(
+            "coverage {}	{}	{:?}	{} source(s)",
+            c.note, c.evidence_class, c.state, c.source_count
+        );
+    }
+    println!("coverage hash: {}", v.coverage_hash);
     Ok(())
 }
 
