@@ -44,15 +44,13 @@ fn open_session(
     vault_root: &std::path::Path,
     fixture_engine: bool,
     json: bool,
-) -> anyhow::Result<CliSession> {
-    let mut session = CliSession::connect(vault_id).map_err(|err| audio_fail(&err, json))?;
-    if fixture_engine {
-        session.use_fixture_asr();
-    }
-    session
-        .open_synthetic_vault(&vault_root.display().to_string())
-        .map_err(|err| audio_fail(&err, json))?;
-    Ok(session)
+) -> anyhow::Result<crate::vault_session::VaultSession> {
+    crate::vault_session::open_configured(vault_id, vault_root, |session| {
+        if fixture_engine {
+            session.use_fixture_asr();
+        }
+    })
+    .map_err(|err| audio_fail(&err, json))
 }
 
 fn print_source(s: &AudioSource, json: bool) -> anyhow::Result<()> {

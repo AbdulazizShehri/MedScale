@@ -14,7 +14,6 @@ use medscale_contracts::browse::{
 };
 use medscale_contracts::envelopes::AuthorityError;
 use medscale_contracts::objects::OpaqueId;
-use medscale_core::CliSession;
 
 use super::{fail_json, print_json_or_debug};
 
@@ -42,15 +41,13 @@ fn open_session(
     vault_root: &std::path::Path,
     offline_fixture: bool,
     json: bool,
-) -> anyhow::Result<CliSession> {
-    let mut session = CliSession::connect(vault_id).map_err(|err| browse_fail(&err, json))?;
-    if offline_fixture {
-        session.use_offline_browse_fixture();
-    }
-    session
-        .open_synthetic_vault(&vault_root.display().to_string())
-        .map_err(|err| browse_fail(&err, json))?;
-    Ok(session)
+) -> anyhow::Result<crate::vault_session::VaultSession> {
+    crate::vault_session::open_configured(vault_id, vault_root, |session| {
+        if offline_fixture {
+            session.use_offline_browse_fixture();
+        }
+    })
+    .map_err(|err| browse_fail(&err, json))
 }
 
 fn print_entry(e: &BrowseAllowlistEntry, json: bool) -> anyhow::Result<()> {
@@ -415,6 +412,7 @@ pub fn run_browse(cmd: BrowseCmd) -> anyhow::Result<()> {
 mod tests {
     use super::*;
     use medscale_contracts::browse::{BrowseDenyReason, BrowseSessionState};
+    use medscale_core::CliSession;
 
     const VAULT: &str = "vault-080-cli";
 

@@ -15,7 +15,6 @@ use medscale_contracts::objects::{DigestSha256, OpaqueId};
 use medscale_contracts::r_workspace::{
     IdeKind, RLaunchRequest, RPublishRequest, RPublishView, RRunRequest, RStageRequest, RWorkspace,
 };
-use medscale_core::CliSession;
 use medscale_core::r_workspace_host::RWorkspaceHost;
 
 use super::{fail_json, print_json_or_debug};
@@ -46,11 +45,9 @@ fn open_session(
     vault_root: &std::path::Path,
     stage_dir: Option<PathBuf>,
     json: bool,
-) -> anyhow::Result<CliSession> {
-    let mut session = CliSession::connect(vault_id).map_err(|err| r_fail(&err, json))?;
-    session
-        .open_synthetic_vault(&vault_root.display().to_string())
-        .map_err(|err| r_fail(&err, json))?;
+) -> anyhow::Result<crate::vault_session::VaultSession> {
+    let mut session =
+        crate::vault_session::open(vault_id, vault_root).map_err(|err| r_fail(&err, json))?;
     let mut host = RWorkspaceHost::from_env();
     if stage_dir.is_some() {
         host.stage_dir = stage_dir;
@@ -478,6 +475,7 @@ mod tests {
     use super::*;
     use medscale_contracts::data_sources::{LocalFileFormat, SourceLocator};
     use medscale_contracts::r_workspace::{PublishState, RunRefusal, WorkspaceIntegrity};
+    use medscale_core::CliSession;
 
     const VAULT: &str = "vault-086-cli";
 
