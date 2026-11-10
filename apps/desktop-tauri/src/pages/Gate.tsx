@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState, type FormEvent, type ReactNode } from "react";
+import { open } from "@tauri-apps/plugin-dialog";
 import { useApp } from "../lib/app";
 import { isReturningToSample } from "../lib/first-launch";
 import { call, useAction, type CmdError } from "../lib/ipc";
@@ -11,6 +12,12 @@ import { ConfirmPanel } from "../components/confirm";
 /** Spec 108 step 2: one announced alert per failure. With a known reason the
  * plain guidance replaces Core's raw message, which can name internal paths.
  * Next steps are always explicit: nothing here retries, resets or deletes by itself. */
+const RESTORE_BACKUP_DIALOG = {
+  title: "Restore this backup?",
+  confirm: "Restore backup",
+  body: "becomes this device's vault. It opens with the passphrase and recovery codes it had when it was backed up. The current vault, if there is one, is moved beside it and kept, not deleted.",
+};
+
 function FailureAlert({ error, glyph = "failed", children }: { error: CmdError; glyph?: "failed" | "denied"; children?: ReactNode }) {
   const g = seedFailureGuidance(error.reason);
   return (
@@ -255,6 +262,25 @@ export function Access({ onBack, onRecoveryCodes }: { onBack: () => void; onReco
     if (notice) toast(notice);
     await refreshWorkspace();
   }
+  const [restoreFrom, setRestoreFrom] = useState<string | null>(null);
+  async function chooseBackup() {
+    setError(null);
+    try {
+      const selected = await open({ multiple: false, directory: true, title: "Choose a MedScale-backup folder" });
+      if (typeof selected === "string") setRestoreFrom(selected);
+    } catch {
+      toast({ kind: "blocked", title: "Cannot open folder chooser", detail: "Try again, or restore from the command line with medscale vault restore." });
+    }
+  }
+  async function restoreBackup() {
+    if (!restoreFrom) return;
+    const r = await run<{ previous_kept_at: string | null }>("restore", "vault_restore", { folder: restoreFrom });
+    setRestoreFrom(null);
+    if (!r.ok) { setError(r.error); return; }
+    toast({ kind: "completed", title: "Backup restored · unlock to open it", detail: r.data.previous_kept_at ? `The vault it replaced was kept at ${r.data.previous_kept_at}` : undefined });
+    setMode("unlock");
+    await refreshWorkspace();
+  }
   async function synthetic() {
     const r = await run<unknown>("synthetic", "workspace_open_synthetic");
     if (!r.ok) { setError(r.error); return; }
@@ -344,12 +370,17 @@ export function Access({ onBack, onRecoveryCodes }: { onBack: () => void; onReco
                   <ConfirmPanel title={MOVE_SESSION_ASIDE_DIALOG.title} confirmLabel={MOVE_SESSION_ASIDE_DIALOG.confirm} busy={!!pending}
                     onConfirm={moveSessionAside} onCancel={() => setMoveAside(false)}>{MOVE_SESSION_ASIDE_DIALOG.body}</ConfirmPanel>
                 )}
+                {restoreFrom && (
+                  <ConfirmPanel title={RESTORE_BACKUP_DIALOG.title} confirmLabel={RESTORE_BACKUP_DIALOG.confirm} busy={!!pending}
+                    onConfirm={restoreBackup} onCancel={() => setRestoreFrom(null)}><b className="mono t-mono-sm">{restoreFrom}</b> {RESTORE_BACKUP_DIALOG.body}</ConfirmPanel>
+                )}
                 <div className="row-gap" style={{ gap: 14 }}>
                   <button type="submit" className="btn btn-p lg" disabled={!!pending || (useCode ? !pass.trim() : pass.length < 8)}>{pending === "unlock" || pending === "create" ? <><Glyph kind="running" />Working…</> : mode === "unlock" ? "Unlock workspace" : "Create vault"}</button>
                   {exists && !compact
                     ? <button type="button" className="link t-sm" onClick={() => { setMode(mode === "unlock" ? "create" : "unlock"); setError(null); }} disabled={mode === "unlock"} title={mode === "unlock" ? "A vault already exists at the default location" : undefined}>{mode === "unlock" ? "One vault per device in this build" : "Unlock existing vault"}</button>
                     : null}
                 </div>
+                {!restoreFrom && <div><button type="button" className="link t-sm" onClick={() => void chooseBackup()} disabled={!!pending}>Restore from a backup…</button></div>}
                 {compact ? (
                   <>
                     <button type="button" className="link t-sm access-sample" onClick={onBack} disabled={!!pending}>Explore sample data instead</button>

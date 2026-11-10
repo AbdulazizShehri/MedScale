@@ -648,6 +648,22 @@ pub enum RequestBody {
         source: String,
         destination: String,
     },
+    /// Copies a locked encrypted vault into a new folder
+    /// `MedScale-backup-<label>` inside `parent` and checks every copied file.
+    /// Refused while any vault is open in this session.
+    BackupEncryptedVault {
+        vault_root: String,
+        parent: String,
+        label: String,
+    },
+    /// Replaces the encrypted vault at `vault_root` with a backup. The vault
+    /// it replaces is kept beside it, never deleted. Refused while any vault
+    /// is open in this session.
+    RestoreEncryptedVault {
+        backup: String,
+        vault_root: String,
+        label: String,
+    },
     RunBlobGc,
     GetTimeline {
         subject_ref: OpaqueId,
@@ -1871,6 +1887,15 @@ pub enum ResponseBody {
     },
     DrillDown {
         result: DrillDownResult,
+    },
+    EncryptedVaultBackedUp {
+        path: String,
+        files: u64,
+        bytes: u64,
+    },
+    EncryptedVaultRestored {
+        vault_root: String,
+        previous_kept_at: Option<String>,
     },
     EncryptedVaultReady {
         vault_root: String,

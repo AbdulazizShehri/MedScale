@@ -383,6 +383,34 @@ enum VaultCmd {
         #[arg(long)]
         vault_root: PathBuf,
     },
+    /// Copy a locked encrypted vault into a new `MedScale-backup-<label>`
+    /// folder inside `--to` and check every copied file. The backup stays
+    /// encrypted and opens with the same passphrase and recovery codes.
+    Backup {
+        #[arg(long)]
+        vault_root: PathBuf,
+        /// Existing folder to put the backup in.
+        #[arg(long)]
+        to: PathBuf,
+        /// Folder name suffix ([A-Za-z0-9-]); defaults to the current time.
+        #[arg(long)]
+        label: Option<String>,
+        #[arg(long)]
+        json: bool,
+    },
+    /// Replace the encrypted vault at `--vault-root` with a backup. The vault
+    /// it replaces is moved beside it and kept, never deleted.
+    Restore {
+        /// A `MedScale-backup-*` folder.
+        #[arg(long)]
+        from: PathBuf,
+        #[arg(long)]
+        vault_root: PathBuf,
+        #[arg(long)]
+        label: Option<String>,
+        #[arg(long)]
+        json: bool,
+    },
 }
 
 #[derive(Debug, Subcommand)]
@@ -1044,6 +1072,46 @@ fn run() -> Result<()> {
                 println!("synthetic_vault_open: {}", vault_root.display());
                 Ok(())
             }
+            VaultCmd::Backup {
+                vault_root,
+                to,
+                label,
+                json,
+            } => {
+                let (path, files, bytes) = vault_backup_sealed(&vault_root, &to, label)?;
+                if json {
+                    println!(
+                        "{}",
+                        serde_json::json!({ "backup": path, "files": files, "bytes": bytes, "verified": true })
+                    );
+                } else {
+                    println!("vault_backup: {path}");
+                    println!("files_verified: {files}");
+                    println!("bytes: {bytes}");
+                }
+                Ok(())
+            }
+            VaultCmd::Restore {
+                from,
+                vault_root,
+                label,
+                json,
+            } => {
+                let kept = vault_restore_sealed(&from, &vault_root, label)?;
+                if json {
+                    println!(
+                        "{}",
+                        serde_json::json!({ "restored": vault_root.display().to_string(), "previous_kept_at": kept })
+                    );
+                } else {
+                    println!("vault_restored: {}", vault_root.display());
+                    match kept {
+                        Some(kept) => println!("previous_vault_kept_at: {kept}"),
+                        None => println!("previous_vault_kept_at: none"),
+                    }
+                }
+                Ok(())
+            }
         },
         Commands::Ingest {
             vault_id,
@@ -1540,6 +1608,52 @@ fn vault_create_sealed(vault_id: &str, vault_root: &Path, passphrase: &str) -> R
 
 /// Opens (verifies the passphrase for) an encrypted vault and seals it again
 /// before returning, for the same reason as [`vault_create_sealed`].
+fn backup_label(label: Option<String>) -> String {
+    label.unwrap_or_else(|| {
+        std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .map(|d| d.as_secs())
+            .unwrap_or_default()
+            .to_string()
+    })
+}
+
+/// Backs up a locked encrypted vault through Core; returns `(folder, files, bytes)`.
+fn vault_backup_sealed(
+    vault_root: &Path,
+    to: &Path,
+    label: Option<String>,
+) -> Result<(String, u64, u64)> {
+    if !to.is_dir() {
+        bail!("--to must be an existing folder");
+    }
+    let mut session = CliSession::connect("cli-backup").map_err(auth)?;
+    session
+        .backup_encrypted_vault(
+            &vault_root.display().to_string(),
+            &to.display().to_string(),
+            &backup_label(label),
+        )
+        .map_err(auth)
+}
+
+/// Restores a backup over the encrypted vault through Core; returns where the
+/// replaced vault was kept.
+fn vault_restore_sealed(
+    from: &Path,
+    vault_root: &Path,
+    label: Option<String>,
+) -> Result<Option<String>> {
+    let mut session = CliSession::connect("cli-restore").map_err(auth)?;
+    session
+        .restore_encrypted_vault(
+            &from.display().to_string(),
+            &vault_root.display().to_string(),
+            &backup_label(label),
+        )
+        .map_err(auth)
+}
+
 fn vault_open_sealed(vault_id: &str, vault_root: &Path, passphrase: &str) -> Result<()> {
     let mut session = CliSession::connect(vault_id).map_err(auth)?;
     session
@@ -2042,6 +2156,31 @@ mod tests {
             "writer lease must be released"
         );
         let _ = fs::remove_dir_all(&root);
+    }
+
+    #[test]
+    fn vault_backup_and_restore_keep_the_replaced_vault() {
+        let root = enc_tmp("backup-root");
+        let to = enc_tmp("backup-to");
+        fs::create_dir_all(&to).unwrap();
+        vault_create_sealed("cli-seal-backup", &root, "correct horse battery").unwrap();
+        let (folder, files, _) = vault_backup_sealed(&root, &to, Some("t1".to_owned())).unwrap();
+        assert!(folder.ends_with("MedScale-backup-t1"), "{folder}");
+        assert!(files >= 2);
+        assert!(vault_backup_sealed(&root, &to.join("missing"), None).is_err());
+
+        let kept = vault_restore_sealed(Path::new(&folder), &root, Some("t2".to_owned()))
+            .unwrap()
+            .expect("the replaced vault is kept");
+        assert!(Path::new(&kept).join("meta.sealed").is_file());
+        vault_open_sealed("cli-seal-backup", &root, "correct horse battery").unwrap();
+        assert!(
+            vault_restore_sealed(&to, &root, None).is_err(),
+            "not a backup"
+        );
+        let _ = fs::remove_dir_all(&root);
+        let _ = fs::remove_dir_all(&kept);
+        let _ = fs::remove_dir_all(&to);
     }
 
     #[test]

@@ -275,6 +275,52 @@ impl CliSession {
         }
     }
 
+    /// Copies the locked encrypted vault at `vault_root` into a new folder
+    /// `MedScale-backup-<label>` inside `parent`, checks every copied file,
+    /// and returns `(folder, files, bytes)`. Refused while a vault is open.
+    pub fn backup_encrypted_vault(
+        &mut self,
+        vault_root: &str,
+        parent: &str,
+        label: &str,
+    ) -> Result<(String, u64, u64), AuthorityError> {
+        match self.dispatch(
+            Capability::BackupVault,
+            RequestBody::BackupEncryptedVault {
+                vault_root: vault_root.to_owned(),
+                parent: parent.to_owned(),
+                label: label.to_owned(),
+            },
+        )? {
+            ResponseBody::EncryptedVaultBackedUp { path, files, bytes } => Ok((path, files, bytes)),
+            _ => Err(Self::unexpected("encrypted vault backed up")),
+        }
+    }
+
+    /// Replaces the encrypted vault at `vault_root` with the backup at
+    /// `backup` and returns where the replaced vault was kept, if there was
+    /// one. Refused while a vault is open.
+    pub fn restore_encrypted_vault(
+        &mut self,
+        backup: &str,
+        vault_root: &str,
+        label: &str,
+    ) -> Result<Option<String>, AuthorityError> {
+        match self.dispatch(
+            Capability::RestoreVault,
+            RequestBody::RestoreEncryptedVault {
+                backup: backup.to_owned(),
+                vault_root: vault_root.to_owned(),
+                label: label.to_owned(),
+            },
+        )? {
+            ResponseBody::EncryptedVaultRestored {
+                previous_kept_at, ..
+            } => Ok(previous_kept_at),
+            _ => Err(Self::unexpected("encrypted vault restored")),
+        }
+    }
+
     /// What the last open did with a session that never sealed (Spec 109).
     #[must_use]
     pub fn last_open_outcome(&self) -> Option<medscale_contracts::envelopes::VaultOpenOutcome> {

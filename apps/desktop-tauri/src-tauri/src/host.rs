@@ -2471,6 +2471,86 @@ pub fn create_encrypted(state: &mut State, passphrase: &str) -> CmdResult<Vec<St
     Ok(codes)
 }
 
+/// Where a backup keeps the desktop roster, beside the sealed files.
+const BACKUP_ROSTER: &str = "desktop-roster.json";
+
+/// Backs up the locked encrypted vault at `vault_root` into a new folder
+/// inside `parent` through Core, then adds the desktop roster.
+pub fn backup_encrypted(vault_root: &Path, parent: &Path) -> CmdResult<serde_json::Value> {
+    if !vault_root.join("vault_header.json").is_file() || !vault_root.join("meta.sealed").is_file()
+    {
+        return Err(CmdError::new(
+            "missing",
+            "Missing: there is no encrypted vault to back up",
+        ));
+    }
+    let mut session = CliSession::connect("desktop-backup")?;
+    let (path, files, bytes) = session
+        .backup_encrypted_vault(
+            &vault_root.display().to_string(),
+            &parent.display().to_string(),
+            &utc_stamp(),
+        )
+        .map_err(backup_error)?;
+    let roster = manifest_path(vault_root);
+    if roster.is_file() {
+        std::fs::copy(&roster, Path::new(&path).join(BACKUP_ROSTER)).map_err(|_| {
+            CmdError::unavailable(
+                "Unavailable: the vault was backed up but its patient list could not be copied",
+            )
+        })?;
+    }
+    Ok(serde_json::json!({ "path": path, "files": files, "bytes": bytes }))
+}
+
+/// Replaces the encrypted vault at `vault_root` with `backup` through Core.
+/// The replaced vault and roster are kept beside the new ones.
+pub fn restore_encrypted(backup: &Path, vault_root: &Path) -> CmdResult<serde_json::Value> {
+    if !backup.join("vault_header.json").is_file() || !backup.join("meta.sealed").is_file() {
+        return Err(CmdError::invalid(
+            "Invalid: that folder is not a MedScale vault backup",
+        ));
+    }
+    let label = utc_stamp();
+    let mut session = CliSession::connect("desktop-restore")?;
+    let kept = session
+        .restore_encrypted_vault(
+            &backup.display().to_string(),
+            &vault_root.display().to_string(),
+            &label,
+        )
+        .map_err(backup_error)?;
+    let roster = manifest_path(vault_root);
+    if roster.is_file() {
+        let mut aside = roster.clone().into_os_string();
+        aside.push(format!(".before-restore-{label}"));
+        std::fs::rename(&roster, aside).map_err(|_| {
+            CmdError::unavailable(
+                "Unavailable: the vault was restored but the old patient list could not be moved aside",
+            )
+        })?;
+    }
+    let saved = backup.join(BACKUP_ROSTER);
+    if saved.is_file() {
+        std::fs::copy(&saved, &roster).map_err(|_| {
+            CmdError::unavailable(
+                "Unavailable: the vault was restored but its patient list could not be copied",
+            )
+        })?;
+    }
+    Ok(serde_json::json!({ "restored": true, "previous_kept_at": kept }))
+}
+
+fn backup_error(err: AuthorityError) -> CmdError {
+    match err {
+        AuthorityError::InvalidArgument { message } => CmdError::invalid(format!(
+            "Invalid: {}",
+            message.trim().trim_start_matches("invalid: ")
+        )),
+        other => CmdError::from(other),
+    }
+}
+
 /// Returns what unlocking did with a session that never sealed.
 pub fn unlock_encrypted(
     state: &mut State,

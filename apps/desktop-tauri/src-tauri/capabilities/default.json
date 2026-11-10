@@ -17,6 +17,8 @@
     "allow-vault-recovery-items",
     "allow-vault-recovery-delete",
     "allow-vault-recovery-restore",
+    "allow-vault-backup",
+    "allow-vault-restore",
     "allow-workspace-lock",
     "allow-patients-list",
     "allow-patient-detail",
