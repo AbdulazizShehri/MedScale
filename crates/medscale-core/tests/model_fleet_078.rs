@@ -1885,3 +1885,69 @@ fn fleet_compares_lanes_on_different_local_runtimes() {
     assert!(report.excluded_lane_ids.is_empty());
     report.validate().expect("valid report");
 }
+
+#[test]
+fn a_lane_cites_only_current_evidence_and_is_refused_when_none_remains() {
+    // Clinical empty-evidence gate: a run re-resolves its context before the
+    // model runs, cites only what is current, and refuses with nothing left.
+    let mut h = Harness::setup("fleet-evidence-gate");
+    let project_id = h.project("evidence-gate-project");
+    let pack_id = h.install_onnx_pack();
+    let agent_a = h.register_identity(&project_id, &pack_id, vec![ToolKind::ReadContextArtifact]);
+    let agent_b = h.register_identity(&project_id, &pack_id, vec![ToolKind::ReadContextArtifact]);
+    let real = h.source_record(b"synthetic note: still present");
+    let mixed = h.create_context(&project_id, &[real.as_str(), "artifact-never-created"]);
+    let empty = h.create_context(&project_id, &["artifact-never-created"]);
+    let lane_mixed = h
+        .create_lane(&project_id, &agent_a, &mixed, None, None)
+        .expect("lane with mixed context");
+    let lane_empty = h
+        .create_lane(&project_id, &agent_b, &empty, None, None)
+        .expect("lane with no current context");
+    let fleet = h.create_fleet(&project_id);
+    h.dispatch(
+        &fleet.header.id,
+        1,
+        &[&lane_mixed.header.id, &lane_empty.header.id],
+    )
+    .unwrap();
+
+    let (_, run, proposal) = h
+        .execute_lane(
+            &fleet.header.id,
+            &lane_mixed.header.id,
+            &onnx_fixture_pack(),
+            true,
+        )
+        .expect("execute mixed lane");
+    assert_eq!(run.status, AgentRunState::Completed);
+    let proposal = proposal.expect("a completed lane carries its proposal");
+    let ResponseBody::Object { value } = h
+        .call(
+            Capability::ReadObject,
+            RequestBody::ReadObject {
+                object_id: proposal.proposal_id,
+            },
+        )
+        .expect("read proposal")
+    else {
+        panic!("expected the proposal object");
+    };
+    let stored = value.to_string();
+    assert!(stored.contains(real.as_str()), "{stored}");
+    assert!(
+        !stored.contains("artifact-never-created"),
+        "a missing artifact is not cited: {stored}"
+    );
+
+    let (_, refused, none) = h
+        .execute_lane(
+            &fleet.header.id,
+            &lane_empty.header.id,
+            &onnx_fixture_pack(),
+            true,
+        )
+        .expect("a refused execution closes the lane, it is not an error");
+    assert_eq!(refused.status, AgentRunState::Failed);
+    assert!(none.is_none(), "no proposal without current evidence");
+}

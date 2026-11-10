@@ -22,6 +22,7 @@ VECTOR_DIR = REPO_ROOT / "crates" / "medscale-clinical" / "tests" / "vectors"
 sys.path.insert(0, str(PACKAGE_ROOT / "src"))
 
 from medscale_clinical.clinical.evidence_span_audit import audit_evidence_spans  # noqa: E402
+from medscale_clinical.clinical import summary_empty_evidence as see  # noqa: E402
 
 DIGEST = "sha256:" + "ab" * 32
 
@@ -93,7 +94,57 @@ def evidence_span_audit_vectors() -> dict[str, object]:
     }
 
 
-VECTORS = {"evidence_span_audit.json": evidence_span_audit_vectors}
+EMPTY_EVIDENCE_CASES: list[tuple[str, list[dict[str, object]]]] = [
+    ("none", []),
+    ("one_approved", [{"id": "e1", "status": "approved"}]),
+    ("missing_approval_means_approved", [{"id": "e1"}]),
+    ("all_rejected", [{"id": "e1", "status": "rejected"}, {"id": "e2", "status": "pending"}]),
+    ("invalid_and_unapproved", [{"id": "e1", "valid": False}, {"id": "e2", "approved": False}]),
+    ("no_payload_is_invalid", [{"status": "approved"}]),
+    (
+        "mixed_keeps_approved_in_order",
+        [
+            {"id": "e1", "status": "stale"},
+            {"id": "e2", "status": "approved"},
+            {"id": "e3", "approval": {"status": "rejected"}},
+            {"id": "e4", "approved": True},
+        ],
+    ),
+]
+
+
+def _approval(record: dict[str, object]) -> str:
+    verdict = see._classify_evidence(record)
+    if verdict is True:
+        return "approved"
+    return "unapproved" if verdict is see._UNAPPROVED else "invalid"
+
+
+def summary_empty_evidence_vectors() -> dict[str, object]:
+    cases = []
+    for name, records in EMPTY_EVIDENCE_CASES:
+        refusal = see.build_summary_empty_evidence_refusal(records)
+        approvals = [_approval(r) for r in records]
+        cases.append(
+            {
+                "name": name,
+                "records": records,
+                "approvals": approvals,
+                "selected": [i for i, a in enumerate(approvals) if a == "approved"],
+                "refusal_json": None if refusal is None else refusal.to_json(),
+            }
+        )
+    return {
+        "module": "medscale_clinical.clinical.summary_empty_evidence",
+        "generator": "integrations/clinical-evidence-python/conformance/generate_vectors.py",
+        "cases": cases,
+    }
+
+
+VECTORS = {
+    "evidence_span_audit.json": evidence_span_audit_vectors,
+    "summary_empty_evidence.json": summary_empty_evidence_vectors,
+}
 
 
 def render(builder) -> str:

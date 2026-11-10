@@ -65,6 +65,7 @@ fn bounded_failure_reason(err: &AuthorityError) -> String {
         AuthorityError::InvalidArgument { .. } => "execution_refused",
         AuthorityError::ExternalGateRequired { .. } => "external_gate_required",
         AuthorityError::Conflict { .. } => "conflict",
+        AuthorityError::StaleReference { .. } => "no_current_evidence",
         _ => "execution_failed",
     };
     format!("fleet lane execution failed: {kind}")

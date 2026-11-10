@@ -51,6 +51,9 @@
 //! the existing in-memory `ActionAuditRecord` trail rather than a
 //! dedicated hash chain.
 
+use medscale_clinical::summary_empty_evidence::{
+    Approval, SUMMARY_EMPTY_EVIDENCE_REFUSAL_CODE, require_approved_evidence,
+};
 use medscale_contracts::envelopes::AuthorityError;
 use medscale_contracts::medagent::{
     AgentCapabilityManifest, AgentIdentity, AgentIdentityStatus, AgentProposal, AgentRun,
@@ -979,6 +982,36 @@ impl MedAgent<'_> {
         }
         let identity = self.require_active_identity(&run.agent_identity_id)?;
 
+        // Clinical empty-evidence gate: generation runs only on context that
+        // still resolves to its current version now. Artifacts that went
+        // missing, stale or out of scope since the manifest was made are not
+        // cited, and with none left the model is not run at all.
+        let context = self.scoped_context_manifest(&run.context_manifest_id)?;
+        let candidates = context
+            .selected_artifacts
+            .iter()
+            .map(|artifact| {
+                let approval = match self.resolve_context_artifact(artifact) {
+                    ReferenceResolution::Current => Approval::Approved,
+                    ReferenceResolution::Stale
+                    | ReferenceResolution::Missing
+                    | ReferenceResolution::Denied => Approval::Unapproved,
+                    ReferenceResolution::UnsupportedKind | ReferenceResolution::Corrupt => {
+                        Approval::Invalid
+                    }
+                };
+                (artifact.object_id.clone(), approval)
+            })
+            .collect();
+        let evidence_refs = require_approved_evidence(candidates).map_err(|refusal| {
+            AuthorityError::StaleReference {
+                message: format!(
+                    "{SUMMARY_EMPTY_EVIDENCE_REFUSAL_CODE}: none of the {} context artifacts                      resolves to its current version; nothing was generated",
+                    refusal.input_evidence_count
+                ),
+            }
+        })?;
+
         let path = std::path::Path::new(local_path);
         let manifest =
             medscale_pack::admit_pack_dir(path).map_err(|err| AuthorityError::InvalidArgument {
@@ -1025,12 +1058,6 @@ impl MedAgent<'_> {
         // (facade.rs's CreateProposal arm) -- so this mirrors that arm's
         // exact construction pattern with the one field this spec's own
         // contracts.md section 7 addition exists to carry.
-        let context = self.scoped_context_manifest(&run.context_manifest_id)?;
-        let evidence_refs: Vec<OpaqueId> = context
-            .selected_artifacts
-            .iter()
-            .map(|artifact| artifact.object_id.clone())
-            .collect();
         let proposal_id = self.store.alloc_id("proposal");
         let proposal = Proposal {
             header: ObjectHeader {
