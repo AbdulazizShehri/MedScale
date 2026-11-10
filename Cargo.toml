@@ -60,6 +60,7 @@ keyring = { version = "3.6.3", default-features = false, features = [
     "linux-native",
 ] }
 medscale-contracts = { path = "crates/medscale-contracts", version = "0.1.0" }
+medscale-clinical = { path = "crates/medscale-clinical", version = "0.1.0" }
 medscale-storage = { path = "crates/medscale-storage", version = "0.1.0" }
 medscale-fhir = { path = "crates/medscale-fhir", version = "0.1.0" }
 medscale-core = { path = "crates/medscale-core", version = "0.1.0" }

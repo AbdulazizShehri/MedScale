@@ -26,7 +26,7 @@ MedScale's Core can't run Python, R or shell code (founder decision 2026-09-23),
 | `decision_support` | #478 | yes | yes | no | no | no | no |
 | `evidence_coverage` | #478 | yes | yes | no | no | no | no |
 | `evidence_recency` | #477 | yes | yes | no | no | no | no |
-| `evidence_span_audit` | #477 | yes | yes | yes (#479) | no | no | no |
+| `evidence_span_audit` | #477 | yes | yes | yes (#479) | yes: Research Canvas view (#480) | no | no |
 | `evidence_table` | #478 | yes | yes | no | no | no | no |
 | `lab_reference_ranges` | #478 | yes | yes | no | no | no | no |
 | `nli_batch_plan` | #478 | yes | yes | no | no | no | no |
@@ -69,7 +69,12 @@ Three upstream test files exercise modules not shipped here (the SDOH extractor 
 |---|---|---|
 | [#477](https://github.com/AbdulazizShehri/MedScale/pull/477) | `feat/openmed-clinical-evidence-v1` | 8 evidence modules (Python) |
 | [#478](https://github.com/AbdulazizShehri/MedScale/pull/478) | `feat/openmed-clinical-safety-v2` | 26 safety, review and NLI modules (Python), plus review fixes; contains #477 |
-| #479 | `feat/clinical-rust-span-audit-20261108` | `medscale-clinical` crate: evidence-span audit port and conformance vectors; contains #478 |
+| [#479](https://github.com/AbdulazizShehri/MedScale/pull/479) | `feat/clinical-rust-span-audit-20261108` | `medscale-clinical` crate: evidence-span audit port and conformance vectors |
+| #480 | `feat/clinical-span-audit-core` | Core: the Research Canvas view lists evidence nodes that cite overlapping text (`CanvasView.overlapping_evidence`); the CLI prints it |
+
+## Where each port runs
+
+- **Evidence-span audit:** `CanvasView` (Core) inspects each Canvas revision for evidence nodes whose spans overlap within one source location (exact, nested or partial). Cross-location pairs are dropped because their offsets count different text. The CLI `knowledge canvas-show` prints the pairs. The desktop app lists canvases but does not show canvas views yet, so this is not desktop-verified.
 
 ## Qualification status
 

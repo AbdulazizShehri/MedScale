@@ -12,13 +12,14 @@
 
 use std::collections::{BTreeMap, BTreeSet, HashMap};
 
+use medscale_clinical::evidence_span_audit::{OverlapKind, audit_evidence_spans, span_from_ref};
 use medscale_contracts::data_sources::{CellValue, SourceStatus};
 use medscale_contracts::envelopes::AuthorityError;
 use medscale_contracts::knowledge::{
     CANVAS_OPS_MAX, CHUNK_MAX_CHARS, CanvasNodeContent, CanvasOp, CanvasRelation, CanvasRevision,
-    CanvasSummary, CanvasView, EvidenceSpanRef, Freshness, HITS_DEFAULT, HITS_MAX,
-    INDEX_CHUNKS_MAX, IndexChunk, IndexManifest, IndexSourceRef, IndexStatus,
-    KNOWLEDGE_SCHEMA_VERSION, KnowledgeSourceKind, LEXICAL_TOKENIZER, NodeResolution,
+    CanvasSummary, CanvasView, EvidenceOverlap, EvidenceOverlapKind, EvidenceSpanRef, Freshness,
+    HITS_DEFAULT, HITS_MAX, INDEX_CHUNKS_MAX, IndexChunk, IndexManifest, IndexSourceRef,
+    IndexStatus, KNOWLEDGE_SCHEMA_VERSION, KnowledgeSourceKind, LEXICAL_TOKENIZER, NodeResolution,
     QUERY_MAX_CHARS, QUERY_TERMS_MAX, ReceiptHit, RetrievalDenyReason, RetrievalHit,
     RetrievalOutcome, RetrievalPlan, RetrievalReceipt, RetrievalRequest, RetrievalResult,
     RetrievalStage, SpanLocator, chunks_digest,
@@ -54,6 +55,48 @@ pub fn tokenize(text: &str) -> Vec<String> {
         .filter(|t| !t.is_empty())
         .map(str::to_owned)
         .collect()
+}
+
+/// Evidence nodes of one Canvas whose spans overlap within one source
+/// location, found by the clinical evidence-span audit. Pairs in different
+/// locations are left out: their offsets count different text.
+fn evidence_overlaps(canvas: &CanvasRevision) -> Vec<EvidenceOverlap> {
+    let mut keys = HashMap::new();
+    let mut spans = Vec::new();
+    for node in &canvas.nodes {
+        if let CanvasNodeContent::Evidence { span } = &node.content
+            && let Ok(audited) = span_from_ref(&node.key, span)
+        {
+            keys.insert(audited.evidence_id().to_owned(), node.key.clone());
+            spans.push(audited);
+        }
+    }
+    // A Canvas holds at most CANVAS_NODES_MAX nodes, below the audit's bound.
+    let Ok(audit) = audit_evidence_spans(spans) else {
+        return Vec::new();
+    };
+    let mut overlaps: Vec<EvidenceOverlap> = audit
+        .overlaps
+        .iter()
+        .filter_map(|o| {
+            let kind = match o.kind {
+                OverlapKind::Exact => EvidenceOverlapKind::Exact,
+                OverlapKind::Nested => EvidenceOverlapKind::Nested,
+                OverlapKind::Partial => EvidenceOverlapKind::Partial,
+                OverlapKind::CrossSource => return None,
+            };
+            let a = keys.get(o.first.evidence_id())?.clone();
+            let b = keys.get(o.second.evidence_id())?.clone();
+            let (first, second) = if a <= b { (a, b) } else { (b, a) };
+            Some(EvidenceOverlap {
+                first,
+                second,
+                kind,
+            })
+        })
+        .collect();
+    overlaps.sort();
+    overlaps
 }
 
 /// Splits text into windows of at most `CHUNK_MAX_CHARS` characters,
@@ -806,6 +849,7 @@ impl DataSources<'_> {
             .filter(|e| e.relation == CanvasRelation::Contradicts)
             .cloned()
             .collect();
+        let overlapping_evidence = evidence_overlaps(&canvas);
         Ok(CanvasView {
             canvas,
             resolutions,
@@ -813,6 +857,7 @@ impl DataSources<'_> {
             unsupported_notes,
             superseded_evidence,
             missing_evidence,
+            overlapping_evidence,
         })
     }
 

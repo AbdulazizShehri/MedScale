@@ -629,6 +629,29 @@ pub struct NodeResolution {
     pub text: Option<String>,
 }
 
+/// How two evidence nodes cite the same source location.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum EvidenceOverlapKind {
+    /// The same character range.
+    Exact,
+    /// One range inside the other.
+    Nested,
+    /// The ranges share some characters.
+    Partial,
+}
+
+/// Two evidence nodes whose spans overlap in one source location (same
+/// revision and the same cell, segment or excerpt). `first` sorts before
+/// `second`. A review signal only: neither node is preferred or removed.
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct EvidenceOverlap {
+    pub kind: EvidenceOverlapKind,
+    pub first: String,
+    pub second: String,
+}
+
 /// A Canvas revision with every evidence node resolved live, plus the
 /// contradiction and missing-evidence inspection.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -644,6 +667,10 @@ pub struct CanvasView {
     pub superseded_evidence: Vec<String>,
     /// Evidence nodes whose source is no longer readable.
     pub missing_evidence: Vec<String>,
+    /// Evidence nodes that cite the same or overlapping text of one source
+    /// location, so one piece of evidence may be counted twice. Sorted by
+    /// kind, then keys.
+    pub overlapping_evidence: Vec<EvidenceOverlap>,
 }
 
 /// Summary row for listings.

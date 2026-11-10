@@ -16,9 +16,9 @@ use medscale_contracts::envelopes::{
     AuthorityError, AuthorityRequest, Capability, RequestBody, ResponseBody,
 };
 use medscale_contracts::knowledge::{
-    CanvasOp, CanvasRelation, CanvasRevision, CanvasView, EvidenceSpanRef, Freshness,
-    IndexManifest, IndexStatus, KnowledgeSourceKind, RetrievalDenyReason, RetrievalOutcome,
-    RetrievalRequest, RetrievalResult, RetrievalStage,
+    CanvasOp, CanvasRelation, CanvasRevision, CanvasView, EvidenceOverlap, EvidenceOverlapKind,
+    EvidenceSpanRef, Freshness, IndexManifest, IndexStatus, KnowledgeSourceKind,
+    RetrievalDenyReason, RetrievalOutcome, RetrievalRequest, RetrievalResult, RetrievalStage,
 };
 use medscale_contracts::objects::{AuthorityScopeId, OpaqueId, RealmId, VaultId};
 use medscale_core::authority::FixtureAsrEngine;
@@ -759,6 +759,8 @@ fn a_canvas_holds_live_references_and_inspects_its_evidence() {
     assert_eq!(v.unsupported_notes, vec!["question".to_owned()]);
     assert_eq!(v.contradictions.len(), 1);
     assert!(v.superseded_evidence.is_empty() && v.missing_evidence.is_empty());
+    // A cell and a transcript segment are different locations: no overlap.
+    assert!(v.overlapping_evidence.is_empty());
 
     // Stale writers are refused; evidence must resolve.
     assert!(matches!(
@@ -834,4 +836,56 @@ fn knowledge_state_survives_reopen() {
         ResponseBody::Canvases { canvases } => assert_eq!(canvases.len(), 1),
         other => panic!("{other:?}"),
     }
+}
+
+#[test]
+fn a_canvas_flags_evidence_that_cites_the_same_text_twice() {
+    let mut h = Harness::setup("overlap");
+    let lab = h.lab("study", "notes.csv", NOTES);
+    h.build(&lab.project);
+    let r = h.search(&lab.project, "myalgia");
+    let cell = span_of(&r, KnowledgeSourceKind::DataSnapshot);
+    // "myalgia after statin start" is 26 characters.
+    assert_eq!((cell.char_start, cell.char_end), (0, 26));
+    let part = |start: u32, end: u32| EvidenceSpanRef {
+        char_start: start,
+        char_end: end,
+        ..cell.clone()
+    };
+    let c = h.canvas(&lab.project, "Duplicate evidence");
+    let evidence = |key: &str, span: EvidenceSpanRef| CanvasOp::AddEvidence {
+        key: key.to_owned(),
+        span,
+    };
+    h.edit(
+        &c.header.id,
+        1,
+        vec![
+            evidence("whole", cell.clone()),
+            evidence("whole-again", cell.clone()),
+            evidence("head", part(0, 14)),
+            evidence("tail", part(8, 26)),
+        ],
+    )
+    .unwrap();
+    let v = h.view(&c.header.id, None);
+    let pair = |first: &str, second: &str, kind| EvidenceOverlap {
+        first: first.to_owned(),
+        second: second.to_owned(),
+        kind,
+    };
+    use EvidenceOverlapKind::{Exact, Nested, Partial};
+    assert_eq!(
+        v.overlapping_evidence,
+        vec![
+            pair("whole", "whole-again", Exact),
+            pair("head", "whole", Nested),
+            pair("head", "whole-again", Nested),
+            pair("tail", "whole", Nested),
+            pair("tail", "whole-again", Nested),
+            pair("head", "tail", Partial),
+        ]
+    );
+    // A review signal only: nothing was removed or resolved.
+    assert_eq!(v.resolutions.len(), 4);
 }

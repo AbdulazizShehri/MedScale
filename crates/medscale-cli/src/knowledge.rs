@@ -150,6 +150,12 @@ fn print_canvas(v: &CanvasView, json: bool) -> anyhow::Result<()> {
     println!("contradictions: {}", v.contradictions.len());
     println!("superseded evidence: {}", v.superseded_evidence.join(", "));
     println!("missing evidence: {}", v.missing_evidence.join(", "));
+    let overlaps: Vec<String> = v
+        .overlapping_evidence
+        .iter()
+        .map(|o| format!("{} = {} ({:?})", o.first, o.second, o.kind).to_lowercase())
+        .collect();
+    println!("overlapping evidence: {}", overlaps.join(", "));
     Ok(())
 }
 
