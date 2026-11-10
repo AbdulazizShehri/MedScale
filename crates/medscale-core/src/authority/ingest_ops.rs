@@ -56,7 +56,6 @@ pub fn close_vault(
     Ok(ResponseBody::VaultClosed)
 }
 
-#[allow(clippy::too_many_arguments)]
 /// What FHIR ingest needs from a vault: the synthetic vault, or an open
 /// encrypted vault (its blobs sealed, its metadata in SQLCipher).
 pub trait IngestVault {
@@ -127,6 +126,7 @@ impl IngestVault for EncryptedVault {
     }
 }
 
+#[allow(clippy::too_many_arguments)]
 pub fn ingest_fhir<V: IngestVault>(
     vault: &V,
     memory: &mut InMemoryAuthorityStore,
