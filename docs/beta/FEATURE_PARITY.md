@@ -98,6 +98,26 @@ Levels: **FULL** = UI → Tauri command → Core → visible result → audit re
 | Claim conflicts, citation checks, recency, uncertainty, refusal taxonomy, output-use policy, review state machine, decision support | Not applicable or already covered: MedScale produces no input of that shape, or an equivalent control exists (see the call-site map in PR #482's investigation) |
 | Lab reference ranges | Blocked: MedScale doesn't extract FHIR `referenceRange` |
 
-## 5. Not decided here
+## 5. Status after the release-readiness work (2026-11-11)
+
+Sections 1–4 are the audit as it was on `main@0be749f`. This section records what happened to each item. The decisions built on it are in [RELEASE_DECISION_REPORT.md](RELEASE_DECISION_REPORT.md).
+
+| # | Item | Status | Where |
+|---|---|---|---|
+| R1 | Backup and restore | **Done.** Desktop (Settings, lock screen), CLI, Core, storage; verified copies; the replaced vault is kept | #485 |
+| R2 | CLI C1–C3 | **Done.** Encrypted vaults open in every data command and are sealed after it; reads take `--vault-root`; recovery codes shown once on stderr and usable | #489 |
+| R3 | Research Canvas in the desktop | **Done.** Create, note, cite a search hit, link, remove; overlap, coverage, unsupported and contradicted notes | #493 |
+| R4 | MedAgent refusals in the desktop | **Done.** Empty-evidence refusal, a warning before Execute, refused tool calls | #488 |
+| R5 | FHIR import into encrypted vaults | **Done.** The patient list is read from Core's sealed records. The sample workspace still accepts any file (founder decision) | #492 |
+| R6 | Evidence corpus label | **Done** | #487 |
+| R7 | CLI export, backup, exit codes, binary tests | **Done** except a separate `verify` command: backups verify themselves (every file hash-compared) | #485, #491 |
+| R8 | CLI release workflow | **Done** for Windows x64, macOS arm64 and x64, Linux x64 and arm64; artifacts only, unsigned | #491 |
+| R9 | Linux desktop | **Done** as an engineering `.deb` (plus an unqualified `.rpm`); install, launch and removal qualified in CI. No AppImage | #490 |
+| R10 | Native E2E | **Partly done.** The desktop journeys run on Windows, Linux and macOS test builds in CI (#494). Installed-build journeys for the newer features (Canvas, backup, encrypted import) and a full DMG journey are not written | #494 |
+| R11 | Document corrections | **Done** | #486 |
+
+Clinical checks: numeric and unit consistency is **not done**. `presentation::build_coverage` still compares values as text, so the same value written two ways (`5` and `5.0`, or mg/dL and mmol/L) can be reported as conflicting. The fix is a port of the reference package's UCUM conversion, about 1,600 lines, and it is open work.
+
+## 6. Not decided here
 
 Real-patient-data authorization, publishing, signing purchases and clinical claims remain founder decisions. `REAL_PHI_AUTHORIZATION=NOT_AUTHORIZED`.
