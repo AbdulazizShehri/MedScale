@@ -346,6 +346,9 @@ async function main() {
     await nav("Documents");
     await click(button("Import synthetic FHIR"));
     await type("ip", file);
+    const synthetic = { name: "No real patient information in this file", kind: "CheckBox" };
+    await find(synthetic);
+    if (!(await driver.send({ op: "checked", ...synthetic })).checked) await click(synthetic);
     await click(button("Ingest through Core"));
     await waitForText("ingested and promoted as", 60000);
   });
