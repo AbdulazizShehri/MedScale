@@ -1,4 +1,5 @@
-/// The WebView2 remote-debugging feature is only for disposable Windows CI.
+/// The E2E WebDriver feature is only for disposable GitHub Actions runners
+/// (Windows, Linux or macOS). On Windows it opens WebView2 remote debugging.
 /// Prevent an accidental packaged/release build that exposes port 39517 and
 /// disables InPrivate. This is a build-time safeguard, not an authorization
 /// mechanism against someone intentionally changing source or environment.
@@ -12,11 +13,14 @@ fn verify_webdriver_build_scope() {
     }
     let allow = std::env::var("MEDSCALE_E2E_WEBDRIVER_CI").as_deref() == Ok("1")
         && std::env::var("GITHUB_ACTIONS").as_deref() == Ok("true")
-        && std::env::var("RUNNER_OS").as_deref() == Ok("Windows");
+        && matches!(
+            std::env::var("RUNNER_OS").as_deref(),
+            Ok("Windows" | "Linux" | "macOS")
+        );
     assert!(
         allow,
-        "Refusing e2e-webdriver outside explicit disposable Windows GitHub Actions CI; \
-         never package or distribute the WebView2 remote-debugging binary"
+        "Refusing e2e-webdriver outside explicit disposable GitHub Actions CI; \
+         never package or distribute an E2E WebDriver binary"
     );
 }
 

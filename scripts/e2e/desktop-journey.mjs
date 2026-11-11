@@ -6,7 +6,15 @@
 // `ms:edgeOptions.debuggerAddress` (Microsoft's documented WebView2
 // automation path). Plain HTTP to the WebDriver endpoint. Synthetic data only; the app opens its own synthetic
 // workspace from a fresh data directory. Each step saves a screenshot for
-// visual review. Usage:
+// visual review.
+//
+// Linux: the same journeys through tauri-driver and WebKitWebDriver
+// (WebKitGTK's WebDriver). Each launch starts its own tauri-driver with that
+// launch's environment, so every journey runs unchanged.
+//
+// macOS: the same journeys through the test-only embedded WebDriver
+// (tauri-plugin-webdriver, built only with `macos-webdriver-ci` on a
+// disposable runner; see scripts/ci/macos-webdriver-instrument.py). Usage:
 //   node scripts/e2e/desktop-journey.mjs <path-to-app.exe> <screenshot-dir>
 import fs from "node:fs";
 import os from "node:os";
@@ -16,7 +24,23 @@ import { auditProfiles, auditProfilesWithTransientRetry, hasObservedProfileBytes
 
 const [app, shots = "target/e2e-shots"] = process.argv.slice(2);
 if (!app) throw new Error("usage: desktop-journey.mjs <app> [shots]");
-const WD = process.env.WEBDRIVER_URL ?? "http://127.0.0.1:9515";
+const LINUX = process.platform === "linux";
+const WINDOWS = process.platform === "win32";
+const MACOS = process.platform === "darwin";
+const MAC_WEBDRIVER_PORT = Number(process.env.TAURI_WEBDRIVER_PORT ?? 4445);
+const TAURI_DRIVER_PORT = Number(process.env.TAURI_DRIVER_PORT ?? 4444);
+const WD = process.env.WEBDRIVER_URL ?? (LINUX ? `http://127.0.0.1:${TAURI_DRIVER_PORT}`
+  : MACOS ? `http://127.0.0.1:${MAC_WEBDRIVER_PORT}` : "http://127.0.0.1:9515");
+/** Where Tauri keeps app data for this identifier on this OS. */
+const APP_DATA = WINDOWS
+  ? path.join(process.env.LOCALAPPDATA ?? "", "org.medscale.desktop.preview")
+  : MACOS ? path.join(os.homedir(), "Library", "Application Support", "org.medscale.desktop.preview")
+  : path.join(process.env.XDG_DATA_HOME ?? path.join(os.homedir(), ".local", "share"), "org.medscale.desktop.preview");
+/** Ends every copy of the app at once, as a crash would. */
+function killApp() {
+  if (WINDOWS) execFileSync("taskkill", ["/F", "/T", "/IM", path.basename(app)], { stdio: "ignore" });
+  else execFileSync("pkill", ["-9", "-f", path.resolve(app)], { stdio: "ignore" });
+}
 const DEBUG_PORT = Number(process.env.WEBVIEW2_DEBUG_PORT ?? 39517);
 fs.mkdirSync(shots, { recursive: true });
 
@@ -38,7 +62,48 @@ let step = 0;
 const results = [];
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
+async function launchLinux(extraEnv) {
+  child = spawn(process.env.TAURI_DRIVER ?? "tauri-driver", ["--port", String(TAURI_DRIVER_PORT)], {
+    env: { ...process.env, ...extraEnv },
+    stdio: "ignore",
+  });
+  const end = Date.now() + 30000;
+  for (;;) {
+    try {
+      const r = await fetch(`${WD}/status`);
+      if (r.ok) break;
+    } catch {}
+    if (Date.now() > end) throw new Error("tauri-driver did not start");
+    await sleep(250);
+  }
+  const s = await wd("POST", "/session", {
+    capabilities: { alwaysMatch: { browserName: "wry", "tauri:options": { application: path.resolve(app) } } },
+  });
+  sid = s.sessionId;
+}
+
+async function launchMac(extraEnv) {
+  child = spawn(path.resolve(app), [], {
+    env: { ...process.env, ...extraEnv, TAURI_WEBDRIVER_PORT: String(MAC_WEBDRIVER_PORT) },
+    stdio: "ignore",
+  });
+  const end = Date.now() + 120000;
+  for (;;) {
+    if (child.exitCode !== null) throw new Error(`the app exited before WebDriver started: ${child.exitCode}`);
+    try {
+      const r = await fetch(`${WD}/status`);
+      if (r.ok) break;
+    } catch {}
+    if (Date.now() > end) throw new Error("the embedded WebDriver did not start");
+    await sleep(500);
+  }
+  const s = await wd("POST", "/session", { capabilities: { alwaysMatch: { browserName: "chrome" } } });
+  sid = s.sessionId;
+}
+
 async function launch(extraEnv = {}) {
+  if (LINUX) return launchLinux(extraEnv);
+  if (MACOS) return launchMac(extraEnv);
   child = spawn(path.resolve(app), [], {
     env: { ...process.env, ...extraEnv, WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS: `--remote-debugging-port=${DEBUG_PORT}` },
     stdio: "ignore",
@@ -84,12 +149,17 @@ async function launch(extraEnv = {}) {
   sid = s.sessionId;
 }
 async function quit() {
-  if (sid) await wd("DELETE", `/session/${sid}`).catch(() => {});
+  // An app blocked mid-seed may never answer a close; don't wait forever.
+  if (sid) await Promise.race([wd("DELETE", `/session/${sid}`).catch(() => {}), sleep(15000)]);
   sid = undefined;
   if (child) {
     child.kill();
-    await new Promise((r) => (child.exitCode !== null ? r() : child.once("exit", r)));
+    // A process ended by a signal has signalCode set and exitCode null.
+    await new Promise((r) => (child.exitCode !== null || child.signalCode !== null ? r() : child.once("exit", r)));
     child = undefined;
+    // WebKitWebDriver starts the app as its own child; make sure it is gone
+    // before the next launch, or that launch is a refused second instance.
+    if (LINUX || MACOS) { try { killApp(); } catch {} }
     await sleep(2000);
   }
 }
@@ -289,8 +359,20 @@ async function waitForText(pattern, timeout = 60000) {
   }
   throw new Error(`text ${pattern} not shown within ${timeout} ms`);
 }
+let screenshotsUnsupported = false;
 async function shot(name) {
-  const png = await wd("GET", `/session/${sid}/screenshot`);
+  if (screenshotsUnsupported) return;
+  let png;
+  try {
+    png = await wd("GET", `/session/${sid}/screenshot`);
+  } catch (err) {
+    // The embedded macOS WebDriver may not implement screenshots. Journeys
+    // still assert on the DOM; only the picture is missing.
+    if (!MACOS) throw err;
+    screenshotsUnsupported = true;
+    console.log(`screenshots unavailable on this driver: ${err.message.slice(0, 160)}`);
+    return;
+  }
   fs.writeFileSync(path.join(shots, `${String(++step).padStart(2, "0")}-${name}.png`), Buffer.from(png, "base64"));
 }
 async function journey(name, fn, { screenshot = true } = {}) {
@@ -397,6 +479,8 @@ try {
         ...process.env,
         WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS: `--remote-debugging-port=${DEBUG_PORT}`,
         MEDSCALE_E2E_HEADLESS_SECOND_INSTANCE: "1",
+        // macOS: the embedded WebDriver of the first copy holds its port.
+        TAURI_WEBDRIVER_PORT: String(MAC_WEBDRIVER_PORT + 1),
       },
       stdio: "ignore",
     });
@@ -409,9 +493,15 @@ try {
       throw new Error("second MedScale copy did not exit within 30 s");
     }
     if (code !== 3) throw new Error(`second MedScale copy exited ${code}, expected 3 (already running)`);
-    const targets = await (await fetch(`http://127.0.0.1:${DEBUG_PORT}/json/list`)).json();
-    const pages = targets.filter((t) => t.type === "page");
-    if (pages.length !== 1) throw new Error(`expected one MedScale page target, found ${pages.length}`);
+    if (WINDOWS) {
+      const targets = await (await fetch(`http://127.0.0.1:${DEBUG_PORT}/json/list`)).json();
+      const pages = targets.filter((t) => t.type === "page");
+      if (pages.length !== 1) throw new Error(`expected one MedScale page target, found ${pages.length}`);
+    } else {
+      // No DevTools endpoint here: count the app's own window handles instead.
+      const handles = await wd("GET", `/session/${sid}/window/handles`);
+      if (handles.length !== 1) throw new Error(`expected one MedScale window, found ${handles.length}`);
+    }
     await find(`//button[contains(@class,'nav') and ${text("Patients")}]`, 30000);
   }, { screenshot: false });
   await journey("patients", async () => {
@@ -767,7 +857,14 @@ try {
     await type(`//input[@aria-label='Search corpus text']`, "asthma");
     await click(`//button[@type='submit' and ${text("Search")}]`);
     const hit = await find(`//div[@role='button' and starts-with(@aria-label,'Open ')]`, 30000);
-    await wd("POST", `/session/${sid}/element/${hit}/value`, { text: "" });
+    if (MACOS) {
+      // The embedded macOS WebDriver does not turn WebDriver key codes into key
+      // events. Focus the row and deliver Enter to its own handler; native macOS
+      // keyboard input is qualified by macos-native-keyboard-a11y-qualification.
+      await evalJs("arguments[0].focus(); arguments[0].dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }));", [{ [ELEMENT]: hit }]);
+    } else {
+      await wd("POST", `/session/${sid}/element/${hit}/value`, { text: "" });
+    }
     await poll(`return !!document.querySelector("div[role='button'][aria-label^='Open '].sel");`, "Enter on a search hit did not select it");
     await nav("Settings");
     const radio = await find(`//div[@role='radiogroup' and @aria-label='Theme']/button[@aria-checked='false']`);
@@ -859,7 +956,7 @@ try {
   // Spec 108 step 5: an un-openable sample (manifest removed after quit, on
   // a disposable Windows runner only) is set aside and replaced. The
   // set-aside copy holds the earlier user FHIR import.
-  if (process.env.GITHUB_ACTIONS === "true" && process.platform === "win32" && process.env.LOCALAPPDATA) {
+  if (process.env.GITHUB_ACTIONS === "true" && (LINUX || MACOS || (WINDOWS && process.env.LOCALAPPDATA))) {
     // Spec 109 Part C through the real screens. A throwaway passphrase on a
     // disposable runner. The code is read from the page and never printed,
     // and this journey takes no screenshot because the page shows the codes.
@@ -905,7 +1002,7 @@ try {
       await type(`//input[@id='pn']`, "E2E work from before the kill");
       await click(`//button[@type='submit' and ${text("Create project")}]`);
       await see("E2E work from before the kill");
-      execFileSync("taskkill", ["/F", "/T", "/IM", path.basename(app)], { stdio: "ignore" });
+      killApp();
       await quit();
       await launch();
       // A closed encrypted vault opens straight on unlock, with no Welcome first.
@@ -940,7 +1037,7 @@ try {
       await find(`//button[starts-with(@aria-label,'Restore Earlier saved copy')]`, 30000);
     }, { screenshot: false });
     await quit();
-    const appData = path.join(process.env.LOCALAPPDATA, "org.medscale.desktop.preview");
+    const appData = APP_DATA;
     const manifest = path.join(appData, "synthetic-workspace.desktop-seed.json");
     if (!fs.existsSync(manifest)) throw new Error("expected the committed sample manifest before breaking it");
     fs.rmSync(manifest);
