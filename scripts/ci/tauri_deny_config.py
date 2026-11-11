@@ -2,11 +2,12 @@
 """Write the Tauri desktop's cargo-deny config: the repository deny.toml,
 unchanged, with its dependency graph limited to the shipped desktop targets.
 
-The Tauri desktop ships on Windows and macOS only (EXTERNAL_GATES.md,
-TAURI_GLIB_ADVISORY_F096_T01). Limiting the graph to those targets keeps every
-advisory, license, ban and source rule exactly as strict as the repository
-policy; the only change is that Linux-only crates (GTK 3, glib 0.18) are not in
-the shipped graph. The script refuses a base config that relaxes the unsound
+The Tauri desktop ships on Windows, macOS and x86_64 Linux. Limiting the graph
+to those targets keeps every advisory, license, ban and source rule exactly as
+strict as the repository policy; the only change is that crates for other
+targets are not in the shipped graph. The Linux graph includes GTK 3 and glib
+0.18; glib is the vendored copy with the RUSTSEC-2024-0429 fix
+(vendor/glib-0.18.5/MEDSCALE_PATCH.md), so no advisory is ignored for it. The script refuses a base config that relaxes the unsound
 policy, or ignores an advisory without naming it and giving a reason (each
 exception is a founder decision recorded in deny.toml).
 
@@ -21,6 +22,7 @@ SHIPPED_TARGETS = [
     "aarch64-pc-windows-msvc",
     "x86_64-apple-darwin",
     "aarch64-apple-darwin",
+    "x86_64-unknown-linux-gnu",
 ]
 
 

@@ -240,16 +240,59 @@ export function Knowledge() {
   return <ProjectScope title="Knowledge" sub="Search this project's sources with a local index. Every search leaves a receipt.">{(pid) => <KnowledgeBody projectId={pid} />}</ProjectScope>;
 }
 
+type Citable = { receipt_id: string; hits: Array<{ rank: number; freshness: string }> };
+type SearchResult = { summary: string; hits: string; citable?: Citable };
+type CanvasNodeVm = { key: string; content: { note?: { text: string }; evidence?: { span: unknown } } | Record<string, unknown> };
+type CanvasViewVm = {
+  canvas: { header: { id: string }; revision: number; title: string; nodes: CanvasNodeVm[]; edges: Array<{ from: string; to: string; relation: string }> };
+  resolutions: Array<{ key: string; freshness: string; text: string | null }>;
+  contradictions: Array<{ from: string; to: string }>;
+  unsupported_notes: string[];
+  superseded_evidence: string[];
+  missing_evidence: string[];
+  overlapping_evidence: Array<{ kind: string; first: string; second: string }>;
+  evidence_coverage: Array<{ note: string; evidence_class: string; state: string; source_count: number }>;
+  coverage_hash: string;
+};
+const RELATIONS = ["supports", "contradicts", "relates", "questions"] as const;
+
+/** A node's text: the note, or the cited span read live from its source. */
+function nodeText(v: CanvasViewVm, n: CanvasNodeVm): string {
+  const c = n.content as Record<string, { text?: string }>;
+  if (c.note?.text) return c.note.text;
+  const r = v.resolutions.find((x) => x.key === n.key);
+  return r?.text ?? "Source no longer readable";
+}
+const isNote = (n: CanvasNodeVm) => "note" in (n.content as Record<string, unknown>);
+
 function KnowledgeBody({ projectId }: { projectId: string }) {
   const overview = useCommand<{ index_status: string; canvases: Array<{ id: string; title: string; detail: string }> }>("knowledge_overview", { projectId });
   const [q, setQ] = useState("");
-  const [res, setRes] = useState<{ summary: string; hits: string } | null>(null);
+  const [res, setRes] = useState<SearchResult | null>(null);
+  const [canvas, setCanvas] = useState<CanvasViewVm | null>(null);
+  const [newTitle, setNewTitle] = useState("");
+  const [note, setNote] = useState("");
+  const [link, setLink] = useState<{ from: string; to: string; relation: string }>({ from: "", to: "", relation: "supports" });
   const { pending, run } = useAction();
   const outcome = useOutcome();
 
   async function build() { const r = await run<string>("build", "knowledge_build", { projectId }); if (outcome(r, "Index built")) await overview.reload(); }
-  async function search(e: FormEvent) { e.preventDefault(); const r = await run<{ summary: string; hits: string }>("search", "knowledge_search", { projectId, query: q }); if (outcome(r, "Search complete")) setRes(r.data); }
+  async function search(e: FormEvent) { e.preventDefault(); const r = await run<SearchResult>("search", "knowledge_search", { projectId, query: q }); if (outcome(r, "Search complete")) setRes(r.data); }
+  async function apply(label: string, cmd: string, args: Record<string, unknown>, done: string) {
+    const r = await run<CanvasViewVm>(label, cmd, args);
+    if (outcome(r, done)) { setCanvas(r.data); await overview.reload(); return true; }
+    if (canvas) { const fresh = await run<CanvasViewVm>("canvas", "canvas_view", { canvasId: canvas.canvas.header.id }); if (fresh.ok) setCanvas(fresh.data); }
+    return false;
+  }
+  async function open(id: string) { const r = await run<CanvasViewVm>("canvas", "canvas_view", { canvasId: id }); if (r.ok) setCanvas(r.data); else outcome(r, ""); }
+  async function create(e: FormEvent) { e.preventDefault(); if (await apply("create", "canvas_create", { projectId, title: newTitle }, "Canvas created")) setNewTitle(""); }
+  const at = () => ({ canvasId: canvas!.canvas.header.id, revision: canvas!.canvas.revision });
+  async function addNote(e: FormEvent) { e.preventDefault(); if (canvas && await apply("note", "canvas_add_note", { ...at(), text: note }, "Note added")) setNote(""); }
+  async function cite(rank: number) { if (canvas && res?.citable) await apply("cite", "canvas_cite", { ...at(), receiptId: res.citable.receipt_id, rank }, `Result ${rank} cited`); }
+  async function addLink(e: FormEvent) { e.preventDefault(); if (canvas) await apply("link", "canvas_link", { ...at(), ...link }, "Linked"); }
+  async function remove(key: string) { if (canvas) await apply("remove", "canvas_remove", { ...at(), key }, "Removed"); }
 
+  const nodes = canvas?.canvas.nodes ?? [];
   return (
     <>
       {overview.state.status === "error" && <ErrorState error={overview.state.error} onRetry={overview.reload} />}
@@ -259,7 +302,48 @@ function KnowledgeBody({ projectId }: { projectId: string }) {
             <input type="text" value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search indexed sources" maxLength={256} aria-label="Search indexed sources" style={{ flex: "1 1 240px" }} />
             <button type="submit" className="btn btn-p" disabled={!q.trim() || !!pending}>Search</button>
           </form>
-          <Section title="Results">{res ? <><p className="t-sm" style={{ marginBottom: 8 }}>{res.summary}</p><pre className="pre">{res.hits || "No hits."}</pre></> : <p className="t-sm i3">Build the index, then search. The index covers this project's data sources only.</p>}</Section>
+          <Section title="Results">{res ? <>
+            <p className="t-sm" style={{ marginBottom: 8 }}>{res.summary}</p>
+            <pre className="pre">{res.hits || "No hits."}</pre>
+            {res.citable && res.citable.hits.length > 0 && <div className="row-gap" style={{ gap: 6, marginTop: 8, flexWrap: "wrap" }}>
+              <span className="t-sm i3">{canvas ? `Cite on "${canvas.canvas.title}":` : "Open a canvas to cite a result."}</span>
+              {canvas && res.citable.hits.map((h) => <button key={h.rank} type="button" className="btn btn-g" onClick={() => void cite(h.rank)} disabled={!!pending} aria-label={`Cite result ${h.rank} on the canvas`}>Cite {h.rank}</button>)}
+            </div>}
+          </> : <p className="t-sm i3">Build the index, then search. The index covers this project's data sources only.</p>}</Section>
+          {canvas && <Section title={canvas.canvas.title} count={`revision ${canvas.canvas.revision}`}>
+            {nodes.length === 0 && <p className="t-sm i3">Add a note, then cite search results that support or contradict it.</p>}
+            {nodes.map((n) => {
+              const r = canvas.resolutions.find((x) => x.key === n.key);
+              return (
+                <div key={n.key} className="lr" style={{ gridTemplateColumns: "40px minmax(0,1fr) auto auto", alignItems: "start", padding: "6px 12px" }}>
+                  <span className="mono t-mono-sm i3">{n.key}</span>
+                  <span className="t-sm wrap-any">{nodeText(canvas, n)}</span>
+                  {isNote(n) ? <Status kind="pending" weight="weak">note</Status> : <Status kind={r?.freshness === "current" ? "available" : "blocked"} weight="weak">{r?.freshness ?? "evidence"}</Status>}
+                  <button type="button" className="btn btn-g" onClick={() => void remove(n.key)} disabled={!!pending} aria-label={`Remove ${n.key}`}>Remove</button>
+                </div>
+              );
+            })}
+            {canvas.canvas.edges.length > 0 && <KV keyWidth={120} rows={canvas.canvas.edges.map((e) => [`${e.from} → ${e.to}`, e.relation])} />}
+            <form onSubmit={addNote} className="field-row" style={{ marginTop: 10 }}>
+              <input type="text" value={note} onChange={(e) => setNote(e.target.value)} placeholder="A claim or note" maxLength={4000} aria-label="New note" style={{ flex: "1 1 240px" }} />
+              <button type="submit" className="btn btn-s" disabled={!note.trim() || !!pending}>Add note</button>
+            </form>
+            {nodes.length >= 2 && <form onSubmit={addLink} className="field-row" style={{ marginTop: 8 }}>
+              <select aria-label="Link from" value={link.from} onChange={(e) => setLink({ ...link, from: e.target.value })}><option value="">From…</option>{nodes.map((n) => <option key={n.key} value={n.key}>{n.key}</option>)}</select>
+              <select aria-label="Relation" value={link.relation} onChange={(e) => setLink({ ...link, relation: e.target.value })}>{RELATIONS.map((x) => <option key={x} value={x}>{x}</option>)}</select>
+              <select aria-label="Link to" value={link.to} onChange={(e) => setLink({ ...link, to: e.target.value })}><option value="">To…</option>{nodes.map((n) => <option key={n.key} value={n.key}>{n.key}</option>)}</select>
+              <button type="submit" className="btn btn-s" disabled={!link.from || !link.to || link.from === link.to || !!pending}>Link</button>
+            </form>}
+            <div className="stack" style={{ gap: 6, marginTop: 12 }}>
+              {canvas.unsupported_notes.length > 0 && <Notice kind="needs-review" title="Unsupported:">{canvas.unsupported_notes.join(", ")} have no current supporting evidence.</Notice>}
+              {canvas.contradictions.length > 0 && <Notice kind="needs-review" title="Contradicted:">{canvas.contradictions.map((c) => `${c.from} contradicts ${c.to}`).join("; ")}.</Notice>}
+              {canvas.overlapping_evidence.length > 0 && <Notice kind="needs-review" title="Overlapping evidence:">{canvas.overlapping_evidence.map((o) => `${o.first} and ${o.second} (${o.kind})`).join("; ")} cite the same text, so it may be counted twice.</Notice>}
+              {(canvas.superseded_evidence.length > 0 || canvas.missing_evidence.length > 0) && <Notice kind="blocked" title="Out of date:">{[...canvas.superseded_evidence.map((k) => `${k} superseded`), ...canvas.missing_evidence.map((k) => `${k} missing`)].join("; ")}.</Notice>}
+            </div>
+            {canvas.evidence_coverage.length > 0 && <table className="tb" style={{ marginTop: 10 }}><thead><tr><th style={{ width: "20%" }}>Note</th><th style={{ width: "35%" }}>Evidence kind</th><th style={{ width: "25%" }}>Coverage</th><th>Sources</th></tr></thead>
+              <tbody>{canvas.evidence_coverage.map((c) => <tr key={c.note + c.evidence_class}><td className="mono t-mono-sm">{c.note}</td><td className="t-sm">{c.evidence_class.replace(/_/g, " ")}</td><td><Status kind={c.state === "present" ? "available" : c.state === "conflicting" ? "needs-review" : "blocked"} weight="weak">{c.state}</Status></td><td className="mono t-mono-sm">{c.source_count}</td></tr>)}</tbody></table>}
+            <p className="t-sm i3" style={{ marginTop: 8 }}>Coverage hash <span className="mono t-mono-sm">{canvas.coverage_hash.slice(0, 18)}…</span> · evidence is read live from its source. A canvas is research notes, not a clinical finding.</p>
+          </Section>}
         </div>
         <aside className="agent-side" aria-label="Index and canvases">
           <Section title="Index">
@@ -268,8 +352,16 @@ function KnowledgeBody({ projectId }: { projectId: string }) {
             <p className="t-sm i3" style={{ marginTop: 12 }}>The index covers this project's sources and stays on this device.</p>
           </Section>
           {overview.state.status === "ready" && <Section title="Canvases" count={overview.state.data.canvases.length}>
-        {overview.state.data.canvases.length ? overview.state.data.canvases.map((c) => <div key={c.id} className="lr" style={{ gridTemplateColumns: "minmax(0,1fr)" }}><span className="trunc" style={{ fontWeight: 600 }}>{c.title}</span><span className="t-sm i3 trunc">{c.detail}</span></div>) : <p className="t-sm i3">No canvases in this project.</p>}
-      </Section>}
+            {overview.state.data.canvases.length ? overview.state.data.canvases.map((c) => (
+              <button type="button" key={c.id} className={`lr clickable ${canvas?.canvas.header.id === c.id ? "sel" : ""}`} style={{ gridTemplateColumns: "minmax(0,1fr)", width: "100%", textAlign: "left" }} onClick={() => void open(c.id)}>
+                <span className="trunc" style={{ fontWeight: 600 }}>{c.title}</span><span className="t-sm i3 trunc">{c.detail}</span>
+              </button>
+            )) : <p className="t-sm i3">No canvases in this project.</p>}
+            <form onSubmit={create} className="field-row" style={{ marginTop: 10 }}>
+              <input type="text" value={newTitle} onChange={(e) => setNewTitle(e.target.value)} placeholder="New canvas title" maxLength={200} aria-label="New canvas title" style={{ flex: "1 1 140px" }} />
+              <button type="submit" className="btn btn-s" disabled={!newTitle.trim() || !!pending}>Create</button>
+            </form>
+          </Section>}
         </aside>
       </div>
     </>

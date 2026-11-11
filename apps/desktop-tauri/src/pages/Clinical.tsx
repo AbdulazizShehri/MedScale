@@ -9,7 +9,7 @@ import { Authority, Empty, ErrorState, Glyph, KV, Ledger, Notice, PageHead, Sect
 type Sources = { sources: Array<{ source_id: string; resource_type: string; fixture: string; claim_kind: string; subject_ref: string }>; document_understanding: string };
 
 export function Documents() {
-  const { navigate } = useApp();
+  const { navigate, ws } = useApp();
   const { state, reload } = useCommand<Sources>("documents_list");
   const [sel, setSel] = useState<number>(0);
   const [type, setType] = useState("all");
@@ -51,7 +51,7 @@ export function Documents() {
           <button type="button" className="btn btn-s" onClick={() => setImp(imp ? null : { path: "", subject: "synthetic-subject-ada" })}>Import synthetic FHIR</button>
         </PageHead>
         {imp && <form onSubmit={importFhir} className="stack" style={{ gap: 8, maxWidth: 640, marginBottom: 14 }}>
-          <label className="lbl" htmlFor="ip">FHIR R4 JSON file (at most 1 MiB, synthetic only)</label>
+          <label className="lbl" htmlFor="ip">FHIR R4 JSON file (at most 1 MiB, synthetic or permitted test data only{ws?.workspace?.kind === "encrypted" ? ", sealed in this vault" : ""})</label>
           <div className="row-gap" style={{ gap: 8 }}>
             <input id="ip" value={imp.path} maxLength={1024} placeholder="Choose a file or paste its absolute path" style={{ flex: 1, minWidth: 0 }} onChange={(e) => setImp({ ...imp, path: e.target.value })} />
             <button type="button" className="btn btn-g" onClick={browseFhir} disabled={choosingFhir || impState.pending}>Browse JSON…</button>

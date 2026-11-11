@@ -2,7 +2,7 @@
 
 MedScale is an engineering preview for **synthetic health workspaces** and optional, deliberately selected, licensed **nonpatient audio**. It is not clinically validated; real patient records, PHI and clinical decisions are not authorized. Every model output is a **proposal**; nothing becomes a record until a person accepts it through review. The [first-run guide](../BETA_FIRST_RUN.md) and [qualification record](../qualification/EXTERNAL_GATES.md) define the release and privacy boundaries.
 
-The desktop runs on **Windows and macOS**. A Linux desktop waits on an upstream Tauri change (`TAURI_LINUX_DESKTOP_GTK3`); the CLI runs on Linux.
+The desktop runs on **Windows and macOS**, and on **Linux** (x86_64, Ubuntu 22.04 or newer) as an unsigned engineering `.deb`. The CLI runs on all three.
 
 ## 1. Open a workspace
 
@@ -19,7 +19,8 @@ Lock the workspace from Settings or with `Ctrl/Cmd + Shift + L`. Locking closes 
   1. Give the absolute path of a FHIR R4 JSON file (at most 1 MiB) and a subject id.
   2. Core ingests and promotes the file exactly as it does the bundled fixtures.
 - The source then appears in Documents and Patients, and it can be bound to an agent's context.
-- The synthetic workspace only.
+- In the encrypted workspace the resource and the patient list stay sealed in the vault. The sample workspace is not encrypted.
+- Synthetic or permitted test data only: real patient data is not authorized.
 
 ## 3. Models
 
