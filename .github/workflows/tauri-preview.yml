@@ -86,15 +86,18 @@ jobs:
           npm run build
       - name: Rust format
         run: cargo fmt --manifest-path apps/desktop-tauri/src-tauri/Cargo.toml -- --check
+      # Default shell on Windows: Git Bash's Perl cannot build the vendored
+      # OpenSSL, the runner's Strawberry Perl can.
       - name: Rust Clippy and tests
-        shell: bash
+        if: runner.os != 'Linux'
         run: |
           cargo clippy --manifest-path apps/desktop-tauri/src-tauri/Cargo.toml --features custom-protocol --all-targets --locked -- -D warnings
-          if [ "$RUNNER_OS" = "Linux" ]; then
-            xvfb-run -a cargo test --manifest-path apps/desktop-tauri/src-tauri/Cargo.toml --features custom-protocol --locked
-          else
-            cargo test --manifest-path apps/desktop-tauri/src-tauri/Cargo.toml --features custom-protocol --locked
-          fi
+          cargo test --manifest-path apps/desktop-tauri/src-tauri/Cargo.toml --features custom-protocol --locked
+      - name: Rust Clippy and tests (Linux, under Xvfb)
+        if: runner.os == 'Linux'
+        run: |
+          cargo clippy --manifest-path apps/desktop-tauri/src-tauri/Cargo.toml --features custom-protocol --all-targets --locked -- -D warnings
+          xvfb-run -a cargo test --manifest-path apps/desktop-tauri/src-tauri/Cargo.toml --features custom-protocol --locked
       - name: Build native preview
         run: cargo build --manifest-path apps/desktop-tauri/src-tauri/Cargo.toml --features custom-protocol --release --locked
       - name: Package unqualified preview with sources and notices
