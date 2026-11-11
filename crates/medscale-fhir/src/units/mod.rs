@@ -92,6 +92,44 @@ pub fn compare_units(a: &str, b: &str) -> UnitComparability {
     }
 }
 
+/// `value` in `code` as `(group, value in the group's base unit)`, using only
+/// definitional factors: mass in grams (1 lb = 453.59237 g exactly), volume in
+/// millilitres, temperature in kelvin. Nothing analyte-specific: mg/dL and
+/// mmol/L stay incomparable because converting them needs a molar mass.
+fn to_base(value: f64, code: &str) -> Option<(UnitGroup, f64)> {
+    let group = group_of(canonical_of(code.trim())?)?;
+    let base = match code.trim() {
+        "kg" => value * 1000.0,
+        "g" | "mL" | "%" | "/min" | "{beats}/min" | "mm[Hg]" | "g/dL" | "mmol/L" => value,
+        "mg" => value / 1000.0,
+        "lb" => value * 453.592_37,
+        "L" => value * 1000.0,
+        "Cel" => value + 273.15,
+        "[degF]" => (value + 459.67) * 5.0 / 9.0,
+        _ => return None,
+    };
+    Some((group, base))
+}
+
+/// Whether two measurements state the same quantity: `Some(true)` when the
+/// units are in one group of the admitted subset and the values agree after
+/// conversion (relative tolerance 1e-9, absolute 1e-9 near zero), `Some(false)`
+/// when they disagree, `None` when either unit is outside the subset or the
+/// groups differ. Never a clinical judgement, only arithmetic on units.
+#[must_use]
+pub fn same_quantity(a: f64, a_unit: &str, b: f64, b_unit: &str) -> Option<bool> {
+    if !a.is_finite() || !b.is_finite() {
+        return None;
+    }
+    let (ga, va) = to_base(a, a_unit)?;
+    let (gb, vb) = to_base(b, b_unit)?;
+    if ga != gb {
+        return None;
+    }
+    let tolerance = 1e-9 * va.abs().max(vb.abs()).max(1.0);
+    Some((va - vb).abs() <= tolerance)
+}
+
 /// Subset pin metadata for evidence.
 #[must_use]
 pub fn subset_pin() -> (&'static str, &'static str) {
@@ -116,6 +154,23 @@ mod tests {
     fn incompatible_units_not_equal() {
         assert_eq!(compare_units("kg", "Cel"), UnitComparability::Incomparable);
         assert_eq!(compare_units("kg", "g"), UnitComparability::Comparable);
+    }
+
+    #[test]
+    fn same_quantity_converts_within_a_group_only() {
+        assert_eq!(same_quantity(5.0, "kg", 5000.0, "g"), Some(true));
+        assert_eq!(same_quantity(1.0, "lb", 453.592_37, "g"), Some(true));
+        assert_eq!(same_quantity(2.0, "lb", 0.907_184_74, "kg"), Some(true));
+        assert_eq!(same_quantity(37.0, "Cel", 98.6, "[degF]"), Some(true));
+        assert_eq!(same_quantity(1.5, "L", 1500.0, "mL"), Some(true));
+        assert_eq!(same_quantity(72.0, "/min", 72.0, "{beats}/min"), Some(true));
+        assert_eq!(same_quantity(5.0, "kg", 5.0, "g"), Some(false));
+        assert_eq!(same_quantity(37.0, "Cel", 37.0, "[degF]"), Some(false));
+        // No analyte-specific conversion, and nothing outside the subset.
+        assert_eq!(same_quantity(100.0, "g/dL", 5.5, "mmol/L"), None);
+        assert_eq!(same_quantity(5.0, "kg", 5.0, "Cel"), None);
+        assert_eq!(same_quantity(5.0, "kg", 5.0, "furlong"), None);
+        assert_eq!(same_quantity(f64::NAN, "kg", 5.0, "kg"), None);
     }
 
     #[test]

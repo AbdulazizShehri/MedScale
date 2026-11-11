@@ -160,8 +160,25 @@ fn resolve_blob(
     (None, false)
 }
 
+/// Two present values agree when they state the same thing: equal as JSON, or
+/// equal numbers (`5` and `5.0`), or the same quantity in two units of one
+/// group of the admitted UCUM subset (`5 kg` and `5000 g`). Anything else,
+/// including units that need an analyte-specific conversion, still counts as
+/// a disagreement and is kept for review.
 fn fields_equal_value(a: &ExtractedField, b: &ExtractedField) -> bool {
-    a.value == b.value && a.unit == b.unit
+    if a.value == b.value && a.unit == b.unit {
+        return true;
+    }
+    let number = |f: &ExtractedField| f.value.as_ref().and_then(serde_json::Value::as_f64);
+    let (Some(x), Some(y)) = (number(a), number(b)) else {
+        return false;
+    };
+    match (a.unit.as_deref(), b.unit.as_deref()) {
+        (None, None) => x == y,
+        (Some(ua), Some(ub)) if ua.trim() == ub.trim() => x == y,
+        (Some(ua), Some(ub)) => medscale_fhir::same_quantity(x, ua, y, ub).unwrap_or(false),
+        _ => false,
+    }
 }
 
 /// Aggregate coverage slots from extractions.
