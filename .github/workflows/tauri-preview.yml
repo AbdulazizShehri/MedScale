@@ -54,7 +54,9 @@ jobs:
         # Shipped desktop platforms. Linux builds on Ubuntu 22.04 so the .deb
         # runs on 22.04 and newer (glibc and WebKitGTK 4.1 baselines). Its glib
         # is the vendored copy with the RUSTSEC-2024-0429 fix.
-        os: [windows-latest, macos-latest, ubuntu-22.04]
+        # macos-15-intel builds and launches the Intel DMG natively;
+        # ubuntu-22.04-arm builds the Linux arm64 desktop (free for public repos).
+        os: [windows-latest, macos-latest, macos-15-intel, ubuntu-22.04, ubuntu-22.04-arm]
     steps:
       - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v4
         with:
@@ -106,6 +108,9 @@ jobs:
       - name: Bundle unsigned engineering installer (Spec 101)
         working-directory: apps/desktop-tauri
         shell: bash
+        env:
+          # The AppImage tooling runs from itself without FUSE on CI runners.
+          APPIMAGE_EXTRACT_AND_RUN: "1"
         run: |
           # macOS gets an ad-hoc signature (signingIdentity "-"): without one the
           # bundle carries only the linker's partial signature and fails
@@ -113,7 +118,7 @@ jobs:
           case "$RUNNER_OS" in
             Windows) bundles=nsis; sign=--no-sign ;;
             macOS) bundles=app,dmg; sign= ;;
-            Linux) bundles=deb,rpm; sign= ;;
+            Linux) bundles=deb,rpm,appimage; sign= ;;
           esac
           npm run tauri -- build --bundles "$bundles" $sign --ci --features custom-protocol -- --locked
       - name: Record build-time tool hashes (Spec 101 FR-003)
@@ -142,13 +147,57 @@ jobs:
         if: runner.os == 'Linux'
         shell: pwsh
         run: ./scripts/qualify-tauri-package-linux.ps1 -ReleaseRoot target/tauri-release/linux -ReportPath target/tauri-release-qualification/linux.json
-      - name: Keep the unqualified rpm beside the release set
+      - name: AppImage launch qualification (Xvfb, no installation)
+        if: runner.os == 'Linux'
+        shell: bash
+        run: |
+          set -euo pipefail
+          appimage=$(ls apps/desktop-tauri/src-tauri/target/release/bundle/appimage/*.AppImage)
+          [ "$(echo "$appimage" | wc -l)" -eq 1 ]
+          chmod +x "$appimage"
+          export APPIMAGE_EXTRACT_AND_RUN=1
+          xvfb-run -a "$appimage" > /tmp/appimage.log 2>&1 &
+          sleep 25
+          if pgrep -f medscale-desktop-tauri > /dev/null; then
+            echo "APPIMAGE_LAUNCH=PASS"
+          else
+            echo "APPIMAGE_LAUNCH=FAIL"; tail -20 /tmp/appimage.log; exit 1
+          fi
+          pkill -f medscale-desktop-tauri || true
+          mkdir -p target/tauri-release-qualification
+          echo '{"APPIMAGE_LAUNCH":"PASS","SIGNING":"NOT_GRANTED"}' > "target/tauri-release-qualification/linux-appimage-$(uname -m).json"
+      - name: Keep the AppImage and the unqualified rpm beside the release set
         if: runner.os == 'Linux'
         shell: bash
         run: |
           mkdir -p target/tauri-release-extra
           cp apps/desktop-tauri/src-tauri/target/release/bundle/rpm/*.rpm target/tauri-release-extra/
-          (cd target/tauri-release-extra && sha256sum *.rpm > SHA256SUMS)
+          cp apps/desktop-tauri/src-tauri/target/release/bundle/appimage/*.AppImage target/tauri-release-extra/
+          (cd target/tauri-release-extra && sha256sum * > SHA256SUMS && cat SHA256SUMS)
+      - name: Windows portable zip and launch qualification (no installation)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $version = (Get-Content apps/desktop-tauri/src-tauri/tauri.conf.json -Raw | ConvertFrom-Json).version
+          $name = "MedScale_${version}_x64-portable"
+          $stage = Join-Path ([IO.Path]::GetTempPath()) $name
+          New-Item -ItemType Directory -Path $stage | Out-Null
+          Copy-Item target/tauri-preview-package/bin/medscale-desktop-tauri.exe (Join-Path $stage 'MedScale.exe')
+          Copy-Item LICENSE, target/tauri-preview-package/NOTICE.md $stage
+          Copy-Item target/tauri-preview-package/licenses (Join-Path $stage 'licenses') -Recurse
+          New-Item -ItemType Directory -Path target/tauri-release-extra -Force | Out-Null
+          $zip = Join-Path (Resolve-Path target/tauri-release-extra) "$name.zip"
+          Compress-Archive -Path (Join-Path $stage '*') -DestinationPath $zip
+          $probe = Join-Path ([IO.Path]::GetTempPath()) "$name-probe"
+          Expand-Archive $zip -DestinationPath $probe
+          $p = Start-Process -FilePath (Join-Path $probe 'MedScale.exe') -PassThru
+          Start-Sleep -Seconds 25
+          if ($p.HasExited) { throw "portable MedScale exited during launch: $($p.ExitCode)" }
+          Stop-Process -Id $p.Id -Force
+          "PORTABLE_LAUNCH=PASS"
+          '{0}  {1}' -f (Get-FileHash $zip -Algorithm SHA256).Hash.ToLowerInvariant(), "$name.zip" | Set-Content target/tauri-release-extra/SHA256SUMS -Encoding ascii
+          Get-Content target/tauri-release-extra/SHA256SUMS
       - uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v4.6.2
         if: ${{ !cancelled() }}
         with:
