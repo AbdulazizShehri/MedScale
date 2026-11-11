@@ -154,7 +154,8 @@ async function quit() {
   sid = undefined;
   if (child) {
     child.kill();
-    await new Promise((r) => (child.exitCode !== null ? r() : child.once("exit", r)));
+    // A process ended by a signal has signalCode set and exitCode null.
+    await new Promise((r) => (child.exitCode !== null || child.signalCode !== null ? r() : child.once("exit", r)));
     child = undefined;
     // WebKitWebDriver starts the app as its own child; make sure it is gone
     // before the next launch, or that launch is a refused second instance.
