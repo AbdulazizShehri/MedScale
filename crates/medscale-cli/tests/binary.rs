@@ -159,7 +159,8 @@ fn encrypted_vault_lifecycle_through_the_binary() {
     assert_eq!(code(&out), 0, "{}", text(&out.stderr));
     assert_eq!(json(&out)["projects"].as_array().unwrap().len(), 1);
 
-    // FHIR export from the encrypted vault records a disclosure.
+    // FHIR export reaches Core through the encrypted vault; a subject with no
+    // records is refused (exit 1), not exported empty.
     let out = medscale()
         .args([
             "fhir",
@@ -167,22 +168,20 @@ fn encrypted_vault_lifecycle_through_the_binary() {
             "--vault-id",
             "bin-vault",
             "--subject",
-            "bin-subject",
+            "bin-no-such-subject",
             "--purpose",
             "binary test",
-            "--json",
             "--vault-root",
         ])
         .arg(&root)
         .env("MEDSCALE_PASSPHRASE", PASSPHRASE)
         .output()
         .unwrap();
-    assert_eq!(code(&out), 0, "{}", text(&out.stderr));
-    let exported = json(&out);
-    assert!(exported["exports"].is_array(), "{exported}");
+    assert_eq!(code(&out), 1, "{}", text(&out.stderr));
     assert!(
-        exported["disclosure"]["disclosure_id"].is_string(),
-        "{exported}"
+        text(&out.stderr).contains("NotFound"),
+        "{}",
+        text(&out.stderr)
     );
 
     // Back up, then restore over the vault: the old one is kept.
