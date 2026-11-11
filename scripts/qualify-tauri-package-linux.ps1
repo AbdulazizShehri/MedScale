@@ -17,7 +17,7 @@ $deb = [IO.Path]::GetFullPath((Join-Path $ReleaseRoot $manifest.installer.path))
 $debs = @(Get-ChildItem -LiteralPath (Split-Path $deb) -Filter '*.deb' -File)
 if ($debs.Count -ne 1 -or $debs[0].FullName -ne $deb) { throw "expected exactly the manifest .deb, found $($debs.Count) candidate(s)" }
 if ((Get-FileHash -LiteralPath $deb -Algorithm SHA256).Hash.ToLowerInvariant() -ne $manifest.installer.sha256) { throw 'deb digest differs from release manifest' }
-$result = [ordered]@{ source_sha = $manifest.source_sha; installer_sha256 = $manifest.installer.sha256; INSTALL = 'FAIL'; LAUNCH = 'NOT_RUN'; UNINSTALL = 'NOT_RUN'; SIGNING = 'NOT_GRANTED' }
+$result = [ordered]@{ source_sha = $manifest.source_sha; installer_sha256 = $manifest.installer.sha256; INSTALL = 'FAIL'; LAUNCH = 'NOT_RUN'; REINSTALL_KEEPS_DATA = 'NOT_RUN'; UNINSTALL = 'NOT_RUN'; SIGNING = 'NOT_GRANTED' }
 $pkg = (& dpkg-deb --field $deb Package).Trim()
 $result.package = [ordered]@{ name = $pkg; version = (& dpkg-deb --field $deb Version).Trim(); architecture = (& dpkg-deb --field $deb Architecture).Trim(); depends = (& dpkg-deb --field $deb Depends).Trim() }
 $result.contents = @(& dpkg-deb --contents $deb | ForEach-Object { ($_ -split '\s+', 6)[5] })
@@ -41,6 +41,22 @@ if ($result.INSTALL -eq 'PASS') {
     Start-Sleep -Seconds 2
 }
 
+# Reinstalling the same package over itself (the path a manual update takes)
+# must keep the app and the user's data. Same version, so this is not an
+# upgrade test between releases.
+if ($result.LAUNCH -eq 'PASS') {
+    $result.REINSTALL_KEEPS_DATA = 'FAIL'
+    $dataDir = "$HOME/.local/share/org.medscale.desktop.preview"
+    New-Item -ItemType Directory -Path $dataDir -Force | Out-Null
+    $marker = Join-Path $dataDir 'medscale-reinstall-marker.txt'
+    'synthetic reinstall marker' | Set-Content -LiteralPath $marker
+    & sudo apt-get install -y --reinstall --no-install-recommends "$deb" | Out-Host
+    $reinstallExit = $LASTEXITCODE
+    $stillInstalled = (& dpkg-query -W -f '${Status}' $pkg 2>$null) -match 'install ok installed'
+    if ($reinstallExit -eq 0 -and $stillInstalled -and (Test-Path -LiteralPath $exe) -and (Test-Path -LiteralPath $marker)) { $result.REINSTALL_KEEPS_DATA = 'PASS' }
+    Remove-Item -LiteralPath $marker -Force -ErrorAction SilentlyContinue
+}
+
 # Uninstall is only meaningful evidence when the package was installed.
 if ($result.INSTALL -eq 'PASS') {
 $result.UNINSTALL = 'FAIL'
@@ -55,7 +71,7 @@ if ($removeExit -eq 0 -and $residue.Count -eq 0) { $result.UNINSTALL = 'PASS' }
 $json = $result | ConvertTo-Json -Depth 6
 if ($ReportPath) { New-Item -ItemType Directory -Path (Split-Path $ReportPath) -Force | Out-Null; $json | Set-Content -LiteralPath $ReportPath -Encoding utf8 }
 $json
-"INSTALL=$($result.INSTALL) LAUNCH=$($result.LAUNCH) UNINSTALL=$($result.UNINSTALL) SIGNING=NOT_GRANTED"
-if ($result.INSTALL -ne 'PASS' -or $result.LAUNCH -ne 'PASS' -or $result.UNINSTALL -ne 'PASS') { exit 1 }
+"INSTALL=$($result.INSTALL) LAUNCH=$($result.LAUNCH) REINSTALL_KEEPS_DATA=$($result.REINSTALL_KEEPS_DATA) UNINSTALL=$($result.UNINSTALL) SIGNING=NOT_GRANTED"
+if ($result.INSTALL -ne 'PASS' -or $result.LAUNCH -ne 'PASS' -or $result.REINSTALL_KEEPS_DATA -ne 'PASS' -or $result.UNINSTALL -ne 'PASS') { exit 1 }
 # All three axes passed; do not let a stale native exit code (pkill, hdiutil detach, ...) fail the step.
 exit 0
