@@ -535,8 +535,11 @@ try {
   });
   await journey("knowledge-index-and-search", async () => {
     await nav("Knowledge");
-    await click(`//button[${text("Build index")}]`);
-    await see("Index built", 60000);
+    // Wait for the index panel to load, then judge the build by the index
+    // status itself, not by a toast that may be gone before it is read.
+    await waitForText(/No index yet|Index version \d+/, 60000);
+    await click(`//button[${text("Build index")} and not(@disabled)]`);
+    await waitForText(/Index version \d+/, 120000);
     await type(`//input[@aria-label='Search indexed sources']`, "synthetic");
     await click(`//button[@type='submit' and ${text("Search")}]`);
     await find(`//pre[contains(@class,'pre')]`, 60000);
