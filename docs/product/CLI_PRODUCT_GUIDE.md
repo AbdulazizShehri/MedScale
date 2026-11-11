@@ -31,9 +31,10 @@ Legacy top-level `timeline`, `brief`, and `coverage` paths remain compatible.
 medscale actions outbox --vault-id demo --vault-root <vault folder> --json
 medscale audit disclosures --vault-id demo --vault-root <vault folder> --json
 medscale fhir support --vault-id demo --json
+medscale fhir export --vault-id demo --vault-root <vault folder> --subject synthetic-subject --purpose "why it leaves" --json
 ```
 
-Outbox and disclosure commands are read-only. `UNKNOWN` action state is not a retry authorization. FHIR support is a narrow support matrix, not a full-conformance claim.
+`fhir export` prints a loss-aware FHIR R4 export of one subject and records a disclosure for it in the same step; it writes no file. Outbox and disclosure commands are read-only. `UNKNOWN` action state is not a retry authorization. FHIR support is a narrow support matrix, not a full-conformance claim.
 
 ## Encrypted vaults
 
@@ -53,6 +54,21 @@ medscale vault open --vault-id demo --vault-root <vault folder> --recovery-code-
 Use `medscale vault --help`, `medscale packs --help`, `medscale journey --help`, and `medscale host-ipc --help` for mutation and persistent-host workflows. Passphrases are read from a named environment variable, never argv.
 
 The current CLI may own a transient in-process Core Host when no persistent host is used. A transient command does not imply a long-running shared-vault session. Use Host IPC when operating an explicitly running Core Host.
+
+## Exit codes and output
+
+| Exit code | Meaning |
+|---|---|
+| 0 | Success |
+| 1 | Failure. The reason is on standard error as `error: ...` |
+| 2 | Usage error: an unknown command, or a missing or invalid argument |
+| 3 | Failure of a command run with `--json`. Standard error holds one JSON object with `error`, `code` and `message`, and standard output is empty |
+
+With `--json`, a successful command prints exactly one JSON value on standard output. Secrets (passphrases, recovery codes) never go to standard output.
+
+## Install
+
+Release archives hold one `medscale` (Windows: `medscale.exe`) binary, `LICENSE`, `NOTICE.md` and `SHA256SUMS`. Nothing else is needed: no Rust toolchain, no runtime and no network. Check the archive with `sha256sum -c SHA256SUMS` (Windows: `Get-FileHash`), unpack it anywhere, and put the folder on `PATH`. Builds are unsigned engineering builds: Windows SmartScreen and macOS Gatekeeper warn on first run. On macOS, remove the quarantine attribute with `xattr -d com.apple.quarantine medscale` only if you checked the hash.
 
 ## Privacy / release boundary
 
