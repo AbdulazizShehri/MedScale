@@ -7,6 +7,8 @@ name: cli-release
 # released or signed.
 
 on:
+  # Called by release-candidate.yml to build every artifact from one commit.
+  workflow_call:
   workflow_dispatch:
   push:
     branches: [main]
@@ -32,7 +34,7 @@ permissions:
   contents: read
 
 concurrency:
-  group: cli-release-${{ github.ref }}
+  group: cli-release-${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
 env:
