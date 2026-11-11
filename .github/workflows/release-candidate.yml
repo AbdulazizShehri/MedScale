@@ -26,10 +26,17 @@ jobs:
     uses: ./.github/workflows/tauri-preview.yml
   cli:
     uses: ./.github/workflows/cli-release.yml
+  installed:
+    # The full installed journey on the Windows installer, and the real-DMG
+    # install on Apple silicon and Intel, all from this run's own packages.
+    needs: [desktop]
+    uses: ./.github/workflows/release-installed-journey.yml
+    with:
+      from_this_run: true
 
   assemble:
     name: assemble, scan and attest
-    needs: [desktop, cli]
+    needs: [desktop, cli, installed]
     runs-on: ubuntu-24.04
     timeout-minutes: 45
     permissions:
@@ -54,6 +61,11 @@ jobs:
           python3 scripts/assemble-release-candidate.py artifacts candidate \
             "${{ github.sha }}" "${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}" \
             "${{ inputs.version }}"
+      - name: Keep the installed-journey reports as evidence
+        run: |
+          mkdir -p candidate/qualification
+          cp -r artifacts/installed-journey-* candidate/qualification/
+          ls -R candidate/qualification
       - name: Malware scan (ClamAV, fresh signatures)
         run: |
           set -euo pipefail

@@ -325,7 +325,7 @@ function KnowledgeBody({ projectId }: { projectId: string }) {
             })}
             {canvas.canvas.edges.length > 0 && <KV keyWidth={120} rows={canvas.canvas.edges.map((e) => [`${e.from} → ${e.to}`, e.relation])} />}
             <form onSubmit={addNote} className="field-row" style={{ marginTop: 10 }}>
-              <input type="text" value={note} onChange={(e) => setNote(e.target.value)} placeholder="A claim or note" maxLength={4000} aria-label="New note" style={{ flex: "1 1 240px" }} />
+              <input id="canvas-note" type="text" value={note} onChange={(e) => setNote(e.target.value)} placeholder="A claim or note" maxLength={4000} aria-label="New note" style={{ flex: "1 1 240px" }} />
               <button type="submit" className="btn btn-s" disabled={!note.trim() || !!pending}>Add note</button>
             </form>
             {nodes.length >= 2 && <form onSubmit={addLink} className="field-row" style={{ marginTop: 8 }}>
@@ -358,7 +358,7 @@ function KnowledgeBody({ projectId }: { projectId: string }) {
               </button>
             )) : <p className="t-sm i3">No canvases in this project.</p>}
             <form onSubmit={create} className="field-row" style={{ marginTop: 10 }}>
-              <input type="text" value={newTitle} onChange={(e) => setNewTitle(e.target.value)} placeholder="New canvas title" maxLength={200} aria-label="New canvas title" style={{ flex: "1 1 140px" }} />
+              <input id="canvas-title" type="text" value={newTitle} onChange={(e) => setNewTitle(e.target.value)} placeholder="New canvas title" maxLength={200} aria-label="New canvas title" style={{ flex: "1 1 140px" }} />
               <button type="submit" className="btn btn-s" disabled={!newTitle.trim() || !!pending}>Create</button>
             </form>
           </Section>}

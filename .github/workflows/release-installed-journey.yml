@@ -7,6 +7,15 @@ on:
   push:
     branches:
       - "test/release-installed-journey-*"
+  # Called by release-candidate.yml to run on the installers built in that run.
+  # The push trigger still replays the pinned SOURCE_RUN below; that older build
+  # predates steps added since (sample confirmation, encrypted import, Canvas),
+  # so use the release-candidate path for current builds.
+  workflow_call:
+    inputs:
+      from_this_run:
+        type: boolean
+        default: true
 
 permissions:
   contents: read
@@ -29,16 +38,27 @@ jobs:
       - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5
         with:
           python-version: "3.12"
+      - name: Installer built earlier in this run
+        if: ${{ inputs.from_this_run }}
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        with:
+          name: tauri-installer-windows-latest
+          path: target/release-archive
       - name: Retrieve the source-bound installer and verify its release set
         shell: pwsh
         env:
           GH_TOKEN: ${{ github.token }}
+          FROM_THIS_RUN: ${{ inputs.from_this_run }}
         run: |
           $ErrorActionPreference = 'Stop'
-          $run = gh api "repos/AbdulazizShehri/MedScale/actions/runs/$env:SOURCE_RUN" | ConvertFrom-Json
-          if ($run.head_sha -ne $env:SOURCE_SHA -or $run.conclusion -ne 'success') { throw 'Source run is not qualified' }
-          gh run download $env:SOURCE_RUN --repo AbdulazizShehri/MedScale --name tauri-installer-windows-latest --dir target/release-archive
-          if ($LASTEXITCODE -ne 0) { throw 'Could not retrieve the installer' }
+          if ($env:FROM_THIS_RUN -eq 'true') {
+            $env:SOURCE_SHA = '${{ github.sha }}'
+          } else {
+            $run = gh api "repos/AbdulazizShehri/MedScale/actions/runs/$env:SOURCE_RUN" | ConvertFrom-Json
+            if ($run.head_sha -ne $env:SOURCE_SHA -or $run.conclusion -ne 'success') { throw 'Source run is not qualified' }
+            gh run download $env:SOURCE_RUN --repo AbdulazizShehri/MedScale --name tauri-installer-windows-latest --dir target/release-archive
+            if ($LASTEXITCODE -ne 0) { throw 'Could not retrieve the installer' }
+          }
           $manifest = @(Get-ChildItem -LiteralPath target/release-archive -Filter package-manifest.json -Recurse -File)
           if ($manifest.Count -ne 1) { throw 'Expected one release manifest' }
           $root = $manifest[0].Directory.FullName
@@ -80,21 +100,37 @@ jobs:
           retention-days: 30
 
   macos:
-    name: Install from the real DMG (macOS Apple silicon)
-    runs-on: macos-latest
+    name: Install from the real DMG (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
     timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        # Intel is only built in a release-candidate run.
+        os: ${{ inputs.from_this_run && fromJSON('["macos-latest","macos-15-intel"]') || fromJSON('["macos-latest"]') }}
     steps:
       - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v4
+      - name: DMG built earlier in this run
+        if: ${{ inputs.from_this_run }}
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        with:
+          name: tauri-installer-${{ matrix.os }}
+          path: target/release-archive
       - name: Retrieve the source-bound DMG and verify its release set
         shell: pwsh
         env:
           GH_TOKEN: ${{ github.token }}
+          FROM_THIS_RUN: ${{ inputs.from_this_run }}
         run: |
           $ErrorActionPreference = 'Stop'
-          $run = gh api "repos/AbdulazizShehri/MedScale/actions/runs/$env:SOURCE_RUN" | ConvertFrom-Json
-          if ($run.head_sha -ne $env:SOURCE_SHA -or $run.conclusion -ne 'success') { throw 'Source run is not qualified' }
-          gh run download $env:SOURCE_RUN --repo AbdulazizShehri/MedScale --name tauri-installer-macos-latest --dir target/release-archive
-          if ($LASTEXITCODE -ne 0) { throw 'Could not retrieve the DMG' }
+          if ($env:FROM_THIS_RUN -eq 'true') {
+            $env:SOURCE_SHA = '${{ github.sha }}'
+          } else {
+            $run = gh api "repos/AbdulazizShehri/MedScale/actions/runs/$env:SOURCE_RUN" | ConvertFrom-Json
+            if ($run.head_sha -ne $env:SOURCE_SHA -or $run.conclusion -ne 'success') { throw 'Source run is not qualified' }
+            gh run download $env:SOURCE_RUN --repo AbdulazizShehri/MedScale --name tauri-installer-macos-latest --dir target/release-archive
+            if ($LASTEXITCODE -ne 0) { throw 'Could not retrieve the DMG' }
+          }
           $manifest = @(Get-ChildItem -LiteralPath target/release-archive -Filter package-manifest.json -Recurse -File)
           if ($manifest.Count -ne 1) { throw 'Expected one release manifest' }
           $root = $manifest[0].Directory.FullName
@@ -107,7 +143,7 @@ jobs:
       - uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v4.6.2
         if: ${{ !cancelled() }}
         with:
-          name: installed-journey-macos
+          name: installed-journey-${{ matrix.os }}
           path: target/installed-journey/
           if-no-files-found: warn
           retention-days: 30
