@@ -321,6 +321,16 @@ impl CliSession {
         }
     }
 
+    /// The open vault's patient list, from Core's own records.
+    pub fn subject_roster(
+        &mut self,
+    ) -> Result<Vec<medscale_contracts::envelopes::SubjectRosterEntry>, AuthorityError> {
+        match self.dispatch(Capability::ReadObject, RequestBody::ListSubjectRoster)? {
+            ResponseBody::SubjectRoster { entries } => Ok(entries),
+            _ => Err(Self::unexpected("subject roster")),
+        }
+    }
+
     /// What the last open did with a session that never sealed (Spec 109).
     #[must_use]
     pub fn last_open_outcome(&self) -> Option<medscale_contracts::envelopes::VaultOpenOutcome> {

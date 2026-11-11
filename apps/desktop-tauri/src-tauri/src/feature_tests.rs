@@ -430,11 +430,73 @@ fn every_surface_runs_against_real_core() {
 
     // Knowledge.
     h.ok("knowledge_build", json!({ "projectId": pid }));
-    h.ok(
+    let found = h.ok(
         "knowledge_search",
         json!({ "projectId": pid, "query": "alpha" }),
     );
     h.ok("knowledge_overview", json!({ "projectId": pid }));
+
+    // Research Canvas (R3): create, note, cite a search hit, link, inspect.
+    let receipt_id = found["citable"]["receipt_id"].as_str().unwrap().to_owned();
+    let first_rank = found["citable"]["hits"][0]["rank"]
+        .as_u64()
+        .expect("the search has a citable hit");
+    let v = h.ok(
+        "canvas_create",
+        json!({ "projectId": pid, "title": "Alpha review" }),
+    );
+    let cid = v["canvas"]["header"]["id"].as_str().unwrap().to_owned();
+    let rev = |v: &Value| v["canvas"]["revision"].as_u64().unwrap();
+    let v = h.ok(
+        "canvas_add_note",
+        json!({ "canvasId": cid, "revision": rev(&v), "text": "Alpha appears in the data" }),
+    );
+    assert_eq!(v["unsupported_notes"], json!(["n1"]), "{v}");
+    let v = h.ok(
+        "canvas_cite",
+        json!({ "canvasId": cid, "revision": rev(&v), "receiptId": receipt_id, "rank": first_rank }),
+    );
+    assert_eq!(v["resolutions"][0]["key"], "e1");
+    assert_eq!(v["resolutions"][0]["freshness"], "current");
+    let v = h.ok(
+        "canvas_link",
+        json!({ "canvasId": cid, "revision": rev(&v), "from": "e1", "to": "n1", "relation": "supports" }),
+    );
+    assert_eq!(
+        v["unsupported_notes"],
+        json!([]),
+        "the note is now supported: {v}"
+    );
+    assert!(
+        !v["evidence_coverage"].as_array().unwrap().is_empty(),
+        "{v}"
+    );
+    assert!(v["coverage_hash"].as_str().unwrap().starts_with("sha256:"));
+    // A stale revision is refused, never applied over newer work.
+    assert!(
+        h.call(
+            "canvas_add_note",
+            json!({ "canvasId": cid, "revision": 1, "text": "late" })
+        )
+        .is_err()
+    );
+    assert!(
+        h.call(
+            "canvas_link",
+            json!({ "canvasId": cid, "revision": rev(&v), "from": "e1", "to": "n1", "relation": "endorses" })
+        )
+        .is_err(),
+        "unknown relation"
+    );
+    let v = h.ok(
+        "canvas_remove",
+        json!({ "canvasId": cid, "revision": rev(&v), "key": "e1" }),
+    );
+    assert_eq!(v["unsupported_notes"], json!(["n1"]));
+    assert_eq!(
+        h.ok("canvas_view", json!({ "canvasId": cid }))["canvas"]["revision"],
+        v["canvas"]["revision"]
+    );
 
     // Browse: denied with an empty allowlist, then fetched from the offline fixture.
     let overview = h.ok("browse_overview", json!({ "projectId": pid }));
@@ -724,6 +786,91 @@ fn recovery_commands_list_refuse_bad_ids_and_need_an_encrypted_vault() {
         "a refused restore leaves the vault open"
     );
     h.ok("workspace_lock", json!({}));
+}
+
+/// B1: FHIR import into an encrypted vault. The resource and the patient list
+/// stay sealed: after lock and unlock the patient is listed again from Core,
+/// and no file outside the sealed vault holds the subject or the resource.
+#[test]
+fn fhir_import_into_an_encrypted_vault_stays_sealed() {
+    let h = Harness::new("enc-import");
+    let data_dir = h
+        ._app
+        .state::<crate::host::Host>()
+        .state
+        .lock()
+        .unwrap()
+        .data_dir
+        .clone()
+        .unwrap();
+    h.ok(
+        "workspace_create_encrypted",
+        json!({ "passphrase": "correct horse battery" }),
+    );
+    let outside = std::env::temp_dir().join(format!(
+        "medscale-tauri-enc-import-src-{}",
+        std::process::id()
+    ));
+    std::fs::create_dir_all(&outside).unwrap();
+    let file = outside.join("condition.json");
+    std::fs::write(
+        &file,
+        br#"{"resourceType":"Condition","id":"cond-sealed","code":{"text":"Marker sealed condition zq7"},"subject":{"reference":"Patient/enc-marker-subject-zq7"}}"#,
+    )
+    .unwrap();
+    let imported = h.ok(
+        "documents_import_fhir",
+        json!({ "path": file.display().to_string(), "subjectRef": "enc-marker-subject-zq7" }),
+    );
+    assert_eq!(imported["resource_type"], "Condition", "{imported}");
+    let listed = |h: &Harness| {
+        h.ok("patients_list", json!({}))["subjects"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .any(|s| s.to_string().contains("enc-marker-subject-zq7"))
+    };
+    assert!(listed(&h), "listed after import");
+    h.ok("workspace_lock", json!({}));
+    h.ok(
+        "workspace_unlock",
+        json!({ "passphrase": "correct horse battery" }),
+    );
+    assert!(listed(&h), "listed again after unlock, from Core");
+    assert!(
+        h.ok("documents_list", json!({}))["sources"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .any(|s| s["source_id"] == imported["source_id"]),
+        "the source is listed after unlock"
+    );
+    h.ok("workspace_lock", json!({}));
+
+    // Nothing in the data folder holds the subject or the resource in plaintext.
+    let mut stack = vec![data_dir.clone()];
+    while let Some(dir) = stack.pop() {
+        for entry in std::fs::read_dir(&dir).unwrap() {
+            let path = entry.unwrap().path();
+            if path.is_dir() {
+                stack.push(path);
+            } else {
+                let bytes = std::fs::read(&path).unwrap_or_default();
+                for marker in [
+                    &b"enc-marker-subject-zq7"[..],
+                    &b"Marker sealed condition zq7"[..],
+                ] {
+                    assert!(
+                        !bytes.windows(marker.len()).any(|w| w == marker),
+                        "{} holds plaintext {}",
+                        path.display(),
+                        String::from_utf8_lossy(marker)
+                    );
+                }
+            }
+        }
+    }
+    let _ = std::fs::remove_dir_all(&outside);
 }
 
 /// Settings "Lock and back up" and the lock screen's "Restore from a backup":

@@ -8,7 +8,9 @@ use medscale_contracts::objects::{
 };
 use medscale_contracts::{AUTHORITY_SCHEMA_VERSION, FHIR_R4_VERSION};
 use medscale_fhir::{LexicalError, extract_patient_identifiers, gate_fhir_json};
-use medscale_storage::{SourceMeta, SyntheticVault, backup_vault, restore_vault, run_gc};
+use medscale_storage::{
+    EncryptedVault, SourceMeta, SyntheticVault, backup_vault, restore_vault, run_gc,
+};
 use serde_json::json;
 
 use super::durable;
@@ -54,9 +56,79 @@ pub fn close_vault(
     Ok(ResponseBody::VaultClosed)
 }
 
+/// What FHIR ingest needs from a vault: the synthetic vault, or an open
+/// encrypted vault (its blobs sealed, its metadata in SQLCipher).
+pub trait IngestVault {
+    fn find_source(
+        &self,
+        scope: &medscale_contracts::objects::AuthorityScopeId,
+        digest: &DigestSha256,
+    ) -> Result<Option<SourceMeta>, AuthorityError>;
+    /// Stores `bytes` and reads them back before returning.
+    fn store_blob(&self, bytes: &[u8]) -> Result<BlobRef, AuthorityError>;
+    fn record_source(&self, meta: &SourceMeta) -> Result<(), AuthorityError>;
+    fn persist(&self, memory: &InMemoryAuthorityStore) -> Result<(), AuthorityError>;
+}
+
+fn invalid(e: impl std::fmt::Display) -> AuthorityError {
+    AuthorityError::InvalidArgument {
+        message: e.to_string(),
+    }
+}
+
+impl IngestVault for SyntheticVault {
+    fn find_source(
+        &self,
+        scope: &medscale_contracts::objects::AuthorityScopeId,
+        digest: &DigestSha256,
+    ) -> Result<Option<SourceMeta>, AuthorityError> {
+        self.meta.find_by_digest(scope, digest).map_err(invalid)
+    }
+    fn store_blob(&self, bytes: &[u8]) -> Result<BlobRef, AuthorityError> {
+        let blob = self.blobs.put_blob(bytes).map_err(invalid)?;
+        self.blobs
+            .verify(&blob.digest, blob.byte_length)
+            .map_err(|_| AuthorityError::DigestMismatch)?;
+        Ok(blob)
+    }
+    fn record_source(&self, meta: &SourceMeta) -> Result<(), AuthorityError> {
+        self.meta.insert_source(meta).map_err(invalid)
+    }
+    fn persist(&self, memory: &InMemoryAuthorityStore) -> Result<(), AuthorityError> {
+        durable::sync_store_to_vault(self, memory)
+    }
+}
+
+impl IngestVault for EncryptedVault {
+    fn find_source(
+        &self,
+        scope: &medscale_contracts::objects::AuthorityScopeId,
+        digest: &DigestSha256,
+    ) -> Result<Option<SourceMeta>, AuthorityError> {
+        self.meta.find_by_digest(scope, digest).map_err(invalid)
+    }
+    fn store_blob(&self, bytes: &[u8]) -> Result<BlobRef, AuthorityError> {
+        let digest = self.put_blob(bytes).map_err(invalid)?;
+        let back = self.get_blob(&digest).map_err(invalid)?;
+        if back.len() != bytes.len() || DigestSha256::of(&back) != digest {
+            return Err(AuthorityError::DigestMismatch);
+        }
+        Ok(BlobRef {
+            digest,
+            byte_length: bytes.len() as u64,
+        })
+    }
+    fn record_source(&self, meta: &SourceMeta) -> Result<(), AuthorityError> {
+        self.insert_source(meta).map_err(invalid)
+    }
+    fn persist(&self, memory: &InMemoryAuthorityStore) -> Result<(), AuthorityError> {
+        durable::sync_store_to_encrypted(self, memory)
+    }
+}
+
 #[allow(clippy::too_many_arguments)]
-pub fn ingest_fhir(
-    vault: &SyntheticVault,
+pub fn ingest_fhir<V: IngestVault>(
+    vault: &V,
     memory: &mut InMemoryAuthorityStore,
     realm_id: medscale_contracts::objects::RealmId,
     authority_scope_id: medscale_contracts::objects::AuthorityScopeId,
@@ -69,13 +141,7 @@ pub fn ingest_fhir(
         gate_fhir_json(&media_type, &bytes, fhir_version_hint.as_deref()).map_err(lexical_err)?;
 
     let digest = DigestSha256::of(&bytes);
-    if let Some(existing) = vault
-        .meta
-        .find_by_digest(&authority_scope_id, &digest)
-        .map_err(|e| AuthorityError::InvalidArgument {
-            message: e.to_string(),
-        })?
-    {
+    if let Some(existing) = vault.find_source(&authority_scope_id, &digest)? {
         let receipt = IngestReceipt {
             receipt_id: memory.alloc_id("receipt"),
             outcome: IngestOutcome::Duplicate,
@@ -93,16 +159,7 @@ pub fn ingest_fhir(
         return Ok(ResponseBody::Ingested { receipt });
     }
 
-    let blob = vault
-        .blobs
-        .put_blob(&bytes)
-        .map_err(|e| AuthorityError::InvalidArgument {
-            message: e.to_string(),
-        })?;
-    vault
-        .blobs
-        .verify(&blob.digest, blob.byte_length)
-        .map_err(|_| AuthorityError::DigestMismatch)?;
+    let blob = vault.store_blob(&bytes)?;
 
     let source_id = memory.alloc_id("src");
     let source = SourceRecord {
@@ -123,21 +180,16 @@ pub fn ingest_fhir(
     };
     memory.insert(StoredObject::Source(source));
 
-    vault
-        .meta
-        .insert_source(&SourceMeta {
-            source_id: source_id.clone(),
-            realm_id: realm_id.clone(),
-            authority_scope_id: authority_scope_id.clone(),
-            digest: digest.clone(),
-            byte_length: blob.byte_length,
-            media_type,
-            visible: true,
-            resource_type: report.resource_type.clone(),
-        })
-        .map_err(|e| AuthorityError::InvalidArgument {
-            message: e.to_string(),
-        })?;
+    vault.record_source(&SourceMeta {
+        source_id: source_id.clone(),
+        realm_id: realm_id.clone(),
+        authority_scope_id: authority_scope_id.clone(),
+        digest: digest.clone(),
+        byte_length: blob.byte_length,
+        media_type,
+        visible: true,
+        resource_type: report.resource_type.clone(),
+    })?;
 
     let mut identity_refs = Vec::new();
     for (system, value) in extract_patient_identifiers(&bytes) {
@@ -210,7 +262,7 @@ pub fn ingest_fhir(
         identity_refs,
         error: None,
     };
-    durable::sync_store_to_vault(vault, memory)?;
+    vault.persist(memory)?;
     Ok(ResponseBody::Ingested { receipt })
 }
 

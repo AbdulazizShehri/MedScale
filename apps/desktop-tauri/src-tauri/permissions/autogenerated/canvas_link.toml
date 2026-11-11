@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-canvas-link"
+description = "Enables the canvas_link command without any pre-configured scope."
+commands.allow = ["canvas_link"]
+
+[[permission]]
+identifier = "deny-canvas-link"
+description = "Denies the canvas_link command without any pre-configured scope."
+commands.deny = ["canvas_link"]

@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-canvas-cite"
+description = "Enables the canvas_cite command without any pre-configured scope."
+commands.allow = ["canvas_cite"]
+
+[[permission]]
+identifier = "deny-canvas-cite"
+description = "Denies the canvas_cite command without any pre-configured scope."
+commands.deny = ["canvas_cite"]

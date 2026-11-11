@@ -3,6 +3,7 @@
 //! validates that it exists and is in scope.
 
 use medscale_contracts::data_sources::{LocalFileFormat, SourceLocator};
+use medscale_contracts::knowledge::CanvasOp;
 use medscale_contracts::objects::OpaqueId;
 use medscale_desktop_vm::{
     analytics_workspace, browse_workspace, data_workbench, knowledge_workspace, privacy_workspace,
@@ -264,9 +265,148 @@ pub fn knowledge_search(
     query: String,
 ) -> CmdResult<Value> {
     let query = host::bounded_text(&query, 256)?;
+    let project_id = host::bounded_id(&project_id)?.to_owned();
     let mut state = lock(&host)?;
-    let r = knowledge_workspace::search(state.session()?, host::bounded_id(&project_id)?, &query)?;
-    Ok(crate::obj!(r => summary, hits))
+    let (r, receipt) =
+        knowledge_workspace::search_with_receipt(state.session()?, &project_id, &query)?;
+    // The receipt this search left, so a hit can be cited on a Canvas.
+    let citable = json!({
+        "receipt_id": receipt.header.id.as_str(),
+        "hits": receipt.hits.iter().map(|h| json!({
+            "rank": h.rank,
+            "freshness": h.freshness,
+        })).collect::<Vec<_>>(),
+    });
+    Ok(json!({ "summary": r.summary, "hits": r.hits, "citable": citable }))
+}
+
+// ───────────────────────────── research canvas ─────────────────────────────
+
+/// The Canvas with every evidence node resolved live, its unsupported notes,
+/// contradictions, overlapping evidence and evidence coverage (Core).
+fn canvas_json(session: &mut medscale_core::CliSession, canvas_id: &str) -> CmdResult<Value> {
+    let view = session.canvas_get(OpaqueId::new(canvas_id), None)?;
+    serde_json::to_value(&view).map_err(|_| CmdError::new("internal", "Internal: canvas view"))
+}
+
+/// The next free key with this prefix (`n1`, `n2`, … or `e1`, …).
+fn next_key(view: &medscale_contracts::knowledge::CanvasView, prefix: char) -> String {
+    (1..)
+        .map(|n| format!("{prefix}{n}"))
+        .find(|k| !view.canvas.nodes.iter().any(|node| &node.key == k))
+        .unwrap_or_else(|| format!("{prefix}0"))
+}
+
+fn edit_canvas(
+    host: &tauri::State<'_, Host>,
+    canvas_id: &str,
+    revision: u32,
+    op: impl FnOnce(
+        &medscale_contracts::knowledge::CanvasView,
+        &mut medscale_core::CliSession,
+    ) -> CmdResult<CanvasOp>,
+) -> CmdResult<Value> {
+    let canvas_id = host::bounded_id(canvas_id)?.to_owned();
+    let mut state = lock(host)?;
+    let session = state.session()?;
+    let view = session.canvas_get(OpaqueId::new(&canvas_id), None)?;
+    let op = op(&view, session)?;
+    session.canvas_edit(OpaqueId::new(&canvas_id), revision, vec![op])?;
+    canvas_json(session, &canvas_id)
+}
+
+#[tauri::command(async)]
+pub fn canvas_create(
+    host: tauri::State<'_, Host>,
+    project_id: String,
+    title: String,
+) -> CmdResult<Value> {
+    let title = host::bounded_text(&title, 200)?;
+    let mut state = lock(&host)?;
+    let session = state.session()?;
+    let c = session.canvas_create(OpaqueId::new(host::bounded_id(&project_id)?), title)?;
+    canvas_json(session, c.header.id.as_str())
+}
+
+#[tauri::command(async)]
+pub fn canvas_view(host: tauri::State<'_, Host>, canvas_id: String) -> CmdResult<Value> {
+    let canvas_id = host::bounded_id(&canvas_id)?.to_owned();
+    let mut state = lock(&host)?;
+    canvas_json(state.session()?, &canvas_id)
+}
+
+#[tauri::command(async)]
+pub fn canvas_add_note(
+    host: tauri::State<'_, Host>,
+    canvas_id: String,
+    revision: u32,
+    text: String,
+) -> CmdResult<Value> {
+    let text = host::bounded_text(&text, 4000)?;
+    edit_canvas(&host, &canvas_id, revision, |view, _| {
+        Ok(CanvasOp::AddNote {
+            key: next_key(view, 'n'),
+            text,
+        })
+    })
+}
+
+/// Cites one hit of a search receipt: the evidence node pins that exact span.
+#[tauri::command(async)]
+pub fn canvas_cite(
+    host: tauri::State<'_, Host>,
+    canvas_id: String,
+    revision: u32,
+    receipt_id: String,
+    rank: u32,
+) -> CmdResult<Value> {
+    let receipt_id = host::bounded_id(&receipt_id)?.to_owned();
+    edit_canvas(&host, &canvas_id, revision, |view, session| {
+        let receipt = session.knowledge_receipt_get(OpaqueId::new(&receipt_id))?;
+        let span = receipt
+            .hits
+            .iter()
+            .find(|h| h.rank == rank)
+            .map(|h| h.span.clone())
+            .ok_or_else(|| CmdError::invalid("Invalid: that search has no such result"))?;
+        Ok(CanvasOp::AddEvidence {
+            key: next_key(view, 'e'),
+            span,
+        })
+    })
+}
+
+#[tauri::command(async)]
+pub fn canvas_link(
+    host: tauri::State<'_, Host>,
+    canvas_id: String,
+    revision: u32,
+    from: String,
+    to: String,
+    relation: String,
+) -> CmdResult<Value> {
+    let relation = medscale_contracts::knowledge::CanvasRelation::parse(&relation)
+        .map_err(|_| CmdError::invalid("Invalid: unknown relation"))?;
+    let (from, to) = (
+        host::bounded_id(&from)?.to_owned(),
+        host::bounded_id(&to)?.to_owned(),
+    );
+    edit_canvas(&host, &canvas_id, revision, |_, _| {
+        Ok(CanvasOp::Link { from, to, relation })
+    })
+}
+
+#[tauri::command(async)]
+pub fn canvas_remove(
+    host: tauri::State<'_, Host>,
+    canvas_id: String,
+    revision: u32,
+    key: String,
+) -> CmdResult<Value> {
+    let key = host::bounded_id(&key)?.to_owned();
+    edit_canvas(&host, &canvas_id, revision, |_, _| {
+        Ok(CanvasOp::RemoveNode { key })
+    })
 }
 
 // ───────────────────────────── browse ─────────────────────────────

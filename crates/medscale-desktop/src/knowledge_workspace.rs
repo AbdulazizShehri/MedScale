@@ -130,6 +130,30 @@ pub fn search(
     Ok(search_vm(&result))
 }
 
+/// [`search`], also returning the receipt the search left, so a hit can be
+/// cited on a Research Canvas. Used by the Tauri desktop (through
+/// medscale-desktop-vm); this file is also compiled into the older binary.
+#[allow(dead_code)]
+pub fn search_with_receipt(
+    session: &mut CliSession,
+    project_id: &str,
+    query: &str,
+) -> Result<
+    (
+        SearchResultVm,
+        medscale_contracts::knowledge::RetrievalReceipt,
+    ),
+    AuthorityError,
+> {
+    let result = session.knowledge_search(RetrievalRequest {
+        project_id: OpaqueId::new(project_id),
+        query: query.to_owned(),
+        max_hits: None,
+        include_stale: true,
+    })?;
+    Ok((search_vm(&result), result.receipt))
+}
+
 pub fn canvases(
     session: &mut CliSession,
     project_id: &str,
