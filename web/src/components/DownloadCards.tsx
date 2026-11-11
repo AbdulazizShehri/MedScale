@@ -1,17 +1,17 @@
 "use client";
 import { useEffect, useState } from "react";
-import { detectPlatform, formatSize, installerFor, platformStatus, publicRelease, signingNote, type Platform } from "@/lib/release";
+import { archLabel, detectPlatform, downloadsFor, formatSize, kindLabel, platformStatus, publicRelease, signingNote, testedNote, type DownloadGroup, type Platform } from "@/lib/release";
 import { docs } from "@/lib/site";
 import { ArrowUpRight, PlatformIcon, type PlatformName } from "./Icons";
 
-const order: PlatformName[] = ["windows", "macos", "linux"];
-const titles: Record<PlatformName, string> = { windows: "Windows", macos: "macOS", linux: "Linux" };
-const cta: Record<string, string> = { windows: "Download for Windows (.exe)", macos: "Download for Mac, Apple silicon (.dmg)" };
-const kindNote: Record<string, string> = { windows: "NSIS installer", macos: "macOS 10.15 or later, Apple silicon only. Intel Macs aren\u2019t supported" };
-const guide: Record<PlatformName, { href: string; label: string }> = {
-  windows: { href: docs.desktop, label: "Build the desktop app" },
-  macos: { href: docs.desktop, label: "Build the desktop app" },
-  linux: { href: docs.cli, label: "Install the CLI" },
+const order: DownloadGroup[] = ["windows", "macos", "linux", "cli"];
+const titles: Record<DownloadGroup, string> = { windows: "Windows", macos: "macOS", linux: "Linux", cli: "Other platforms / CLI" };
+const cta: Record<DownloadGroup, string> = { windows: "Download for Windows", macos: "Download for macOS", linux: "Download for Linux", cli: "Download the CLI" };
+const fallback: Record<DownloadGroup, { surface: string; arch: string; state: string; note: string; href: string; label: string }> = {
+  windows: { ...platformStatus.windows, href: docs.desktop, label: "Build the desktop app" },
+  macos: { ...platformStatus.macos, href: docs.desktop, label: "Build the desktop app" },
+  linux: { ...platformStatus.linux, href: docs.desktop, label: "Build the desktop app" },
+  cli: { surface: "Command-line tool", arch: "Windows, macOS and Linux", state: "Not released yet", note: "Standalone archives for five targets are built and tested in CI. Nothing is published until a release is approved.", href: docs.cli, label: "Install the CLI from source" },
 };
 
 function useVisitorPlatform(): Platform {
@@ -24,37 +24,45 @@ function useVisitorPlatform(): Platform {
 }
 
 /**
- * Platform cards. A card offers an installer only when src/lib/release.ts validated one
- * for that platform; every other card links to build instructions.
+ * One card per platform plus the CLI. A card lists a download only when
+ * src/lib/release.ts validated that exact file; otherwise it says plainly that
+ * nothing is released and links to build instructions. No placeholder links.
  */
 export function DownloadCards() {
   const visitor = useVisitorPlatform();
   return (
     <div className="platforms">
-      {order.map((key) => {
-        const s = platformStatus[key];
-        const current = visitor === key;
-        const installer = installerFor(publicRelease, key);
+      {order.map((group) => {
+        const current = visitor === group;
+        const files = downloadsFor(publicRelease, group);
+        const f = fallback[group];
         return (
-          <article key={key} className="platform" data-current={current}>
+          <article key={group} className="platform" data-current={current}>
             <div className="platform-top">
-              <span className="platform-icon"><PlatformIcon name={key} size={26} /></span>
+              <span className="platform-icon">{group === "cli" ? <span aria-hidden="true" className="mono">&gt;_</span> : <PlatformIcon name={group as PlatformName} size={26} />}</span>
               {current && <span className="platform-you">Your platform</span>}
             </div>
-            <h3>{titles[key]}</h3>
-            <div className="platform-sub">{installer ? "Desktop app" : s.surface} · {s.arch}</div>
-            {installer && publicRelease ? (
+            <h3>{titles[group]}</h3>
+            {files.length > 0 && publicRelease ? (
               <>
-                <span className="platform-state" data-available="true">MedScale {publicRelease.version} Beta · {formatSize(installer.size)}</span>
-                <p className="platform-note">{kindNote[key]}. {signingNote(installer.signing)}</p>
-                <a className={"btn " + (current ? "btn-primary" : "btn-secondary")} href={installer.url}>{cta[key]}</a>
-                <div className="platform-hash"><span>SHA-256</span><code>{installer.sha256}</code></div>
+                <div className="platform-sub">MedScale {publicRelease.version} Beta</div>
+                {files.map(({ key, rule, file }, i) => (
+                  <div key={key} className="stack" style={{ gap: 6, marginTop: i ? 14 : 4 }}>
+                    <a className={"btn " + (current && i === 0 ? "btn-primary" : "btn-secondary")} href={file.url}>
+                      {cta[group]} · {archLabel(rule.arch, group)} · {kindLabel(rule.kind)}
+                    </a>
+                    <span className="platform-state" data-available="true">{file.fileName} · {formatSize(file.size)}</span>
+                    <p className="platform-note">{signingNote(file.signing, group, key)} {testedNote(rule.kind)}</p>
+                    <div className="platform-hash"><span>SHA-256</span><code>{file.sha256}</code></div>
+                  </div>
+                ))}
               </>
             ) : (
               <>
-                <span className="platform-state">{s.state}</span>
-                <p className="platform-note">{s.note}</p>
-                <a className={"btn " + (current ? "btn-primary" : "btn-secondary")} href={guide[key].href}>{guide[key].label} <ArrowUpRight /></a>
+                <div className="platform-sub">{f.surface} · {f.arch}</div>
+                <span className="platform-state">{f.state}</span>
+                <p className="platform-note">{f.note}</p>
+                <a className={"btn " + (current ? "btn-primary" : "btn-secondary")} href={f.href}>{f.label} <ArrowUpRight /></a>
               </>
             )}
           </article>

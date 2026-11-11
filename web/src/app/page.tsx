@@ -80,7 +80,7 @@ export default function Home() {
               <a className="btn btn-secondary" href={github}><GitHub size={16} /> View on GitHub</a>
             </div>
             <div className="hero-meta">
-              <span><Monitor /> Desktop for Windows and macOS</span>
+              <span><Monitor /> Desktop for Windows, macOS and Linux</span>
               <span><Terminal /> CLI for Windows, macOS and Linux</span>
             </div>
             <p className="hero-note">{productStage} · synthetic data and licensed nonpatient audio · not for clinical use</p>
@@ -249,7 +249,7 @@ export default function Home() {
                   <tr><td>Stage</td><td>{productStage}</td><td>{publicRelease ? `Version ${publicRelease.version}, for testing with synthetic data.` : "No released version yet. You can build it from source."}</td></tr>
                   <tr><td>Real patient data</td><td>Not authorized</td><td>Use synthetic workspaces and licensed nonpatient audio only.</td></tr>
                   <tr><td>Clinical validation</td><td>Not done</td><td>MedScale is not clinically validated. This is an external gate that hasn&apos;t been met.</td></tr>
-                  <tr><td>Platforms</td><td>Windows, macOS, Linux</td><td>Desktop for Windows and macOS. CLI on all three.</td></tr>
+                  <tr><td>Platforms</td><td>Windows, macOS, Linux</td><td>Desktop and CLI on all three. Builds are tested in CI; none is code-signed by a trusted publisher.</td></tr>
                   <tr><td>Installers</td><td>{publicRelease ? "Signing varies" : "Not published"}</td><td>{publicRelease ? "Each installer states its own signing status and checksum." : "CI builds packages to test the release process. They aren't qualified for public use."}</td></tr>
                 </tbody>
               </table>

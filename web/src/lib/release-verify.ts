@@ -1,13 +1,17 @@
 // Checks a release against what visitors would actually receive, and against the
 // records behind it. Node only: run by scripts/verify-release.mjs, never by the site.
 import { createHash } from "node:crypto";
-import { REPOSITORY, releaseAssetUrl, type InstallerPlatform, type PublicRelease, type SigningState } from "./release.ts";
+import { DOWNLOADS, REPOSITORY, releaseAssetUrl, type InstallerPlatform, type PublicRelease, type SigningState } from "./release.ts";
 
 const DOWNLOAD_HOSTS = new Set(["github.com", "release-assets.githubusercontent.com", "objects.githubusercontent.com"]);
 const MAX_COMPANION_BYTES = 64 * 1024 * 1024;
 /** The founder's numeric GitHub account id. A login can be renamed and reused; the id can't. */
 const OWNER_ID = 222180173;
-const QUALIFICATION_PATH = ".github/workflows/release-installed-journey.yml";
+/** Workflows allowed to qualify a release, and the event each must have run on. */
+const QUALIFIERS: Record<string, { path: string; event: string }> = {
+  "release-installed-journey": { path: ".github/workflows/release-installed-journey.yml", event: "push" },
+  "release-candidate": { path: ".github/workflows/release-candidate.yml", event: "workflow_dispatch" },
+};
 const API = `https://api.github.com/repos/${REPOSITORY}`;
 /** The workflow that runs the journey on the exact installer. */
 export const QUALIFICATION_WORKFLOW = "release-installed-journey";
@@ -85,11 +89,24 @@ export async function verifyPlatformAssets(release: PublicRelease, key: Installe
     if (!line) errors.push(`${key}: checksums file has no entry for ${p.fileName}`);
     else if (line[0].toLowerCase() !== p.sha256) errors.push(`${key}: checksums file disagrees with the manifest`);
   });
+  if (!p.companions.packageManifest) {
+    // Portable zips, AppImages and CLI archives have no package manifest: their
+    // SBOM and notices must appear, with matching digests, in the checksums file.
+    await attempt("companions", async () => {
+      const sums = text(await companion(release.tag, p.companions.checksums, fetcher));
+      for (const [what, file] of [["SBOM", p.companions.sbom], ["notices", p.companions.notices]] as const) {
+        const digest = sha256(await companion(release.tag, file, fetcher));
+        if (!sums.split(/\r?\n/).some((l) => l.trim() === `${digest}  ${file}`)) errors.push(`${key}: ${what} isn't in the checksums file with its digest`);
+      }
+    });
+    return errors;
+  }
+  const manifestPlatform = DOWNLOADS[key].manifestPlatform;
   await attempt("package manifest", async () => {
-    const m = JSON.parse(text(await companion(release.tag, p.companions.packageManifest, fetcher)));
+    const m = JSON.parse(text(await companion(release.tag, p.companions.packageManifest as string, fetcher)));
     if (m.source_sha !== release.sourceSha) errors.push(`${key}: package manifest source is ${m.source_sha}, manifest says ${release.sourceSha}`);
     if (m.installer?.sha256 !== p.sha256) errors.push(`${key}: package manifest installer digest disagrees`);
-    if (m.platform !== key) errors.push(`${key}: package manifest is for ${m.platform}`);
+    if (m.platform !== manifestPlatform) errors.push(`${key}: package manifest is for ${m.platform}`);
     if (m.version !== release.version.replace(/-beta\.\d+$/, "")) errors.push(`${key}: package manifest version is ${m.version}`);
     const claimed = SIGNED[p.signing];
     if (m.signed !== claimed.signed) errors.push(`${key}: package manifest says signed=${m.signed}, release says ${p.signing}`);
@@ -153,11 +170,14 @@ export async function verifyReleaseRecords(release: PublicRelease, fetcher: Fetc
     await attempt(`${key} qualification run`, async () => {
       const run = await api(`actions/runs/${p.qualificationRun.split("/").pop()}`);
       if (run.conclusion !== "success") errors.push(`${key}: qualification run concluded ${run.conclusion}`);
-      if (run.name !== QUALIFICATION_WORKFLOW) errors.push(`${key}: qualification run is from ${run.name}`);
+      const qualifier = QUALIFIERS[run.name];
+      if (!qualifier) errors.push(`${key}: qualification run is from ${run.name}`);
       // A run's name comes from whatever workflow file ran, so the file, trigger
       // and repository are checked too.
-      if (run.path !== QUALIFICATION_PATH) errors.push(`${key}: qualification run used ${run.path}`);
-      if (run.event !== "push") errors.push(`${key}: qualification run was triggered by ${run.event}`);
+      else {
+        if (run.path !== qualifier.path) errors.push(`${key}: qualification run used ${run.path}`);
+        if (run.event !== qualifier.event) errors.push(`${key}: qualification run was triggered by ${run.event}`);
+      }
       if (run.head_repository?.full_name !== REPOSITORY) errors.push(`${key}: qualification run came from ${run.head_repository?.full_name}`);
     });
   }

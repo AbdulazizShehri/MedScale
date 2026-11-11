@@ -89,9 +89,9 @@ export function platformLabel(platform: Platform): string {
 
 /** Today's truthful status for each platform, independent of any release fetch. */
 export const platformStatus = {
-  windows: { surface: "Desktop app + CLI", arch: "x64", state: "Build from source", note: "An unsigned engineering-preview installer is built by CI for testing. No signed public installer yet." },
-  macos: { surface: "Desktop app + CLI", arch: "Apple silicon", state: "Build from source", note: "The engineering-preview app is ad-hoc signed and not notarized. No public installer yet." },
-  linux: { surface: "CLI", arch: "x86_64", state: "CLI from source", note: "The Rust Core and CLI are tested on Linux. A Linux desktop app is not available yet." },
+  windows: { surface: "Desktop app + CLI", arch: "x64", state: "Not released yet", note: "CI builds and tests an unsigned per-user installer and a portable zip. Nothing is published until a release is approved." },
+  macos: { surface: "Desktop app + CLI", arch: "Apple silicon and Intel", state: "Not released yet", note: "CI builds and tests DMGs that are ad-hoc signed and not notarized. Nothing is published until a release is approved." },
+  linux: { surface: "Desktop app + CLI", arch: "x86_64 and arm64", state: "Not released yet", note: "CI builds and tests .deb packages and AppImages. Nothing is published until a release is approved." },
 } as const;
 
 // Direct downloads. The site is static: release-manifest.json is reviewed and built
@@ -99,8 +99,15 @@ export const platformStatus = {
 // every check below; one bad platform never hides or taints another.
 
 export const REPOSITORY = "AbdulazizShehri/MedScale";
-export type InstallerPlatform = "windows" | "macos";
+/** Every downloadable file the gate knows. Anything else is refused. */
+export type InstallerPlatform =
+  | "windows" | "windows-portable" | "macos" | "macos-intel"
+  | "linux-deb" | "linux-appimage" | "linux-arm64-deb" | "linux-arm64-appimage"
+  | "cli-windows-x64" | "cli-macos-arm64" | "cli-macos-x64" | "cli-linux-x64" | "cli-linux-arm64";
+export type DownloadGroup = "windows" | "macos" | "linux" | "cli";
+export type DownloadKind = "installer" | "portable" | "dmg" | "deb" | "appimage" | "cli";
 export type SigningState = "authenticode" | "unsigned" | "developer-id-notarized" | "ad-hoc";
+type Companions = { checksums: string; sbom: string; notices: string; packageManifest?: string };
 
 export interface PlatformRelease {
   fileName: string;
@@ -112,7 +119,7 @@ export interface PlatformRelease {
   signingDecision: string;
   /** The workflow run that qualified these exact bytes. */
   qualificationRun: string;
-  companions: { checksums: string; sbom: string; notices: string; packageManifest: string };
+  companions: Companions;
 }
 
 export interface PublicRelease {
@@ -130,10 +137,36 @@ export interface ReleaseValidation {
   errors: string[];
 }
 
-const INSTALLERS: Record<InstallerPlatform, { name: RegExp; arch: Arch; signing: readonly SigningState[] }> = {
-  windows: { name: /^MedScale_(\d+\.\d+\.\d+)_x64-setup\.exe$/, arch: "x64", signing: ["authenticode", "unsigned"] },
-  macos: { name: /^MedScale_(\d+\.\d+\.\d+)_aarch64\.dmg$/, arch: "arm64", signing: ["developer-id-notarized", "ad-hoc"] },
+interface DownloadRule {
+  name: RegExp;
+  group: DownloadGroup;
+  kind: DownloadKind;
+  arch: Arch;
+  signing: readonly SigningState[];
+  /** Platform named in this file's package manifest, for packaged installers. */
+  manifestPlatform?: "windows" | "macos" | "linux";
+}
+const V = "(\\d+\\.\\d+\\.\\d+)";
+const rx = (pattern: string) => new RegExp(`^${pattern.replace("{v}", V)}$`);
+const WIN: readonly SigningState[] = ["authenticode", "unsigned"];
+const MAC: readonly SigningState[] = ["developer-id-notarized", "ad-hoc"];
+const NONE: readonly SigningState[] = ["unsigned"];
+export const DOWNLOADS: Record<InstallerPlatform, DownloadRule> = {
+  windows: { name: rx("MedScale_{v}_x64-setup\\.exe"), group: "windows", kind: "installer", arch: "x64", signing: WIN, manifestPlatform: "windows" },
+  "windows-portable": { name: rx("MedScale_{v}_x64-portable\\.zip"), group: "windows", kind: "portable", arch: "x64", signing: WIN },
+  macos: { name: rx("MedScale_{v}_aarch64\\.dmg"), group: "macos", kind: "dmg", arch: "arm64", signing: MAC, manifestPlatform: "macos" },
+  "macos-intel": { name: rx("MedScale_{v}_x64\\.dmg"), group: "macos", kind: "dmg", arch: "x64", signing: MAC, manifestPlatform: "macos" },
+  "linux-deb": { name: rx("MedScale_{v}_amd64\\.deb"), group: "linux", kind: "deb", arch: "x64", signing: NONE, manifestPlatform: "linux" },
+  "linux-appimage": { name: rx("MedScale_{v}_amd64\\.AppImage"), group: "linux", kind: "appimage", arch: "x64", signing: NONE },
+  "linux-arm64-deb": { name: rx("MedScale_{v}_arm64\\.deb"), group: "linux", kind: "deb", arch: "arm64", signing: NONE, manifestPlatform: "linux" },
+  "linux-arm64-appimage": { name: rx("MedScale_{v}_aarch64\\.AppImage"), group: "linux", kind: "appimage", arch: "arm64", signing: NONE },
+  "cli-windows-x64": { name: rx("medscale-{v}-x86_64-pc-windows-msvc\\.zip"), group: "cli", kind: "cli", arch: "x64", signing: WIN },
+  "cli-macos-arm64": { name: rx("medscale-{v}-aarch64-apple-darwin\\.tar\\.gz"), group: "cli", kind: "cli", arch: "arm64", signing: NONE },
+  "cli-macos-x64": { name: rx("medscale-{v}-x86_64-apple-darwin\\.tar\\.gz"), group: "cli", kind: "cli", arch: "x64", signing: NONE },
+  "cli-linux-x64": { name: rx("medscale-{v}-x86_64-unknown-linux-gnu\\.tar\\.gz"), group: "cli", kind: "cli", arch: "x64", signing: NONE },
+  "cli-linux-arm64": { name: rx("medscale-{v}-aarch64-unknown-linux-gnu\\.tar\\.gz"), group: "cli", kind: "cli", arch: "arm64", signing: NONE },
 };
+const PACKAGED: readonly DownloadKind[] = ["installer", "dmg", "deb"];
 const TAG = /^v(\d+\.\d+\.\d+)-beta\.\d+$/;
 const SAFE_FILE = /^[A-Za-z0-9][A-Za-z0-9._-]*$/;
 const COMMENT = new RegExp(`^https://github\\.com/${REPOSITORY}/(issues|pull)/\\d+#issuecomment-\\d+$`);
@@ -150,7 +183,7 @@ function isRecord(v: unknown): v is Record<string, unknown> {
 }
 
 function platformErrors(key: InstallerPlatform, raw: Record<string, unknown>, tag: string, baseVersion: string): string[] {
-  const rule = INSTALLERS[key];
+  const rule = DOWNLOADS[key];
   const errors: string[] = [];
   const name = typeof raw.fileName === "string" ? raw.fileName : "";
   const match = rule.name.exec(name);
@@ -163,11 +196,12 @@ function platformErrors(key: InstallerPlatform, raw: Record<string, unknown>, ta
   if (typeof raw.signingDecision !== "string" || !COMMENT.test(raw.signingDecision)) errors.push("signing decision is missing");
   if (typeof raw.qualificationRun !== "string" || !RUN.test(raw.qualificationRun)) errors.push("qualification run is missing");
   const companions = isRecord(raw.companions) ? raw.companions : {};
-  for (const c of ["checksums", "sbom", "notices", "packageManifest"]) {
+  for (const c of PACKAGED.includes(rule.kind) ? ["checksums", "sbom", "notices", "packageManifest"] : ["checksums", "sbom", "notices"]) {
     const v = companions[c];
     if (typeof v !== "string" || !SAFE_FILE.test(v)) errors.push(`${c} file is missing`);
   }
-  if (match && pickInstaller([{ name, browser_download_url: String(raw.url), size: Number(raw.size) }], key, rule.arch)?.name !== name) errors.push("installer selection disagrees");
+  if (match && (rule.kind === "installer" || rule.kind === "dmg" || rule.kind === "deb" || rule.kind === "appimage")
+    && pickInstaller([{ name, browser_download_url: String(raw.url), size: Number(raw.size) }], rule.group as Platform, rule.arch)?.name !== name) errors.push("installer selection disagrees");
   return errors;
 }
 
@@ -195,11 +229,12 @@ export function validateRelease(raw: unknown, qualifiedTags: readonly string[] =
   const platforms: Partial<Record<InstallerPlatform, PlatformRelease>> = {};
   const given = isRecord(r.platforms) ? r.platforms : {};
   for (const key of Object.keys(given)) {
-    if (key !== "windows" && key !== "macos") { errors.push(`${key}: not a supported installer platform`); continue; }
+    if (!Object.hasOwn(DOWNLOADS, key)) { errors.push(`${key}: not a supported installer platform`); continue; }
     const entry = given[key];
-    const problems = isRecord(entry) ? platformErrors(key, entry, tag, tagMatch[1]) : ["entry is malformed"];
+    const k = key as InstallerPlatform;
+    const problems = isRecord(entry) ? platformErrors(k, entry, tag, tagMatch[1]) : ["entry is malformed"];
     if (problems.length > 0) errors.push(...problems.map((p) => `${key}: ${p}`));
-    else platforms[key] = entry as unknown as PlatformRelease;
+    else platforms[k] = entry as unknown as PlatformRelease;
   }
   if (Object.keys(platforms).length === 0) return { errors: errors.length ? errors : ["no platform is offered"] };
   return { errors, release: { ...(r as unknown as PublicRelease), platforms } };
@@ -210,15 +245,52 @@ export const publicRelease: PublicRelease | undefined = validateRelease(manifest
 /** What to call the product today. */
 export const productStage = publicRelease ? "Beta" : "Engineering preview";
 
+/** The main desktop download for a platform: the installer, the Apple silicon DMG, or the x64 .deb. */
 export function installerFor(release: PublicRelease | undefined, platform: Platform): PlatformRelease | undefined {
-  return platform === "windows" || platform === "macos" ? release?.platforms[platform] : undefined;
+  const key: InstallerPlatform | undefined = platform === "windows" ? "windows" : platform === "macos" ? "macos" : platform === "linux" ? "linux-deb" : undefined;
+  return key ? release?.platforms[key] : undefined;
+}
+
+export interface Download { key: InstallerPlatform; rule: DownloadRule; file: PlatformRelease }
+
+/** Every validated download in one group, in a fixed order. */
+export function downloadsFor(release: PublicRelease | undefined, group: DownloadGroup): Download[] {
+  if (!release) return [];
+  return (Object.keys(DOWNLOADS) as InstallerPlatform[])
+    .filter((key) => DOWNLOADS[key].group === group && release.platforms[key])
+    .map((key) => ({ key, rule: DOWNLOADS[key], file: release.platforms[key] as PlatformRelease }));
+}
+
+export function kindLabel(kind: DownloadKind): string {
+  return { installer: "Installer (.exe)", portable: "Portable (.zip)", dmg: "Disk image (.dmg)", deb: "Debian/Ubuntu package (.deb)", appimage: "AppImage", cli: "CLI archive" }[kind];
+}
+
+export function archLabel(arch: Arch, group: DownloadGroup): string {
+  if (group === "macos") return arch === "arm64" ? "Apple silicon" : "Intel";
+  return arch === "arm64" ? "arm64" : arch === "x64" ? "x64" : arch;
+}
+
+/**
+ * What was tested on these exact bytes, derived from the kind of file so the
+ * manifest can't word its way past it. The release gate only accepts a file
+ * whose qualification run passed these checks.
+ */
+export function testedNote(kind: DownloadKind): string {
+  switch (kind) {
+    case "installer": case "dmg": case "deb": return "Installed, opened and uninstalled on a clean CI machine.";
+    case "portable": case "appimage": return "Opened without installing on a clean CI machine.";
+    case "cli": return "Run from the extracted archive on a clean CI machine, with its tests.";
+  }
 }
 
 /** Plain signing status, derived from the state so a manifest can't word its way past it. */
-export function signingNote(signing: SigningState): string {
+export function signingNote(signing: SigningState, group: DownloadGroup = "windows", key?: InstallerPlatform): string {
   switch (signing) {
     case "authenticode": return "Code-signed for Windows.";
-    case "unsigned": return "Not code-signed. Windows SmartScreen may warn before it runs.";
+    case "unsigned":
+      if (group === "windows" || key === "cli-windows-x64") return "Not code-signed. Windows SmartScreen warns before it runs, and Smart App Control blocks it.";
+      if (key === "cli-macos-arm64" || key === "cli-macos-x64") return "Not signed or notarized. macOS asks you to approve it before the first run.";
+      return "Not signed. Check the SHA-256 before you run it.";
     case "developer-id-notarized": return "Signed with Apple Developer ID and notarized.";
     case "ad-hoc": return "Ad-hoc signed and not notarized. macOS blocks the first open until you approve it.";
   }
