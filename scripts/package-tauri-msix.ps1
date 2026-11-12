@@ -96,7 +96,9 @@ if (-not $app -or $app.GetAttribute('Executable') -cne 'medscale-desktop-tauri.e
 }
 
 $msix = Join-Path $outRoot "MedScale-$Profile-$PackageVersion-x64-UNSIGNED.msix"
-& winapp package $stage --manifest $manifestPath --no-sign --output $msix
+# WinApp CLI v0.3.0 produces unsigned packages by default without a certificate.
+# --no-sign is not supported in this pinned version; the CLI prints usage and exits nonzero.
+& winapp package $stage --manifest $manifestPath --output $msix
 if ($LASTEXITCODE -ne 0 -or -not (Test-Path -LiteralPath $msix -PathType Leaf)) {
     throw 'winapp package did not produce the unsigned MSIX'
 }
