@@ -46,8 +46,14 @@ jobs:
     name: tauri preview (${{ matrix.os }})
     runs-on: ${{ matrix.os }}
     # The release build and packaging take about 50 minutes on windows-latest;
-    # run 39197130805 hit the old 60-minute limit while saving the cache.
-    timeout-minutes: 90
+    # run 39197130805 hit the old 60-minute limit while saving the cache. The
+    # Intel Mac runner is slower: its first build used all 90 minutes.
+    timeout-minutes: ${{ matrix.os == 'macos-15-intel' && 150 || 90 }}
+    env:
+      # Linux arm64: gemm (Whisper's matrix kernels) needs the FP16 extension,
+      # so this build needs an ARMv8.2-A CPU with FP16 (for example Raspberry
+      # Pi 5, AWS Graviton2 or newer). Apple silicon targets enable it already.
+      RUSTFLAGS: ${{ matrix.os == 'ubuntu-22.04-arm' && '-Dwarnings -Ctarget-feature=+fp16' || '-Dwarnings' }}
     strategy:
       fail-fast: false
       matrix:
