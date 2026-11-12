@@ -195,6 +195,7 @@ const SAMPLE = button("Try MedScale with sample data");
 const OPENED = control("Patients");
 const LOCK = control("Lock workspace");
 const VAULT_PROJECT = "Project kept across uninstall";
+const INSTALLED_CANVAS = "Installed build canvas";
 
 async function main() {
   let installed;
@@ -455,6 +456,28 @@ async function main() {
     await unlock();
     await nav("Projects");
     await waitForText(VAULT_PROJECT, 30000);
+  });
+  await step("encrypted-vault-fhir-import", async () => {
+    // B1: the encrypted workspace takes an import without the sample-only
+    // confirmation, and keeps the resource sealed.
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), "medscale-fhir-enc-"));
+    const file = path.join(dir, "installed-sealed-patient.json");
+    const bundled = JSON.parse(fs.readFileSync(path.resolve("fixtures/synthetic/fhir/r4/presentation/patient-golden.json"), "utf8"));
+    fs.writeFileSync(file, JSON.stringify({ ...bundled, id: "installed-sealed-patient" }));
+    await nav("Documents");
+    await click(button("Import synthetic FHIR"));
+    await type("ip", file);
+    await click(button("Ingest through Core"));
+    await waitForText("ingested and promoted as", 60000);
+  });
+  await step("research-canvas-note", async () => {
+    await nav("Knowledge");
+    await type("canvas-title", INSTALLED_CANVAS);
+    await click(button("Create"));
+    await waitForText(INSTALLED_CANVAS, 30000);
+    await type("canvas-note", "Installed build canvas note");
+    await click(button("Add note"));
+    await waitForText("Installed build canvas note", 30000);
     await closeWindow();
   });
   await step("webview-scan-finds-a-planted-marker", async () => {
@@ -472,7 +495,7 @@ async function main() {
   await step("webview-residue-measured", async () => {
     // Reported, not asserted yet: this journey is the first to look after real use.
     // This step cannot fail, and release documents must say so.
-    report.webview_residue = webViewResidue(["Installed build study", VAULT_PROJECT, "installed-fictional-patient"]);
+    report.webview_residue = webViewResidue(["Installed build study", VAULT_PROJECT, "installed-fictional-patient", "installed-sealed-patient", INSTALLED_CANVAS]);
     console.log(`WEBVIEW_RESIDUE ${JSON.stringify(report.webview_residue)}`);
   });
   await step("uninstall-keeps-user-data", async () => {

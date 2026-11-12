@@ -1,6 +1,8 @@
 name: tauri-preview
 
 on:
+  # Called by release-candidate.yml to build every artifact from one commit.
+  workflow_call:
   # Main is verified after every merge too: ci.yml does not build the desktop.
   push:
     branches: [main]
@@ -34,7 +36,7 @@ permissions:
   contents: read
 
 concurrency:
-  group: tauri-preview-${{ github.ref }}
+  group: tauri-preview-${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
 env:
