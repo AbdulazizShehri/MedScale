@@ -30,6 +30,11 @@ jobs:
     # The full installed journey on the Windows installer, and the real-DMG
     # install on Apple silicon and Intel, all from this run's own packages.
     needs: [desktop]
+    # The called workflow reads Actions metadata; a called workflow can't have
+    # more than its caller grants.
+    permissions:
+      contents: read
+      actions: read
     uses: ./.github/workflows/release-installed-journey.yml
     with:
       from_this_run: true

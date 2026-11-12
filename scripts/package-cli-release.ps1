@@ -16,7 +16,8 @@ $version = ((Select-String -LiteralPath (Join-Path $repoRoot 'Cargo.toml') -Patt
 $name = "medscale-$version-$Target"
 $outRoot = [IO.Path]::GetFullPath((Join-Path $repoRoot 'target/cli-release'))
 $stage = Join-Path $outRoot $name
-if (Test-Path -LiteralPath $stage) { throw 'the release folder must be assembled fresh' }
+# A restored build cache can carry an earlier run's output; start clean.
+if (Test-Path -LiteralPath $outRoot) { Remove-Item -LiteralPath $outRoot -Recurse -Force }
 $exeName = if ($Target -like '*windows*') { 'medscale.exe' } else { 'medscale' }
 $exe = Join-Path $repoRoot "target/$Target/release/$exeName"
 if (-not (Test-Path -LiteralPath $exe -PathType Leaf)) { throw "build first: $exe is missing" }

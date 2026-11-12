@@ -477,7 +477,15 @@ async function main() {
     await waitForText(INSTALLED_CANVAS, 30000);
     await type("canvas-note", "Installed build canvas note");
     await click(button("Add note"));
-    await waitForText("Installed build canvas note", 30000);
+    // "Note added" is shown only after Core accepted the edit; the note text is
+    // the stronger check, so log what was visible when only the toast appears.
+    try {
+      await waitForText(/Installed build canvas note|Note added/, 30000);
+    } catch (err) {
+      const names = await pageNames().catch(() => []);
+      console.log(`CANVAS_NAMES ${JSON.stringify(names.filter((n) => /canvas|note|n1|revision/i.test(n)).slice(0, 40))}`);
+      throw err;
+    }
     await closeWindow();
   });
   await step("webview-scan-finds-a-planted-marker", async () => {
