@@ -10,7 +10,7 @@ pub use extractors::{
     unit_conflict_status,
 };
 pub use lexical::{LexicalError, LexicalReport, extract_patient_identifiers, gate_fhir_json};
-pub use units::{ADMITTED_UCUM_CODES, compare_units, evaluate_unit, subset_pin};
+pub use units::{ADMITTED_UCUM_CODES, compare_units, evaluate_unit, same_quantity, subset_pin};
 
 /// Maximum accepted ingest payload size (bytes).
 pub const MAX_INGEST_BYTES: usize = 1_048_576;

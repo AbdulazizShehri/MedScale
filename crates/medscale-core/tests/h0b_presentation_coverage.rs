@@ -480,3 +480,57 @@ fn no_fhirpath_engine_dependency() {
         );
     }
 }
+
+/// The same quantity written in two units of one admitted group is not a
+/// conflict. A real difference, however small, still is.
+#[test]
+fn coverage_compares_quantities_not_text() {
+    let obs = |id: &str, value: &str, code: &str| {
+        format!(
+            r#"{{"resourceType":"Observation","id":"{id}","status":"final","code":{{"text":"Body weight"}},"valueQuantity":{{"value":{value},"unit":"{code}","system":"http://unitsofmeasure.org","code":"{code}"}}}}"#
+        )
+        .into_bytes()
+    };
+    let status_for = |pairs: [(&str, &str, &str); 2], subject: &str| {
+        let facade = CoreFacade::new_legacy_lease_only_engineering();
+        let _lease = open_and_lease(&facade);
+        let subject = OpaqueId::new(subject);
+        for (id, value, code) in pairs {
+            ingest_promote(&facade, obs(id, value, code), "observation", &subject, None);
+        }
+        let cov = facade
+            .dispatch(req(
+                Capability::GetCoverage,
+                RequestBody::GetCoverage {
+                    subject_ref: subject,
+                },
+            ))
+            .result
+            .unwrap();
+        let ResponseBody::Coverage { body, .. } = cov else {
+            panic!("coverage");
+        };
+        body.slots
+            .iter()
+            .find(|s| s.concept_key == "observation.valueQuantity")
+            .expect("valueQuantity slot")
+            .status
+    };
+    assert_ne!(
+        status_for([("w1", "5", "kg"), ("w2", "5000", "g")], "subject-units-1"),
+        CoverageStatus::Conflict,
+        "5 kg and 5000 g are the same quantity"
+    );
+    // Decimal values like 72.0 are refused by the FHIR gate before they reach
+    // coverage (REAL_DATA_READINESS B2), so only integers are ingested here.
+    assert_eq!(
+        status_for([("w3", "2", "lb"), ("w4", "907", "g")], "subject-units-2"),
+        CoverageStatus::Conflict,
+        "2 lb is 907.18474 g, not 907 g"
+    );
+    assert_eq!(
+        status_for([("w5", "5", "kg"), ("w6", "6", "kg")], "subject-units-3"),
+        CoverageStatus::Conflict,
+        "a real difference is still a conflict"
+    );
+}
