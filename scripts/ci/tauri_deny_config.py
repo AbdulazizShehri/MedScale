@@ -2,7 +2,7 @@
 """Write the Tauri desktop's cargo-deny config: the repository deny.toml,
 unchanged, with its dependency graph limited to the shipped desktop targets.
 
-The Tauri desktop ships on Windows, macOS and x86_64 Linux. Limiting the graph
+The Tauri desktop ships on Windows, macOS and Linux (x86_64 and arm64). Limiting the graph
 to those targets keeps every advisory, license, ban and source rule exactly as
 strict as the repository policy; the only change is that crates for other
 targets are not in the shipped graph. The Linux graph includes GTK 3 and glib
@@ -23,6 +23,7 @@ SHIPPED_TARGETS = [
     "x86_64-apple-darwin",
     "aarch64-apple-darwin",
     "x86_64-unknown-linux-gnu",
+    "aarch64-unknown-linux-gnu",
 ]
 
 
