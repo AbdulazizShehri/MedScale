@@ -1828,6 +1828,15 @@ pub enum VaultOpenOutcome {
     DiscardedInterruptedSession,
 }
 
+/// B4: the vault on disk is older than the one this device last locked, so an
+/// older copy of its folder may have been put in its place.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct OlderVaultCopy {
+    pub found_generation: u64,
+    pub last_seen_generation: u64,
+}
+
 /// Successful response body variants.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(tag = "ok", rename_all = "snake_case")]
@@ -1922,6 +1931,10 @@ pub enum ResponseBody {
         /// there was none.
         #[serde(default, skip_serializing_if = "Option::is_none")]
         open_outcome: Option<VaultOpenOutcome>,
+        /// B4: present when the vault was sealed fewer times than the copy this
+        /// device last locked.
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        older_copy: Option<OlderVaultCopy>,
     },
     NetworkBroker {
         result: NetworkBrokerResult,

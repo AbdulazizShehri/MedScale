@@ -125,3 +125,41 @@ fn a_tampered_copy_is_detected() {
     EncryptedVault::restore_replacing(&report.path, &target, "y").unwrap();
     assert!(EncryptedVault::open_with_passphrase(&target, "pw", "h2").is_err());
 }
+
+/// B4: putting an older copy of the vault folder back is reported on open;
+/// the app's own restore is not.
+#[test]
+fn an_older_copy_of_the_folder_is_reported_and_a_restore_is_not() {
+    let base = std::env::temp_dir().join(format!("ms-rollback-{}", std::process::id()));
+    let _ = fs::remove_dir_all(&base);
+    fs::create_dir_all(&base).unwrap();
+    let root = base.join("vault");
+    let (vault, _) = EncryptedVault::create("v-rb", &root, "pw-rollback", "h1", None).unwrap();
+    vault.close().unwrap();
+    let old = base.join("old-copy");
+    EncryptedVault::backup(&root, &old).unwrap();
+    for _ in 0..2 {
+        let v = EncryptedVault::open_with_passphrase(&root, "pw-rollback", "h1").unwrap();
+        assert_eq!(v.older_copy(), None);
+        v.close().unwrap();
+    }
+    // Someone copies the old files over the vault, outside MedScale.
+    for name in ["vault_header.json", "meta.sealed"] {
+        fs::copy(old.join(name), root.join(name)).unwrap();
+    }
+    let v = EncryptedVault::open_with_passphrase(&root, "pw-rollback", "h1").unwrap();
+    assert_eq!(v.older_copy(), Some((1, 3)));
+    v.close().unwrap();
+    // Locking again records what is there now.
+    let v = EncryptedVault::open_with_passphrase(&root, "pw-rollback", "h1").unwrap();
+    assert_eq!(v.older_copy(), None);
+    v.close().unwrap();
+
+    // A restore the person asks for is not a rollback.
+    let report = EncryptedVault::restore_replacing(&old, &root, "t1").unwrap();
+    let v = EncryptedVault::open_with_passphrase(&root, "pw-rollback", "h1").unwrap();
+    assert_eq!(v.older_copy(), None);
+    v.close().unwrap();
+    drop(report);
+    let _ = fs::remove_dir_all(&base);
+}

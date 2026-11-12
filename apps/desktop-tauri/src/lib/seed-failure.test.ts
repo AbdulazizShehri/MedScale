@@ -73,6 +73,11 @@ test("set-aside and delete dialogs disclose what they keep and remove", () => {
   assert.match(DELETE_SET_ASIDE_DIALOG.body, /cannot be undone/);
 });
 
+test("an older vault copy is reported on unlock", () => {
+  assert.equal(vaultOpenNotice({ open_outcome: null, older_copy: { found_generation: 1, last_seen_generation: 3 } })?.kind, "blocked");
+  assert.equal(vaultOpenNotice({ open_outcome: null, older_copy: null }), null);
+});
+
 test("an unlock notice appears only for the two exact outcomes", () => {
   assert.equal(vaultOpenNotice({ open_outcome: "recovered_interrupted_session" })?.kind, "completed");
   assert.equal(vaultOpenNotice({ open_outcome: "discarded_interrupted_session" })?.kind, "blocked");

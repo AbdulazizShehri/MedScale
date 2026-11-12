@@ -1817,6 +1817,12 @@ fn vault_open_sealed_with(vault_id: &str, vault_root: &Path, secret: &VaultSecre
         }
     }
     .map_err(auth)?;
+    if let Some(older) = session.last_older_copy() {
+        eprintln!(
+            "warning: this vault was sealed {} times but this device last locked it after {}; an older copy of the folder may have been put in its place",
+            older.found_generation, older.last_seen_generation
+        );
+    }
     match session.last_open_outcome() {
         Some(medscale_contracts::envelopes::VaultOpenOutcome::RecoveredInterruptedSession) => {
             eprintln!(

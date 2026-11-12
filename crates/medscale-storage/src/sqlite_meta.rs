@@ -46,6 +46,9 @@ pub enum WorkDatabaseCheck {
 
 /// `store_state` key naming the seal a work database descends from.
 const BASE_SEAL_DIGEST_KEY: &str = "base_seal_digest";
+/// B4: how many times this vault has been sealed. Sealed with the data, so an
+/// older copy of the vault folder carries a smaller number.
+const SEAL_GENERATION_KEY: &str = "seal_generation";
 
 /// Durable authority object row (Spec 016 schema v2).
 #[derive(Debug, Clone)]
@@ -624,7 +627,7 @@ impl SqliteMetaStore {
     pub fn list_id_sequences(&self) -> Result<Vec<(String, u64)>, MetaError> {
         let mut stmt = self
             .conn
-            .prepare("SELECT key, value FROM store_state WHERE key NOT IN ('next_seq', 'base_seal_digest') ORDER BY key")?;
+            .prepare("SELECT key, value FROM store_state WHERE key NOT IN ('next_seq', 'base_seal_digest', 'seal_generation') ORDER BY key")?;
         let rows = stmt.query_map([], |row| {
             Ok((row.get::<_, String>(0)?, row.get::<_, String>(1)?))
         })?;
@@ -935,6 +938,32 @@ impl SqliteMetaStore {
         self.conn.execute(
             "INSERT OR REPLACE INTO store_state(key, value) VALUES (?1, ?2)",
             params![BASE_SEAL_DIGEST_KEY, digest_hex],
+        )?;
+        Ok(())
+    }
+
+    /// B4: the seal generation; 0 for a vault sealed before it existed.
+    pub fn seal_generation(&self) -> Result<u64, MetaError> {
+        let value: Option<String> = self
+            .conn
+            .query_row(
+                "SELECT value FROM store_state WHERE key = ?1",
+                params![SEAL_GENERATION_KEY],
+                |row| row.get(0),
+            )
+            .optional()?;
+        match value {
+            None => Ok(0),
+            Some(v) => v.parse().map_err(|_| {
+                MetaError::UnsupportedSchema(format!("seal_generation is not a number: {v}"))
+            }),
+        }
+    }
+
+    pub fn set_seal_generation(&self, generation: u64) -> Result<(), MetaError> {
+        self.conn.execute(
+            "INSERT OR REPLACE INTO store_state(key, value) VALUES (?1, ?2)",
+            params![SEAL_GENERATION_KEY, generation.to_string()],
         )?;
         Ok(())
     }
