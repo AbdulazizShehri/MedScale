@@ -2,7 +2,7 @@
 // Cases follow TheHalfMoon/CommunityFinance-CoFi tests/site-release-selector.test.cjs, plus MedScale's gate.
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { QUALIFIED_RELEASE_TAGS, assetArch, detectPlatform, formatSize, installerFor, pickInstaller, platformLabel, publicRelease, scoreAsset, signingNote, validateRelease, type PublicRelease, type ReleaseAsset } from "./release.ts";
+import { QUALIFIED_RELEASE_TAGS, archLabel, assetArch, downloadsFor, kindLabel, testedNote, detectPlatform, formatSize, installerFor, pickInstaller, platformLabel, publicRelease, scoreAsset, signingNote, validateRelease, type PublicRelease, type ReleaseAsset } from "./release.ts";
 import { QUALIFICATION_WORKFLOW, verifyPlatformAssets, verifyReleaseRecords } from "./release-verify.ts";
 import { createHash } from "node:crypto";
 import fs from "node:fs";
@@ -319,4 +319,89 @@ test("approval and qualification are checked against GitHub, not by URL shape", 
   assert.match(await check({ run: { path: ".github/workflows/fork.yml" } }), /run used \.github\/workflows\/fork\.yml/);
   assert.match(await check({ run: { event: "pull_request" } }), /triggered by pull_request/);
   assert.match(await check({ run: { head_repository: { full_name: "someone/fork" } } }), /came from someone\/fork/);
+});
+
+// Zero-cost distribution: every desktop package and CLI archive has its own rule.
+const entry = (fileName: string, over: Record<string, unknown> = {}) => ({
+  fileName,
+  url: `https://github.com/AbdulazizShehri/MedScale/releases/download/${TAG}/${fileName}`,
+  sha256: "c".repeat(64),
+  size: 40 * 1024 * 1024,
+  signing: "unsigned",
+  signingDecision: "https://github.com/AbdulazizShehri/MedScale/issues/436#issuecomment-3",
+  qualificationRun: "https://github.com/AbdulazizShehri/MedScale/actions/runs/3",
+  companions: { checksums: "SHA256SUMS", sbom: "MedScale_0.0.0_SBOM.cdx.json", notices: "MedScale_0.0.0_linux-x64-notices.zip" },
+  ...over,
+});
+
+test("Linux, Intel Mac, portable and CLI downloads are offered when valid", () => {
+  const m = fixture();
+  const pm = { packageManifest: "linux-package-manifest.json" };
+  m.release.platforms["linux-deb"] = entry("MedScale_0.0.0_amd64.deb", { companions: { ...entry("x").companions, ...pm } });
+  m.release.platforms["linux-arm64-appimage"] = entry("MedScale_0.0.0_aarch64.AppImage");
+  m.release.platforms["windows-portable"] = entry("MedScale_0.0.0_x64-portable.zip");
+  m.release.platforms["macos-intel"] = macEntry({ fileName: "MedScale_0.0.0_x64.dmg", url: `https://github.com/AbdulazizShehri/MedScale/releases/download/${TAG}/MedScale_0.0.0_x64.dmg` });
+  m.release.platforms["cli-linux-arm64"] = entry("medscale-0.0.0-aarch64-unknown-linux-gnu.tar.gz");
+  const r = validate(m);
+  assert.deepEqual(r.errors, []);
+  assert.equal(installerFor(r.release, "linux")?.fileName, "MedScale_0.0.0_amd64.deb");
+  assert.deepEqual(downloadsFor(r.release, "linux").map((d) => d.key), ["linux-deb", "linux-arm64-appimage"]);
+  assert.deepEqual(downloadsFor(r.release, "windows").map((d) => d.key), ["windows", "windows-portable"]);
+  assert.equal(downloadsFor(r.release, "macos").find((d) => d.key === "macos-intel")?.rule.arch, "x64");
+  assert.deepEqual(downloadsFor(r.release, "cli").map((d) => d.key), ["cli-linux-arm64"]);
+  assert.deepEqual(downloadsFor(undefined, "linux"), []);
+});
+
+test("new download kinds are held to their own names, architectures and signing", () => {
+  const errs = (key: string, e: unknown) => { const m = fixture(); m.release.platforms[key] = e; return validate(m).errors.join(); };
+  assert.match(errs("linux-deb", entry("MedScale_0.0.0_arm64.deb", { companions: { ...entry("x").companions, packageManifest: "p.json" } })), /linux-deb: unexpected installer file name/, "arm64 file under the x64 key");
+  assert.match(errs("linux-deb", entry("MedScale_0.0.0_amd64.deb")), /linux-deb: packageManifest file is missing/, "packaged installers need a package manifest");
+  assert.match(errs("linux-appimage", entry("MedScale_0.0.0_amd64.AppImage", { signing: "authenticode" })), /signing state/, "no Authenticode on Linux");
+  assert.match(errs("macos-intel", macEntry({ fileName: "MedScale_0.0.0_x64.dmg", url: `https://github.com/AbdulazizShehri/MedScale/releases/download/${TAG}/MedScale_0.0.0_x64.dmg`, signing: "unsigned" })), /signing state/);
+  assert.match(errs("cli-macos-x64", entry("medscale-0.0.0-aarch64-apple-darwin.tar.gz")), /unexpected installer file name/);
+  assert.match(errs("linux-rpm", entry("MedScale_0.0.0_x86_64.rpm")), /linux-rpm: not a supported/, "the unqualified rpm can't be offered");
+});
+
+test("tested status comes from the kind of file, not the manifest", () => {
+  assert.match(testedNote("installer"), /Installed, opened and uninstalled/);
+  assert.match(testedNote("appimage"), /without installing/);
+  assert.match(testedNote("cli"), /extracted archive/);
+  assert.equal(kindLabel("deb"), "Debian/Ubuntu package (.deb)");
+  assert.equal(archLabel("x64", "macos"), "Intel");
+  assert.equal(archLabel("arm64", "linux"), "arm64");
+});
+
+test("a release-candidate run qualifies only when dispatched from that workflow", async () => {
+  const check = async (run: object) => {
+    const r = records({ run });
+    return (await verifyReleaseRecords(r.release, r.fetcher)).join();
+  };
+  assert.equal(await check({ name: "release-candidate", path: ".github/workflows/release-candidate.yml", event: "workflow_dispatch" }), "");
+  assert.match(await check({ name: "release-candidate", path: ".github/workflows/release-candidate.yml", event: "push" }), /triggered by push/);
+  assert.match(await check({ name: "release-candidate", path: ".github/workflows/release-installed-journey.yml", event: "workflow_dispatch" }), /run used/);
+});
+
+test("a download without a package manifest needs its SBOM and notices in the checksums file", async () => {
+  const bytes = Buffer.from("appimage bytes");
+  const digest = (b: string | Buffer) => createHash("sha256").update(b).digest("hex");
+  const file = entry("MedScale_0.0.0_amd64.AppImage", { sha256: digest(bytes), size: bytes.length });
+  const release = { ...fixture().release, platforms: { "linux-appimage": file } } as PublicRelease;
+  const base = `https://github.com/AbdulazizShehri/MedScale/releases/download/${TAG}/`;
+  const run = async (sums: string) => {
+    const files: Record<string, BodyInit> = {
+      [file.fileName]: new Uint8Array(bytes),
+      SHA256SUMS: sums,
+      [file.companions.sbom]: "{}",
+      [file.companions.notices]: "notices",
+    };
+    const fetcher = async (url: string) => {
+      const name = url.startsWith(base) ? url.slice(base.length) : "";
+      return name in files ? new Response(files[name]) : new Response("gone", { status: 404 });
+    };
+    return (await verifyPlatformAssets(release, "linux-appimage", fetcher)).join();
+  };
+  const good = `${digest(bytes)}  ${file.fileName}\n${digest("{}")}  ${file.companions.sbom}\n${digest("notices")}  ${file.companions.notices}\n`;
+  assert.equal(await run(good), "");
+  assert.match(await run(`${digest(bytes)}  ${file.fileName}\n`), /SBOM isn't in the checksums file/);
+  assert.match(await run(good.replace(digest("notices"), "0".repeat(64))), /notices isn't in the checksums file/);
 });

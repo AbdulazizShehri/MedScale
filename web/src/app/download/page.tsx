@@ -3,17 +3,15 @@ import { DownloadCards } from "@/components/DownloadCards";
 import { ArrowUpRight } from "@/components/Icons";
 import { InstallGuide } from "@/components/InstallGuide";
 import { Quickstart } from "@/components/Quickstart";
-import { installerFor, publicRelease } from "@/lib/release";
+import { publicRelease } from "@/lib/release";
 import { docs, pageMeta } from "@/lib/site";
 
-export const metadata: Metadata = pageMeta("/download/", "Download", "MedScale desktop for Windows and macOS and the CLI for Windows, macOS and Linux. Current release status and build-from-source steps.");
+export const metadata: Metadata = pageMeta("/download/", "Download", "MedScale desktop and CLI for Windows, macOS and Linux. Release status, install guides, checksums and build-from-source steps.");
 
-const windows = installerFor(publicRelease, "windows");
-const macos = installerFor(publicRelease, "macos");
 const status = [
-  ["Windows x64", windows ? "Desktop app" : "Desktop app + CLI", windows ? "Download" : "Build from source", windows ? "Per-user NSIS installer. Checksum, SBOM and notices are published with it." : "CI builds an unsigned per-user NSIS installer to test packaging. It is not qualified or published."],
-  ["macOS (Apple silicon)", macos ? "Desktop app" : "Desktop app + CLI", macos ? "Download" : "Build from source", macos ? "DMG installer. Checksum, SBOM and notices are published with it." : "CI builds an ad-hoc signed DMG to test packaging. It is not notarized, qualified or published."],
-  ["Linux x86_64", "CLI", "CLI from source", "The Rust Core and CLI are tested on Ubuntu. A Linux desktop app is deferred."],
+  ["Windows x64", "Desktop app + CLI", "Not released yet", "CI builds and tests an unsigned per-user installer (installed, opened, uninstalled) and a portable zip (opened). Not code-signed."],
+  ["macOS (Apple silicon and Intel)", "Desktop app + CLI", "Not released yet", "CI builds and tests DMGs on Apple silicon and on Intel (installed, opened, removed). Ad-hoc signed, not notarized."],
+  ["Linux (x64 and arm64)", "Desktop app + CLI", "Not released yet", "CI builds and tests .deb packages (installed, opened, removed) and AppImages (opened). Not signed."],
 ];
 
 export default function Download() {
@@ -61,7 +59,7 @@ export default function Download() {
               <tbody>{status.map((r) => <tr key={r[0]}>{r.map((c, i) => <td key={i}>{c}</td>)}</tr>)}</tbody>
             </table>
           </div>
-          <div className="notice"><strong>Not a production release</strong><p>{publicRelease ? "MedScale is in Beta." : "Engineering builds are for testing the release process."} Clinical validation and permission to use real patient data are external gates that have not been met. Each installer states its own signing status. <a className="text-link" href={docs.qualification}>Read the external gates</a> · <a className="text-link" href={docs.releases}>GitHub Releases</a></p></div>
+          <div className="notice"><strong>Not a production release</strong><p>{publicRelease ? "MedScale is in Beta. Real patient data is not authorized." : "Engineering builds are for testing the release process."} No build is code-signed by a trusted publisher; each download says what that means. Clinical validation and permission to use real patient data are external gates that have not been met. Each installer states its own signing status. <a className="text-link" href={docs.qualification}>Read the external gates</a> · <a className="text-link" href={docs.releases}>GitHub Releases</a></p></div>
           </div>
         </div>
       </section>
