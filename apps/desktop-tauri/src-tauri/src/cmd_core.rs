@@ -269,6 +269,57 @@ pub fn vault_recovery_restore(host: tauri::State<'_, Host>, id: String) -> CmdRe
     Ok(())
 }
 
+/// The open vault's session if it is encrypted; only it has keys to change.
+fn encrypted_keys(state: &mut State) -> CmdResult<&mut CliSession> {
+    let ws = state.workspace()?;
+    if ws.kind != host::VaultKind::Encrypted {
+        return Err(CmdError::invalid(
+            "Invalid: only an encrypted vault has a passphrase",
+        ));
+    }
+    Ok(&mut ws.session)
+}
+
+/// B3: rewraps the vault key under a new passphrase. Needs the current one.
+#[tauri::command(async)]
+pub fn vault_change_passphrase(
+    host: tauri::State<'_, Host>,
+    current: String,
+    new_passphrase: String,
+) -> CmdResult<()> {
+    host::validate_passphrase(&new_passphrase)?;
+    let mut state = lock(&host)?;
+    encrypted_keys(&mut state)?
+        .change_vault_passphrase(&current, &new_passphrase)
+        .map_err(rekey_err)
+}
+
+/// B3: replaces every recovery code; the new ones are returned once.
+#[tauri::command(async)]
+pub fn vault_replace_recovery_codes(
+    host: tauri::State<'_, Host>,
+    current: String,
+) -> CmdResult<Value> {
+    let mut state = lock(&host)?;
+    let codes = encrypted_keys(&mut state)?
+        .replace_recovery_codes(&current)
+        .map_err(rekey_err)?;
+    Ok(json!({ "recovery_codes": codes }))
+}
+
+fn rekey_err(err: medscale_contracts::envelopes::AuthorityError) -> CmdError {
+    use medscale_contracts::envelopes::AuthorityError;
+    match err {
+        AuthorityError::MissingKeyMaterial => {
+            CmdError::invalid("Invalid: the current passphrase is wrong. Nothing changed")
+        }
+        AuthorityError::Unavailable { .. } => CmdError::unavailable(
+            "Unavailable: MedScale could not save the new key. Nothing changed. Check free disk space and try again",
+        ),
+        other => CmdError::from(other),
+    }
+}
+
 #[tauri::command(async)]
 pub fn workspace_lock(host: tauri::State<'_, Host>) -> CmdResult<()> {
     let mut state = lock(&host)?;

@@ -17,6 +17,8 @@
     "allow-vault-recovery-items",
     "allow-vault-recovery-delete",
     "allow-vault-recovery-restore",
+    "allow-vault-change-passphrase",
+    "allow-vault-replace-recovery-codes",
     "allow-vault-backup",
     "allow-vault-restore",
     "allow-workspace-lock",

@@ -273,6 +273,65 @@ function BackupRow({ onLocked }: { onLocked: () => void }) {
   );
 }
 
+/** B3: change the passphrase or replace every recovery code. Both need the current passphrase. */
+function VaultKeys() {
+  const { pending, run } = useAction();
+  const outcome = useOutcome();
+  const [mode, setMode] = useState<"passphrase" | "codes" | null>(null);
+  const [current, setCurrent] = useState("");
+  const [next, setNext] = useState("");
+  const [confirm, setConfirm] = useState("");
+  const [codes, setCodes] = useState<string[]>([]);
+  const mismatch = mode === "passphrase" && confirm.length > 0 && next !== confirm;
+  function reset() { setMode(null); setCurrent(""); setNext(""); setConfirm(""); }
+  async function submit(e: FormEvent) {
+    e.preventDefault();
+    if (mode === "passphrase") {
+      if (next !== confirm) return;
+      const r = await run<null>("rekey", "vault_change_passphrase", { current, newPassphrase: next });
+      if (outcome(r, "Passphrase changed · use the new one next time")) reset();
+    } else if (mode === "codes") {
+      const r = await run<{ recovery_codes: string[] }>("rekey", "vault_replace_recovery_codes", { current });
+      if (r.ok) { reset(); setCodes(r.data.recovery_codes); } else outcome(r, "");
+    }
+  }
+  if (codes.length) {
+    return (
+      <SettingRow label="New recovery codes" detail="Shown once. Every earlier code no longer opens this vault. Backups made before now still open with the codes they had.">
+        <div>
+          <div className="codes" aria-label="New recovery codes">{codes.map((c) => <span key={c}>{c}</span>)}</div>
+          <button type="button" className="btn btn-p" style={{ marginTop: 8 }} onClick={() => setCodes([])}>I saved them</button>
+        </div>
+      </SettingRow>
+    );
+  }
+  return (
+    <>
+      <SettingRow label="Passphrase and recovery codes" detail="Changing the passphrase or replacing the codes needs the current passphrase. Backups made earlier keep the passphrase and codes they had.">
+        <span className="row-gap" style={{ gap: 8 }}>
+          <button type="button" className="btn btn-s" aria-pressed={mode === "passphrase"} onClick={() => { reset(); setMode("passphrase"); }}>Change passphrase…</button>
+          <button type="button" className="btn btn-s" aria-pressed={mode === "codes"} onClick={() => { reset(); setMode("codes"); }}>Replace codes…</button>
+        </span>
+      </SettingRow>
+      {mode && (
+        <form onSubmit={(e) => void submit(e)} aria-label={mode === "passphrase" ? "Change passphrase" : "Replace recovery codes"} style={{ display: "grid", gap: 8, padding: "12px 0", borderBottom: "1px solid var(--line-subtle)" }}>
+          <label className="t-sm">Current passphrase<input style={{ display: "block", width: "100%", height: 36, marginTop: 4 }} type="password" autoComplete="current-password" value={current} onChange={(e) => setCurrent(e.target.value)} required /></label>
+          {mode === "passphrase" && <>
+            <label className="t-sm">New passphrase (8–256 characters)<input style={{ display: "block", width: "100%", height: 36, marginTop: 4 }} type="password" autoComplete="new-password" minLength={8} maxLength={256} value={next} onChange={(e) => setNext(e.target.value)} required /></label>
+            <label className="t-sm">Confirm new passphrase<input style={{ display: "block", width: "100%", height: 36, marginTop: 4 }} type="password" autoComplete="new-password" value={confirm} onChange={(e) => setConfirm(e.target.value)} aria-invalid={mismatch} required /></label>
+            {mismatch && <span className="t-sm" role="alert">The new passphrases don't match.</span>}
+          </>}
+          {mode === "codes" && <p className="t-sm i3">Every current recovery code stops working. The new codes are shown once.</p>}
+          <span className="row-gap" style={{ gap: 8 }}>
+            <button type="submit" className="btn btn-p" disabled={!!pending || mismatch}>{pending === "rekey" ? "Saving…" : mode === "passphrase" ? "Change passphrase" : "Replace codes"}</button>
+            <button type="button" className="btn btn-g" onClick={reset}>Cancel</button>
+          </span>
+        </form>
+      )}
+    </>
+  );
+}
+
 export function Settings() {
   const { theme, setTheme, density, setDensity, ws, lock, vaultClosed } = useApp();
   const gov = useCommand<Gov>(ws?.open ? "governance_overview" : null);
@@ -297,6 +356,7 @@ export function Settings() {
             {ws?.workspace ? <span className="mono" style={{ fontSize: 12 }}>{ws.workspace.vault_id}</span> : <Status kind="unavailable">None</Status>}
           </SettingRow>
           {ws?.workspace?.kind === "encrypted" && <SettingRow label="Clinical ingest" detail="FHIR imports, the patient list, projects, data, analytics and collaboration stay sealed in this vault. Real patient data is still not authorized: use synthetic or permitted test data only."><Status kind="limited">Synthetic or test data only</Status></SettingRow>}
+          {ws?.workspace?.kind === "encrypted" && <VaultKeys />}
           {ws?.encrypted_vault_exists && <BackupRow onLocked={() => void vaultClosed()} />}
           <SettingRow label="Lock workspace" detail="Closes the vault and releases keys from memory.">
             <span className="row-gap" style={{ gap: 8 }}><button type="button" className="btn btn-s" onClick={() => void lock()} disabled={!ws?.open}>Lock now</button><span className="kbd">{MOD} Shift L</span></span>

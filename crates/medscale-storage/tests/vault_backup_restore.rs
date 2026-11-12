@@ -125,3 +125,32 @@ fn a_tampered_copy_is_detected() {
     EncryptedVault::restore_replacing(&report.path, &target, "y").unwrap();
     assert!(EncryptedVault::open_with_passphrase(&target, "pw", "h2").is_err());
 }
+
+/// B3: a passphrase change and a recovery-code replacement both need the
+/// current passphrase, survive a reopen, and leave the data readable.
+#[test]
+fn passphrase_change_and_code_replacement_persist() {
+    let base = temp_root("rekey");
+    let root = base.join("vault");
+    let (mut vault, old_codes) =
+        EncryptedVault::create("v-k", &root, "old pw", "h1", None).unwrap();
+    let digest = vault.put_blob(b"rekey-payload").unwrap();
+    assert!(vault.change_passphrase("wrong", "new pw").is_err());
+    vault.change_passphrase("old pw", "new pw").unwrap();
+    assert!(
+        vault.replace_recovery_codes("old pw").is_err(),
+        "the old passphrase no longer counts"
+    );
+    let new_codes = vault.replace_recovery_codes("new pw").unwrap();
+    vault.close().unwrap();
+
+    assert!(EncryptedVault::open_with_passphrase(&root, "old pw", "h2").is_err());
+    assert!(EncryptedVault::open_with_recovery(&root, &old_codes.codes[0], "h2").is_err());
+    let opened = EncryptedVault::open_with_passphrase(&root, "new pw", "h2").unwrap();
+    assert_eq!(opened.get_blob(&digest).unwrap(), b"rekey-payload");
+    opened.close().unwrap();
+    EncryptedVault::open_with_recovery(&root, &new_codes.codes[0], "h3")
+        .unwrap()
+        .close()
+        .unwrap();
+}

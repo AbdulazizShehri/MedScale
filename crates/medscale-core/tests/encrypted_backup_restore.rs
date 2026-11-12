@@ -72,3 +72,31 @@ fn a_folder_that_is_not_a_backup_is_refused() {
         "{err:?}"
     );
 }
+
+#[test]
+fn passphrase_change_and_code_replacement_through_core() {
+    let base = temp("rekey");
+    let root = base.join("vault").display().to_string();
+    let mut s = CliSession::connect("vault-rekey").unwrap();
+    let old_codes = s.create_encrypted_vault(&root, "old passphrase").unwrap();
+    assert!(
+        s.change_vault_passphrase("wrong", "new passphrase")
+            .is_err()
+    );
+    s.change_vault_passphrase("old passphrase", "new passphrase")
+        .unwrap();
+    let new_codes = s.replace_recovery_codes("new passphrase").unwrap();
+    assert_eq!(new_codes.len(), old_codes.len());
+    s.close_encrypted_vault().unwrap();
+
+    assert!(s.open_encrypted_vault(&root, "old passphrase").is_err());
+    assert!(
+        s.open_encrypted_vault_with_recovery_code(&root, &old_codes[0])
+            .is_err()
+    );
+    s.open_encrypted_vault_with_recovery_code(&root, &new_codes[0])
+        .unwrap();
+    s.close_encrypted_vault().unwrap();
+    s.open_encrypted_vault(&root, "new passphrase").unwrap();
+    s.close_encrypted_vault().unwrap();
+}

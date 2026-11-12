@@ -10,7 +10,7 @@
 |---|---|---|
 | **Engineering completeness** | **GO, with named exceptions** | R1–R11 done; installed-build journeys cover encrypted import and the Canvas (backup is IPC-tested only, because WebDriver can't drive the native folder chooser). Unit-aware coverage is done for the admitted UCUM subset (#505) |
 | **Public release** | **Ready for the founder's decision** on candidate `0.1.0-beta.1`: every file passed the free security qualification. Publication needs the founder's approval of the exact files | Paid signing is no longer a blocker: the founder chose unsigned zero-cost distribution (2026-11-12). Blockers are reclassified in [ZERO_COST_DISTRIBUTION.md](../release/ZERO_COST_DISTRIBUTION.md) |
-| **Private patient data** | **NO-GO** | `NOT_AUTHORIZED`. Open blockers B1 (rest), B2, B3 (rest), B4 and B6, and no external reviews. See [REAL_PHI_AUTHORIZATION_PACKAGE.md](REAL_PHI_AUTHORIZATION_PACKAGE.md) |
+| **Private patient data** | **NO-GO** | `NOT_AUTHORIZED`. Open blockers B1 (rest), B2, B4 and B6, and no external reviews. See [REAL_PHI_AUTHORIZATION_PACKAGE.md](REAL_PHI_AUTHORIZATION_PACKAGE.md) |
 | **Clinical use** | **NO-GO** | Not clinically validated. No regulatory classification or quality evidence. Outputs are proposals and research notes |
 
 ## 2. Platforms
@@ -67,7 +67,7 @@ Earlier in the same effort: #474–#483 (OpenMed-derived clinical checks in Core
 | Backup and restore on an installed build | Tested through IPC and the CLI binary, not through the native folder chooser | A native-dialog test needs OS automation |
 | Backup and restore in the GUI journeys | The native folder chooser can't be driven by WebDriver | IPC tests cover it; a native-dialog test needs OS automation |
 | Upgrade between released versions | Untested: no earlier release exists | Run it on the second release |
-| B2 (real-world FHIR), B3 (passphrase change, code revocation), B4 (rollback, tamper-evident audit) | Block real data | Engineering work items in `REAL_DATA_READINESS.md` |
+| B2 (real-world FHIR), B4 (rollback, tamper-evident audit) | Block real data | Engineering work items in `REAL_DATA_READINESS.md` |
 | Sample workspace import | Needs a no-real-data confirmation and refuses national patient identifiers (#501); a false confirmation can still import a real record | Accepted as the safest reasonable control for the unencrypted sample |
 
 ## 5. Decisions only the founder can make
