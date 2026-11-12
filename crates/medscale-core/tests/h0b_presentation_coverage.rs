@@ -481,8 +481,8 @@ fn no_fhirpath_engine_dependency() {
     }
 }
 
-/// The same quantity written in two units of one admitted group, or as `72`
-/// and `72.0`, is not a conflict. A real difference still is.
+/// The same quantity written in two units of one admitted group is not a
+/// conflict. A real difference, however small, still is.
 #[test]
 fn coverage_compares_quantities_not_text() {
     let obs = |id: &str, value: &str, code: &str| {
@@ -521,13 +521,12 @@ fn coverage_compares_quantities_not_text() {
         CoverageStatus::Conflict,
         "5 kg and 5000 g are the same quantity"
     );
-    assert_ne!(
-        status_for(
-            [("w3", "72", "kg"), ("w4", "72.0", "kg")],
-            "subject-units-2"
-        ),
+    // Decimal values like 72.0 are refused by the FHIR gate before they reach
+    // coverage (REAL_DATA_READINESS B2), so only integers are ingested here.
+    assert_eq!(
+        status_for([("w3", "2", "lb"), ("w4", "907", "g")], "subject-units-2"),
         CoverageStatus::Conflict,
-        "72 and 72.0 are the same number"
+        "2 lb is 907.18474 g, not 907 g"
     );
     assert_eq!(
         status_for([("w5", "5", "kg"), ("w6", "6", "kg")], "subject-units-3"),
