@@ -1,6 +1,6 @@
 # MedScale release-readiness report
 
-**Date:** 2026-11-11. **Scope:** the "complete product engineering and cross-platform release readiness" directive, starting from `main@0be749f`. **Prepared by:** an AI engineering agent working under repository governance. Every change below was merged by pinned squash merge after its exact head passed CI. Nothing was published, deployed, signed or purchased.
+**Date:** 2026-11-11, updated 2026-11-12 for zero-cost distribution and release candidate 0.1.0-beta.1. **Scope:** the "complete product engineering and cross-platform release readiness" directive, starting from `main@0be749f`. **Prepared by:** an AI engineering agent working under repository governance. Every change below was merged by pinned squash merge after its exact head passed CI. Nothing was published, deployed, signed or purchased.
 
 **Gates unchanged:** `RELEASE_READY=false`. `REAL_PHI_AUTHORIZATION=NOT_AUTHORIZED`. Clinical use: not authorized.
 
@@ -8,22 +8,27 @@
 
 | Decision | Verdict | Why |
 |---|---|---|
-| **Engineering completeness** | **GO, with named exceptions** | R1–R9 and R11 are done. R10 is partly done. Numeric and unit consistency is open (section 4) |
-| **Public release** | **NO-GO** until each release candidate passes the free security qualification and the founder approves its exact artifacts | Paid signing is no longer a blocker: the founder chose unsigned zero-cost distribution (2026-11-12). Blockers are reclassified in [ZERO_COST_DISTRIBUTION.md](../release/ZERO_COST_DISTRIBUTION.md) |
+| **Engineering completeness** | **GO, with named exceptions** | R1–R11 done; installed-build journeys cover encrypted import and the Canvas (backup is IPC-tested only, because WebDriver can't drive the native folder chooser). Unit-aware coverage is done for the admitted UCUM subset (#505) |
+| **Public release** | **Ready for the founder's decision** on candidate `0.1.0-beta.1`: every file passed the free security qualification. Publication needs the founder's approval of the exact files | Paid signing is no longer a blocker: the founder chose unsigned zero-cost distribution (2026-11-12). Blockers are reclassified in [ZERO_COST_DISTRIBUTION.md](../release/ZERO_COST_DISTRIBUTION.md) |
 | **Private patient data** | **NO-GO** | `NOT_AUTHORIZED`. Open blockers B1 (rest), B2, B3 (rest), B4 and B6, and no external reviews. See [REAL_PHI_AUTHORIZATION_PACKAGE.md](REAL_PHI_AUTHORIZATION_PACKAGE.md) |
 | **Clinical use** | **NO-GO** | Not clinically validated. No regulatory classification or quality evidence. Outputs are proposals and research notes |
 
 ## 2. Platforms
 
-"Engineering GO" means the build is produced, tested and qualified in CI on disposable runners as described. It is not a release.
+"Engineering GO" means the exact file is built, installed and tested in CI on disposable runners, as listed. It is not a release.
+Evidence for every row is release candidate `0.1.0-beta.1` from `main@6d0279e` ([run 43247164670](https://github.com/AbdulazizShehri/MedScale/actions/runs/43247164670)), with file names and SHA-256 values in [RELEASE_CANDIDATE_0.1.0-beta.1.md](../release/RELEASE_CANDIDATE_0.1.0-beta.1.md).
 
-| Platform | Engineering | Public release | Evidence | What is missing |
+| Platform | Engineering | Public release | Evidence in the candidate | Limitations shown to users |
 |---|---|---|---|---|
-| Windows x64 desktop | **GO** | NO-GO | Installer qualified (install, launch, uninstall keeping data, reinstall). Desktop journeys, NVDA journey and lifecycle journeys in CI | Installed-build journeys for Canvas, backup and encrypted import. Unsigned: SmartScreen warns, and Smart App Control blocks it (paid signing declined; SignPath Foundation is an option) |
-| macOS Apple Silicon desktop | **GO** | NO-GO | DMG built with ad-hoc signature; launch and removal qualified. Desktop journeys through the embedded WebDriver in CI (#494); there, the keyboard journey delivers Enter through the page because that driver sends no native keys. Keyboard, picker and WKWebView qualification workflows | A full installed-DMG journey; VoiceOver. Unsigned: Gatekeeper requires "Open Anyway" (paid Developer ID declined) |
-| macOS Intel desktop | **NO-GO** | NO-GO | Not built. The CLI's Intel binary is cross-built and runs under Rosetta 2 in CI, so the toolchain works | An x86_64 desktop build and its qualification |
-| Linux x86_64 desktop | **GO** (engineering `.deb`) | NO-GO | glib soundness fix vendored (RUSTSEC-2024-0429, no advisory ignored). `.deb` installed, launched under Xvfb and removed in CI. Desktop journeys through tauri-driver (#494) | AppImage, a qualified `.rpm`, package signing; Linux arm64 desktop |
-| CLI: Windows x64, macOS arm64 and x64, Linux x64 and arm64 | **GO** | NO-GO | Standalone archives with licenses, notices, SBOM and SHA-256. Each one installed from its archive into a clean PATH and run. Binary tests of exit codes and the encrypted-vault lifecycle | Approval of exact artifacts for download; unsigned |
+| Windows x64 installer | **GO** | Awaiting founder approval | Full installed journey (20 steps): install with Mark of the Web, sample workspace, FHIR import, model download, real speech, encrypted vault, encrypted FHIR import, Research Canvas, uninstall keeping data, reinstall | Unsigned: SmartScreen warns; **Smart App Control blocks it** |
+| Windows x64 portable zip | **GO** | Awaiting founder approval | Extracted and opened | Same as the installer |
+| macOS Apple silicon DMG | **GO** | Awaiting founder approval | Real-DMG install, Gatekeeper record, launch, removal; desktop journeys on test builds | Ad-hoc signed, not notarized: Open Anyway once |
+| macOS Intel DMG | **GO** | Awaiting founder approval | Built on an Intel runner; real-DMG install, launch, removal | Same as Apple silicon |
+| Linux x64 .deb and AppImage | **GO** | Awaiting founder approval | .deb install, launch, reinstall keeping data, removal; AppImage opened; desktop journeys on test builds | Unsigned; WebKitGTK 4.1 (Ubuntu 22.04+) |
+| Linux arm64 .deb and AppImage | **GO** | Awaiting founder approval | Same as x64, on an Arm runner | Needs ARMv8.2-A with FP16 |
+| CLI (5 targets) | **GO** | Awaiting founder approval | Binary tests and a clean-PATH run of each archive; the Intel macOS archive is smoke-run under Rosetta 2 only | Unsigned |
+
+All 19 files passed ClamAV (0 infected), checksum re-verification and carry GitHub build-provenance attestations. Upgrade between released versions is untested because there is no earlier release.
 
 ## 3. What changed (PRs)
 
@@ -42,6 +47,15 @@
 | #494 | Desktop journeys on Linux and macOS |
 | #495 | Real patient data decision package |
 | #496 | Windows desktop CI back on Strawberry Perl (regression from #490) |
+| #499 | rustix 1.1.6 for RUSTSEC-2026-0486 |
+| #500 | Zero-cost distribution: blockers reclassified, platform warnings, updater assessment, SignPath evaluation |
+| #501 | Sample workspace refuses unconfirmed or national-identifier imports |
+| #502 | Intel DMG, Linux arm64, AppImage, Windows portable zip |
+| #503 | Release-candidate workflow: qualified files only, ClamAV, provenance, installed journeys |
+| #504 | Download page for every package, gated on approval |
+| #505 | Coverage compares quantities, not text |
+| #506 | Linux reinstall keeps data |
+| #509, #510 | Doc corrections; release-candidate permissions and clean CLI packaging |
 
 Earlier in the same effort: #474–#483 (OpenMed-derived clinical checks in Core, the RUSTSEC-2026-0459 exception approved by the founder, MedAgent evidence gate, Canvas coverage).
 
@@ -49,12 +63,12 @@ Earlier in the same effort: #474–#483 (OpenMed-derived clinical checks in Core
 
 | Gap | Impact | Next step |
 |---|---|---|
-| Numeric and unit consistency | Coverage can report equal values written differently as conflicting | Port the reference UCUM conversion with conformance vectors |
-| Installed-build journeys for new features | Canvas, backup and encrypted import are tested through IPC and test-build journeys, not on installed packages | Extend `installed-journey.mjs` and add a DMG journey |
+| Analyte-specific unit conversion | mg/dL and mmol/L still can't be compared (needs a molar mass); decimals are refused at import (B2) | Same-dimension conversion is done (#505); molar conversion is future work |
+| Backup and restore on an installed build | Tested through IPC and the CLI binary, not through the native folder chooser | A native-dialog test needs OS automation |
 | Backup and restore in the GUI journeys | The native folder chooser can't be driven by WebDriver | IPC tests cover it; a native-dialog test needs OS automation |
-| Linux AppImage, Linux arm64 desktop | Not built | Add bundles and an Arm job |
+| Upgrade between released versions | Untested: no earlier release exists | Run it on the second release |
 | B2 (real-world FHIR), B3 (passphrase change, code revocation), B4 (rollback, tamper-evident audit) | Block real data | Engineering work items in `REAL_DATA_READINESS.md` |
-| Sample workspace accepts any FHIR file | A real record could land unencrypted | Founder decision to restrict it to bundled fixtures |
+| Sample workspace import | Needs a no-real-data confirmation and refuses national patient identifiers (#501); a false confirmation can still import a real record | Accepted as the safest reasonable control for the unencrypted sample |
 
 ## 5. Decisions only the founder can make
 
