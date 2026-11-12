@@ -59,7 +59,7 @@ export default function Download() {
               <tbody>{status.map((r) => <tr key={r[0]}>{r.map((c, i) => <td key={i}>{c}</td>)}</tr>)}</tbody>
             </table>
           </div>
-          <div className="notice"><strong>Not a production release</strong><p>{publicRelease ? "MedScale is in Beta, for synthetic data only." : "Engineering builds are for testing the release process."} No build is code-signed by a trusted publisher; each download says what that means. Clinical validation and permission to use real patient data are external gates that have not been met. Each installer states its own signing status. <a className="text-link" href={docs.qualification}>Read the external gates</a> · <a className="text-link" href={docs.releases}>GitHub Releases</a></p></div>
+          <div className="notice"><strong>Not a production release</strong><p>{publicRelease ? "MedScale is in Beta. Real patient data is not authorized." : "Engineering builds are for testing the release process."} No build is code-signed by a trusted publisher; each download says what that means. Clinical validation and permission to use real patient data are external gates that have not been met. Each installer states its own signing status. <a className="text-link" href={docs.qualification}>Read the external gates</a> · <a className="text-link" href={docs.releases}>GitHub Releases</a></p></div>
           </div>
         </div>
       </section>
