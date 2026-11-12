@@ -17,6 +17,8 @@ export function Documents() {
   const types = state.status === "ready" ? [...new Set(state.data.sources.map((s) => s.resource_type))] : [];
   const cur = rows[sel] ?? rows[0];
   const [imp, setImp] = useState<{ path: string; subject: string } | null>(null);
+  const [sampleOk, setSampleOk] = useState(false);
+  const sampleWorkspace = ws?.workspace?.kind !== "encrypted";
   const [impState, setImpState] = useState<{ pending: boolean; error: string | null; done: string | null }>({ pending: false, error: null, done: null });
   const [choosingFhir, setChoosingFhir] = useState(false);
   async function browseFhir() {
@@ -35,9 +37,10 @@ export function Documents() {
     if (!imp) return;
     setImpState({ pending: true, error: null, done: null });
     try {
-      const r = await call<{ source_id: string; resource_type: string }>("documents_import_fhir", { path: imp.path, subjectRef: imp.subject });
+      const r = await call<{ source_id: string; resource_type: string }>("documents_import_fhir", { path: imp.path, subjectRef: imp.subject, sampleConfirmed: sampleOk });
       setImpState({ pending: false, error: null, done: `${r.resource_type} ingested and promoted as ${r.source_id}` });
       setImp(null);
+      setSampleOk(false);
       await reload();
     } catch (err) {
       setImpState({ pending: false, error: (err as CmdError).message ?? String(err), done: null });
@@ -57,9 +60,15 @@ export function Documents() {
             <button type="button" className="btn btn-g" onClick={browseFhir} disabled={choosingFhir || impState.pending}>Browse JSON…</button>
           </div>
           <p className="t-sm i3" style={{ margin: 0 }}>MedScale reads the file once and never modifies or moves it. The original stays where it is.</p>
+          {sampleWorkspace && (
+            <label className="t-sm" style={{ display: "flex", gap: 8, alignItems: "flex-start" }}>
+              <input id="ip-sample" type="checkbox" aria-label="No real patient information in this file" checked={sampleOk} onChange={(e) => setSampleOk(e.target.checked)} />
+              <span>No real patient information in this file<span className="i3"> · The sample workspace isn&apos;t encrypted, and real patient data is not authorized in MedScale.</span></span>
+            </label>
+          )}
           <label className="lbl" htmlFor="is">Subject</label>
           <input id="is" value={imp.subject} maxLength={128} onChange={(e) => setImp({ ...imp, subject: e.target.value })} />
-          <div><button type="submit" className="btn btn-p" disabled={!imp.path.trim() || !imp.subject.trim() || impState.pending}>{impState.pending ? <Glyph kind="running" /> : null}Ingest through Core</button></div>
+          <div><button type="submit" className="btn btn-p" disabled={!imp.path.trim() || !imp.subject.trim() || (sampleWorkspace && !sampleOk) || impState.pending}>{impState.pending ? <Glyph kind="running" /> : null}Ingest through Core</button></div>
         </form>}
         {impState.error && <Notice kind="unavailable" title="Not imported.">{impState.error}</Notice>}
         {impState.done && <Notice kind="present" title="Imported.">{impState.done}</Notice>}

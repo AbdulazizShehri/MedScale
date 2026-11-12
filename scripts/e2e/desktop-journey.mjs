@@ -815,6 +815,9 @@ try {
     await click(`//button[${text("Import synthetic FHIR")}]`);
     await find("//form[.//input[@id='ip']]//button[@type='button' and contains(normalize-space(.),'Browse JSON')]");
     await type(`//input[@id='ip']`, novelFhir);
+    // The sample workspace refuses an import until the file is confirmed synthetic.
+    await assertDisabled(`//button[@type='submit' and ${text("Ingest through Core")}]`);
+    await click(`//input[@id='ip-sample']`);
     await click(`//button[@type='submit' and ${text("Ingest through Core")}]`);
     await see("ingested and promoted as", 60000);
     await see("imported:e2e-novel-fictional-patient.json", 30000);
