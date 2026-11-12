@@ -1295,7 +1295,7 @@ fn medagent_workbench_agent_context_evidence_and_resume() {
     .unwrap();
     let imported = h.ok(
         "documents_import_fhir",
-        json!({ "path": obs.display().to_string(), "subjectRef": "synthetic-subject-import" }),
+        json!({ "path": obs.display().to_string(), "subjectRef": "synthetic-subject-import", "sampleConfirmed": true }),
     );
     assert_eq!(imported["resource_type"], "Observation", "{imported}");
     assert_eq!(imported["claim_kind"], "observation");
@@ -1316,12 +1316,42 @@ fn medagent_workbench_agent_context_evidence_and_resume() {
             .iter()
             .any(|s| s["id"] == imported["source_id"])
     );
+    // The sample workspace isn't encrypted: an unconfirmed import is refused,
+    // and a file naming a national patient identifier is refused even when
+    // confirmed.
+    assert_eq!(
+        h.call(
+            "documents_import_fhir",
+            json!({ "path": obs.display().to_string(), "subjectRef": "synthetic-subject-import" }),
+        )
+        .unwrap_err()["kind"],
+        "denied"
+    );
+    std::fs::write(
+        dir.join("real-looking.json"),
+        br#"{"resourceType":"Patient","id":"p","identifier":[{"system":"http://hl7.org/fhir/sid/us-ssn","value":"000-00-0000"}]}"#,
+    )
+    .unwrap();
+    let refused = h
+        .call(
+            "documents_import_fhir",
+            json!({ "path": dir.join("real-looking.json").display().to_string(), "subjectRef": "synthetic-subject-import", "sampleConfirmed": true }),
+        )
+        .unwrap_err();
+    assert_eq!(refused["kind"], "denied");
+    assert!(
+        refused["message"]
+            .as_str()
+            .unwrap()
+            .contains("national patient identifier"),
+        "{refused}"
+    );
     // The 1 MiB bound applies to the bytes read.
     std::fs::write(dir.join("big.json"), vec![b' '; (1 << 20) + 1]).unwrap();
     assert_eq!(
         h.call(
             "documents_import_fhir",
-            json!({ "path": dir.join("big.json").display().to_string(), "subjectRef": "synthetic-subject-import" }),
+            json!({ "path": dir.join("big.json").display().to_string(), "subjectRef": "synthetic-subject-import", "sampleConfirmed": true }),
         )
         .unwrap_err()["kind"],
         "invalid"
@@ -1330,7 +1360,7 @@ fn medagent_workbench_agent_context_evidence_and_resume() {
     assert_eq!(
         h.call(
             "documents_import_fhir",
-            json!({ "path": dir.join("not-json.json").display().to_string(), "subjectRef": "synthetic-subject-import" }),
+            json!({ "path": dir.join("not-json.json").display().to_string(), "subjectRef": "synthetic-subject-import", "sampleConfirmed": true }),
         )
         .unwrap_err()["kind"],
         "corrupt"
@@ -1338,7 +1368,7 @@ fn medagent_workbench_agent_context_evidence_and_resume() {
     assert_eq!(
         h.call(
             "documents_import_fhir",
-            json!({ "path": "relative.json", "subjectRef": "synthetic-subject-import" }),
+            json!({ "path": "relative.json", "subjectRef": "synthetic-subject-import", "sampleConfirmed": true }),
         )
         .unwrap_err()["kind"],
         "invalid"

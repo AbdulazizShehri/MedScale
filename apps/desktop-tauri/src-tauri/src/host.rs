@@ -1517,6 +1517,16 @@ pub fn import_fhir(
         .and_then(serde_json::Value::as_str)
         .ok_or_else(|| CmdError::invalid("Invalid: not a FHIR resource (no resourceType)"))?
         .to_owned();
+    if workspace.kind == VaultKind::Synthetic
+        && let Some(system) = national_identifier_system(&resource)
+    {
+        return Err(CmdError::new(
+            "denied",
+            format!(
+                "Denied: this file carries a national patient identifier ({system}), so it looks like a real record.                  The sample workspace isn't encrypted; real patient data is not authorized in MedScale"
+            ),
+        ));
+    }
     let claim_kind = claim_kind_for(&resource_type);
     let source_id = workspace.session.ingest_fhir_bytes(bytes)?;
     workspace.session.promote_fixture_as_assertion(
@@ -2468,6 +2478,35 @@ pub fn create_encrypted(state: &mut State, passphrase: &str) -> CmdResult<Vec<St
         seed: SeedManifest::default(),
     });
     Ok(codes)
+}
+
+/// Identifier systems that only real records use. A file naming one of them
+/// is refused by the unencrypted sample workspace even if the person has
+/// confirmed it is synthetic. Matching is on the system URI, never a value.
+const NATIONAL_IDENTIFIER_SYSTEMS: &[&str] = &[
+    "http://hl7.org/fhir/sid/us-ssn",
+    "urn:oid:2.16.840.1.113883.4.1",
+    "http://hl7.org/fhir/sid/us-mbi",
+    "https://fhir.nhs.uk/Id/nhs-number",
+    "http://fhir.nhs.net/Id/nhs-number",
+];
+
+/// The first national identifier system named anywhere in `resource`.
+pub fn national_identifier_system(resource: &serde_json::Value) -> Option<&'static str> {
+    match resource {
+        serde_json::Value::Object(map) => {
+            if let Some(serde_json::Value::String(system)) = map.get("system")
+                && let Some(known) = NATIONAL_IDENTIFIER_SYSTEMS
+                    .iter()
+                    .find(|k| k.eq_ignore_ascii_case(system.trim()))
+            {
+                return Some(known);
+            }
+            map.values().find_map(national_identifier_system)
+        }
+        serde_json::Value::Array(items) => items.iter().find_map(national_identifier_system),
+        _ => None,
+    }
 }
 
 /// Where a backup keeps the desktop roster, beside the sealed files.

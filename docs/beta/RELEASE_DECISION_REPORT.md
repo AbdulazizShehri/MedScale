@@ -9,7 +9,7 @@
 | Decision | Verdict | Why |
 |---|---|---|
 | **Engineering completeness** | **GO, with named exceptions** | R1–R9 and R11 are done. R10 is partly done. Numeric and unit consistency is open (section 4) |
-| **Public release** | **NO-GO** | Builds are unsigned and not notarized. No artifact has been approved for download. No independent security review. Publishing needs the founder's separate approval |
+| **Public release** | **NO-GO** until each release candidate passes the free security qualification and the founder approves its exact artifacts | Paid signing is no longer a blocker: the founder chose unsigned zero-cost distribution (2026-11-12). Blockers are reclassified in [ZERO_COST_DISTRIBUTION.md](../release/ZERO_COST_DISTRIBUTION.md) |
 | **Private patient data** | **NO-GO** | `NOT_AUTHORIZED`. Open blockers B1 (rest), B2, B3 (rest), B4 and B6, and no external reviews. See [REAL_PHI_AUTHORIZATION_PACKAGE.md](REAL_PHI_AUTHORIZATION_PACKAGE.md) |
 | **Clinical use** | **NO-GO** | Not clinically validated. No regulatory classification or quality evidence. Outputs are proposals and research notes |
 
@@ -19,11 +19,11 @@
 
 | Platform | Engineering | Public release | Evidence | What is missing |
 |---|---|---|---|---|
-| Windows x64 desktop | **GO** | NO-GO | Installer qualified (install, launch, uninstall keeping data, reinstall). Desktop journeys, NVDA journey and lifecycle journeys in CI | Code signing (paid certificate); installed-build journeys for Canvas, backup and encrypted import |
-| macOS Apple Silicon desktop | **GO** | NO-GO | DMG built with ad-hoc signature; launch and removal qualified. Desktop journeys through the embedded WebDriver in CI (#494); there, the keyboard journey delivers Enter through the page because that driver sends no native keys. Keyboard, picker and WKWebView qualification workflows | Developer ID signing and notarization (founder credentials); a full installed-DMG journey; VoiceOver |
+| Windows x64 desktop | **GO** | NO-GO | Installer qualified (install, launch, uninstall keeping data, reinstall). Desktop journeys, NVDA journey and lifecycle journeys in CI | Installed-build journeys for Canvas, backup and encrypted import. Unsigned: SmartScreen warns, and Smart App Control blocks it (paid signing declined; SignPath Foundation is an option) |
+| macOS Apple Silicon desktop | **GO** | NO-GO | DMG built with ad-hoc signature; launch and removal qualified. Desktop journeys through the embedded WebDriver in CI (#494); there, the keyboard journey delivers Enter through the page because that driver sends no native keys. Keyboard, picker and WKWebView qualification workflows | A full installed-DMG journey; VoiceOver. Unsigned: Gatekeeper requires "Open Anyway" (paid Developer ID declined) |
 | macOS Intel desktop | **NO-GO** | NO-GO | Not built. The CLI's Intel binary is cross-built and runs under Rosetta 2 in CI, so the toolchain works | An x86_64 desktop build and its qualification |
 | Linux x86_64 desktop | **GO** (engineering `.deb`) | NO-GO | glib soundness fix vendored (RUSTSEC-2024-0429, no advisory ignored). `.deb` installed, launched under Xvfb and removed in CI. Desktop journeys through tauri-driver (#494) | AppImage, a qualified `.rpm`, package signing; Linux arm64 desktop |
-| CLI: Windows x64, macOS arm64 and x64, Linux x64 and arm64 | **GO** | NO-GO | Standalone archives with licenses, notices, SBOM and SHA-256. Each one installed from its archive into a clean PATH and run. Binary tests of exit codes and the encrypted-vault lifecycle | Signing; approval of exact artifacts for download |
+| CLI: Windows x64, macOS arm64 and x64, Linux x64 and arm64 | **GO** | NO-GO | Standalone archives with licenses, notices, SBOM and SHA-256. Each one installed from its archive into a clean PATH and run. Binary tests of exit codes and the encrypted-vault lifecycle | Approval of exact artifacts for download; unsigned |
 
 ## 3. What changed (PRs)
 
