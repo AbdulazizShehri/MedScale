@@ -4,7 +4,7 @@
 
 This page explains what that means for people who install it, what still has to be true before any release is published, and how free signing could be added later.
 
-**Unchanged:** `REAL_PHI_AUTHORIZATION=NOT_AUTHORIZED`. Clinical use is not authorized. The public beta is for synthetic data only.
+**Unchanged:** `REAL_PHI_AUTHORIZATION=NOT_AUTHORIZED`. Clinical use is not authorized. The public beta is for synthetic workspaces and licensed non-patient audio only; real patient data is not authorized.
 
 ## 1. Release blockers, reclassified
 
@@ -37,6 +37,7 @@ An unsigned build is never described as signed, notarized or trusted by the oper
 
 ### Linux
 
+- Linux **arm64** builds need an ARMv8.2-A CPU with the FP16 extension (for example Raspberry Pi 5, AWS Graviton2 or newer). Older arm64 CPUs such as the Raspberry Pi 4's aren't supported.
 - `.deb` packages are installed with `sudo apt install ./MedScale_<version>_amd64.deb` and removed with `sudo apt remove medscale`. Your data stays in `~/.local/share/org.medscale.desktop.preview`.
 - AppImages aren't signed. Check the SHA-256, `chmod +x` the file, and run it.
 - There's no package repository yet, so updates are manual: download the new package and install it over the old one.
