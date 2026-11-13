@@ -1417,8 +1417,12 @@ fn medagent_workbench_agent_context_evidence_and_resume() {
             .contains("national patient identifier"),
         "{refused}"
     );
-    // The 1 MiB bound applies to the bytes read.
-    std::fs::write(dir.join("big.json"), vec![b' '; (1 << 20) + 1]).unwrap();
+    // The size bound applies to the bytes read.
+    std::fs::write(
+        dir.join("big.json"),
+        vec![b' '; crate::host::FHIR_IMPORT_MAX_BYTES as usize + 1],
+    )
+    .unwrap();
     assert_eq!(
         h.call(
             "documents_import_fhir",

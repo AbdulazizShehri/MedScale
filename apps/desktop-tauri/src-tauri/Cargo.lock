@@ -3007,6 +3007,7 @@ dependencies = [
  "medscale-contracts",
  "medscale-core",
  "medscale-desktop-vm",
+ "medscale-fhir",
  "medscale-pack",
  "medscale-storage",
  "rusqlite",

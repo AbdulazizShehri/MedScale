@@ -1468,8 +1468,8 @@ fn claim_kind_for(resource_type: &str) -> &'static str {
     }
 }
 
-/// Largest FHIR file the desktop imports (1 MiB).
-pub const FHIR_IMPORT_MAX_BYTES: u64 = 1 << 20;
+/// Largest FHIR file the desktop imports: the Core gate's limit (8 MiB).
+pub const FHIR_IMPORT_MAX_BYTES: u64 = medscale_fhir::MAX_INGEST_BYTES as u64;
 
 /// Reads a regular file of 1..=`max` bytes. The bound applies to the bytes
 /// actually read, not to earlier metadata, so a file that grows after a
@@ -1510,7 +1510,8 @@ pub fn import_fhir(
         ));
     }
     let bytes = read_bounded(path, FHIR_IMPORT_MAX_BYTES)?;
-    let resource: serde_json::Value = serde_json::from_slice(&bytes)
+    // Decimals stay exactly as written (B2); the stored bytes are unchanged.
+    let resource = medscale_fhir::parse_exact_decimals(&bytes)
         .map_err(|_| CmdError::new("corrupt", "Corrupt: file is not JSON"))?;
     let resource_type = resource
         .get("resourceType")
