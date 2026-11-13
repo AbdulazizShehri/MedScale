@@ -516,6 +516,48 @@ tr:last-child td { border-bottom: 0; }
 }
 .install-card:only-child { grid-column: 1 / -1; }
 
+/* ---------- Home ----------
+   Restraint: one idea per screen, the product shown as large real screenshots
+   with a title and one line each, big type and room around it. */
+.home-hero { padding: clamp(112px, 15vw, 208px) 0 0; }
+.home-display { margin: 0; font-family: var(--font-display); font-size: clamp(46px, 8.2vw, 124px); line-height: 0.94; font-weight: 600; letter-spacing: -0.045em; text-wrap: balance; }
+.home-hero-foot { display: grid; grid-template-columns: var(--span-5) minmax(0, 1fr); align-items: end; gap: 32px var(--gap); margin-top: clamp(48px, 6vw, 80px); }
+.home-lede { margin: 0; font-size: clamp(18px, 1.6vw, 21px); line-height: 1.5; color: var(--ink-2); text-wrap: pretty; }
+.home-hero-foot .actions { justify-content: flex-end; }
+.home-stage { margin-top: clamp(72px, 9vw, 128px); }
+.home-section { padding: clamp(128px, 16vw, 240px) 0 0; }
+.home-section-last { padding-bottom: clamp(128px, 16vw, 240px); }
+.home-h2 { margin: 0 0 clamp(56px, 7vw, 96px); max-width: 16ch; font-family: var(--font-display); font-size: clamp(32px, 4.4vw, 60px); line-height: 1.02; font-weight: 600; letter-spacing: -0.035em; text-wrap: balance; }
+/* Four screenshots at different sizes, set off the grid's columns so the eye moves. */
+.work-grid { display: grid; grid-template-columns: repeat(12, minmax(0, 1fr)); column-gap: var(--gap); row-gap: clamp(72px, 9vw, 128px); }
+.work-tile { display: grid; align-content: start; gap: 6px; color: inherit; text-decoration: none; }
+.work-tile .frame { margin-bottom: 18px; }
+.work-tile:nth-child(1) { grid-column: 1 / span 7; }
+.work-tile:nth-child(2) { grid-column: 8 / span 5; margin-top: clamp(120px, 18vw, 264px); }
+.work-tile:nth-child(3) { grid-column: 3 / span 8; }
+.work-title { font-size: 17px; line-height: 1.35; font-weight: 600; color: var(--ink); }
+.work-line { font-size: 16px; line-height: 1.5; color: var(--ink-3); max-width: 42ch; }
+.work-tile:hover .work-title { text-decoration: underline; text-underline-offset: 4px; text-decoration-thickness: 1px; }
+.home-principle { display: grid; grid-template-columns: repeat(12, minmax(0, 1fr)); column-gap: var(--gap); row-gap: 32px; }
+.home-statement { grid-column: 1 / span 10; margin: 0 0 clamp(16px, 2vw, 32px); font-family: var(--font-display); font-size: clamp(40px, 6.6vw, 96px); line-height: 0.98; font-weight: 600; letter-spacing: -0.04em; text-wrap: balance; }
+.home-principle .body { grid-column: span 4; margin: 0; font-size: 17px; }
+.home-principle .body:first-of-type { grid-column: 1 / span 4; }
+@media (max-width: 860px) {
+  .home-hero-foot { grid-template-columns: minmax(0, 1fr); }
+  .home-hero-foot .actions { justify-content: flex-start; }
+  .work-tile:nth-child(n) { grid-column: 1 / -1; margin-top: 0; }
+  .home-statement, .home-principle .body, .home-principle .body:first-of-type { grid-column: 1 / -1; }
+}
+
+.product-numbers { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 40px var(--gap); margin: clamp(32px, 4vw, 48px) 0 24px; }
+.product-numbers > div { display: grid; gap: 6px; align-content: start; border-top: 1px solid var(--line); padding-top: 20px; }
+.product-numbers strong { font-family: var(--font-display); font-size: clamp(36px, 4.4vw, 56px); line-height: 1; font-weight: 600; letter-spacing: -0.03em; }
+.product-numbers span { font-weight: 500; }
+.product-numbers small { color: var(--ink-3); font-size: 14px; line-height: 1.5; }
+@media (max-width: 860px) { .product-numbers { grid-template-columns: 1fr 1fr; } }
+@media (max-width: 480px) { .product-numbers { grid-template-columns: 1fr; } }
+.footer-scope { color: var(--ink-3); max-width: 64ch; }
+
 /* ---------- Motion ---------- */
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation-duration: 0.01ms !important; animation-delay: 0ms !important; transition-duration: 0.01ms !important; transition-delay: 0ms !important; }
