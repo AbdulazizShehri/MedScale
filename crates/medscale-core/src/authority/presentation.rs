@@ -48,6 +48,7 @@ fn build_ctx(
     assertion: &ClinicalAssertion,
     blob_bytes: Option<&[u8]>,
     blob_ok: bool,
+    resource: &Value,
 ) -> ExtractContext {
     let proposal = proposal_for(store, assertion);
     let source_id = proposal
@@ -59,6 +60,10 @@ fn build_ctx(
         content_digest: source.as_ref().map(|s| s.content_digest.clone()),
         source_bytes: blob_bytes.map(|b| b.to_vec()),
         evidence_healthy: source_id.is_none() || blob_ok,
+        resource_id: resource
+            .get("id")
+            .and_then(Value::as_str)
+            .map(str::to_owned),
     }
 }
 
@@ -101,7 +106,7 @@ pub fn build_timeline(
         }
         let resource = resource_from_payload(&assertion.payload);
         let (bytes, ok) = resolve_blob(store, &assertion, blob_lookup);
-        let ctx = build_ctx(store, &assertion, bytes.as_deref(), ok);
+        let ctx = build_ctx(store, &assertion, bytes.as_deref(), ok, resource);
         let extraction = extract_resource(resource, &ctx);
         let evidence_refs = ctx.source_id.iter().cloned().collect::<Vec<_>>();
         let span_citations = extraction
@@ -199,7 +204,7 @@ pub fn build_coverage(
     for assertion in store.assertions_for_subject(subject_ref) {
         let resource = resource_from_payload(&assertion.payload);
         let (bytes, ok) = resolve_blob(store, &assertion, blob_lookup);
-        let ctx = build_ctx(store, &assertion, bytes.as_deref(), ok);
+        let ctx = build_ctx(store, &assertion, bytes.as_deref(), ok, resource);
         let extraction = extract_resource(resource, &ctx);
         if extraction.unsupported {
             unsupported_slots.push(CoverageSlot {
@@ -364,7 +369,7 @@ pub fn drill_down(
             .find(|a| {
                 let resource = resource_from_payload(&a.payload);
                 let (bytes, ok) = resolve_blob(store, a, blob_lookup);
-                let ctx = build_ctx(store, a, bytes.as_deref(), ok);
+                let ctx = build_ctx(store, a, bytes.as_deref(), ok, resource);
                 extract_resource(resource, &ctx)
                     .fields
                     .iter()
@@ -375,7 +380,7 @@ pub fn drill_down(
 
     let resource = resource_from_payload(&assertion.payload);
     let (bytes, ok) = resolve_blob(store, &assertion, blob_lookup);
-    let ctx = build_ctx(store, &assertion, bytes.as_deref(), ok);
+    let ctx = build_ctx(store, &assertion, bytes.as_deref(), ok, resource);
     let extraction = extract_resource(resource, &ctx);
     let field = extraction
         .fields
