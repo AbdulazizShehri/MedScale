@@ -443,6 +443,29 @@ enum VaultCmd {
         #[arg(long)]
         recovery_code_env: Option<String>,
     },
+    /// Change the passphrase of a locked encrypted vault. Reads the current
+    /// passphrase from `--passphrase-env` and the new one from
+    /// `--new-passphrase-env` (never argv). Recovery codes are unchanged.
+    ChangePassphrase {
+        #[arg(long)]
+        vault_id: String,
+        #[arg(long)]
+        vault_root: PathBuf,
+        #[arg(long, default_value = "MEDSCALE_PASSPHRASE")]
+        passphrase_env: String,
+        #[arg(long, default_value = "MEDSCALE_NEW_PASSPHRASE")]
+        new_passphrase_env: String,
+    },
+    /// Replace every recovery code of a locked encrypted vault. Needs the
+    /// passphrase (from `--passphrase-env`). The new codes go to stderr once.
+    ReplaceRecoveryCodes {
+        #[arg(long)]
+        vault_id: String,
+        #[arg(long)]
+        vault_root: PathBuf,
+        #[arg(long, default_value = "MEDSCALE_PASSPHRASE")]
+        passphrase_env: String,
+    },
     OpenSynthetic {
         #[arg(long)]
         vault_id: String,
@@ -1144,6 +1167,42 @@ fn run() -> Result<()> {
                 println!("vault_sealed: true");
                 Ok(())
             }
+            VaultCmd::ChangePassphrase {
+                vault_id,
+                vault_root,
+                passphrase_env,
+                new_passphrase_env,
+            } => {
+                let current = std::env::var(&passphrase_env).with_context(|| {
+                    format!("set the current passphrase in env var {passphrase_env}")
+                })?;
+                let new_passphrase = std::env::var(&new_passphrase_env).with_context(|| {
+                    format!("set the new passphrase in env var {new_passphrase_env}")
+                })?;
+                vault_change_passphrase_sealed(&vault_id, &vault_root, &current, &new_passphrase)?;
+                println!("vault_passphrase_changed: {}", vault_root.display());
+                println!("note: backups made earlier keep the passphrase they had");
+                Ok(())
+            }
+            VaultCmd::ReplaceRecoveryCodes {
+                vault_id,
+                vault_root,
+                passphrase_env,
+            } => {
+                let current = std::env::var(&passphrase_env)
+                    .with_context(|| format!("set the passphrase in env var {passphrase_env}"))?;
+                let codes = vault_replace_codes_sealed(&vault_id, &vault_root, &current)?;
+                println!("recovery_codes_replaced: {}", codes.len());
+                // Shown once, on stderr so a redirected stdout log never holds them.
+                eprintln!(
+                    "new recovery codes (shown once; every earlier code no longer opens this vault):"
+                );
+                for code in &codes {
+                    eprintln!("  {code}");
+                }
+                println!("note: backups made earlier keep the codes they had");
+                Ok(())
+            }
             VaultCmd::OpenSynthetic {
                 vault_id,
                 vault_root,
@@ -1742,6 +1801,51 @@ fn vault_create_sealed(vault_id: &str, vault_root: &Path, passphrase: &str) -> R
         "vault was created but could not be sealed; do not use it until it is reopened and closed",
     )?;
     Ok(codes)
+}
+
+/// Opens with `current`, runs `change`, and seals again whatever `change` did.
+fn with_open_vault<T>(
+    vault_id: &str,
+    vault_root: &Path,
+    current: &str,
+    change: impl FnOnce(&mut CliSession) -> Result<T, medscale_contracts::envelopes::AuthorityError>,
+) -> Result<T> {
+    let mut session = CliSession::connect(vault_id).map_err(auth)?;
+    session
+        .open_encrypted_vault(&vault_root.display().to_string(), current)
+        .map_err(auth)?;
+    let result = change(&mut session).map_err(auth);
+    session
+        .close_encrypted_vault()
+        .map_err(auth)
+        .context("the vault could not be sealed again; reopen and close it")?;
+    result
+}
+
+/// B3: changes the passphrase of a locked encrypted vault.
+fn vault_change_passphrase_sealed(
+    vault_id: &str,
+    vault_root: &Path,
+    current: &str,
+    new_passphrase: &str,
+) -> Result<()> {
+    if !(8..=256).contains(&new_passphrase.chars().count()) {
+        bail!("the new passphrase must be 8-256 characters");
+    }
+    with_open_vault(vault_id, vault_root, current, |s| {
+        s.change_vault_passphrase(current, new_passphrase)
+    })
+}
+
+/// B3: replaces every recovery code of a locked encrypted vault.
+fn vault_replace_codes_sealed(
+    vault_id: &str,
+    vault_root: &Path,
+    current: &str,
+) -> Result<Vec<String>> {
+    with_open_vault(vault_id, vault_root, current, |s| {
+        s.replace_recovery_codes(current)
+    })
 }
 
 fn backup_label(label: Option<String>) -> String {
@@ -2345,6 +2449,42 @@ mod tests {
         let _ = fs::remove_dir_all(&root);
         let _ = fs::remove_dir_all(&kept);
         let _ = fs::remove_dir_all(&to);
+    }
+
+    #[test]
+    fn vault_passphrase_change_and_code_replacement() {
+        let root = enc_tmp("rekey");
+        let old_codes = vault_create_sealed("cli-rekey", &root, "correct horse battery").unwrap();
+        assert!(
+            vault_change_passphrase_sealed(
+                "cli-rekey",
+                &root,
+                "wrong passphrase",
+                "new passphrase!"
+            )
+            .is_err()
+        );
+        assert!(
+            vault_change_passphrase_sealed("cli-rekey", &root, "correct horse battery", "short")
+                .is_err()
+        );
+        vault_change_passphrase_sealed(
+            "cli-rekey",
+            &root,
+            "correct horse battery",
+            "new passphrase!",
+        )
+        .unwrap();
+        assert!(vault_open_sealed("cli-rekey", &root, "correct horse battery").is_err());
+        let new_codes = vault_replace_codes_sealed("cli-rekey", &root, "new passphrase!").unwrap();
+        assert_eq!(new_codes.len(), old_codes.len());
+        let old = VaultSecret::RecoveryCode(old_codes[0].clone());
+        assert!(vault_open_sealed_with("cli-rekey", &root, &old).is_err());
+        let new = VaultSecret::RecoveryCode(new_codes[0].clone());
+        vault_open_sealed_with("cli-rekey", &root, &new).unwrap();
+        vault_open_sealed("cli-rekey", &root, "new passphrase!").unwrap();
+        assert!(!root.join(".writer.lock").exists(), "lease released");
+        let _ = fs::remove_dir_all(&root);
     }
 
     #[test]

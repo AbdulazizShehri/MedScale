@@ -43,6 +43,8 @@ fn main() {
             "vault_recovery_items",
             "vault_recovery_delete",
             "vault_recovery_restore",
+            "vault_change_passphrase",
+            "vault_replace_recovery_codes",
             "vault_backup",
             "vault_restore",
             "workspace_lock",

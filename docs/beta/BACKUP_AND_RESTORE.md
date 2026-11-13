@@ -31,6 +31,20 @@ medscale vault restore --from <MedScale-backup folder> --vault-root <vault folde
 
 Both commands go through MedScale Core, like the desktop app. With `--json` they print one JSON object. If anything is refused they exit with a non-zero status.
 
+## Changing the passphrase or recovery codes
+
+In **Settings → Workspace → Passphrase and recovery codes**, or on the command line with the vault locked:
+
+```bash
+MEDSCALE_PASSPHRASE=<current> MEDSCALE_NEW_PASSPHRASE=<new> medscale vault change-passphrase --vault-id <id> --vault-root <vault folder>
+```
+
+```bash
+MEDSCALE_PASSPHRASE=<current> medscale vault replace-recovery-codes --vault-id <id> --vault-root <vault folder>
+```
+
+Both need the current passphrase. Replacing the codes stops every earlier code from opening the vault; the new codes are shown once (on stderr in the CLI). A backup made **before** a change still opens with the passphrase and codes it had, so after a change, make a new backup and delete the old one if the old secrets may have leaked.
+
 ## What is refused, and why
 
 | Situation | Result |

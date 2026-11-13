@@ -335,6 +335,37 @@ impl CliSession {
         }
     }
 
+    /// B3: rewraps the open encrypted vault's key under a new passphrase.
+    pub fn change_vault_passphrase(
+        &mut self,
+        current: &str,
+        new_passphrase: &str,
+    ) -> Result<(), AuthorityError> {
+        match self.dispatch(
+            Capability::ManageVaultRecovery,
+            RequestBody::ChangeVaultPassphrase {
+                current: current.to_owned(),
+                new_passphrase: new_passphrase.to_owned(),
+            },
+        )? {
+            ResponseBody::VaultPassphraseChanged => Ok(()),
+            _ => Err(Self::unexpected("vault passphrase changed")),
+        }
+    }
+
+    /// B3: replaces every recovery code; the new ones are returned once.
+    pub fn replace_recovery_codes(&mut self, current: &str) -> Result<Vec<String>, AuthorityError> {
+        match self.dispatch(
+            Capability::ManageVaultRecovery,
+            RequestBody::ReplaceRecoveryCodes {
+                current: current.to_owned(),
+            },
+        )? {
+            ResponseBody::RecoveryCodesReplaced { recovery_codes } => Ok(recovery_codes),
+            _ => Err(Self::unexpected("recovery codes replaced")),
+        }
+    }
+
     /// What the last open did with a session that never sealed (Spec 109).
     #[must_use]
     /// B4: set when the last open found a vault older than the copy this

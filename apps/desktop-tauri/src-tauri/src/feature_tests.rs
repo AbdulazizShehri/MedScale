@@ -788,6 +788,77 @@ fn recovery_commands_list_refuse_bad_ids_and_need_an_encrypted_vault() {
     h.ok("workspace_lock", json!({}));
 }
 
+/// B3: the passphrase can be changed and recovery codes replaced, each only
+/// with the current passphrase. Afterwards the old passphrase and old codes
+/// fail and the new ones open the vault.
+#[test]
+fn passphrase_change_and_code_replacement() {
+    let h = Harness::new("enc-rekey");
+    let created = h.ok(
+        "workspace_create_encrypted",
+        json!({ "passphrase": "correct horse battery" }),
+    );
+    let old_code = created["recovery_codes"][0].as_str().unwrap().to_owned();
+    assert!(
+        h.call(
+            "vault_change_passphrase",
+            json!({ "current": "wrong passphrase", "newPassphrase": "a new passphrase" })
+        )
+        .is_err()
+    );
+    assert!(
+        h.call(
+            "vault_change_passphrase",
+            json!({ "current": "correct horse battery", "newPassphrase": "short" })
+        )
+        .is_err(),
+        "the new passphrase follows the creation rule"
+    );
+    h.ok(
+        "vault_change_passphrase",
+        json!({ "current": "correct horse battery", "newPassphrase": "a new passphrase" }),
+    );
+    assert!(
+        h.call(
+            "vault_replace_recovery_codes",
+            json!({ "current": "correct horse battery" })
+        )
+        .is_err()
+    );
+    let replaced = h.ok(
+        "vault_replace_recovery_codes",
+        json!({ "current": "a new passphrase" }),
+    );
+    let new_code = replaced["recovery_codes"][0].as_str().unwrap().to_owned();
+    assert_ne!(new_code, old_code);
+    h.ok("workspace_lock", json!({}));
+
+    assert!(
+        h.call(
+            "workspace_unlock",
+            json!({ "passphrase": "correct horse battery" })
+        )
+        .is_err()
+    );
+    assert!(
+        h.call(
+            "workspace_unlock_with_recovery_code",
+            json!({ "code": old_code })
+        )
+        .is_err()
+    );
+    h.ok(
+        "workspace_unlock_with_recovery_code",
+        json!({ "code": new_code }),
+    );
+    h.ok("workspace_lock", json!({}));
+    h.ok(
+        "workspace_unlock",
+        json!({ "passphrase": "a new passphrase" }),
+    );
+    h.ok("workspace_lock", json!({}));
+}
+
 /// B1: FHIR import into an encrypted vault. The resource and the patient list
 /// stay sealed: after lock and unlock the patient is listed again from Core,
 /// and no file outside the sealed vault holds the subject or the resource.

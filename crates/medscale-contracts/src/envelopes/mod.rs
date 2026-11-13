@@ -714,6 +714,15 @@ pub enum RequestBody {
         kind: VaultRecoveryKind,
         id: String,
     },
+    /// B3: rewraps the open encrypted vault's key under a new passphrase.
+    ChangeVaultPassphrase {
+        current: String,
+        new_passphrase: String,
+    },
+    /// B3: replaces every recovery code of the open encrypted vault.
+    ReplaceRecoveryCodes {
+        current: String,
+    },
     /// Seals the open session, keeps that seal as a copy, makes the chosen copy
     /// the vault's seal, and closes. Unlock again to see it.
     RestoreVaultRecoveryCopy {
@@ -1914,6 +1923,10 @@ pub enum ResponseBody {
     },
     SubjectRoster {
         entries: Vec<SubjectRosterEntry>,
+    },
+    VaultPassphraseChanged,
+    RecoveryCodesReplaced {
+        recovery_codes: Vec<String>,
     },
     EncryptedVaultBackedUp {
         path: String,
