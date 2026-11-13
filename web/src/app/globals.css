@@ -427,6 +427,34 @@ a.card:hover { border-color: var(--blue); }
 /* ---------- Closing CTA ---------- */
 /* max-width goes on an element inside .shell: on .shell itself the column variables would
    resolve against the full-bleed section and the shell's auto margins would centre it. */
+/* Home: restraint. One idea per screen, the product shown as large images with
+   one line each, big type and room around it. */
+.home-hero { padding: clamp(96px, 13vw, 176px) 0 0; }
+.home-display { font-size: clamp(48px, 9.4vw, 128px); line-height: 0.98; letter-spacing: -0.04em; max-width: 12ch; }
+.home-hero-foot { display: grid; grid-template-columns: var(--span-6) minmax(0, 1fr); align-items: end; gap: 28px var(--gap); margin-top: clamp(40px, 5vw, 64px); }
+.home-hero-foot .actions { justify-content: flex-end; }
+.home-stage { margin-top: clamp(64px, 8vw, 112px); }
+.home-section { padding: clamp(112px, 14vw, 200px) 0 0; }
+.home-section-last { padding-bottom: clamp(112px, 14vw, 200px); }
+.home-h2 { max-width: var(--span-8); margin-bottom: clamp(48px, 6vw, 80px); }
+.work-grid { display: grid; grid-template-columns: repeat(12, minmax(0, 1fr)); gap: clamp(48px, 6vw, 80px) var(--gap); margin-bottom: clamp(48px, 6vw, 72px); }
+.work-tile { display: grid; gap: 4px; align-content: start; color: inherit; }
+.work-tile .frame { margin-bottom: 16px; transition: box-shadow 200ms var(--ease); }
+.work-tile:hover .frame { box-shadow: 0 0 0 1px var(--line-3); }
+.work-wide { grid-column: 1 / span 8; }
+.work-half { grid-column: span 6; }
+.work-tile:nth-child(4) { grid-column: 5 / span 8; }
+.work-title { font-size: 15px; font-weight: 600; color: var(--ink); }
+.work-line { font-size: 15px; line-height: 1.5; color: var(--ink-3); max-width: 44ch; }
+.principles { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 48px var(--gap); border-top: 1px solid var(--line); padding-top: clamp(40px, 5vw, 64px); }
+.principles > div { display: grid; gap: var(--stack); align-content: start; }
+@media (max-width: 860px) {
+  .home-hero-foot { grid-template-columns: 1fr; }
+  .home-hero-foot .actions { justify-content: flex-start; }
+  .work-wide, .work-half, .work-tile:nth-child(4) { grid-column: 1 / -1; }
+  .principles { grid-template-columns: 1fr; }
+}
+
 .closing { padding: var(--section-y) 0; background: var(--blue); color: #000; }
 .closing .mute { color: #16444f; }
 .closing .lede { color: #0b2127; }
@@ -484,6 +512,14 @@ tr:last-child td { border-bottom: 0; }
 .footer-col a { color: var(--ink-3); transition: color 140ms var(--ease); width: fit-content; }
 .footer-col a:hover { color: var(--ink); }
 .footer-bottom { margin-top: var(--head-y); padding-top: var(--stack-lg); border-top: 1px solid var(--line); display: flex; justify-content: space-between; align-items: baseline; flex-wrap: wrap; gap: 8px var(--gap); font-size: 13px; }
+.product-numbers { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 40px var(--gap); margin: clamp(32px, 4vw, 48px) 0 24px; }
+.product-numbers > div { display: grid; gap: 6px; align-content: start; border-top: 1px solid var(--line); padding-top: 20px; }
+.product-numbers strong { font-family: var(--font-display); font-size: clamp(36px, 4.4vw, 56px); line-height: 1; font-weight: 600; letter-spacing: -0.03em; }
+.product-numbers span { font-weight: 500; }
+.product-numbers small { color: var(--ink-3); font-size: 14px; line-height: 1.5; }
+@media (max-width: 860px) { .product-numbers { grid-template-columns: 1fr 1fr; } }
+@media (max-width: 480px) { .product-numbers { grid-template-columns: 1fr; } }
+.footer-scope { color: var(--ink-3); max-width: 64ch; }
 @media (max-width: 860px) { .footer-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); } .footer-brand { grid-column: 1 / -1; } }
 @media (max-width: 480px) { .footer-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
 

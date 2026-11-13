@@ -1,4 +1,3 @@
-import { productStage } from "@/lib/release";
 import Link from "next/link";
 import { asset, docs, github, sponsors } from "@/lib/site";
 
@@ -10,7 +9,6 @@ export function Footer() {
           <div className="footer-brand">
             <Link href="/" aria-label="MedScale home"><img src={asset("/brand/medscale-horizontal-white.svg")} alt="" width={104} height={17} /></Link>
             <p>An open-source, local-first workspace for health records, evidence and AI models.</p>
-            <p>{productStage}. Synthetic workspaces and licensed nonpatient audio. Not for clinical use.</p>
           </div>
           <div className="footer-col">
             <h2>Product</h2>
@@ -37,7 +35,7 @@ export function Footer() {
         </div>
         <div className="footer-bottom">
           <span>© 2026 MedScale contributors · <a href={docs.license}>Apache-2.0</a></span>
-          <span>Open source is not clinical qualification.</span>
+          <span className="footer-scope">For synthetic workspaces + licensed nonpatient audio; real patient records, clinical decisions and production deployments are not authorized.</span>
         </div>
       </div>
     </footer>
