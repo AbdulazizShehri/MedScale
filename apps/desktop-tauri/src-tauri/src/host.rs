@@ -1495,6 +1495,53 @@ pub fn seed_synthetic(workspace: &mut Workspace, data_dir: &Path) -> CmdResult<(
 }
 
 /// Claim kind for an imported FHIR resource type (as in the bundled fixtures).
+/// Most entries one imported Bundle may hold (B2).
+const MAX_BUNDLE_ENTRIES: usize = 2000;
+
+/// The resources one import promotes, with their types: the resource itself,
+/// or each `entry[].resource` of a Bundle. A Bundle with no usable entry, or
+/// with an entry that names no resourceType, is refused whole.
+fn fhir_parts(resource: serde_json::Value) -> CmdResult<Vec<(String, serde_json::Value)>> {
+    let kind = |r: &serde_json::Value| {
+        r.get("resourceType")
+            .and_then(serde_json::Value::as_str)
+            .map(str::to_owned)
+    };
+    if kind(&resource).as_deref() != Some("Bundle") {
+        let rt = kind(&resource).unwrap_or_default();
+        return Ok(vec![(rt, resource)]);
+    }
+    let Some(entries) = resource.get("entry").and_then(serde_json::Value::as_array) else {
+        return Err(CmdError::invalid("Invalid: the Bundle has no entries"));
+    };
+    if entries.len() > MAX_BUNDLE_ENTRIES {
+        return Err(CmdError::invalid(format!(
+            "Invalid: the Bundle has more than {MAX_BUNDLE_ENTRIES} entries"
+        )));
+    }
+    let mut parts = Vec::with_capacity(entries.len());
+    for entry in entries {
+        let Some(part) = entry.get("resource") else {
+            continue;
+        };
+        let Some(rt) = kind(part) else {
+            return Err(CmdError::invalid(
+                "Invalid: a Bundle entry's resource has no resourceType",
+            ));
+        };
+        if rt == "Bundle" {
+            return Err(CmdError::invalid(
+                "Invalid: a Bundle inside a Bundle isn't supported",
+            ));
+        }
+        parts.push((rt, part.clone()));
+    }
+    if parts.is_empty() {
+        return Err(CmdError::invalid("Invalid: the Bundle has no entries"));
+    }
+    Ok(parts)
+}
+
 fn claim_kind_for(resource_type: &str) -> &'static str {
     match resource_type {
         "Patient" => "patient",
@@ -1565,14 +1612,25 @@ pub fn import_fhir(
             ),
         ));
     }
-    let claim_kind = claim_kind_for(&resource_type);
+    // B2: a Bundle is stored once, as one source, and each entry's resource
+    // becomes its own assertion citing it, so an exported record's
+    // observations and conditions appear one by one. Checked before anything
+    // is written.
+    let parts = fhir_parts(resource)?;
+    let claim_kind = if resource_type == "Bundle" {
+        "bundle"
+    } else {
+        claim_kind_for(&resource_type)
+    };
     let source_id = workspace.session.ingest_fhir_bytes(bytes)?;
-    workspace.session.promote_fixture_as_assertion(
-        source_id.clone(),
-        subject,
-        claim_kind,
-        resource,
-    )?;
+    for (part_type, part) in parts {
+        workspace.session.promote_fixture_as_assertion(
+            source_id.clone(),
+            subject,
+            claim_kind_for(&part_type),
+            part,
+        )?;
+    }
     // The encrypted vault's list comes from Core, which never sees the file
     // name, so the name isn't shown there either.
     let fixture = match workspace.kind {
@@ -2636,7 +2694,12 @@ fn roster_from_core(session: &mut CliSession) -> CmdResult<SeedManifest> {
         if !seed.subjects.contains(&subject) {
             seed.subjects.push(subject.clone());
         }
-        if let Some(source_id) = entry.source_id {
+        if let Some(source_id) = entry.source_id
+            && !seed
+                .sources
+                .iter()
+                .any(|s| s.source_id == source_id.as_str() && s.subject_ref == subject)
+        {
             seed.sources.push(SeededSource {
                 source_id: source_id.as_str().to_owned(),
                 fixture: "imported".to_owned(),
