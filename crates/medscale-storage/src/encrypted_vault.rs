@@ -89,6 +89,9 @@ pub struct EncryptedVault {
     work_source: WorkSource,
     notice_pending: bool,
     notice_ack_requested: bool,
+    /// B4: `(found, last_seen)` when this vault is older than the copy this
+    /// device last locked.
+    older_copy: Option<(u64, u64)>,
 }
 
 /// Where this session's work file came from (Spec 109 Part B). The `next_seq`
@@ -171,6 +174,7 @@ impl EncryptedVault {
         Self::restore_work_file(&root, &dek, &plain, &seal_digest)?;
         let meta = SqliteMetaStore::open_at_sqlcipher(&work, dek.as_bytes())?;
         let blobs = SealedBlobStore::open(&root, vault_id)?;
+        record_seen_generation(&root, vault_id, 0);
 
         Ok((
             Self {
@@ -185,6 +189,7 @@ impl EncryptedVault {
                 work_source: WorkSource::Restored,
                 notice_pending: false,
                 notice_ack_requested: false,
+                older_copy: None,
             },
             codes,
         ))
@@ -321,6 +326,10 @@ impl EncryptedVault {
         };
         let blobs = SealedBlobStore::open(&root, &header.vault_id)?;
         let notice_pending = Self::any_notice_pending(&root)?;
+        let found = meta.seal_generation()?;
+        let older_copy = seen_generation(&root, &header.vault_id)
+            .filter(|seen| found < *seen)
+            .map(|seen| (found, seen));
         Ok(Self {
             vault_id: header.vault_id.clone(),
             root,
@@ -333,7 +342,18 @@ impl EncryptedVault {
             work_source,
             notice_pending,
             notice_ack_requested: false,
+            older_copy,
         })
+    }
+
+    /// B4: `(found, last_seen)` when the vault just opened was sealed fewer
+    /// times than the copy this device last locked: someone may have put an
+    /// older copy of the vault folder in its place. The app's own restores
+    /// reset the record, so they never show this. Locking again records the
+    /// new generation, so the warning is shown until then.
+    #[must_use]
+    pub fn older_copy(&self) -> Option<(u64, u64)> {
+        self.older_copy
     }
 
     #[must_use]
@@ -455,6 +475,8 @@ impl EncryptedVault {
         }
         let EncryptedVault { root, meta, .. } = self;
         drop(meta);
+        // B4: the person chose an older copy, so it must not look like a rollback.
+        forget_seen_generation(&root);
         // The marker no longer matches, so a leftover here can never be adopted.
         let _ = Self::wipe_work_sidecars(&root);
         let _ = fs::remove_file(root.join(LEASE_FILE));
@@ -995,9 +1017,20 @@ impl EncryptedVault {
     /// uses delete-journal mode and no transaction is open between requests,
     /// so the work file is complete while its connection stays open.
     pub fn try_close(self) -> Result<(), Box<(Self, EncryptedVaultError)>> {
+        // B4: written into the work file before it is sealed. A failed seal
+        // leaves it raised, which only skips a number.
+        let generation = match self
+            .meta
+            .seal_generation()
+            .and_then(|g| self.meta.set_seal_generation(g + 1).map(|()| g + 1))
+        {
+            Ok(g) => g,
+            Err(error) => return Err(Box::new((self, error.into()))),
+        };
         if let Err(error) = Self::seal_meta_file(&self.root, &self.vault_id, &self.dek) {
             return Err(Box::new((self, error)));
         }
+        record_seen_generation(&self.root, &self.vault_id, generation);
         let EncryptedVault { root, meta, .. } = self;
         drop(meta);
         // The rename already happened, so the session is over either way. If
@@ -1237,6 +1270,8 @@ impl EncryptedVault {
             previous_kept_at = Some(kept);
         }
         Self::restore(&backup, &root)?;
+        // B4: a restore the person asked for is not a rollback.
+        forget_seen_generation(&root);
         same_sealed_files(&backup, &root)?;
         Ok(RestoreReport { previous_kept_at })
     }
@@ -1650,6 +1685,45 @@ pub fn default_vault_root(vault_id: &str) -> PathBuf {
             .join("vaults")
     };
     base.join(vault_id)
+}
+
+/// B4: where this device records the last seal generation it locked for the
+/// vault at `root`. It sits beside the vault folder, never inside it, so a copy
+/// of the folder put back in place does not bring its own record.
+fn seen_generation_path(root: &Path) -> Option<PathBuf> {
+    let name = root.file_name()?.to_string_lossy().into_owned();
+    Some(root.with_file_name(format!(".{name}.medscale-seen")))
+}
+
+/// The recorded generation, if this device has one for this vault.
+fn seen_generation(root: &Path, vault_id: &str) -> Option<u64> {
+    let text = fs::read_to_string(seen_generation_path(root)?).ok()?;
+    let mut lines = text.lines();
+    if lines.next()? != vault_id {
+        return None;
+    }
+    lines.next()?.trim().parse().ok()
+}
+
+/// Best effort: the seal already succeeded, and a missing record only skips
+/// the next check.
+fn record_seen_generation(root: &Path, vault_id: &str, generation: u64) {
+    if let Some(path) = seen_generation_path(root) {
+        let mut tmp = path.clone().into_os_string();
+        tmp.push(".tmp");
+        let tmp = PathBuf::from(tmp);
+        let _ = write_durably(
+            &tmp,
+            &path,
+            format!("{vault_id}\n{generation}\n").as_bytes(),
+        );
+    }
+}
+
+fn forget_seen_generation(root: &Path) {
+    if let Some(path) = seen_generation_path(root) {
+        let _ = fs::remove_file(path);
+    }
 }
 
 #[cfg(test)]

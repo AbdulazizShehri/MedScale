@@ -148,11 +148,19 @@ export function recoveredInterruptedSeed(data: unknown): boolean {
 /** Spec 109: the notice for what an unlock did with a session that never
  * sealed. Only the two exact values produce one. */
 export function vaultOpenNotice(data: unknown): { kind: "completed" | "blocked"; title: string; detail: string } | null {
+  const older = typeof data === "object" && data !== null ? (data as { older_copy?: unknown }).older_copy : null;
+  if (typeof older === "object" && older !== null) return { kind: "blocked", ...OLDER_COPY_NOTICE };
   const outcome = typeof data === "object" && data !== null ? (data as { open_outcome?: unknown }).open_outcome : null;
   if (outcome === "recovered_interrupted_session") return { kind: "completed", ...RECOVERED_SESSION_NOTICE };
   if (outcome === "discarded_interrupted_session") return { kind: "blocked", ...DISCARDED_SESSION_NOTICE };
   return null;
 }
+
+/** B4: the vault is older than the copy this device last locked. */
+export const OLDER_COPY_NOTICE = {
+  title: "This vault is older than the one you last locked here",
+  detail: "Someone may have put an older copy of the vault folder in its place. Check that your recent work is there. If you restored it yourself outside MedScale, you can ignore this.",
+} as const;
 
 export const RECOVERED_SESSION_NOTICE = {
   title: "Recovered changes from your last session",

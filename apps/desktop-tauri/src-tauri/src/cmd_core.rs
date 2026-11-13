@@ -213,6 +213,11 @@ fn label_with_outcome(
     let mut label = vault_label(state);
     if let Some(object) = label.as_object_mut() {
         object.insert("open_outcome".to_owned(), json!(outcome));
+        let older = state
+            .workspace
+            .as_ref()
+            .and_then(|ws| ws.session.last_older_copy());
+        object.insert("older_copy".to_owned(), json!(older));
     }
     label
 }

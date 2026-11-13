@@ -1800,6 +1800,7 @@ impl CoreFacade {
                     vault_root,
                     recovery_codes: Some(codes.codes),
                     open_outcome: None,
+                    older_copy: None,
                 })
             }
             RequestBody::OpenEncryptedVault {
@@ -1843,6 +1844,12 @@ impl CoreFacade {
                 .map_err(enc_err)?;
                 let (mut vault, adopted) = self.load_opened_vault(vault)?;
                 let notified = vault.notice_pending();
+                let older_copy = vault.older_copy().map(|(found, seen)| {
+                    medscale_contracts::envelopes::OlderVaultCopy {
+                        found_generation: found,
+                        last_seen_generation: seen,
+                    }
+                });
                 // Persisted before the vault enters the slot: the raised `next_seq`
                 // must be durable before anything allocates under it.
                 let persisted = {
@@ -1878,6 +1885,7 @@ impl CoreFacade {
                     vault_root,
                     recovery_codes: None,
                     open_outcome,
+                    older_copy,
                 })
             }
             RequestBody::CloseEncryptedVault => {

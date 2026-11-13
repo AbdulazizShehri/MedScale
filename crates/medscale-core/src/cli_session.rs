@@ -20,6 +20,7 @@ pub struct CliSession {
     vault_root: Option<String>,
     open: bool,
     last_open_outcome: Option<medscale_contracts::envelopes::VaultOpenOutcome>,
+    last_older_copy: Option<medscale_contracts::envelopes::OlderVaultCopy>,
     /// Spec 079: whether the durable pseudonym key store is installed.
     privacy_keys_installed: bool,
 }
@@ -70,6 +71,7 @@ impl CliSession {
             vault_root: None,
             open: false,
             last_open_outcome: None,
+            last_older_copy: None,
             privacy_keys_installed: false,
         };
         let resp = session.dispatch_bootstrap(
@@ -220,6 +222,7 @@ impl CliSession {
         let ResponseBody::EncryptedVaultReady {
             vault_root,
             open_outcome,
+            older_copy,
             ..
         } = resp
         else {
@@ -230,6 +233,7 @@ impl CliSession {
         self.vault_root = Some(vault_root);
         self.open = true;
         self.last_open_outcome = open_outcome;
+        self.last_older_copy = older_copy;
         Ok(())
     }
 
@@ -364,6 +368,12 @@ impl CliSession {
 
     /// What the last open did with a session that never sealed (Spec 109).
     #[must_use]
+    /// B4: set when the last open found a vault older than the copy this
+    /// device last locked.
+    pub fn last_older_copy(&self) -> Option<medscale_contracts::envelopes::OlderVaultCopy> {
+        self.last_older_copy
+    }
+
     pub fn last_open_outcome(&self) -> Option<medscale_contracts::envelopes::VaultOpenOutcome> {
         self.last_open_outcome
     }
