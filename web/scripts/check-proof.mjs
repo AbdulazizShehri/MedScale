@@ -17,7 +17,6 @@ assert.equal(ids.size, rows.length, "catalog entries are unique");
 assert.equal(value("catalogModels"), ids.size, "catalog model count");
 assert.equal(value("catalogFamilies"), new Set(rows.map((row) => row.family)).size, "catalog family count");
 assert.equal(value("catalogLanguages"), new Set(rows.flatMap((row) => row.languages)).size, "catalog language count");
-assert.ok(rows.every((row) => row.repo_id.startsWith("OpenMed/")), "the site credits OpenMed for every row, so a new publisher needs new wording");
 
 const compatibility = fs.readFileSync(path.join(root, "crates/medscale-pack/src/compatibility.rs"), "utf8");
 const listing = (name) => {

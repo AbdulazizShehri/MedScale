@@ -4,7 +4,7 @@
  * None of them measures users, adoption or clinical outcomes: MedScale has no such data yet.
  */
 export const PROOF = {
-  /** third_party/medscale-model-catalog-v3/models.jsonl. Every row is published by OpenMed. */
+  /** third_party/medscale-model-catalog-v3/models.jsonl. */
   catalogModels: 2266,
   catalogLanguages: 35,
   catalogFamilies: 5,
