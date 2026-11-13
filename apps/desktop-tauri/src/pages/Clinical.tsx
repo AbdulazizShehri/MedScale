@@ -25,7 +25,7 @@ export function Documents() {
     if (!imp) return;
     setChoosingFhir(true);
     try {
-      const selected = await open({ multiple: false, directory: false, title: "Choose a FHIR R4 JSON file", filters: [{ name: "FHIR R4 JSON", extensions: ["json"] }] });
+      const selected = await open({ multiple: false, directory: false, title: "Choose a FHIR R4 JSON or NDJSON file", filters: [{ name: "FHIR R4 JSON or NDJSON", extensions: ["json", "ndjson"] }] });
       // Cancel is not an error and never overwrites a previously entered path.
       setImp((cur) => (cur ? { ...cur, path: selectedPathOrPrevious(cur.path, selected) } : cur));
     } catch {
@@ -54,7 +54,7 @@ export function Documents() {
           <button type="button" className="btn btn-s" onClick={() => setImp(imp ? null : { path: "", subject: "synthetic-subject-ada" })}>Import synthetic FHIR</button>
         </PageHead>
         {imp && <form onSubmit={importFhir} className="stack" style={{ gap: 8, maxWidth: 640, marginBottom: 14 }}>
-          <label className="lbl" htmlFor="ip">FHIR R4 JSON file (at most 8 MiB, synthetic or permitted test data only{ws?.workspace?.kind === "encrypted" ? ", sealed in this vault" : ""})</label>
+          <label className="lbl" htmlFor="ip">FHIR R4 JSON or NDJSON file (up to 64 MiB for a Bundle or NDJSON, 8 MiB per resource; synthetic or permitted test data only{ws?.workspace?.kind === "encrypted" ? ", sealed in this vault" : ""})</label>
           <div className="row-gap" style={{ gap: 8 }}>
             <input id="ip" value={imp.path} maxLength={1024} placeholder="Choose a file or paste its absolute path" style={{ flex: 1, minWidth: 0 }} onChange={(e) => setImp({ ...imp, path: e.target.value })} />
             <button type="button" className="btn btn-g" onClick={browseFhir} disabled={choosingFhir || impState.pending}>Browse JSON…</button>

@@ -6,8 +6,8 @@ mod units;
 
 pub use extractors::{
     CONDITION_V1, ConditionExtractor, ExtractContext, Extraction, OBSERVATION_V1,
-    ObservationExtractor, PATIENT_V1, PatientExtractor, TypedResourceExtractor, extract_resource,
-    unit_conflict_status,
+    ObservationExtractor, PATIENT_V1, PatientExtractor, TypedResourceExtractor, bundle_entry_spans,
+    extract_resource, unit_conflict_status,
 };
 pub use lexical::{
     LexicalError, LexicalReport, extract_patient_identifiers, gate_fhir_json, parse_exact_decimals,

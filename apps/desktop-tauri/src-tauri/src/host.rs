@@ -1495,6 +1495,71 @@ pub fn seed_synthetic(workspace: &mut Workspace, data_dir: &Path) -> CmdResult<(
 }
 
 /// Claim kind for an imported FHIR resource type (as in the bundled fixtures).
+/// Largest FHIR file the desktop reads (B2). A file over the gate's limit
+/// must be a Bundle or NDJSON, and is imported entry by entry.
+pub const FHIR_LARGE_IMPORT_MAX_BYTES: u64 = 64 * 1024 * 1024;
+
+/// What one import writes: each piece is stored as one source, as its exact
+/// bytes, and its parts are promoted citing it. A file within the gate's
+/// limit is one piece (a Bundle's entries are its parts). A larger Bundle,
+/// or any NDJSON file, is one piece per entry or line.
+fn fhir_pieces(
+    bytes: &[u8],
+    ndjson: bool,
+) -> CmdResult<Vec<(Vec<u8>, Vec<(String, serde_json::Value)>)>> {
+    let gate = FHIR_IMPORT_MAX_BYTES as usize;
+    let one = |piece: &[u8]| -> CmdResult<(Vec<u8>, Vec<(String, serde_json::Value)>)> {
+        if piece.len() > gate {
+            return Err(CmdError::invalid(
+                "Invalid: one resource in this file is over 8 MiB",
+            ));
+        }
+        // Decimals stay exactly as written; the stored bytes are unchanged.
+        let resource = medscale_fhir::parse_exact_decimals(piece)
+            .map_err(|_| CmdError::new("corrupt", "Corrupt: file is not JSON"))?;
+        if resource
+            .get("resourceType")
+            .and_then(serde_json::Value::as_str)
+            .is_none()
+        {
+            return Err(CmdError::invalid(
+                "Invalid: not a FHIR resource (no resourceType)",
+            ));
+        }
+        Ok((piece.to_vec(), fhir_parts(resource)?))
+    };
+    let pieces: Vec<_> = if ndjson {
+        bytes
+            .split(|&b| b == b'\n')
+            .map(|line| line.strip_suffix(b"\r").unwrap_or(line))
+            .filter(|line| line.iter().any(|b| !b.is_ascii_whitespace()))
+            .map(one)
+            .collect::<CmdResult<_>>()?
+    } else if bytes.len() <= gate {
+        vec![one(bytes)?]
+    } else {
+        let Some(spans) = medscale_fhir::bundle_entry_spans(bytes) else {
+            return Err(CmdError::invalid(
+                "Invalid: a file over 8 MiB must be a FHIR Bundle or NDJSON",
+            ));
+        };
+        spans
+            .into_iter()
+            .map(|(start, end)| one(&bytes[start..end]))
+            .collect::<CmdResult<_>>()?
+    };
+    let parts: usize = pieces.iter().map(|(_, p)| p.len()).sum();
+    if pieces.is_empty() {
+        return Err(CmdError::invalid("Invalid: the file has no resources"));
+    }
+    if parts > MAX_BUNDLE_ENTRIES {
+        return Err(CmdError::invalid(format!(
+            "Invalid: the file has more than {MAX_BUNDLE_ENTRIES} resources"
+        )));
+    }
+    Ok(pieces)
+}
+
 /// Most entries one imported Bundle may hold (B2).
 const MAX_BUNDLE_ENTRIES: usize = 2000;
 
@@ -1593,44 +1658,45 @@ pub fn import_fhir(
             "Unavailable: the sample workspace is still being prepared",
         ));
     }
-    let bytes = read_bounded(path, FHIR_IMPORT_MAX_BYTES)?;
-    // Decimals stay exactly as written (B2); the stored bytes are unchanged.
-    let resource = medscale_fhir::parse_exact_decimals(&bytes)
-        .map_err(|_| CmdError::new("corrupt", "Corrupt: file is not JSON"))?;
-    let resource_type = resource
-        .get("resourceType")
-        .and_then(serde_json::Value::as_str)
-        .ok_or_else(|| CmdError::invalid("Invalid: not a FHIR resource (no resourceType)"))?
-        .to_owned();
-    if workspace.kind == VaultKind::Synthetic
-        && let Some(system) = national_identifier_system(&resource)
-    {
-        return Err(CmdError::new(
-            "denied",
-            format!(
-                "Denied: this file carries a national patient identifier ({system}), so it looks like a real record.                  The sample workspace isn't encrypted; real patient data is not authorized in MedScale"
-            ),
-        ));
+    let bytes = read_bounded(path, FHIR_LARGE_IMPORT_MAX_BYTES)?;
+    let ndjson = path
+        .extension()
+        .is_some_and(|e| e.eq_ignore_ascii_case("ndjson"));
+    // B2: every piece is checked before anything is written.
+    let pieces = fhir_pieces(&bytes, ndjson)?;
+    if workspace.kind == VaultKind::Synthetic {
+        for (_, parts) in &pieces {
+            for (_, part) in parts {
+                if let Some(system) = national_identifier_system(part) {
+                    return Err(CmdError::new(
+                        "denied",
+                        format!(
+                            "Denied: this file carries a national patient identifier ({system}), so it looks like a real record.                  The sample workspace isn't encrypted; real patient data is not authorized in MedScale"
+                        ),
+                    ));
+                }
+            }
+        }
     }
-    // B2: a Bundle is stored once, as one source, and each entry's resource
-    // becomes its own assertion citing it, so an exported record's
-    // observations and conditions appear one by one. Checked before anything
-    // is written.
-    let parts = fhir_parts(resource)?;
-    let claim_kind = if resource_type == "Bundle" {
-        "bundle"
-    } else {
-        claim_kind_for(&resource_type)
+    let (resource_type, claim_kind) = match &pieces[..] {
+        [(_, parts)] if parts.len() == 1 => (parts[0].0.clone(), claim_kind_for(&parts[0].0)),
+        _ if ndjson => ("NDJSON".to_owned(), "bundle"),
+        _ => ("Bundle".to_owned(), "bundle"),
     };
-    let source_id = workspace.session.ingest_fhir_bytes(bytes)?;
-    for (part_type, part) in parts {
-        workspace.session.promote_fixture_as_assertion(
-            source_id.clone(),
-            subject,
-            claim_kind_for(&part_type),
-            part,
-        )?;
+    let mut source_ids = Vec::with_capacity(pieces.len());
+    for (piece, parts) in pieces {
+        let source_id = workspace.session.ingest_fhir_bytes(piece)?;
+        for (part_type, part) in parts {
+            workspace.session.promote_fixture_as_assertion(
+                source_id.clone(),
+                subject,
+                claim_kind_for(&part_type),
+                part,
+            )?;
+        }
+        source_ids.push(source_id);
     }
+    let source_id = source_ids[0].clone();
     // The encrypted vault's list comes from Core, which never sees the file
     // name, so the name isn't shown there either.
     let fixture = match workspace.kind {
@@ -1650,6 +1716,13 @@ pub fn import_fhir(
         subject_ref: subject.to_owned(),
     };
     workspace.seed.sources.push(source.clone());
+    // A large file imported entry by entry has one source per entry.
+    for extra in &source_ids[1..] {
+        workspace.seed.sources.push(SeededSource {
+            source_id: extra.as_str().to_owned(),
+            ..source.clone()
+        });
+    }
     if !workspace.seed.subjects.iter().any(|s| s == subject) {
         workspace.seed.subjects.push(subject.to_owned());
     }

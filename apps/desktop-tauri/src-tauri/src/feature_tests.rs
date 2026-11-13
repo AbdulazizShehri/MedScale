@@ -931,6 +931,92 @@ fn a_fhir_bundle_is_split_into_its_entries() {
     let _ = std::fs::remove_dir_all(&outside);
 }
 
+/// B2: a Bundle over the 8 MiB gate is imported entry by entry, each entry
+/// stored as its own source, and an NDJSON export one line per resource.
+#[test]
+fn a_large_bundle_and_ndjson_are_imported_entry_by_entry() {
+    let h = Harness::new("enc-large");
+    h.ok(
+        "workspace_create_encrypted",
+        json!({ "passphrase": "correct horse battery" }),
+    );
+    let outside =
+        std::env::temp_dir().join(format!("medscale-tauri-large-src-{}", std::process::id()));
+    std::fs::create_dir_all(&outside).unwrap();
+    // Three Observations of about 3 MiB each: over the gate as a whole.
+    let pad = "a".repeat(3 * 1024 * 1024);
+    let entries: Vec<String> = (0..3)
+        .map(|i| {
+            format!(
+                r#"{{"resource":{{"resourceType":"Observation","id":"big-{i}","status":"final","code":{{"text":"Large synthetic {i}"}},"valueQuantity":{{"value":1.{i}0,"unit":"mmol/L"}},"note":[{{"text":"{pad}"}}]}}}}"#
+            )
+        })
+        .collect();
+    let big = format!(
+        r#"{{"resourceType":"Bundle","type":"collection","entry":[{}]}}"#,
+        entries.join(",")
+    );
+    assert!(big.len() as u64 > crate::host::FHIR_IMPORT_MAX_BYTES);
+    let file = outside.join("large.json");
+    std::fs::write(&file, &big).unwrap();
+    let before = h.ok("documents_list", json!({}))["sources"]
+        .as_array()
+        .unwrap()
+        .len();
+    let imported = h.ok(
+        "documents_import_fhir",
+        json!({ "path": file.display().to_string(), "subjectRef": "large-subject" }),
+    );
+    assert_eq!(imported["resource_type"], "Bundle", "{imported}");
+    let after = h.ok("documents_list", json!({}))["sources"]
+        .as_array()
+        .unwrap()
+        .len();
+    assert_eq!(after - before, 3, "one source per entry");
+
+    let nd = outside.join("export.ndjson");
+    std::fs::write(
+        &nd,
+        "{\"resourceType\":\"Observation\",\"id\":\"n1\",\"valueQuantity\":{\"value\":2.50}}\r\n\n{\"resourceType\":\"Condition\",\"id\":\"n2\"}\n",
+    )
+    .unwrap();
+    let imported = h.ok(
+        "documents_import_fhir",
+        json!({ "path": nd.display().to_string(), "subjectRef": "large-subject" }),
+    );
+    assert_eq!(imported["resource_type"], "NDJSON", "{imported}");
+    assert_eq!(
+        h.ok("documents_list", json!({}))["sources"]
+            .as_array()
+            .unwrap()
+            .len()
+            - after,
+        2,
+        "one source per line"
+    );
+
+    // Over the gate and not a Bundle, or one resource over the gate: refused.
+    let bad = outside.join("big-patient.json");
+    std::fs::write(
+        &bad,
+        format!(
+            r#"{{"resourceType":"Patient","id":"x","text":{{"div":"{}"}}}}"#,
+            "b".repeat(9 * 1024 * 1024)
+        ),
+    )
+    .unwrap();
+    assert_eq!(
+        h.call(
+            "documents_import_fhir",
+            json!({ "path": bad.display().to_string(), "subjectRef": "large-subject" }),
+        )
+        .unwrap_err()["kind"],
+        "invalid"
+    );
+    h.ok("workspace_lock", json!({}));
+    let _ = std::fs::remove_dir_all(&outside);
+}
+
 /// B1: FHIR import into an encrypted vault. The resource and the patient list
 /// stay sealed: after lock and unlock the patient is listed again from Core,
 /// and no file outside the sealed vault holds the subject or the resource.

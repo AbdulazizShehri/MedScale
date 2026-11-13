@@ -110,6 +110,15 @@ fn find_raw_byte_span(
     })
 }
 
+/// B2: the byte range of each `entry[].resource` of the Bundle in `bytes`,
+/// in order, so a file too large to ingest whole can be imported entry by
+/// entry, each entry stored as its exact original bytes. `None` when `bytes`
+/// is not a JSON object whose `resourceType` is `Bundle`; entries without a
+/// `resource` object are skipped.
+pub fn bundle_entry_spans(bytes: &[u8]) -> Option<Vec<(usize, usize)>> {
+    json::entry_resource_spans(bytes)
+}
+
 /// Byte positions in JSON text, without building values. Only what citations
 /// need: skip a value, walk an object's members, compare a key or a string.
 mod json {
@@ -261,6 +270,36 @@ mod json {
             };
         }
         found
+    }
+
+    pub(super) fn entry_resource_spans(b: &[u8]) -> Option<Vec<(usize, usize)>> {
+        let root = skip_ws(b, 0)?;
+        if !has_string(b, root, "resourceType", "Bundle") {
+            return None;
+        }
+        let mut spans = Vec::new();
+        let Some((_, entries, _)) = member(b, root, "entry") else {
+            return Some(spans);
+        };
+        if b[entries] != b'[' {
+            return None;
+        }
+        let mut j = skip_ws(b, entries + 1)?;
+        while b[j] != b']' {
+            let end = value_end(b, j)?;
+            if let Some((_, res, res_end)) = member(b, j, "resource")
+                && b[res] == b'{'
+            {
+                spans.push((res, res_end));
+            }
+            let next = skip_ws(b, end)?;
+            j = match b[next] {
+                b',' => skip_ws(b, next + 1)?,
+                b']' => next,
+                _ => return None,
+            };
+        }
+        Some(spans)
     }
 
     /// Span of the member at `keys` inside the object at `b[object]`.
@@ -622,6 +661,33 @@ mod tests {
             span_text(one, "Patient.birthDate", None),
             None,
             "wrong type, no guess"
+        );
+    }
+
+    #[test]
+    fn bundle_entry_spans_are_the_exact_resource_bytes() {
+        let b = br#"{"resourceType":"Bundle","entry":[ {"fullUrl":"x","resource":{"resourceType":"Patient","id":"p","t":"a}b"}} , {"search":{}} ,{"resource":{"resourceType":"Observation","valueQuantity":{"value":1.10}}}]}"#;
+        let spans = bundle_entry_spans(b).unwrap();
+        let text: Vec<&str> = spans
+            .iter()
+            .map(|&(s, e)| std::str::from_utf8(&b[s..e]).unwrap())
+            .collect();
+        assert_eq!(
+            text,
+            [
+                r#"{"resourceType":"Patient","id":"p","t":"a}b"}"#,
+                r#"{"resourceType":"Observation","valueQuantity":{"value":1.10}}"#
+            ]
+        );
+        assert_eq!(bundle_entry_spans(br#"{"resourceType":"Patient"}"#), None);
+        assert_eq!(
+            bundle_entry_spans(br#"{"resourceType":"Bundle"}"#),
+            Some(vec![])
+        );
+        assert_eq!(
+            bundle_entry_spans(br#"{"resourceType":"Bundle","entry":[{"resource":{}}"#),
+            None,
+            "truncated"
         );
     }
 
