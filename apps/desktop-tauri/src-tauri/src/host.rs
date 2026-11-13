@@ -1499,16 +1499,18 @@ pub fn seed_synthetic(workspace: &mut Workspace, data_dir: &Path) -> CmdResult<(
 /// must be a Bundle or NDJSON, and is imported entry by entry.
 pub const FHIR_LARGE_IMPORT_MAX_BYTES: u64 = 64 * 1024 * 1024;
 
+/// One resource to promote, with its type.
+type FhirPart = (String, serde_json::Value);
+/// One stored source (its exact bytes) and the resources promoted from it.
+type FhirPiece = (Vec<u8>, Vec<FhirPart>);
+
 /// What one import writes: each piece is stored as one source, as its exact
 /// bytes, and its parts are promoted citing it. A file within the gate's
 /// limit is one piece (a Bundle's entries are its parts). A larger Bundle,
 /// or any NDJSON file, is one piece per entry or line.
-fn fhir_pieces(
-    bytes: &[u8],
-    ndjson: bool,
-) -> CmdResult<Vec<(Vec<u8>, Vec<(String, serde_json::Value)>)>> {
+fn fhir_pieces(bytes: &[u8], ndjson: bool) -> CmdResult<Vec<FhirPiece>> {
     let gate = FHIR_IMPORT_MAX_BYTES as usize;
-    let one = |piece: &[u8]| -> CmdResult<(Vec<u8>, Vec<(String, serde_json::Value)>)> {
+    let one = |piece: &[u8]| -> CmdResult<FhirPiece> {
         if piece.len() > gate {
             return Err(CmdError::invalid(
                 "Invalid: one resource in this file is over 8 MiB",
@@ -1566,7 +1568,7 @@ const MAX_BUNDLE_ENTRIES: usize = 2000;
 /// The resources one import promotes, with their types: the resource itself,
 /// or each `entry[].resource` of a Bundle. A Bundle with no usable entry, or
 /// with an entry that names no resourceType, is refused whole.
-fn fhir_parts(resource: serde_json::Value) -> CmdResult<Vec<(String, serde_json::Value)>> {
+fn fhir_parts(resource: serde_json::Value) -> CmdResult<Vec<FhirPart>> {
     let kind = |r: &serde_json::Value| {
         r.get("resourceType")
             .and_then(serde_json::Value::as_str)
