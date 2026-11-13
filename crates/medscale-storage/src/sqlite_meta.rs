@@ -46,6 +46,73 @@ pub enum WorkDatabaseCheck {
 
 /// `store_state` key naming the seal a work database descends from.
 const BASE_SEAL_DIGEST_KEY: &str = "base_seal_digest";
+
+/// B4: an append-only hash chain over audit records. Each entry names one
+/// audit record, the SHA-256 of its stored body (or `removed`), and links to
+/// the entry before it. It is additive and created idempotently, so it needs
+/// no schema version: an older build opens the database and ignores it.
+const AUDIT_CHAIN_DDL: &str = "CREATE TABLE IF NOT EXISTS audit_chain(
+    seq INTEGER PRIMARY KEY AUTOINCREMENT,
+    object_id TEXT NOT NULL,
+    body_digest_hex TEXT NOT NULL,
+    prev_hash TEXT NOT NULL,
+    entry_hash TEXT NOT NULL
+);";
+const AUDIT_REMOVED: &str = "removed";
+
+/// What [`SqliteMetaStore::verify_audit_chain`] found.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct AuditChainReport {
+    /// Entries in the chain.
+    pub entries: u64,
+    /// Audit records the chain covers now.
+    pub records: u64,
+    /// Every inconsistency, in plain words. Empty when the chain holds.
+    pub problems: Vec<String>,
+}
+
+fn audit_chain_hash(prev: &str, object_id: &str, body_digest: &str) -> String {
+    DigestSha256::of(format!("{prev}\n{object_id}\n{body_digest}").as_bytes()).to_hex()
+}
+
+/// The last chained body digest of every audit record, and the chain head.
+fn audit_chain_state(
+    conn: &rusqlite::Connection,
+) -> Result<(std::collections::BTreeMap<String, String>, String), MetaError> {
+    let mut latest = std::collections::BTreeMap::new();
+    let mut head = String::new();
+    let mut stmt = conn
+        .prepare("SELECT object_id, body_digest_hex, entry_hash FROM audit_chain ORDER BY seq")?;
+    let rows = stmt.query_map([], |row| {
+        Ok((
+            row.get::<_, String>(0)?,
+            row.get::<_, String>(1)?,
+            row.get::<_, String>(2)?,
+        ))
+    })?;
+    for row in rows {
+        let (id, digest, hash) = row?;
+        latest.insert(id, digest);
+        head = hash;
+    }
+    Ok((latest, head))
+}
+
+/// The SHA-256 of every current audit record's stored body, by id.
+fn current_audit_bodies(
+    objects: &[AuthorityObjectRow],
+) -> std::collections::BTreeMap<String, String> {
+    objects
+        .iter()
+        .filter(|o| o.object_class == "audit")
+        .map(|o| {
+            (
+                o.object_id.clone(),
+                DigestSha256::of(o.body_json.as_bytes()).to_hex(),
+            )
+        })
+        .collect()
+}
 /// B4: how many times this vault has been sealed. Sealed with the data, so an
 /// older copy of the vault folder carries a smaller number.
 const SEAL_GENERATION_KEY: &str = "seal_generation";
@@ -475,6 +542,7 @@ impl SqliteMetaStore {
             self.conn.execute_batch(crate::audio::V21_DDL)?;
             self.finish_migration(21)?;
         }
+        self.conn.execute_batch(AUDIT_CHAIN_DDL)?;
         Ok(())
     }
 
@@ -968,6 +1036,68 @@ impl SqliteMetaStore {
         Ok(())
     }
 
+    /// B4: recomputes the audit chain and compares it with the audit records
+    /// stored now. A record edited, added or removed without its chain entry,
+    /// or an entry edited, removed or reordered, is reported. The chain lives
+    /// in the same sealed database, so this shows changes made by a bug or by
+    /// someone who had the key; it can't prove the whole database is original.
+    pub fn verify_audit_chain(&self) -> Result<AuditChainReport, MetaError> {
+        self.conn.execute_batch(AUDIT_CHAIN_DDL)?;
+        let mut problems = Vec::new();
+        let mut latest = std::collections::BTreeMap::new();
+        let mut prev = String::new();
+        let mut entries = 0_u64;
+        {
+            let mut stmt = self.conn.prepare(
+                "SELECT seq, object_id, body_digest_hex, prev_hash, entry_hash FROM audit_chain ORDER BY seq",
+            )?;
+            let rows = stmt.query_map([], |row| {
+                Ok((
+                    row.get::<_, i64>(0)?,
+                    row.get::<_, String>(1)?,
+                    row.get::<_, String>(2)?,
+                    row.get::<_, String>(3)?,
+                    row.get::<_, String>(4)?,
+                ))
+            })?;
+            for row in rows {
+                let (seq, id, digest, prev_hash, hash) = row?;
+                entries += 1;
+                if prev_hash != prev {
+                    problems.push(format!(
+                        "chain entry {seq} does not follow the one before it"
+                    ));
+                }
+                if hash != audit_chain_hash(&prev_hash, &id, &digest) {
+                    problems.push(format!("chain entry {seq} was changed"));
+                }
+                latest.insert(id, digest);
+                prev = hash;
+            }
+        }
+        let rows = self.list_authority_objects()?;
+        let current = current_audit_bodies(&rows);
+        for (id, digest) in &current {
+            match latest.get(id) {
+                None => problems.push(format!("audit record {id} is not in the chain")),
+                Some(chained) if chained != digest => {
+                    problems.push(format!("audit record {id} differs from its chain entry"));
+                }
+                Some(_) => {}
+            }
+        }
+        for (id, digest) in &latest {
+            if digest != AUDIT_REMOVED && !current.contains_key(id) {
+                problems.push(format!("audit record {id} is missing"));
+            }
+        }
+        Ok(AuditChainReport {
+            entries,
+            records: current.len() as u64,
+            problems,
+        })
+    }
+
     pub fn base_seal_digest(&self) -> Result<Option<String>, MetaError> {
         Ok(self
             .conn
@@ -1017,6 +1147,30 @@ impl SqliteMetaStore {
         next_seq: u64,
     ) -> Result<(), MetaError> {
         let tx = self.conn.unchecked_transaction()?;
+        // B4: in the same transaction, so a record and its chain entry are
+        // written together or not at all.
+        tx.execute_batch(AUDIT_CHAIN_DDL)?;
+        let (latest, mut prev) = audit_chain_state(&tx)?;
+        let current = current_audit_bodies(objects);
+        let mut appended = Vec::new();
+        for (id, digest) in &current {
+            if latest.get(id) != Some(digest) {
+                appended.push((id.clone(), digest.clone()));
+            }
+        }
+        for (id, digest) in &latest {
+            if digest != AUDIT_REMOVED && !current.contains_key(id) {
+                appended.push((id.clone(), AUDIT_REMOVED.to_owned()));
+            }
+        }
+        for (id, digest) in appended {
+            let hash = audit_chain_hash(&prev, &id, &digest);
+            tx.execute(
+                "INSERT INTO audit_chain(object_id, body_digest_hex, prev_hash, entry_hash) VALUES (?1, ?2, ?3, ?4)",
+                params![id, digest, prev, hash],
+            )?;
+            prev = hash;
+        }
         tx.execute("DELETE FROM authority_objects", [])?;
         for obj in objects {
             tx.execute(

@@ -821,11 +821,13 @@ pub(crate) fn seed_only_vault(vault_root: &Path) -> SeedOnlyCheck {
     let Some(tables) = query_strings("SELECT name FROM sqlite_master WHERE type = 'table'") else {
         return SeedOnlyCheck::Unproven;
     };
-    const SEED_TABLES: [&str; 4] = [
+    const SEED_TABLES: [&str; 5] = [
         "migration_journal",
         "store_state",
         "sources",
         "authority_objects",
+        // Checked in step 5: entries for proven audit records only.
+        "audit_chain",
     ];
     for row in &tables {
         let Some(Some(name)) = row.first() else {
@@ -1102,6 +1104,41 @@ pub(crate) fn seed_only_vault(vault_root: &Path) -> SeedOnlyCheck {
         };
         if !ok {
             return SeedOnlyCheck::NotFixtureOnly;
+        }
+    }
+    // 5. audit_chain (B4) holds one entry per audit record proven above,
+    // naming it and the SHA-256 of its stored body. Its hash columns may hold
+    // only hex, so it can't carry anything else.
+    if has_table("audit_chain") {
+        let Some(chain) = query_strings(
+            "SELECT object_id, body_digest_hex, prev_hash, entry_hash FROM audit_chain",
+        ) else {
+            return SeedOnlyCheck::Unproven;
+        };
+        let audits: BTreeMap<&str, String> = class("audit")
+            .iter()
+            .map(|(id, body, _)| (id.as_str(), DigestSha256::of(body.as_bytes()).to_hex()))
+            .collect();
+        let hex = |v: &Option<String>, may_be_empty: bool| {
+            v.as_deref().is_some_and(|h| {
+                (may_be_empty && h.is_empty())
+                    || (h.len() == 64 && h.bytes().all(|b| b.is_ascii_hexdigit()))
+            })
+        };
+        let mut chained = BTreeSet::new();
+        for r in &chain {
+            let (Some(Some(id)), Some(Some(digest)), Some(prev), Some(hash)) =
+                (r.first(), r.get(1), r.get(2), r.get(3))
+            else {
+                return SeedOnlyCheck::NotFixtureOnly;
+            };
+            if audits.get(id.as_str()) != Some(digest)
+                || !chained.insert(id.clone())
+                || !hex(prev, true)
+                || !hex(hash, false)
+            {
+                return SeedOnlyCheck::NotFixtureOnly;
+            }
         }
     }
     SeedOnlyCheck::FixtureOnly
@@ -3548,6 +3585,13 @@ mod tests {
                 )
                 .expect("delete audit");
             assert!(removed > 0, "the promotion left an audit row");
+            // Its audit chain entry is written in the same transaction (B4),
+            // so that crash leaves no entry for it either.
+            db.execute(
+                "DELETE FROM audit_chain WHERE object_id NOT IN                  (SELECT object_id FROM authority_objects WHERE object_class = 'audit')",
+                [],
+            )
+            .expect("delete chain entry");
             let proposals: i64 = db
                 .query_row(
                     "SELECT COUNT(*) FROM authority_objects WHERE object_class = 'proposal'",

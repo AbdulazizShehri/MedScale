@@ -456,6 +456,18 @@ enum VaultCmd {
         #[arg(long, default_value = "MEDSCALE_NEW_PASSPHRASE")]
         new_passphrase_env: String,
     },
+    /// Check the audit hash chain of a locked encrypted vault. Exits non-zero
+    /// when any audit record or chain entry was changed outside MedScale.
+    VerifyAudit {
+        #[arg(long)]
+        vault_id: String,
+        #[arg(long)]
+        vault_root: PathBuf,
+        #[arg(long, default_value = "MEDSCALE_PASSPHRASE")]
+        passphrase_env: String,
+        #[arg(long)]
+        json: bool,
+    },
     /// Replace every recovery code of a locked encrypted vault. Needs the
     /// passphrase (from `--passphrase-env`). The new codes go to stderr once.
     ReplaceRecoveryCodes {
@@ -1182,6 +1194,34 @@ fn run() -> Result<()> {
                 vault_change_passphrase_sealed(&vault_id, &vault_root, &current, &new_passphrase)?;
                 println!("vault_passphrase_changed: {}", vault_root.display());
                 println!("note: backups made earlier keep the passphrase they had");
+                Ok(())
+            }
+            VaultCmd::VerifyAudit {
+                vault_id,
+                vault_root,
+                passphrase_env,
+                json,
+            } => {
+                let current = std::env::var(&passphrase_env)
+                    .with_context(|| format!("set the passphrase in env var {passphrase_env}"))?;
+                let (entries, records, problems) =
+                    with_open_vault(&vault_id, &vault_root, &current, |s| s.verify_audit_chain())?;
+                if json {
+                    println!(
+                        "{}",
+                        serde_json::json!({ "entries": entries, "records": records, "problems": problems, "intact": problems.is_empty() })
+                    );
+                } else {
+                    println!("audit_chain_entries: {entries}");
+                    println!("audit_records: {records}");
+                    println!("audit_chain_intact: {}", problems.is_empty());
+                    for problem in &problems {
+                        println!("problem: {problem}");
+                    }
+                }
+                if !problems.is_empty() {
+                    bail!("the audit chain does not match the audit records");
+                }
                 Ok(())
             }
             VaultCmd::ReplaceRecoveryCodes {

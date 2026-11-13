@@ -353,6 +353,21 @@ impl CliSession {
         }
     }
 
+    /// B4: checks the audit hash chain; returns `(entries, records, problems)`.
+    pub fn verify_audit_chain(&mut self) -> Result<(u64, u64, Vec<String>), AuthorityError> {
+        match self.dispatch(
+            Capability::ManageVaultRecovery,
+            RequestBody::VerifyAuditChain,
+        )? {
+            ResponseBody::AuditChainVerified {
+                entries,
+                records,
+                problems,
+            } => Ok((entries, records, problems)),
+            _ => Err(Self::unexpected("audit chain verified")),
+        }
+    }
+
     /// B3: replaces every recovery code; the new ones are returned once.
     pub fn replace_recovery_codes(&mut self, current: &str) -> Result<Vec<String>, AuthorityError> {
         match self.dispatch(
