@@ -21,6 +21,9 @@ pub struct ExtractContext {
     pub content_digest: Option<medscale_contracts::objects::DigestSha256>,
     pub source_bytes: Option<Vec<u8>>,
     pub evidence_healthy: bool,
+    /// B2: the cited resource's `id`, so a citation into a Bundle finds this
+    /// entry and not the first resource of the same type.
+    pub resource_id: Option<String>,
 }
 
 impl Default for ExtractContext {
@@ -30,6 +33,7 @@ impl Default for ExtractContext {
             content_digest: None,
             source_bytes: None,
             evidence_healthy: true,
+            resource_id: None,
         }
     }
 }
@@ -62,8 +66,7 @@ fn citation(ctx: &ExtractContext, path_note: &str) -> Vec<SpanCitation> {
                 },
             }];
             if let Some(bytes) = &ctx.source_bytes
-                && let Some(span) =
-                    find_raw_byte_span(bytes, path_note, resource_key_hint(path_note))
+                && let Some(span) = find_raw_byte_span(bytes, path_note, ctx.resource_id.as_deref())
             {
                 cites.insert(
                     0,
@@ -79,29 +82,202 @@ fn citation(ctx: &ExtractContext, path_note: &str) -> Vec<SpanCitation> {
     }
 }
 
-fn resource_key_hint(path_note: &str) -> Option<&'static str> {
-    // path_note like "Patient.birthDate" → search for "birthDate"
-    match path_note {
-        p if p.ends_with("birthDate") => Some("\"birthDate\""),
-        p if p.ends_with("valueQuantity") => Some("\"valueQuantity\""),
-        p if p.ends_with("code") => Some("\"code\""),
-        p if p.ends_with("clinicalStatus") => Some("\"clinicalStatus\""),
-        p if p.contains("family") => Some("\"family\""),
-        _ => None,
+/// B2: the exact bytes a field came from. `path_note` is `Type.key[.key…]`;
+/// the span covers the whole member, from the key's opening quote to the end
+/// of its value, inside the resource of that type (and `resource_id`, when
+/// given), at the top level or in a Bundle's `entry[].resource`. An array on
+/// the path is entered at its first element. Anything not found exactly gives
+/// no span, never a guess.
+fn find_raw_byte_span(
+    bytes: &[u8],
+    path_note: &str,
+    resource_id: Option<&str>,
+) -> Option<TextSpan> {
+    let mut path = path_note.split('.');
+    let resource_type = path.next()?;
+    let keys: Vec<&str> = path.collect();
+    if keys.is_empty() {
+        return None;
     }
-}
-
-fn find_raw_byte_span(bytes: &[u8], _path: &str, needle: Option<&str>) -> Option<TextSpan> {
-    let needle = needle?;
-    let hay = std::str::from_utf8(bytes).ok()?;
-    let start = hay.find(needle)? as u64;
-    let end = start + needle.len() as u64;
+    let root = json::skip_ws(bytes, 0)?;
+    let resource = json::find_resource(bytes, root, resource_type, resource_id)?;
+    let (start, end) = json::member_span(bytes, resource, &keys)?;
     Some(TextSpan {
         representation: TextRepresentation::SourceBytes,
         coordinate_system: CoordinateSystem::RawByte,
-        start,
-        end,
+        start: start as u64,
+        end: end as u64,
     })
+}
+
+/// Byte positions in JSON text, without building values. Only what citations
+/// need: skip a value, walk an object's members, compare a key or a string.
+mod json {
+    pub(super) fn skip_ws(b: &[u8], mut i: usize) -> Option<usize> {
+        while i < b.len() && matches!(b[i], b' ' | b'\t' | b'\n' | b'\r') {
+            i += 1;
+        }
+        (i < b.len()).then_some(i)
+    }
+
+    /// End (exclusive) of the string starting at the quote `b[i]`.
+    fn string_end(b: &[u8], i: usize) -> Option<usize> {
+        let mut j = i + 1;
+        while j < b.len() {
+            match b[j] {
+                b'\\' => j += 2,
+                b'"' => return Some(j + 1),
+                _ => j += 1,
+            }
+        }
+        None
+    }
+
+    /// End (exclusive) of the value starting at `b[i]`.
+    pub(super) fn value_end(b: &[u8], i: usize) -> Option<usize> {
+        match *b.get(i)? {
+            b'"' => string_end(b, i),
+            b'{' | b'[' => {
+                let mut depth = 0_usize;
+                let mut j = i;
+                while j < b.len() {
+                    match b[j] {
+                        b'"' => {
+                            j = string_end(b, j)?;
+                            continue;
+                        }
+                        b'{' | b'[' => depth += 1,
+                        b'}' | b']' => {
+                            depth -= 1;
+                            if depth == 0 {
+                                return Some(j + 1);
+                            }
+                        }
+                        _ => {}
+                    }
+                    j += 1;
+                }
+                None
+            }
+            _ => {
+                let mut j = i;
+                while j < b.len()
+                    && !matches!(b[j], b',' | b'}' | b']' | b' ' | b'\t' | b'\n' | b'\r')
+                {
+                    j += 1;
+                }
+                (j > i).then_some(j)
+            }
+        }
+    }
+
+    /// `(key_start, value_start, value_end)` of each member of the object at `b[i]`.
+    fn members(b: &[u8], i: usize) -> Option<Vec<(usize, usize, usize)>> {
+        if *b.get(i)? != b'{' {
+            return None;
+        }
+        let mut out = Vec::new();
+        let mut j = skip_ws(b, i + 1)?;
+        if b[j] == b'}' {
+            return Some(out);
+        }
+        loop {
+            if b[j] != b'"' {
+                return None;
+            }
+            let key_end = string_end(b, j)?;
+            let colon = skip_ws(b, key_end)?;
+            if b[colon] != b':' {
+                return None;
+            }
+            let value = skip_ws(b, colon + 1)?;
+            let end = value_end(b, value)?;
+            out.push((j, value, end));
+            let next = skip_ws(b, end)?;
+            match b[next] {
+                b',' => j = skip_ws(b, next + 1)?,
+                b'}' => return Some(out),
+                _ => return None,
+            }
+        }
+    }
+
+    /// True when the string token at `b[i..end]` is exactly `text`. Escaped
+    /// keys never match, which only means no span.
+    fn is_string(b: &[u8], i: usize, end: usize, text: &str) -> bool {
+        end >= i + 2 && &b[i + 1..end - 1] == text.as_bytes()
+    }
+
+    fn member(b: &[u8], object: usize, key: &str) -> Option<(usize, usize, usize)> {
+        members(b, object)?
+            .into_iter()
+            .find(|&(k, _, _)| string_end(b, k).is_some_and(|end| is_string(b, k, end, key)))
+    }
+
+    fn has_string(b: &[u8], object: usize, key: &str, text: &str) -> bool {
+        member(b, object, key).is_some_and(|(_, v, e)| is_string(b, v, e, text))
+    }
+
+    /// The resource object of this type (and id): the root, or a Bundle entry.
+    pub(super) fn find_resource(
+        b: &[u8],
+        root: usize,
+        resource_type: &str,
+        id: Option<&str>,
+    ) -> Option<usize> {
+        let matches = |o: usize| {
+            has_string(b, o, "resourceType", resource_type)
+                && id.is_none_or(|id| has_string(b, o, "id", id))
+        };
+        if matches(root) {
+            return Some(root);
+        }
+        if !has_string(b, root, "resourceType", "Bundle") {
+            return None;
+        }
+        let (_, entries, _) = member(b, root, "entry")?;
+        if b[entries] != b'[' {
+            return None;
+        }
+        let mut j = skip_ws(b, entries + 1)?;
+        let mut found = None;
+        while b[j] != b']' {
+            let end = value_end(b, j)?;
+            if let Some((_, res, _)) = member(b, j, "resource")
+                && b[res] == b'{'
+                && matches(res)
+            {
+                if found.is_some() {
+                    // Two entries match: the citation would be ambiguous.
+                    return None;
+                }
+                found = Some(res);
+            }
+            let next = skip_ws(b, end)?;
+            j = if b[next] == b',' {
+                skip_ws(b, next + 1)?
+            } else {
+                next
+            };
+        }
+        found
+    }
+
+    /// Span of the member at `keys` inside the object at `b[object]`.
+    pub(super) fn member_span(b: &[u8], object: usize, keys: &[&str]) -> Option<(usize, usize)> {
+        let mut at = object;
+        for (n, key) in keys.iter().enumerate() {
+            if b[at] == b'[' {
+                at = skip_ws(b, at + 1)?;
+            }
+            let (k, v, e) = member(b, at, key)?;
+            if n + 1 == keys.len() {
+                return Some((k, e));
+            }
+            at = v;
+        }
+        None
+    }
 }
 
 fn evidence_refs(ctx: &ExtractContext) -> Vec<OpaqueId> {
@@ -420,6 +596,59 @@ pub fn unit_conflict_status(fields: &[&ExtractedField]) -> Option<CoverageStatus
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    fn span_text<'a>(bytes: &'a [u8], path: &str, id: Option<&str>) -> Option<&'a str> {
+        let span = find_raw_byte_span(bytes, path, id)?;
+        std::str::from_utf8(&bytes[span.start as usize..span.end as usize]).ok()
+    }
+
+    #[test]
+    fn a_citation_covers_the_member_of_the_cited_resource() {
+        // The first "code" in the file belongs to the meta, not the Observation's code.
+        let one = br#"{"resourceType":"Observation","meta":{"tag":[{"code":"x"}]},"id":"o1","code":{"text":"Potassium"},"valueQuantity":{"value":5.40,"unit":"mmol/L"}}"#;
+        assert_eq!(
+            span_text(one, "Observation.code", None),
+            Some(r#""code":{"text":"Potassium"}"#)
+        );
+        assert_eq!(
+            span_text(one, "Observation.valueQuantity", Some("o1")),
+            Some(r#""valueQuantity":{"value":5.40,"unit":"mmol/L"}"#)
+        );
+        assert_eq!(
+            span_text(one, "Observation.valueQuantity", Some("other")),
+            None
+        );
+        assert_eq!(
+            span_text(one, "Patient.birthDate", None),
+            None,
+            "wrong type, no guess"
+        );
+    }
+
+    #[test]
+    fn a_citation_into_a_bundle_finds_its_own_entry() {
+        let bundle = br#"{"resourceType":"Bundle","entry":[
+ {"resource":{"resourceType":"Observation","id":"a","code":{"text":"Sodium"}}},
+ {"resource":{"resourceType":"Observation","id":"b","code":{"text":"Pot\"assium"}}},
+ {"resource":{"resourceType":"Patient","id":"p","name":[{"family":"Synthetic","given":["Ada"]}],"birthDate":"1980-01-01"}}]}"#;
+        assert_eq!(
+            span_text(bundle, "Observation.code", Some("b")),
+            Some(r#""code":{"text":"Pot\"assium"}"#)
+        );
+        assert_eq!(
+            span_text(bundle, "Observation.code", None),
+            None,
+            "two entries match: ambiguous"
+        );
+        assert_eq!(
+            span_text(bundle, "Patient.name.family", Some("p")),
+            Some(r#""family":"Synthetic""#)
+        );
+        assert_eq!(
+            span_text(bundle, "Patient.birthDate", None),
+            Some(r#""birthDate":"1980-01-01""#)
+        );
+    }
     use serde_json::json;
 
     #[test]
