@@ -157,7 +157,7 @@ fn assert_citations(name: &str, bytes: &[u8], resource: &Value, within: (usize, 
                 "{name}: {} cites {text:.60}",
                 field.field_key
             );
-            let value = text.splitn(2, ':').nth(1).unwrap();
+            let (_, value) = text.split_once(':').unwrap();
             serde_json::from_str::<Value>(value.trim()).unwrap_or_else(|e| {
                 panic!(
                     "{name}: {} span is not a whole member: {e}",
