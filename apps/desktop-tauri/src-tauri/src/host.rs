@@ -3585,6 +3585,13 @@ mod tests {
                 )
                 .expect("delete audit");
             assert!(removed > 0, "the promotion left an audit row");
+            // Its audit chain entry is written in the same transaction (B4),
+            // so that crash leaves no entry for it either.
+            db.execute(
+                "DELETE FROM audit_chain WHERE object_id NOT IN                  (SELECT object_id FROM authority_objects WHERE object_class = 'audit')",
+                [],
+            )
+            .expect("delete chain entry");
             let proposals: i64 = db
                 .query_row(
                     "SELECT COUNT(*) FROM authority_objects WHERE object_class = 'proposal'",
