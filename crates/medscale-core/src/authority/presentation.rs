@@ -169,7 +169,12 @@ fn fields_equal_value(a: &ExtractedField, b: &ExtractedField) -> bool {
     if a.value == b.value && a.unit == b.unit {
         return true;
     }
-    let number = |f: &ExtractedField| f.value.as_ref().and_then(serde_json::Value::as_f64);
+    // Decimals arrive as their exact text (B2), integers as numbers.
+    let number = |f: &ExtractedField| {
+        f.value
+            .as_ref()
+            .and_then(|v| v.as_f64().or_else(|| v.as_str()?.trim().parse().ok()))
+    };
     let (Some(x), Some(y)) = (number(a), number(b)) else {
         return false;
     };

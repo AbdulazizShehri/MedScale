@@ -19,8 +19,6 @@ pub enum LexicalError {
     DuplicateKey(String),
     #[error("JSON nesting too deep")]
     TooDeep,
-    #[error("silent f64 clinical decimal coercion forbidden")]
-    UnsafeDecimal,
     #[error("FHIR version not admitted: {0:?}")]
     Version(Option<String>),
     #[error("media type must be application/fhir+json")]
@@ -49,10 +47,8 @@ pub fn gate_fhir_json(
         return Err(LexicalError::TooLarge);
     }
     reject_duplicate_keys(bytes)?;
-    reject_unsafe_decimals(bytes)?;
 
-    let value: Value =
-        serde_json::from_slice(bytes).map_err(|e| LexicalError::InvalidJson(e.to_string()))?;
+    let value = parse_exact_decimals(bytes)?;
     check_depth(&value, 0)?;
 
     let resource_type = value
@@ -366,66 +362,87 @@ fn expect_ident(chars: &[char], i: &mut usize, word: &str) -> Result<(), Lexical
     Ok(())
 }
 
-/// Reject JSON numbers that appear in contexts where FHIR decimal must not be f64.
-/// Policy: any fractional/exponent number token is forbidden unless the value is a JSON string.
-/// We approximate by forbidding `:` followed by a number containing `.` or `e` for known decimal-ish keys
-/// and also forbidding any number with `.`/`e` adjacent to `"value":` clinical patterns.
-fn reject_unsafe_decimals(bytes: &[u8]) -> Result<(), LexicalError> {
-    let text = std::str::from_utf8(bytes).map_err(|e| LexicalError::InvalidJson(e.to_string()))?;
-    // Fail closed on numeric tokens with fraction/exponent (clinical decimals must be strings).
-    let chars: Vec<char> = text.chars().collect();
+/// Byte ranges of the number tokens that f64 can't hold exactly: any with a
+/// fraction or an exponent, and integers longer than 15 digits. Strings are
+/// skipped; JSON's delimiters are ASCII, so scanning bytes is safe in UTF-8.
+fn inexact_number_spans(bytes: &[u8]) -> Vec<(usize, usize)> {
+    let mut spans = Vec::new();
     let mut i = 0;
-    while i < chars.len() {
-        if chars[i] == '"' {
-            // skip string
+    while i < bytes.len() {
+        let c = bytes[i];
+        if c == b'"' {
             i += 1;
-            while i < chars.len() {
-                if chars[i] == '\\' {
-                    i += 2;
-                    continue;
+            while i < bytes.len() {
+                match bytes[i] {
+                    b'\\' => i += 2,
+                    b'"' => {
+                        i += 1;
+                        break;
+                    }
+                    _ => i += 1,
                 }
-                if chars[i] == '"' {
-                    i += 1;
-                    break;
-                }
-                i += 1;
             }
             continue;
         }
-        if chars[i] == '-' || chars[i].is_ascii_digit() {
+        if c == b'-' || c.is_ascii_digit() {
             let start = i;
-            if chars[i] == '-' {
+            if c == b'-' {
                 i += 1;
             }
-            while i < chars.len() && chars[i].is_ascii_digit() {
+            let digits_start = i;
+            while i < bytes.len() && bytes[i].is_ascii_digit() {
                 i += 1;
             }
-            let mut unsafe_num = false;
-            if i < chars.len() && chars[i] == '.' {
-                unsafe_num = true;
+            let mut inexact = i - digits_start > 15;
+            if i < bytes.len() && bytes[i] == b'.' {
+                inexact = true;
                 i += 1;
-                while i < chars.len() && chars[i].is_ascii_digit() {
+                while i < bytes.len() && bytes[i].is_ascii_digit() {
                     i += 1;
                 }
             }
-            if i < chars.len() && (chars[i] == 'e' || chars[i] == 'E') {
-                unsafe_num = true;
+            if i < bytes.len() && (bytes[i] == b'e' || bytes[i] == b'E') {
+                inexact = true;
                 i += 1;
-                if i < chars.len() && (chars[i] == '+' || chars[i] == '-') {
+                if i < bytes.len() && (bytes[i] == b'+' || bytes[i] == b'-') {
                     i += 1;
                 }
-                while i < chars.len() && chars[i].is_ascii_digit() {
+                while i < bytes.len() && bytes[i].is_ascii_digit() {
                     i += 1;
                 }
             }
-            if unsafe_num && start < i {
-                return Err(LexicalError::UnsafeDecimal);
+            if inexact && start < i {
+                spans.push((start, i));
             }
             continue;
         }
         i += 1;
     }
-    Ok(())
+    spans
+}
+
+/// B2: parses FHIR JSON keeping every decimal exactly as written. A number
+/// that f64 can't hold exactly (`1.10`, `6.02e23`, a 20-digit integer) becomes
+/// a JSON string of its original text, so it is never rounded and trailing
+/// zeros, which carry precision in FHIR, are kept. The source bytes are not
+/// changed; only this parsed view is.
+pub fn parse_exact_decimals(bytes: &[u8]) -> Result<Value, LexicalError> {
+    let text = std::str::from_utf8(bytes).map_err(|e| LexicalError::InvalidJson(e.to_string()))?;
+    let spans = inexact_number_spans(bytes);
+    if spans.is_empty() {
+        return serde_json::from_str(text).map_err(|e| LexicalError::InvalidJson(e.to_string()));
+    }
+    let mut quoted = String::with_capacity(text.len() + spans.len() * 2);
+    let mut at = 0;
+    for (start, end) in spans {
+        quoted.push_str(&text[at..start]);
+        quoted.push('"');
+        quoted.push_str(&text[start..end]);
+        quoted.push('"');
+        at = end;
+    }
+    quoted.push_str(&text[at..]);
+    serde_json::from_str(&quoted).map_err(|e| LexicalError::InvalidJson(e.to_string()))
 }
 
 #[cfg(test)]
@@ -498,11 +515,28 @@ mod tests {
     }
 
     #[test]
-    fn fractional_number_rejected() {
-        let bytes = br#"{"resourceType":"Observation","valueQuantity":{"value":1.5}}"#;
+    fn decimals_are_admitted_and_kept_exactly() {
+        let bytes = br#"{"resourceType":"Observation","valueQuantity":{"value":1.10,"unit":"mg"},"note":[{"text":"a 2.5 \"quoted\" 3.0"}],"x":[-0.000120,6.02e23,12345678901234567890,42,-7]}"#;
+        assert!(gate_fhir_json("application/fhir+json", bytes, None).is_ok());
+        let v = parse_exact_decimals(bytes).unwrap();
         assert_eq!(
-            gate_fhir_json("application/fhir+json", bytes, None),
-            Err(LexicalError::UnsafeDecimal)
+            v["valueQuantity"]["value"],
+            Value::String("1.10".to_owned())
         );
+        assert_eq!(
+            v["note"][0]["text"],
+            Value::String("a 2.5 \"quoted\" 3.0".to_owned())
+        );
+        assert_eq!(v["x"][0], Value::String("-0.000120".to_owned()));
+        assert_eq!(v["x"][1], Value::String("6.02e23".to_owned()));
+        assert_eq!(v["x"][2], Value::String("12345678901234567890".to_owned()));
+        assert_eq!(v["x"][3], Value::from(42));
+        assert_eq!(v["x"][4], Value::from(-7));
+    }
+
+    #[test]
+    fn a_huge_exponent_is_kept_not_refused() {
+        let bytes = br#"{"resourceType":"Observation","valueQuantity":{"value":1e400}}"#;
+        assert!(gate_fhir_json("application/fhir+json", bytes, None).is_ok());
     }
 }
