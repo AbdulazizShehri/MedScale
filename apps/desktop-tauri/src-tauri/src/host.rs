@@ -2709,7 +2709,7 @@ fn open_encrypted_workspace(
     Ok(outcome)
 }
 
-fn validate_passphrase(passphrase: &str) -> CmdResult<()> {
+pub fn validate_passphrase(passphrase: &str) -> CmdResult<()> {
     let len = passphrase.chars().count();
     if !(8..=256).contains(&len) {
         return Err(CmdError::invalid(

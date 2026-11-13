@@ -177,6 +177,66 @@ impl KeyProvider {
         Ok((dek, header, codes))
     }
 
+    /// A new header whose passphrase wrap uses `new_passphrase`, a fresh salt
+    /// and the current profile. `current` must already unlock `header`, and it
+    /// must be the same data key as `dek`, so an open session alone can't change
+    /// the passphrase. Recovery wraps are kept.
+    pub fn change_passphrase(
+        header: &VaultKeyHeader,
+        dek: &VaultDek,
+        current: &str,
+        new_passphrase: &str,
+    ) -> Result<VaultKeyHeader, KeyError> {
+        if new_passphrase.is_empty() {
+            return Err(KeyError::Invalid("empty passphrase".to_owned()));
+        }
+        let checked = Self::unlock_passphrase(header, current)?;
+        if checked.as_bytes() != dek.as_bytes() {
+            return Err(KeyError::MissingKeyMaterial);
+        }
+        let profile = EncryptionProfile::v1();
+        let mut salt = vec![0u8; 16];
+        rand::thread_rng().fill_bytes(&mut salt);
+        let aad = Self::aad(&header.vault_id);
+        let mut kek = Self::derive_kek(new_passphrase, &salt, &profile)?;
+        let passphrase_wrap = seal(&kek, dek.as_bytes(), &aad).map_err(|_| KeyError::Crypto)?;
+        kek.zeroize();
+        Ok(VaultKeyHeader {
+            profile,
+            salt,
+            passphrase_wrap,
+            ..header.clone()
+        })
+    }
+
+    /// A new header with a fresh set of recovery codes, returned once. Every
+    /// earlier code stops working. Needs the current passphrase, like
+    /// [`Self::change_passphrase`].
+    pub fn replace_recovery_codes(
+        header: &VaultKeyHeader,
+        dek: &VaultDek,
+        current: &str,
+    ) -> Result<(VaultKeyHeader, RecoveryCodeSet), KeyError> {
+        let checked = Self::unlock_passphrase(header, current)?;
+        if checked.as_bytes() != dek.as_bytes() {
+            return Err(KeyError::MissingKeyMaterial);
+        }
+        let aad = Self::aad(&header.vault_id);
+        let codes = generate_recovery_codes(RECOVERY_CODE_COUNT);
+        let mut recovery_wraps = Vec::with_capacity(codes.codes.len());
+        for code in &codes.codes {
+            recovery_wraps.push(wrap_with_code(dek, code, &aad)?);
+        }
+        Ok((
+            VaultKeyHeader {
+                recovery_wraps,
+                revoked_recovery: vec![],
+                ..header.clone()
+            },
+            codes,
+        ))
+    }
+
     pub fn unlock_passphrase(
         header: &VaultKeyHeader,
         passphrase: &str,
@@ -238,6 +298,58 @@ impl KeyProvider {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn change_passphrase_needs_the_current_one_and_keeps_the_data_key() {
+        let (dek, header, codes) =
+            KeyProvider::create_vault_keys("v-rekey", "old passphrase").unwrap();
+        assert!(KeyProvider::change_passphrase(&header, &dek, "wrong", "new passphrase").is_err());
+        assert!(KeyProvider::change_passphrase(&header, &dek, "old passphrase", "").is_err());
+        let changed =
+            KeyProvider::change_passphrase(&header, &dek, "old passphrase", "new passphrase")
+                .unwrap();
+        assert_ne!(changed.salt, header.salt);
+        assert!(KeyProvider::unlock_passphrase(&changed, "old passphrase").is_err());
+        let reopened = KeyProvider::unlock_passphrase(&changed, "new passphrase").unwrap();
+        assert_eq!(reopened.as_bytes(), dek.as_bytes());
+        // Recovery codes are untouched by a passphrase change.
+        assert_eq!(
+            KeyProvider::unlock_recovery(&changed, &codes.codes[0])
+                .unwrap()
+                .as_bytes(),
+            dek.as_bytes()
+        );
+        // A different vault's key can't be used to rewrap this one.
+        let other = VaultDek::generate();
+        assert!(KeyProvider::change_passphrase(&header, &other, "old passphrase", "x").is_err());
+    }
+
+    #[test]
+    fn replacing_recovery_codes_revokes_every_old_code() {
+        let (dek, header, old) = KeyProvider::create_vault_keys("v-codes", "passphrase").unwrap();
+        assert!(KeyProvider::replace_recovery_codes(&header, &dek, "wrong").is_err());
+        let (replaced, new) =
+            KeyProvider::replace_recovery_codes(&header, &dek, "passphrase").unwrap();
+        assert_eq!(new.codes.len(), RECOVERY_CODE_COUNT);
+        for code in &old.codes {
+            assert!(
+                KeyProvider::unlock_recovery(&replaced, code).is_err(),
+                "old code still opens"
+            );
+        }
+        assert_eq!(
+            KeyProvider::unlock_recovery(&replaced, &new.codes[0])
+                .unwrap()
+                .as_bytes(),
+            dek.as_bytes()
+        );
+        assert_eq!(
+            KeyProvider::unlock_passphrase(&replaced, "passphrase")
+                .unwrap()
+                .as_bytes(),
+            dek.as_bytes()
+        );
+    }
     use crate::keystore::MemoryKeyStore;
 
     #[test]

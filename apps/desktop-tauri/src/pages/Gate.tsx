@@ -305,7 +305,7 @@ export function Access({ onBack, onRecoveryCodes }: { onBack: () => void; onReco
       {[
         ["present", "Decrypts on this device", "The vault key is derived from your passphrase. The passphrase and key are never sent anywhere."],
         ["unavailable", "Does not identify you", "MedScale has no organizational sign-in. Anyone with the passphrase can open this vault."],
-        ["absent", "Recovery codes, not resets", "If you lose your passphrase, a recovery code issued at creation opens the vault. Without either, the vault cannot be opened. The passphrase cannot be changed in this version."],
+        ["absent", "Recovery codes, not resets", "If you lose your passphrase, a recovery code issued at creation opens the vault. Without either, the vault cannot be opened. Once it is open, Settings can change the passphrase or replace the codes."],
         [ws?.real_phi_authorized ? "available" : "limited", "Real PHI is not authorized", "Use synthetic or permitted fixtures until private-data authorization is granted."],
       ].map(([k, t, d]) => (
         <div key={t} style={{ display: "grid", gridTemplateColumns: "20px minmax(0,1fr)", gap: 12, padding: "12px 0", borderBottom: "1px solid var(--line-subtle)" }}>
@@ -351,7 +351,7 @@ export function Access({ onBack, onRecoveryCodes }: { onBack: () => void; onReco
                     <input id="pp" type={show ? "text" : "password"} value={pass} onChange={(e) => setPass(e.target.value)} autoComplete={useCode ? "off" : mode === "unlock" ? "current-password" : "new-password"} aria-invalid={error?.kind === "invalid" || error?.kind === "denied"} style={{ flex: 1, height: 36 }} autoFocus />
                     <button type="button" className="btn btn-g" onClick={() => setShow((s) => !s)}>{show ? "Hide" : "Show"}</button>
                   </div>
-                  <span className="t-sm i3" style={{ display: "block", marginTop: 6 }}>{useCode ? "A code from when this vault was created. It opens the vault and stays valid; the passphrase cannot be changed in this version." : "8–256 characters. MedScale can't recover it, so keep it somewhere safe."}</span>
+                  <span className="t-sm i3" style={{ display: "block", marginTop: 6 }}>{useCode ? "A code from when this vault was created. It opens the vault and stays valid until you replace the codes in Settings." : "8–256 characters. MedScale can't recover it, so keep it somewhere safe."}</span>
                   {mode === "unlock" && <button type="button" className="link t-sm" style={{ marginTop: 6 }} onClick={() => { setUseCode((c) => !c); setPass(""); setError(null); }}>{useCode ? "Use my passphrase" : "Use a recovery code"}</button>}
                 </div>
                 {mode === "create" && (

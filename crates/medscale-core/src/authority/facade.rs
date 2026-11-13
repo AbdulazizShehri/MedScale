@@ -1917,6 +1917,27 @@ impl CoreFacade {
                     items: vault.recovery_items().map_err(enc_err)?,
                 })
             }
+            RequestBody::ChangeVaultPassphrase {
+                current,
+                new_passphrase,
+            } => {
+                self.require_lease(&req.vault_id)?;
+                let mut enc = self.encrypted();
+                let vault = enc.as_mut().ok_or(AuthorityError::VaultRequired)?;
+                vault
+                    .change_passphrase(&current, &new_passphrase)
+                    .map_err(enc_err)?;
+                Ok(ResponseBody::VaultPassphraseChanged)
+            }
+            RequestBody::ReplaceRecoveryCodes { current } => {
+                self.require_lease(&req.vault_id)?;
+                let mut enc = self.encrypted();
+                let vault = enc.as_mut().ok_or(AuthorityError::VaultRequired)?;
+                let codes = vault.replace_recovery_codes(&current).map_err(enc_err)?;
+                Ok(ResponseBody::RecoveryCodesReplaced {
+                    recovery_codes: codes.codes.clone(),
+                })
+            }
             RequestBody::RestoreVaultRecoveryCopy { id } => {
                 self.require_lease(&req.vault_id)?;
                 {
@@ -6042,6 +6063,8 @@ fn capability_matches(cap: &Capability, body: &RequestBody) -> bool {
                 RequestBody::ListVaultRecovery
                     | RequestBody::DeleteVaultRecoveryItem { .. }
                     | RequestBody::RestoreVaultRecoveryCopy { .. }
+                    | RequestBody::ChangeVaultPassphrase { .. }
+                    | RequestBody::ReplaceRecoveryCodes { .. }
             )
             | (
                 Capability::NetworkBrokerInvoke,

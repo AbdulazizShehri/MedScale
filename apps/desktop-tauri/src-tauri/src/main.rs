@@ -47,6 +47,8 @@ fn presentation_builder<R: tauri::Runtime>(builder: tauri::Builder<R>) -> tauri:
             cmd_core::vault_recovery_items,
             cmd_core::vault_recovery_delete,
             cmd_core::vault_recovery_restore,
+            cmd_core::vault_change_passphrase,
+            cmd_core::vault_replace_recovery_codes,
             cmd_core::vault_backup,
             cmd_core::vault_restore,
             cmd_core::workspace_lock,

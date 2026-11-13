@@ -1043,6 +1043,50 @@ impl EncryptedVault {
             || sqlite_sidecar(&work, "-journal").exists()
     }
 
+    /// Rewraps the data key under `new_passphrase` (B3). Needs the current
+    /// passphrase. Nothing sealed changes: only the header is rewritten, durably,
+    /// before this session uses it. Backups made earlier still open with the
+    /// passphrase they had.
+    pub fn change_passphrase(
+        &mut self,
+        current: &str,
+        new_passphrase: &str,
+    ) -> Result<(), EncryptedVaultError> {
+        let header =
+            KeyProvider::change_passphrase(&self.header, &self.dek, current, new_passphrase)
+                .map_err(|e| match e {
+                    medscale_keys::KeyError::Invalid(m) => EncryptedVaultError::Invalid(m),
+                    _ => EncryptedVaultError::MissingKeyMaterial,
+                })?;
+        self.write_header(header)
+    }
+
+    /// Replaces every recovery code with a new set, returned once (B3). Needs
+    /// the current passphrase. Old codes stop working for this vault; backups
+    /// made earlier keep the codes they had.
+    pub fn replace_recovery_codes(
+        &mut self,
+        current: &str,
+    ) -> Result<RecoveryCodeSet, EncryptedVaultError> {
+        let (header, codes) = KeyProvider::replace_recovery_codes(&self.header, &self.dek, current)
+            .map_err(|_| EncryptedVaultError::MissingKeyMaterial)?;
+        self.write_header(header)?;
+        Ok(codes)
+    }
+
+    fn write_header(&mut self, header: VaultKeyHeader) -> Result<(), EncryptedVaultError> {
+        let on_disk = OnDiskHeader {
+            keys: header.clone(),
+        };
+        write_durably(
+            &self.root.join(HEADER_TMP),
+            &self.root.join(HEADER_FILE),
+            &serde_json::to_vec_pretty(&on_disk).map_err(|_| EncryptedVaultError::Crypto)?,
+        )?;
+        self.header = header;
+        Ok(())
+    }
+
     pub fn put_blob(&self, bytes: &[u8]) -> Result<DigestSha256, EncryptedVaultError> {
         Ok(self.blobs.put(&self.dek, bytes)?)
     }
