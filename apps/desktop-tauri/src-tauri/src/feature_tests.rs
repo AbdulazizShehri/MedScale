@@ -859,6 +859,78 @@ fn passphrase_change_and_code_replacement() {
     h.ok("workspace_lock", json!({}));
 }
 
+/// B2: a Bundle is stored once and each entry becomes its own record, so
+/// its observations appear one by one, decimals exactly as written. It is
+/// listed as one source, also after the vault is locked and unlocked.
+#[test]
+fn a_fhir_bundle_is_split_into_its_entries() {
+    let h = Harness::new("enc-bundle");
+    h.ok(
+        "workspace_create_encrypted",
+        json!({ "passphrase": "correct horse battery" }),
+    );
+    let outside =
+        std::env::temp_dir().join(format!("medscale-tauri-bundle-src-{}", std::process::id()));
+    std::fs::create_dir_all(&outside).unwrap();
+    let file = outside.join("bundle.json");
+    std::fs::write(
+        &file,
+        br#"{"resourceType":"Bundle","type":"collection","entry":[
+{"resource":{"resourceType":"Patient","id":"b-pat","name":[{"text":"Bundle Synthetic"}]}},
+{"resource":{"resourceType":"Observation","id":"b-obs-1","status":"final","code":{"text":"Synthetic potassium"},"valueQuantity":{"value":5.40,"unit":"mmol/L","code":"mmol/L"},"effectiveDateTime":"2026-01-02"}},
+{"resource":{"resourceType":"Observation","id":"b-obs-2","status":"final","code":{"text":"Synthetic sodium"},"valueQuantity":{"value":139,"unit":"mmol/L","code":"mmol/L"},"effectiveDateTime":"2026-01-03"}},
+{"resource":{"resourceType":"Condition","id":"b-cond","code":{"text":"Synthetic condition"}}}]}"#,
+    )
+    .unwrap();
+    let imported = h.ok(
+        "documents_import_fhir",
+        json!({ "path": file.display().to_string(), "subjectRef": "bundle-subject" }),
+    );
+    assert_eq!(imported["resource_type"], "Bundle", "{imported}");
+    let detail = h.ok("patient_detail", json!({ "subjectRef": "bundle-subject" }));
+    let timeline = detail["timeline"].as_array().unwrap().len();
+    assert!(timeline >= 2, "each entry is its own record: {detail}");
+    assert!(
+        detail.to_string().contains("5.40"),
+        "the decimal is kept exactly: {detail}"
+    );
+    let sources = |h: &Harness| {
+        h.ok("documents_list", json!({}))["sources"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .filter(|s| s["source_id"] == imported["source_id"])
+            .count()
+    };
+    assert_eq!(sources(&h), 1, "one source for the whole Bundle");
+    h.ok("workspace_lock", json!({}));
+    h.ok(
+        "workspace_unlock",
+        json!({ "passphrase": "correct horse battery" }),
+    );
+    assert_eq!(sources(&h), 1, "still one source after unlock");
+
+    for (name, body) in [
+        ("empty.json", &br#"{"resourceType":"Bundle","type":"collection","entry":[]}"#[..]),
+        ("untyped.json", &br#"{"resourceType":"Bundle","entry":[{"resource":{"id":"x"}}]}"#[..]),
+        ("nested.json", &br#"{"resourceType":"Bundle","entry":[{"resource":{"resourceType":"Bundle","entry":[]}}]}"#[..]),
+    ] {
+        let path = outside.join(name);
+        std::fs::write(&path, body).unwrap();
+        assert_eq!(
+            h.call(
+                "documents_import_fhir",
+                json!({ "path": path.display().to_string(), "subjectRef": "bundle-subject" }),
+            )
+            .unwrap_err()["kind"],
+            "invalid",
+            "{name} is refused"
+        );
+    }
+    h.ok("workspace_lock", json!({}));
+    let _ = std::fs::remove_dir_all(&outside);
+}
+
 /// B1: FHIR import into an encrypted vault. The resource and the patient list
 /// stay sealed: after lock and unlock the patient is listed again from Core,
 /// and no file outside the sealed vault holds the subject or the resource.
