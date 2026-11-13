@@ -162,6 +162,7 @@ fn an_older_copy_of_the_folder_is_reported_and_a_restore_is_not() {
     v.close().unwrap();
     drop(report);
     let _ = fs::remove_dir_all(&base);
+}
 
 /// B3: a passphrase change and a recovery-code replacement both need the
 /// current passphrase, survive a reopen, and leave the data readable.
