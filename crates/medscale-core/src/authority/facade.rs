@@ -1937,6 +1937,23 @@ impl CoreFacade {
                     .map_err(enc_err)?;
                 Ok(ResponseBody::VaultPassphraseChanged)
             }
+            RequestBody::VerifyAuditChain => {
+                self.require_lease(&req.vault_id)?;
+                let enc = self.encrypted();
+                let vault = enc.as_ref().ok_or(AuthorityError::VaultRequired)?;
+                let report =
+                    vault
+                        .meta
+                        .verify_audit_chain()
+                        .map_err(|e| AuthorityError::Unavailable {
+                            message: e.to_string(),
+                        })?;
+                Ok(ResponseBody::AuditChainVerified {
+                    entries: report.entries,
+                    records: report.records,
+                    problems: report.problems,
+                })
+            }
             RequestBody::ReplaceRecoveryCodes { current } => {
                 self.require_lease(&req.vault_id)?;
                 let mut enc = self.encrypted();
@@ -6073,6 +6090,7 @@ fn capability_matches(cap: &Capability, body: &RequestBody) -> bool {
                     | RequestBody::RestoreVaultRecoveryCopy { .. }
                     | RequestBody::ChangeVaultPassphrase { .. }
                     | RequestBody::ReplaceRecoveryCodes { .. }
+                    | RequestBody::VerifyAuditChain
             )
             | (
                 Capability::NetworkBrokerInvoke,

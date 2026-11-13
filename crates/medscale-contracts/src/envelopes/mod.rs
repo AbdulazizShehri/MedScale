@@ -723,6 +723,8 @@ pub enum RequestBody {
     ReplaceRecoveryCodes {
         current: String,
     },
+    /// B4: checks the open encrypted vault's audit hash chain.
+    VerifyAuditChain,
     /// Seals the open session, keeps that seal as a copy, makes the chosen copy
     /// the vault's seal, and closes. Unlock again to see it.
     RestoreVaultRecoveryCopy {
@@ -1925,6 +1927,11 @@ pub enum ResponseBody {
         entries: Vec<SubjectRosterEntry>,
     },
     VaultPassphraseChanged,
+    AuditChainVerified {
+        entries: u64,
+        records: u64,
+        problems: Vec<String>,
+    },
     RecoveryCodesReplaced {
         recovery_codes: Vec<String>,
     },
