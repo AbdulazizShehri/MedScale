@@ -1,0 +1,14 @@
+{
+  "export_format": "onnx",
+  "fixed_sequence_length": 4,
+  "license_id": "Apache-2.0",
+  "original_file": "model.onnx",
+  "repository": "medscale://synthetic/069-tiny-token-classifier",
+  "revision": "v0",
+  "runtime_family": "tract_onnx_token_classification_v1",
+  "source_kind": "synthetic_fixture",
+  "source_sha256": "a0ef12de79a197ff6788d8f29d47f8f2e14eea224b7aae9dec756c44f7aec988",
+  "task": "token-classification",
+  "transform": "none",
+  "upstream_rights_uri": "https://medscale.local/rights/synthetic-fixture"
+}

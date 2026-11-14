@@ -1,0 +1,52 @@
+name: MedScale Beta first-run browser smoke
+
+on:
+  pull_request:
+    paths:
+      - apps/desktop-tauri/**
+      - .github/workflows/beta-first-run.yml
+  push:
+    branches: [main]
+    paths:
+      - apps/desktop-tauri/**
+      - .github/workflows/beta-first-run.yml
+
+permissions:
+  contents: read
+
+concurrency:
+  group: beta-first-run-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  first-run:
+    name: first-run synthetic UI (Windows Edge)
+    runs-on: windows-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: '24.19.0'
+          cache: npm
+          cache-dependency-path: apps/desktop-tauri/package-lock.json
+      - name: Build desktop frontend and run existing tests
+        working-directory: apps/desktop-tauri
+        run: |
+          npm ci --ignore-scripts --no-audit --no-fund
+          npm test
+          npm run build
+      - name: One-click synthetic first-run browser smoke
+        working-directory: apps/desktop-tauri
+        env:
+          MEDSCALE_FIRST_RUN_QA_REPORT: ../../target/beta-first-run/browser-report.json
+        run: npm run test:first-run
+      - uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v4.6.2
+        if: always()
+        with:
+          name: medscale-beta-first-run-browser
+          path: target/beta-first-run/browser-report.json
+          if-no-files-found: warn
+          retention-days: 14

@@ -1,0 +1,90 @@
+import { Theme } from "theme.slint";
+import { QuickAction, StateBadge, ToolbarAction } from "components.slint";
+
+// A view over the existing synthetic patient projection and actual runtime truth.
+export component CommandCenter inherits Rectangle {
+    in property <string> patient-name;
+    in property <string> subject-ref;
+    in property <string> condition-summary;
+    in property <string> coverage-summary;
+    in property <int> source-count;
+    in property <string> model-runtime-summary;
+    callback navigate(string);
+
+    background: transparent;
+    accessible-role: groupbox;
+    accessible-label: "Command Center. Synthetic demo; not a clinical risk ranking. Review before anything consequential.";
+
+    VerticalLayout {
+        spacing: 24px;
+
+        HorizontalLayout {
+            spacing: 24px;
+            VerticalLayout {
+                horizontal-stretch: 3;
+                spacing: 12px;
+                Text { text: "CURRENT WORKSPACE"; color: Theme.ink-quiet; font-size: 11px; letter-spacing: 1px; }
+                Text { text: root.patient-name; color: Theme.ink; font-size: 24px; font-weight: 600; }
+                Text { text: root.subject-ref + " · Synthetic demo"; color: Theme.ink-subtle; font-family: Theme.font-mono; font-size: 12px; wrap: word-wrap; }
+                Text { text: root.condition-summary; color: Theme.ink-subtle; font-size: 14px; wrap: word-wrap; }
+                VerticalLayout {
+                    spacing: 8px;
+                    StateBadge { width: 245px; state: "partial"; label: "Synthetic projection"; }
+                    Text { text: root.source-count + " sources · no silent identity merge"; color: Theme.ink-quiet; font-size: 12px; wrap: word-wrap; }
+                }
+                QuickAction {
+                    title: "Open patient record";
+                    subtitle: "Timeline, coverage and original sources";
+                    activated => { root.navigate("Patients"); }
+                }
+            }
+            Rectangle { width: 1px; background: Theme.border; }
+            VerticalLayout {
+                horizontal-stretch: 2;
+                spacing: 12px;
+                Text { text: "LOCAL INTELLIGENCE"; color: Theme.ink-quiet; font-size: 11px; letter-spacing: 1px; }
+                Text { text: "Evidence before authority"; color: Theme.ink; font-size: 18px; font-weight: 600; }
+                Text { text: root.model-runtime-summary; color: Theme.ink-subtle; font-size: 13px; wrap: word-wrap; }
+                Text { text: "Model output remains a proposal. Source, rights, runtime and benchmark evidence stay inspectable."; color: Theme.ink-quiet; font-size: 12px; wrap: word-wrap; }
+                StateBadge { width: 250px; state: "unmeasured"; label: "Clinical quality"; }
+                ToolbarAction { label: "Inspect models"; activated => { root.navigate("Models"); } }
+            }
+        }
+
+        Rectangle { height: 1px; background: Theme.border; }
+
+        VerticalLayout {
+            spacing: 12px;
+            Text { text: "Evidence and uncertainty"; color: Theme.ink; font-size: 18px; font-weight: 600; }
+            Text { text: "Unknown evidence remains unknown. A source relationship does not establish a clinical conclusion."; color: Theme.ink-subtle; font-size: 13px; wrap: word-wrap; }
+            HorizontalLayout {
+                spacing: 20px;
+                VerticalLayout {
+                    horizontal-stretch: 1;
+                    spacing: 8px;
+                    StateBadge { width: 185px; state: "unknown"; label: "Coverage"; }
+                    Text { text: root.coverage-summary; color: Theme.ink-subtle; font-size: 13px; wrap: word-wrap; }
+                    ToolbarAction { label: "Inspect coverage"; activated => { root.navigate("Patients"); } }
+                }
+                Rectangle { width: 1px; background: Theme.border; }
+                VerticalLayout {
+                    horizontal-stretch: 1;
+                    spacing: 8px;
+                    StateBadge { width: 275px; state: "unmeasured"; label: "Comparative claims"; }
+                    Text { text: "Inspect the pinned comparison ledger, source revisions and each claim's limits."; color: Theme.ink-subtle; font-size: 13px; wrap: word-wrap; }
+                    ToolbarAction { label: "Review evidence"; activated => { root.navigate("Evidence"); } }
+                }
+            }
+        }
+
+        Rectangle { height: 1px; background: Theme.border; }
+
+        HorizontalLayout {
+            spacing: 16px;
+            QuickAction { title: "Projects"; subtitle: "Artifacts, experiments and lineage"; activated => { root.navigate("Projects"); } }
+            QuickAction { title: "Data workbench"; subtitle: "Sources and exact snapshots"; activated => { root.navigate("Data"); } }
+            QuickAction { title: "Research OS"; subtitle: "Governed operations and receipts"; activated => { root.navigate("Research OS"); } }
+        }
+        Text { text: "Local-first · default-deny egress · synthetic data only"; color: Theme.ink-quiet; font-size: 12px; }
+    }
+}

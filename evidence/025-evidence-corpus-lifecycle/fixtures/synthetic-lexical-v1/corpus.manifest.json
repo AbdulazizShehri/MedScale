@@ -1,0 +1,45 @@
+{
+  "corpus_id": "synthetic-lexical",
+  "version": "1.0.0",
+  "content_digest": "66f9d18b5ef2b0b05e31b9de55ee4d971fda23601ceb41e00be418e026425dd9",
+  "rights": "synthetic_owned",
+  "rights_uri": "https://medscale.local/rights/synthetic-owned-evidence-corpus",
+  "documents": [
+    {
+      "doc_id": "doc-asthma",
+      "text": "synthetic asthma inhaler rescue critical number trap",
+      "content_digest": "88605d138c3dd59fe3fdaf13fed29f7ee5f660bf2e9fc01b81a216779fe05683",
+      "status": "active",
+      "freshness_marker": "fixture_current"
+    },
+    {
+      "doc_id": "doc-conflict",
+      "text": "synthetic conflicting guidance note duplicate pathway markers",
+      "content_digest": "da1669a0c393b1ad6eeaf2ca29b0d639d00313a8ae771bb24fc7c6826cfcbdb7",
+      "status": "active",
+      "freshness_marker": "fixture_current",
+      "conflict_marker": "duplicate_pathway"
+    },
+    {
+      "doc_id": "doc-dm",
+      "text": "synthetic diabetes mellitus metformin dose discussion",
+      "content_digest": "8b1aee354258423d437459d8638cbab21b3f175e19f1a4ceffa967691606e38b",
+      "status": "active",
+      "freshness_marker": "fixture_current"
+    },
+    {
+      "doc_id": "doc-htn",
+      "text": "synthetic hypertension note blood pressure elevated",
+      "content_digest": "a365950408827aff0208eb384005301e4759974df02cfd9b440c250b9602c58b",
+      "status": "active",
+      "freshness_marker": "fixture_current"
+    },
+    {
+      "doc_id": "doc-statin-retracted",
+      "text": "synthetic statin myopathy note retracted for evidence lifecycle demo",
+      "content_digest": "515b12046a2c010e911da65cd207b145f8de35c7a17f53802c8a30c678db9ba5",
+      "status": "retracted",
+      "freshness_marker": "retracted_fixture"
+    }
+  ]
+}

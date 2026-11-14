@@ -1,0 +1,1 @@
+{"resourceType":"Observation","id":"mass-vs-temp","status":"final","code":{"coding":[{"code":"29463-7"}]},"valueQuantity":{"value":70,"unit":"kg","code":"kg"},"effectiveDateTime":"2020-01-04T01:00:00Z"}

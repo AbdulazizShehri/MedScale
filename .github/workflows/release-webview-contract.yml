@@ -1,0 +1,41 @@
+# Lightweight source-only release browser privacy contract.
+# Do not start a third expensive Rust matrix just to verify bundle settings.
+name: release-webview-contract
+
+on:
+  push:
+    branches:
+      - "test/release-webview-inprivate-contract-*"
+  pull_request:
+    paths:
+      - apps/desktop-tauri/src/bundle-config.test.ts
+      - apps/desktop-tauri/src-tauri/src/main.rs
+      - apps/desktop-tauri/src-tauri/Cargo.toml
+      - apps/desktop-tauri/src-tauri/build.rs
+      - apps/desktop-tauri/src-tauri/tauri.conf.json
+      - scripts/e2e/release-webview-runtime-audit.mjs
+      - scripts/e2e/release-webview-runtime-audit.test.mjs
+      - scripts/e2e/release-webview-postsample-audit.mjs
+      - scripts/e2e/release-webview-postsample-audit.test.mjs
+      - .github/workflows/release-webview-contract.yml
+
+permissions:
+  contents: read
+
+jobs:
+  release-webview-contract:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: "24.19.0"
+      - name: Verify release browser and bundle security contract
+        run: node --experimental-strip-types --test apps/desktop-tauri/src/bundle-config.test.ts
+      - name: Verify read-only release WebView2 probe and privacy guards
+        run: node --test scripts/e2e/release-webview-runtime-audit.test.mjs
+      - name: Verify synthetic sample post-exit browser vs app vault aggregation
+        run: node --test scripts/e2e/release-webview-postsample-audit.test.mjs

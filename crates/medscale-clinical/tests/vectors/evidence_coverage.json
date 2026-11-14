@@ -1,0 +1,538 @@
+{
+  "cases": [
+    {
+      "expected": {
+        "claim_count": 0,
+        "claims": [],
+        "evidence_class_counts": {},
+        "matrix_hash": "sha256:72f67225f8155502882973c227264a49a79962ef4c3995a721d86b353d60091a",
+        "required_evidence_count": 0,
+        "schema_version": "medscale_clinical.clinical.evidence_coverage.v1",
+        "source_fingerprint_count": 0,
+        "source_fingerprint_hash": "sha256:4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+        "status_counts": {
+          "conflicting": 0,
+          "missing": 0,
+          "present": 0,
+          "unreviewed": 0
+        }
+      },
+      "expected_json": "{\"claim_count\":0,\"claims\":[],\"evidence_class_counts\":{},\"matrix_hash\":\"sha256:72f67225f8155502882973c227264a49a79962ef4c3995a721d86b353d60091a\",\"required_evidence_count\":0,\"schema_version\":\"medscale_clinical.clinical.evidence_coverage.v1\",\"source_fingerprint_count\":0,\"source_fingerprint_hash\":\"sha256:4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945\",\"status_counts\":{\"conflicting\":0,\"missing\":0,\"present\":0,\"unreviewed\":0}}",
+      "name": "empty",
+      "requirements": []
+    },
+    {
+      "expected": {
+        "claim_count": 1,
+        "claims": [
+          {
+            "claim_hash": "sha256:22354804a3d3c12889b110c9bf2f3b7b2386828cf7f3283067d1c71ce8e123c2",
+            "claim_id": "sha256:b8eccd74fe344c3e91654493ed1cc69e9b637cf8dd0ed2d2884f2375bd15c4f2",
+            "requirements": [
+              {
+                "evidence_class": "local_record",
+                "review_state": "reviewed",
+                "source_fingerprints": [
+                  "sha256:1111111111111111111111111111111111111111111111111111111111111111"
+                ],
+                "status": "present"
+              }
+            ]
+          }
+        ],
+        "evidence_class_counts": {
+          "local_record": {
+            "conflicting": 0,
+            "missing": 0,
+            "present": 1,
+            "unreviewed": 0
+          }
+        },
+        "matrix_hash": "sha256:be62f81f9ebe65d453048ccecbaf39ab8e9c1b460ed415c2ceca37bd65d25561",
+        "required_evidence_count": 1,
+        "schema_version": "medscale_clinical.clinical.evidence_coverage.v1",
+        "source_fingerprint_count": 1,
+        "source_fingerprint_hash": "sha256:9735116526ebec8187d8f2fad59d3146d4e23069ae6bdfc0fa951f2280a2f5df",
+        "status_counts": {
+          "conflicting": 0,
+          "missing": 0,
+          "present": 1,
+          "unreviewed": 0
+        }
+      },
+      "expected_json": "{\"claim_count\":1,\"claims\":[{\"claim_hash\":\"sha256:22354804a3d3c12889b110c9bf2f3b7b2386828cf7f3283067d1c71ce8e123c2\",\"claim_id\":\"sha256:b8eccd74fe344c3e91654493ed1cc69e9b637cf8dd0ed2d2884f2375bd15c4f2\",\"requirements\":[{\"evidence_class\":\"local_record\",\"review_state\":\"reviewed\",\"source_fingerprints\":[\"sha256:1111111111111111111111111111111111111111111111111111111111111111\"],\"status\":\"present\"}]}],\"evidence_class_counts\":{\"local_record\":{\"conflicting\":0,\"missing\":0,\"present\":1,\"unreviewed\":0}},\"matrix_hash\":\"sha256:be62f81f9ebe65d453048ccecbaf39ab8e9c1b460ed415c2ceca37bd65d25561\",\"required_evidence_count\":1,\"schema_version\":\"medscale_clinical.clinical.evidence_coverage.v1\",\"source_fingerprint_count\":1,\"source_fingerprint_hash\":\"sha256:9735116526ebec8187d8f2fad59d3146d4e23069ae6bdfc0fa951f2280a2f5df\",\"status_counts\":{\"conflicting\":0,\"missing\":0,\"present\":1,\"unreviewed\":0}}",
+      "name": "one_present",
+      "requirements": [
+        [
+          "claim-a",
+          "local_record",
+          "present",
+          [
+            "sha256:1111111111111111111111111111111111111111111111111111111111111111"
+          ]
+        ]
+      ]
+    },
+    {
+      "expected": {
+        "claim_count": 1,
+        "claims": [
+          {
+            "claim_hash": "sha256:980a63f1b8b3d2ac5ef15738c5946240f4d2b568fe67019984e773dbd2092e7c",
+            "claim_id": "sha256:b8eccd74fe344c3e91654493ed1cc69e9b637cf8dd0ed2d2884f2375bd15c4f2",
+            "requirements": [
+              {
+                "evidence_class": "review_note",
+                "review_state": "missing",
+                "source_fingerprints": [],
+                "status": "missing"
+              },
+              {
+                "evidence_class": "second_source",
+                "review_state": "unreviewed",
+                "source_fingerprints": [
+                  "sha256:2222222222222222222222222222222222222222222222222222222222222222"
+                ],
+                "status": "unreviewed"
+              }
+            ]
+          }
+        ],
+        "evidence_class_counts": {
+          "review_note": {
+            "conflicting": 0,
+            "missing": 1,
+            "present": 0,
+            "unreviewed": 0
+          },
+          "second_source": {
+            "conflicting": 0,
+            "missing": 0,
+            "present": 0,
+            "unreviewed": 1
+          }
+        },
+        "matrix_hash": "sha256:05c9ba5cb629993333409de37d213974949fb07edc4c8676d3c64d71115ac429",
+        "required_evidence_count": 2,
+        "schema_version": "medscale_clinical.clinical.evidence_coverage.v1",
+        "source_fingerprint_count": 1,
+        "source_fingerprint_hash": "sha256:8aac6f032404f1cc2cd84f0bf9970f77a32834e936cfdef633b3ee6b184c85d1",
+        "status_counts": {
+          "conflicting": 0,
+          "missing": 1,
+          "present": 0,
+          "unreviewed": 1
+        }
+      },
+      "expected_json": "{\"claim_count\":1,\"claims\":[{\"claim_hash\":\"sha256:980a63f1b8b3d2ac5ef15738c5946240f4d2b568fe67019984e773dbd2092e7c\",\"claim_id\":\"sha256:b8eccd74fe344c3e91654493ed1cc69e9b637cf8dd0ed2d2884f2375bd15c4f2\",\"requirements\":[{\"evidence_class\":\"review_note\",\"review_state\":\"missing\",\"source_fingerprints\":[],\"status\":\"missing\"},{\"evidence_class\":\"second_source\",\"review_state\":\"unreviewed\",\"source_fingerprints\":[\"sha256:2222222222222222222222222222222222222222222222222222222222222222\"],\"status\":\"unreviewed\"}]}],\"evidence_class_counts\":{\"review_note\":{\"conflicting\":0,\"missing\":1,\"present\":0,\"unreviewed\":0},\"second_source\":{\"conflicting\":0,\"missing\":0,\"present\":0,\"unreviewed\":1}},\"matrix_hash\":\"sha256:05c9ba5cb629993333409de37d213974949fb07edc4c8676d3c64d71115ac429\",\"required_evidence_count\":2,\"schema_version\":\"medscale_clinical.clinical.evidence_coverage.v1\",\"source_fingerprint_count\":1,\"source_fingerprint_hash\":\"sha256:8aac6f032404f1cc2cd84f0bf9970f77a32834e936cfdef633b3ee6b184c85d1\",\"status_counts\":{\"conflicting\":0,\"missing\":1,\"present\":0,\"unreviewed\":1}}",
+      "name": "missing_and_unreviewed",
+      "requirements": [
+        [
+          "claim-a",
+          "review_note",
+          "missing",
+          []
+        ],
+        [
+          "claim-a",
+          "second_source",
+          "unreviewed",
+          [
+            "sha256:2222222222222222222222222222222222222222222222222222222222222222"
+          ]
+        ]
+      ]
+    },
+    {
+      "expected": {
+        "claim_count": 1,
+        "claims": [
+          {
+            "claim_hash": "sha256:e310b36119b604ee15c15298655f4043528a5d95f5200ede6ad559e269ce9c11",
+            "claim_id": "sha256:b8eccd74fe344c3e91654493ed1cc69e9b637cf8dd0ed2d2884f2375bd15c4f2",
+            "requirements": [
+              {
+                "evidence_class": "local_record",
+                "review_state": "reviewed",
+                "source_fingerprints": [
+                  "sha256:1111111111111111111111111111111111111111111111111111111111111111",
+                  "sha256:2222222222222222222222222222222222222222222222222222222222222222"
+                ],
+                "status": "present"
+              }
+            ]
+          }
+        ],
+        "evidence_class_counts": {
+          "local_record": {
+            "conflicting": 0,
+            "missing": 0,
+            "present": 1,
+            "unreviewed": 0
+          }
+        },
+        "matrix_hash": "sha256:b053bbe9f4b3625e4d11f1b9854ba763deeefa0d0604823b8984bb0cd4cef46b",
+        "required_evidence_count": 1,
+        "schema_version": "medscale_clinical.clinical.evidence_coverage.v1",
+        "source_fingerprint_count": 2,
+        "source_fingerprint_hash": "sha256:636d591478be5cb76f2025a46b17a229fa29ef91724891793005baa9eef2100e",
+        "status_counts": {
+          "conflicting": 0,
+          "missing": 0,
+          "present": 1,
+          "unreviewed": 0
+        }
+      },
+      "expected_json": "{\"claim_count\":1,\"claims\":[{\"claim_hash\":\"sha256:e310b36119b604ee15c15298655f4043528a5d95f5200ede6ad559e269ce9c11\",\"claim_id\":\"sha256:b8eccd74fe344c3e91654493ed1cc69e9b637cf8dd0ed2d2884f2375bd15c4f2\",\"requirements\":[{\"evidence_class\":\"local_record\",\"review_state\":\"reviewed\",\"source_fingerprints\":[\"sha256:1111111111111111111111111111111111111111111111111111111111111111\",\"sha256:2222222222222222222222222222222222222222222222222222222222222222\"],\"status\":\"present\"}]}],\"evidence_class_counts\":{\"local_record\":{\"conflicting\":0,\"missing\":0,\"present\":1,\"unreviewed\":0}},\"matrix_hash\":\"sha256:b053bbe9f4b3625e4d11f1b9854ba763deeefa0d0604823b8984bb0cd4cef46b\",\"required_evidence_count\":1,\"schema_version\":\"medscale_clinical.clinical.evidence_coverage.v1\",\"source_fingerprint_count\":2,\"source_fingerprint_hash\":\"sha256:636d591478be5cb76f2025a46b17a229fa29ef91724891793005baa9eef2100e\",\"status_counts\":{\"conflicting\":0,\"missing\":0,\"present\":1,\"unreviewed\":0}}",
+      "name": "same_status_merges",
+      "requirements": [
+        [
+          "claim-a",
+          "local_record",
+          "present",
+          [
+            "sha256:1111111111111111111111111111111111111111111111111111111111111111"
+          ]
+        ],
+        [
+          "claim-a",
+          "local_record",
+          "present",
+          [
+            "sha256:2222222222222222222222222222222222222222222222222222222222222222"
+          ]
+        ]
+      ]
+    },
+    {
+      "expected": {
+        "claim_count": 2,
+        "claims": [
+          {
+            "claim_hash": "sha256:21d6c33e49f7a665d12b80ae7cb89c68d4cdb4df5d2b57998db7c62525a55b8d",
+            "claim_id": "sha256:b8eccd74fe344c3e91654493ed1cc69e9b637cf8dd0ed2d2884f2375bd15c4f2",
+            "requirements": [
+              {
+                "evidence_class": "local_record",
+                "review_state": "conflicting",
+                "source_fingerprints": [
+                  "sha256:1111111111111111111111111111111111111111111111111111111111111111"
+                ],
+                "status": "conflicting"
+              }
+            ]
+          },
+          {
+            "claim_hash": "sha256:1d2fb9c182800611505e963aba8067b95990393ceb66ed3a3e0444db5d0aaf81",
+            "claim_id": "sha256:dd9ec5bc1ee2b6bc57d0e6a12132d5f81f2e881c310e778bb0f49deb5f5a842a",
+            "requirements": [
+              {
+                "evidence_class": "review_note",
+                "review_state": "conflicting",
+                "source_fingerprints": [
+                  "sha256:abababababababababababababababababababababababababababababababab"
+                ],
+                "status": "conflicting"
+              }
+            ]
+          }
+        ],
+        "evidence_class_counts": {
+          "local_record": {
+            "conflicting": 1,
+            "missing": 0,
+            "present": 0,
+            "unreviewed": 0
+          },
+          "review_note": {
+            "conflicting": 1,
+            "missing": 0,
+            "present": 0,
+            "unreviewed": 0
+          }
+        },
+        "matrix_hash": "sha256:d9a518eb4c86565be5fca7830fc1a93ed140a51ece96ff6736d7b73d510d499d",
+        "required_evidence_count": 2,
+        "schema_version": "medscale_clinical.clinical.evidence_coverage.v1",
+        "source_fingerprint_count": 2,
+        "source_fingerprint_hash": "sha256:7655dd7622c70988acf1c469f266dd6a171646c402d5831a56139826cb6cf0fb",
+        "status_counts": {
+          "conflicting": 2,
+          "missing": 0,
+          "present": 0,
+          "unreviewed": 0
+        }
+      },
+      "expected_json": "{\"claim_count\":2,\"claims\":[{\"claim_hash\":\"sha256:21d6c33e49f7a665d12b80ae7cb89c68d4cdb4df5d2b57998db7c62525a55b8d\",\"claim_id\":\"sha256:b8eccd74fe344c3e91654493ed1cc69e9b637cf8dd0ed2d2884f2375bd15c4f2\",\"requirements\":[{\"evidence_class\":\"local_record\",\"review_state\":\"conflicting\",\"source_fingerprints\":[\"sha256:1111111111111111111111111111111111111111111111111111111111111111\"],\"status\":\"conflicting\"}]},{\"claim_hash\":\"sha256:1d2fb9c182800611505e963aba8067b95990393ceb66ed3a3e0444db5d0aaf81\",\"claim_id\":\"sha256:dd9ec5bc1ee2b6bc57d0e6a12132d5f81f2e881c310e778bb0f49deb5f5a842a\",\"requirements\":[{\"evidence_class\":\"review_note\",\"review_state\":\"conflicting\",\"source_fingerprints\":[\"sha256:abababababababababababababababababababababababababababababababab\"],\"status\":\"conflicting\"}]}],\"evidence_class_counts\":{\"local_record\":{\"conflicting\":1,\"missing\":0,\"present\":0,\"unreviewed\":0},\"review_note\":{\"conflicting\":1,\"missing\":0,\"present\":0,\"unreviewed\":0}},\"matrix_hash\":\"sha256:d9a518eb4c86565be5fca7830fc1a93ed140a51ece96ff6736d7b73d510d499d\",\"required_evidence_count\":2,\"schema_version\":\"medscale_clinical.clinical.evidence_coverage.v1\",\"source_fingerprint_count\":2,\"source_fingerprint_hash\":\"sha256:7655dd7622c70988acf1c469f266dd6a171646c402d5831a56139826cb6cf0fb\",\"status_counts\":{\"conflicting\":2,\"missing\":0,\"present\":0,\"unreviewed\":0}}",
+      "name": "different_statuses_conflict",
+      "requirements": [
+        [
+          "claim-a",
+          "local_record",
+          "present",
+          [
+            "sha256:1111111111111111111111111111111111111111111111111111111111111111"
+          ]
+        ],
+        [
+          "claim-a",
+          "local_record",
+          "missing",
+          []
+        ],
+        [
+          "claim-b",
+          "review_note",
+          "unreviewed",
+          []
+        ],
+        [
+          "claim-b",
+          "review_note",
+          "present",
+          [
+            "sha256:ABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABAB"
+          ]
+        ]
+      ]
+    },
+    {
+      "expected": {
+        "claim_count": 1,
+        "claims": [
+          {
+            "claim_hash": "sha256:4bb11c5759a01fcdd56f78b04b1b0fef7ea8ea37e20d842c190ce5e01bb0e7d9",
+            "claim_id": "sha256:b8eccd74fe344c3e91654493ed1cc69e9b637cf8dd0ed2d2884f2375bd15c4f2",
+            "requirements": [
+              {
+                "evidence_class": "sha256:a4d5b35e85222fb8367767aeea4a7cc1552e5a5e1e01f0d7d294691cd624b422",
+                "review_state": "reviewed",
+                "source_fingerprints": [
+                  "sha256:1111111111111111111111111111111111111111111111111111111111111111"
+                ],
+                "status": "present"
+              }
+            ]
+          }
+        ],
+        "evidence_class_counts": {
+          "sha256:a4d5b35e85222fb8367767aeea4a7cc1552e5a5e1e01f0d7d294691cd624b422": {
+            "conflicting": 0,
+            "missing": 0,
+            "present": 1,
+            "unreviewed": 0
+          }
+        },
+        "matrix_hash": "sha256:708718bab6b33a661bd992ffb3d55300e02e3d4b5f9c36a02cf59f9a5e6fb3c6",
+        "required_evidence_count": 1,
+        "schema_version": "medscale_clinical.clinical.evidence_coverage.v1",
+        "source_fingerprint_count": 1,
+        "source_fingerprint_hash": "sha256:9735116526ebec8187d8f2fad59d3146d4e23069ae6bdfc0fa951f2280a2f5df",
+        "status_counts": {
+          "conflicting": 0,
+          "missing": 0,
+          "present": 1,
+          "unreviewed": 0
+        }
+      },
+      "expected_json": "{\"claim_count\":1,\"claims\":[{\"claim_hash\":\"sha256:4bb11c5759a01fcdd56f78b04b1b0fef7ea8ea37e20d842c190ce5e01bb0e7d9\",\"claim_id\":\"sha256:b8eccd74fe344c3e91654493ed1cc69e9b637cf8dd0ed2d2884f2375bd15c4f2\",\"requirements\":[{\"evidence_class\":\"sha256:a4d5b35e85222fb8367767aeea4a7cc1552e5a5e1e01f0d7d294691cd624b422\",\"review_state\":\"reviewed\",\"source_fingerprints\":[\"sha256:1111111111111111111111111111111111111111111111111111111111111111\"],\"status\":\"present\"}]}],\"evidence_class_counts\":{\"sha256:a4d5b35e85222fb8367767aeea4a7cc1552e5a5e1e01f0d7d294691cd624b422\":{\"conflicting\":0,\"missing\":0,\"present\":1,\"unreviewed\":0}},\"matrix_hash\":\"sha256:708718bab6b33a661bd992ffb3d55300e02e3d4b5f9c36a02cf59f9a5e6fb3c6\",\"required_evidence_count\":1,\"schema_version\":\"medscale_clinical.clinical.evidence_coverage.v1\",\"source_fingerprint_count\":1,\"source_fingerprint_hash\":\"sha256:9735116526ebec8187d8f2fad59d3146d4e23069ae6bdfc0fa951f2280a2f5df\",\"status_counts\":{\"conflicting\":0,\"missing\":0,\"present\":1,\"unreviewed\":0}}",
+      "name": "private_class_is_hashed",
+      "requirements": [
+        [
+          "claim-a",
+          "transcript_revision",
+          "present",
+          [
+            "sha256:1111111111111111111111111111111111111111111111111111111111111111"
+          ]
+        ]
+      ]
+    },
+    {
+      "expected": {
+        "claim_count": 1,
+        "claims": [
+          {
+            "claim_hash": "sha256:b976f13f02afbdf22f5e17c52b3e05d954202de21de6bb224fcab2db297f0e0e",
+            "claim_id": "sha256:2222222222222222222222222222222222222222222222222222222222222222",
+            "requirements": [
+              {
+                "evidence_class": "imaging",
+                "review_state": "conflicting",
+                "source_fingerprints": [
+                  "sha256:1111111111111111111111111111111111111111111111111111111111111111"
+                ],
+                "status": "conflicting"
+              }
+            ]
+          }
+        ],
+        "evidence_class_counts": {
+          "imaging": {
+            "conflicting": 1,
+            "missing": 0,
+            "present": 0,
+            "unreviewed": 0
+          }
+        },
+        "matrix_hash": "sha256:aae995a393b8a924dbe85af7f91421a00328022173e05b166f6070e76c995130",
+        "required_evidence_count": 1,
+        "schema_version": "medscale_clinical.clinical.evidence_coverage.v1",
+        "source_fingerprint_count": 1,
+        "source_fingerprint_hash": "sha256:9735116526ebec8187d8f2fad59d3146d4e23069ae6bdfc0fa951f2280a2f5df",
+        "status_counts": {
+          "conflicting": 1,
+          "missing": 0,
+          "present": 0,
+          "unreviewed": 0
+        }
+      },
+      "expected_json": "{\"claim_count\":1,\"claims\":[{\"claim_hash\":\"sha256:b976f13f02afbdf22f5e17c52b3e05d954202de21de6bb224fcab2db297f0e0e\",\"claim_id\":\"sha256:2222222222222222222222222222222222222222222222222222222222222222\",\"requirements\":[{\"evidence_class\":\"imaging\",\"review_state\":\"conflicting\",\"source_fingerprints\":[\"sha256:1111111111111111111111111111111111111111111111111111111111111111\"],\"status\":\"conflicting\"}]}],\"evidence_class_counts\":{\"imaging\":{\"conflicting\":1,\"missing\":0,\"present\":0,\"unreviewed\":0}},\"matrix_hash\":\"sha256:aae995a393b8a924dbe85af7f91421a00328022173e05b166f6070e76c995130\",\"required_evidence_count\":1,\"schema_version\":\"medscale_clinical.clinical.evidence_coverage.v1\",\"source_fingerprint_count\":1,\"source_fingerprint_hash\":\"sha256:9735116526ebec8187d8f2fad59d3146d4e23069ae6bdfc0fa951f2280a2f5df\",\"status_counts\":{\"conflicting\":1,\"missing\":0,\"present\":0,\"unreviewed\":0}}",
+      "name": "digest_claim_id_kept",
+      "requirements": [
+        [
+          "sha256:2222222222222222222222222222222222222222222222222222222222222222",
+          "imaging",
+          "conflicting",
+          [
+            "sha256:1111111111111111111111111111111111111111111111111111111111111111"
+          ]
+        ]
+      ]
+    },
+    {
+      "expected": {
+        "claim_count": 2,
+        "claims": [
+          {
+            "claim_hash": "sha256:2f7fb911fd8f8d48393db31d367160b1c5b3f87d4f1c18caccaed3809c32764e",
+            "claim_id": "sha256:5cc10d9143b2cff082cf5fb373073b13d02d12c9a4d24a97d822d701404fb421",
+            "requirements": [
+              {
+                "evidence_class": "lab_result",
+                "review_state": "reviewed",
+                "source_fingerprints": [
+                  "sha256:2222222222222222222222222222222222222222222222222222222222222222"
+                ],
+                "status": "present"
+              }
+            ]
+          },
+          {
+            "claim_hash": "sha256:8a1de80664af9e002c23bbc38bc329717b23550807e81d3bdeb7e2e254b82ab9",
+            "claim_id": "sha256:8ed3f6ad685b959ead7022518e1af76cd816f8e8ec7ccdda1ed4018e8f2223f8",
+            "requirements": [
+              {
+                "evidence_class": "imaging",
+                "review_state": "missing",
+                "source_fingerprints": [],
+                "status": "missing"
+              },
+              {
+                "evidence_class": "lab_result",
+                "review_state": "reviewed",
+                "source_fingerprints": [
+                  "sha256:1111111111111111111111111111111111111111111111111111111111111111"
+                ],
+                "status": "present"
+              }
+            ]
+          }
+        ],
+        "evidence_class_counts": {
+          "imaging": {
+            "conflicting": 0,
+            "missing": 1,
+            "present": 0,
+            "unreviewed": 0
+          },
+          "lab_result": {
+            "conflicting": 0,
+            "missing": 0,
+            "present": 2,
+            "unreviewed": 0
+          }
+        },
+        "matrix_hash": "sha256:972e8cb524502033b2078dec16e007a3a7fa8efc66fdc8db4aadaac9236c2ecf",
+        "required_evidence_count": 3,
+        "schema_version": "medscale_clinical.clinical.evidence_coverage.v1",
+        "source_fingerprint_count": 2,
+        "source_fingerprint_hash": "sha256:636d591478be5cb76f2025a46b17a229fa29ef91724891793005baa9eef2100e",
+        "status_counts": {
+          "conflicting": 0,
+          "missing": 1,
+          "present": 2,
+          "unreviewed": 0
+        }
+      },
+      "expected_json": "{\"claim_count\":2,\"claims\":[{\"claim_hash\":\"sha256:2f7fb911fd8f8d48393db31d367160b1c5b3f87d4f1c18caccaed3809c32764e\",\"claim_id\":\"sha256:5cc10d9143b2cff082cf5fb373073b13d02d12c9a4d24a97d822d701404fb421\",\"requirements\":[{\"evidence_class\":\"lab_result\",\"review_state\":\"reviewed\",\"source_fingerprints\":[\"sha256:2222222222222222222222222222222222222222222222222222222222222222\"],\"status\":\"present\"}]},{\"claim_hash\":\"sha256:8a1de80664af9e002c23bbc38bc329717b23550807e81d3bdeb7e2e254b82ab9\",\"claim_id\":\"sha256:8ed3f6ad685b959ead7022518e1af76cd816f8e8ec7ccdda1ed4018e8f2223f8\",\"requirements\":[{\"evidence_class\":\"imaging\",\"review_state\":\"missing\",\"source_fingerprints\":[],\"status\":\"missing\"},{\"evidence_class\":\"lab_result\",\"review_state\":\"reviewed\",\"source_fingerprints\":[\"sha256:1111111111111111111111111111111111111111111111111111111111111111\"],\"status\":\"present\"}]}],\"evidence_class_counts\":{\"imaging\":{\"conflicting\":0,\"missing\":1,\"present\":0,\"unreviewed\":0},\"lab_result\":{\"conflicting\":0,\"missing\":0,\"present\":2,\"unreviewed\":0}},\"matrix_hash\":\"sha256:972e8cb524502033b2078dec16e007a3a7fa8efc66fdc8db4aadaac9236c2ecf\",\"required_evidence_count\":3,\"schema_version\":\"medscale_clinical.clinical.evidence_coverage.v1\",\"source_fingerprint_count\":2,\"source_fingerprint_hash\":\"sha256:636d591478be5cb76f2025a46b17a229fa29ef91724891793005baa9eef2100e\",\"status_counts\":{\"conflicting\":0,\"missing\":1,\"present\":2,\"unreviewed\":0}}",
+      "name": "several_claims_sorted",
+      "requirements": [
+        [
+          "zeta",
+          "lab_result",
+          "present",
+          [
+            "sha256:2222222222222222222222222222222222222222222222222222222222222222"
+          ]
+        ],
+        [
+          "alpha",
+          "lab_result",
+          "present",
+          [
+            "sha256:1111111111111111111111111111111111111111111111111111111111111111"
+          ]
+        ],
+        [
+          "alpha",
+          "imaging",
+          "missing",
+          []
+        ]
+      ]
+    }
+  ],
+  "errors": [
+    {
+      "error": "present evidence requires a fingerprint",
+      "name": "present_without_fingerprint",
+      "requirements": [
+        [
+          "claim-a",
+          "local_record",
+          "present",
+          []
+        ]
+      ]
+    },
+    {
+      "error": "missing evidence cannot have a fingerprint",
+      "name": "missing_with_fingerprint",
+      "requirements": [
+        [
+          "claim-a",
+          "local_record",
+          "missing",
+          [
+            "sha256:1111111111111111111111111111111111111111111111111111111111111111"
+          ]
+        ]
+      ]
+    },
+    {
+      "error": "claim_id must be an opaque identifier",
+      "name": "bad_claim_id",
+      "requirements": [
+        [
+          "-starts-with-dash",
+          "local_record",
+          "missing",
+          []
+        ]
+      ]
+    }
+  ],
+  "generator": "integrations/clinical-evidence-python/conformance/generate_vectors.py",
+  "module": "medscale_clinical.clinical.evidence_coverage"
+}

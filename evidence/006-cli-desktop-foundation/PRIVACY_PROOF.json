@@ -1,0 +1,19 @@
+{
+  "schema_version": 1,
+  "spec_id": "006-cli-desktop-foundation",
+  "claim_scope": "MedScale CLI + in-process Core Host on synthetic fixtures; Desktop thin scaffold without WebView",
+  "synthetic_only": true,
+  "real_phi_authorized": false,
+  "attributable_egress": "DEFAULT_DENY; no product Network Broker calls in Spec 006 wedge",
+  "network_capability_audit": "workspace crates have no runtime HTTP client for product egress",
+  "log_crash_marker_scan": "doctor/CLI output secret-marker scan required in tests",
+  "webview_cache_scan": "not_applicable",
+  "vault_sync_root_check": "assert_claim_path refuse markers (Spec 003/005)",
+  "tauri_status": "DEFERRED — not admitted; TAURI_WEBVIEW_PRIVACY_QUALIFICATION external gate",
+  "limitations": [
+    "Does not claim zero packets system-wide outside MedScale process boundary",
+    "Tauri/WebView privacy qualification deferred; Desktop is non-WebView scaffold only",
+    "REAL_PHI remains unauthorized; synthetic-only",
+    "OS keyring stores deferred; MemoryKeyStore used for CI proofs"
+  ]
+}

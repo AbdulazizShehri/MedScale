@@ -1,0 +1,395 @@
+$ medscale project create --vault-id cli-074 --vault-root C:\Users\Shehr\AppData\Local\Temp\opencode\cli074 --name Cardiology Cohort --json
+exit=0
+{
+  "header": {
+    "id": "proj-1",
+    "schema_version": 1,
+    "realm_id": "cli-realm",
+    "authority_scope_id": "cli-scope"
+  },
+  "revision": 1,
+  "name": "Cardiology Cohort",
+  "description": null,
+  "status": "active"
+}
+
+---
+$ medscale project create --vault-id cli-074 --vault-root C:\Users\Shehr\AppData\Local\Temp\opencode\cli074 --name Second --description desc here
+exit=0
+project_id: proj-3
+name: Second
+status: active
+revision: 1
+description: desc here
+
+---
+$ medscale project list --vault-id cli-074 --vault-root C:\Users\Shehr\AppData\Local\Temp\opencode\cli074 --json
+exit=0
+{
+  "next_cursor": null,
+  "projects": [
+    {
+      "active_edge_count": 0,
+      "active_ref_count": 0,
+      "experiment_count": 0,
+      "name": "Cardiology Cohort",
+      "project_id": "proj-1",
+      "revision": 1,
+      "status": "active"
+    },
+    {
+      "active_edge_count": 0,
+      "active_ref_count": 0,
+      "experiment_count": 0,
+      "name": "Second",
+      "project_id": "proj-3",
+      "revision": 1,
+      "status": "active"
+    }
+  ]
+}
+
+---
+$ medscale project show --vault-id cli-074 --vault-root C:\Users\Shehr\AppData\Local\Temp\opencode\cli074 --project-id proj-1
+exit=0
+project_id: proj-1
+name: Cardiology Cohort
+status: active
+revision: 1
+
+---
+$ medscale project update --vault-id cli-074 --vault-root C:\Users\Shehr\AppData\Local\Temp\opencode\cli074 --project-id proj-1 --expected-revision 1 --name Renamed --json
+exit=0
+{
+  "header": {
+    "id": "proj-1",
+    "schema_version": 1,
+    "realm_id": "cli-realm",
+    "authority_scope_id": "cli-scope"
+  },
+  "revision": 2,
+  "name": "Renamed",
+  "description": null,
+  "status": "active"
+}
+
+---
+$ medscale project update --vault-id cli-074 --vault-root C:\Users\Shehr\AppData\Local\Temp\opencode\cli074 --project-id proj-1 --expected-revision 1 --name Stale
+exit=1
+error: conflict: stale project revision: expected 1
+
+---
+$ medscale experiment create --vault-id cli-074 --vault-root C:\Users\Shehr\AppData\Local\Temp\opencode\cli074 --project-id proj-1 --name Baseline --json
+exit=0
+{
+  "header": {
+    "id": "exp-6",
+    "schema_version": 1,
+    "realm_id": "cli-realm",
+    "authority_scope_id": "cli-scope"
+  },
+  "project_id": "proj-1",
+  "revision": 1,
+  "name": "Baseline",
+  "description": null,
+  "status": "draft"
+}
+
+---
+$ medscale experiment list --vault-id cli-074 --vault-root C:\Users\Shehr\AppData\Local\Temp\opencode\cli074 --project-id proj-1
+exit=0
+exp-6 | Baseline | draft | rev=1
+
+---
+$ medscale experiment show --vault-id cli-074 --vault-root C:\Users\Shehr\AppData\Local\Temp\opencode\cli074 --experiment-id exp-6 --json
+exit=0
+{
+  "header": {
+    "id": "exp-6",
+    "schema_version": 1,
+    "realm_id": "cli-realm",
+    "authority_scope_id": "cli-scope"
+  },
+  "project_id": "proj-1",
+  "revision": 1,
+  "name": "Baseline",
+  "description": null,
+  "status": "draft"
+}
+
+---
+$ medscale ingest --vault-id cli-074 --vault-root C:\Users\Shehr\AppData\Local\Temp\opencode\cli074 --file C:\Users\Shehr\work\MedScale-074\fixtures\synthetic\fhir\r4\valid\patient-min.json --mode synthetic
+exit=0
+ingested_source_id: src-8
+
+---
+$ medscale project attach --vault-id cli-074 --vault-root C:\Users\Shehr\AppData\Local\Temp\opencode\cli074 --project-id proj-1 --experiment-id exp-6 --object-id src-8 --kind source_record --json
+exit=0
+{
+  "header": {
+    "id": "ref-12",
+    "schema_version": 1,
+    "realm_id": "cli-realm",
+    "authority_scope_id": "cli-scope"
+  },
+  "project_id": "proj-1",
+  "experiment_id": "exp-6",
+  "artifact": {
+    "object_id": "src-8",
+    "kind": "source_record",
+    "binding": "identity_only"
+  },
+  "revision": 1,
+  "status": "active"
+}
+
+---
+$ medscale project attach --vault-id cli-074 --vault-root C:\Users\Shehr\AppData\Local\Temp\opencode\cli074 --project-id proj-1 --experiment-id exp-6 --object-id src-8 --kind source_record
+exit=1
+error: conflict: duplicate project artifact attachment
+
+---
+$ medscale project attach --vault-id cli-074 --vault-root C:\Users\Shehr\AppData\Local\Temp\opencode\cli074 --project-id proj-1 --object-id src-nope --kind source_record
+exit=1
+error: not_found: NotFound
+
+---
+$ medscale project attach --vault-id cli-074 --vault-root C:\Users\Shehr\AppData\Local\Temp\opencode\cli074 --project-id proj-1 --object-id src-8 --kind proves
+exit=1
+error: invalid: unknown artifact kind: proves
+
+---
+$ medscale project list-refs --vault-id cli-074 --vault-root C:\Users\Shehr\AppData\Local\Temp\opencode\cli074 --project-id proj-1 --json
+exit=0
+{
+  "next_cursor": null,
+  "refs": [
+    {
+      "reference": {
+        "artifact": {
+          "binding": "identity_only",
+          "kind": "source_record",
+          "object_id": "src-8"
+        },
+        "experiment_id": "exp-6",
+        "header": {
+          "authority_scope_id": "cli-scope",
+          "id": "ref-12",
+          "realm_id": "cli-realm",
+          "schema_version": 1
+        },
+        "project_id": "proj-1",
+        "revision": 1,
+        "status": "active"
+      },
+      "resolution": "current"
+    }
+  ]
+}
+
+---
+$ medscale project graph edge-create --vault-id cli-074 --vault-root C:\Users\Shehr\AppData\Local\Temp\opencode\cli074 --project-id proj-1 --subject experiment:exp-6 --predicate experiment_input --object artifact:src-8:source_record --json
+exit=0
+{
+  "header": {
+    "id": "edge-14",
+    "schema_version": 1,
+    "realm_id": "cli-realm",
+    "authority_scope_id": "cli-scope"
+  },
+  "project_id": "proj-1",
+  "subject": {
+    "experiment": "exp-6"
+  },
+  "predicate": "experiment_input",
+  "object": {
+    "artifact": {
+      "object_id": "src-8",
+      "kind": "source_record",
+      "binding": "identity_only"
+    }
+  },
+  "revision": 1,
+  "status": "active"
+}
+
+---
+$ medscale project graph edge-create --vault-id cli-074 --vault-root C:\Users\Shehr\AppData\Local\Temp\opencode\cli074 --project-id proj-1 --subject experiment:exp-6 --predicate proves --object artifact:src-8:source_record
+exit=1
+error: invalid: unknown graph predicate: proves
+
+---
+$ medscale project graph neighbors --vault-id cli-074 --vault-root C:\Users\Shehr\AppData\Local\Temp\opencode\cli074 --project-id proj-1 --start experiment:exp-6 --json
+exit=0
+{
+  "edges": [
+    {
+      "header": {
+        "id": "edge-14",
+        "schema_version": 1,
+        "realm_id": "cli-realm",
+        "authority_scope_id": "cli-scope"
+      },
+      "project_id": "proj-1",
+      "subject": {
+        "experiment": "exp-6"
+      },
+      "predicate": "experiment_input",
+      "object": {
+        "artifact": {
+          "object_id": "src-8",
+          "kind": "source_record",
+          "binding": "identity_only"
+        }
+      },
+      "revision": 1,
+      "status": "active"
+    }
+  ]
+}
+
+---
+$ medscale project graph neighbors --vault-id cli-074 --vault-root C:\Users\Shehr\AppData\Local\Temp\opencode\cli074 --project-id proj-1 --start experiment:exp-6 --predicate contains
+exit=0
+neighbors: empty
+
+---
+$ medscale project context --vault-id cli-074 --vault-root C:\Users\Shehr\AppData\Local\Temp\opencode\cli074 --project-id proj-1 --experiment-id exp-6 --json
+exit=0
+{
+  "project": {
+    "project_id": "proj-1",
+    "name": "Renamed",
+    "status": "active",
+    "revision": 2,
+    "experiment_count": 1,
+    "active_ref_count": 1,
+    "active_edge_count": 1
+  },
+  "experiment": {
+    "experiment_id": "exp-6",
+    "project_id": "proj-1",
+    "name": "Baseline",
+    "status": "draft",
+    "revision": 1
+  },
+  "authorized_artifact_refs": [
+    {
+      "reference": {
+        "header": {
+          "id": "ref-12",
+          "schema_version": 1,
+          "realm_id": "cli-realm",
+          "authority_scope_id": "cli-scope"
+        },
+        "project_id": "proj-1",
+        "experiment_id": "exp-6",
+        "artifact": {
+          "object_id": "src-8",
+          "kind": "source_record",
+          "binding": "identity_only"
+        },
+        "revision": 1,
+        "status": "active"
+      },
+      "resolution": "current"
+    }
+  ],
+  "graph_slice": [
+    {
+      "header": {
+        "id": "edge-14",
+        "schema_version": 1,
+        "realm_id": "cli-realm",
+        "authority_scope_id": "cli-scope"
+      },
+      "project_id": "proj-1",
+      "subject": {
+        "experiment": "exp-6"
+      },
+      "predicate": "experiment_input",
+      "object": {
+        "artifact": {
+          "object_id": "src-8",
+          "kind": "source_record",
+          "binding": "identity_only"
+        }
+      },
+      "revision": 1,
+      "status": "active"
+    }
+  ],
+  "refs_total": 1,
+  "graph_total": 1
+}
+
+---
+$ medscale project summary --vault-id cli-074 --vault-root C:\Users\Shehr\AppData\Local\Temp\opencode\cli074 --project-id proj-1
+exit=0
+project_id: proj-1
+name: Renamed
+status: active
+revision: 2
+experiments: 1
+active_refs: 1
+active_edges: 1
+
+---
+$ medscale project graph edge-remove --vault-id cli-074 --vault-root C:\Users\Shehr\AppData\Local\Temp\opencode\cli074 --edge-id edge-14 --expected-revision 1
+exit=0
+edge_id: edge-14
+status: removed
+revision: 2
+
+---
+$ medscale project detach --vault-id cli-074 --vault-root C:\Users\Shehr\AppData\Local\Temp\opencode\cli074 --ref-id ref-12 --expected-revision 1
+exit=0
+ref_id: ref-12
+status: detached
+revision: 2
+
+---
+$ medscale project archive --vault-id cli-074 --vault-root C:\Users\Shehr\AppData\Local\Temp\opencode\cli074 --project-id proj-1 --expected-revision 2 --json
+exit=0
+{
+  "header": {
+    "id": "proj-1",
+    "schema_version": 1,
+    "realm_id": "cli-realm",
+    "authority_scope_id": "cli-scope"
+  },
+  "revision": 3,
+  "name": "Renamed",
+  "description": null,
+  "status": "archived"
+}
+
+---
+$ medscale project attach --vault-id cli-074 --vault-root C:\Users\Shehr\AppData\Local\Temp\opencode\cli074 --project-id proj-1 --object-id src-8 --kind source_record
+exit=1
+error: denied: Unauthorized
+
+---
+$ medscale project restore --vault-id cli-074 --vault-root C:\Users\Shehr\AppData\Local\Temp\opencode\cli074 --project-id proj-1 --expected-revision 3 --json
+exit=0
+{
+  "header": {
+    "id": "proj-1",
+    "schema_version": 1,
+    "realm_id": "cli-realm",
+    "authority_scope_id": "cli-scope"
+  },
+  "revision": 4,
+  "name": "Renamed",
+  "description": null,
+  "status": "active"
+}
+
+---
+$ medscale project show --vault-id cli-074 --vault-root C:\Users\Shehr\AppData\Local\Temp\opencode\cli074 --project-id proj-nope
+exit=1
+error: not_found: NotFound
+
+---
+CLI_VERTICAL_SLICE=PASS
+ echo '$ medscale project show --project-id proj-nope --json'; & "C:\Users\Shehr\work\MedScale-074\target\debug\medscale.exe" project show --vault-id cli-074 --vault-root "C:\Users\Shehr\AppData\Local\Temp\opencode\cli074" --project-id proj-nope --json; echo "exit=$LASTEXITCODE" 

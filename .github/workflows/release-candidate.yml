@@ -1,0 +1,99 @@
+name: release-candidate
+
+# One MedScale release candidate from one commit: every desktop package and CLI
+# archive built and qualified in this run, then checksummed, scanned for
+# malware, given build provenance, and kept as a workflow artifact.
+# It publishes nothing: no tag, no GitHub Release, no website change.
+# Publication is a separate step that needs the founder's approval of the
+# exact files listed in artifact-inventory.json.
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "Candidate version, e.g. 0.1.0-beta.1 (must start with the app version)"
+        required: true
+
+permissions:
+  contents: read
+
+concurrency:
+  group: release-candidate
+  cancel-in-progress: false
+
+jobs:
+  desktop:
+    uses: ./.github/workflows/tauri-preview.yml
+  cli:
+    uses: ./.github/workflows/cli-release.yml
+  installed:
+    # The full installed journey on the Windows installer, and the real-DMG
+    # install on Apple silicon and Intel, all from this run's own packages.
+    needs: [desktop]
+    # The called workflow reads Actions metadata; a called workflow can't have
+    # more than its caller grants.
+    permissions:
+      contents: read
+      actions: read
+    uses: ./.github/workflows/release-installed-journey.yml
+    with:
+      from_this_run: true
+
+  assemble:
+    name: assemble, scan and attest
+    needs: [desktop, cli, installed]
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    permissions:
+      contents: read
+      id-token: write
+      attestations: write
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v4
+      - name: The candidate version matches the app version
+        run: |
+          set -euo pipefail
+          app=$(python3 -c "import json;print(json.load(open('apps/desktop-tauri/src-tauri/tauri.conf.json'))['version'])")
+          case "${{ inputs.version }}" in
+            "$app"|"$app"-beta.[0-9]*) echo "candidate ${{ inputs.version }} of app $app" ;;
+            *) echo "::error::version ${{ inputs.version }} does not start with the app version $app"; exit 1 ;;
+          esac
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        with:
+          path: artifacts
+      - name: Assemble the qualified files
+        run: |
+          python3 scripts/assemble-release-candidate.py artifacts candidate \
+            "${{ github.sha }}" "${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}" \
+            "${{ inputs.version }}"
+      - name: Keep the installed-journey reports as evidence
+        run: |
+          mkdir -p candidate/qualification
+          cp -r artifacts/installed-journey-* candidate/qualification/
+          ls -R candidate/qualification
+      - name: Malware scan (ClamAV, fresh signatures)
+        run: |
+          set -euo pipefail
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends clamav clamav-freshclam
+          sudo systemctl stop clamav-freshclam || true
+          sudo freshclam
+          clamscan --version
+          clamscan --recursive --infected --scan-archive=yes --max-filesize=1000M --max-scansize=2000M candidate/files | tee candidate/clamav.txt
+          grep -q "Infected files: 0" candidate/clamav.txt
+      - name: Checksums verify
+        working-directory: candidate/files
+        run: sha256sum -c ../SHA256SUMS
+      - name: Build provenance (GitHub artifact attestations)
+        uses: actions/attest-build-provenance@4d101475d8b20a2381f78447822ac1eab6504dd8 # v4.2.2
+        with:
+          subject-checksums: candidate/SHA256SUMS
+      - uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v4.6.2
+        with:
+          name: medscale-release-candidate-${{ inputs.version }}
+          path: candidate/
+          if-no-files-found: error
+          retention-days: 90
+          compression-level: 0
+      - name: Summary
+        run: cat candidate/RELEASE_NOTES.md >> "$GITHUB_STEP_SUMMARY"

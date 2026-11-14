@@ -1,0 +1,4 @@
+medscale-desktop smoke ok
+version=0.1.0
+tauri_admitted=false
+desktop_shell=slint_native

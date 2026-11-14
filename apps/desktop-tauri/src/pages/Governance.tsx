@@ -1,0 +1,469 @@
+import { useEffect, useState, type FormEvent, type ReactNode } from "react";
+import { open } from "@tauri-apps/plugin-dialog";
+import { useApp } from "../lib/app";
+import { call, useAction, useCommand, type CmdError } from "../lib/ipc";
+import { ProjectScope } from "../components/project";
+import { MOD } from "../components/shell";
+import { Mark, Wordmark } from "../components/brand";
+import { Authority, Empty, ErrorState, Glyph, KV, Ledger, Notice, PageHead, Section, Skeleton, Status, glyphFor, useOutcome } from "../components/ui";
+import { SUPPORT_DATA_RULE, SUPPORT_ISSUES_URL, supportDiagnostics } from "../support";
+import { ConfirmPanel } from "../components/confirm";
+import { DELETE_RECOVERY_DIALOG, DELETE_SET_ASIDE_DIALOG, RESTORE_COPY_DIALOG, SET_ASIDE_EXISTS_NOTICE } from "../lib/seed-failure";
+import { formatStorage } from "../model-storage";
+import { useToast } from "../components/ui";
+
+type Row = { label: string; value: string; detail: string; status: string };
+type Gov = {
+  synthetic_only: boolean; audit_boundary: string; export_boundary: string; settings_boundary: string; integrations_boundary: string;
+  audit_rows: Array<{ record_id: string; action: string; subject: string; detail: string; status: string }>;
+  export_rows: Row[]; settings_rows: Row[]; integration_rows: Row[]; missing_release_evidence: string;
+  fhir_support: { fhir_version: string; synthetic_only: boolean; full_conformance_claimed: boolean; resources: Array<Record<string, unknown>>; limitations: string[] } | null;
+};
+
+function useGov() { return useCommand<Gov>("governance_overview"); }
+
+function RowList({ rows }: { rows: Row[] }) {
+  return <>{rows.map((r) => (
+    <div key={r.label} style={{ display: "grid", gridTemplateColumns: "minmax(0,1fr) 280px", gap: 24, alignItems: "center", minHeight: 56, padding: "8px 0", borderBottom: "1px solid var(--line-subtle)" }}>
+      <div><div style={{ fontSize: 13, fontWeight: 500 }}>{r.label}</div><div className="t-sm i3" style={{ marginTop: 2 }}>{r.detail}</div></div>
+      <div className="stack" style={{ gap: 2 }}><Status kind={glyphFor(r.status) === "unknown" ? glyphFor(r.value) : glyphFor(r.status)} weight="strong">{r.value}</Status><span className="t-sm i3">{r.status}</span></div>
+    </div>
+  ))}</>;
+}
+
+/* ───────────────────────────── Privacy ───────────────────────────── */
+type PrivacyVm = {
+  classifications: Array<{ artifact_id: string; data_class: string; basis: string; revision: number }>;
+  receipts: Array<{ id: string; source: string; output: string; status: string; residual: string; revision: number }>;
+  decisions: Array<{ artifact_id: string; boundary: string; outcome: string; reason: string }>;
+};
+
+export function Privacy() {
+  return <ProjectScope title="Privacy" sub="What kinds of data exist here, how they were transformed, and what may leave. Every crossing is checked, never assumed.">{(pid) => <PrivacyBody projectId={pid} />}</ProjectScope>;
+}
+
+function PrivacyBody({ projectId }: { projectId: string }) {
+  const o = useCommand<PrivacyVm>("privacy_overview", { projectId });
+  const docs = useCommand<{ sources: Array<{ source_id: string; resource_type: string }> }>("documents_list");
+  const [artifact, setArtifact] = useState("");
+  const [boundary, setBoundary] = useState("browse");
+  const { pending, run } = useAction();
+  const outcome = useOutcome();
+  async function check(e: FormEvent) { e.preventDefault(); const r = await run("check", "privacy_check_egress", { projectId, artifactId: artifact, boundary }); if (outcome(r, "Egress decision recorded")) await o.reload(); }
+  if (o.state.status === "loading") return <Skeleton />;
+  if (o.state.status === "error") return <ErrorState error={o.state.error} onRetry={o.reload} />;
+  const v = o.state.data;
+  return (
+    <>
+      <Section title="Check whether data can leave" count="Core decides">
+        <form onSubmit={check} className="field-row">
+          <select value={artifact} onChange={(e) => setArtifact(e.target.value)} aria-label="Artifact" style={{ flex: 1 }}>
+            <option value="">Choose an ingested source…</option>
+            {docs.state.status === "ready" && docs.state.data.sources.map((s) => <option key={s.source_id} value={s.source_id}>{s.resource_type} · {s.source_id}</option>)}
+          </select>
+          <select value={boundary} onChange={(e) => setBoundary(e.target.value)} aria-label="Boundary"><option value="browse">browse</option><option value="data_source_export">data_source_export</option><option value="data_source_write">data_source_write</option><option value="model_external_delegate">model_external_delegate</option><option value="network_broker">network_broker</option><option value="connector">connector</option><option value="extension">extension</option><option value="analytics_adapter">analytics_adapter</option><option value="hub">hub</option><option value="compute">compute</option><option value="r_workspace">r_workspace</option></select>
+          <button type="submit" className="btn btn-s" disabled={!artifact || !!pending}>Evaluate</button>
+        </form>
+      </Section>
+      <Section title="Decisions" count={v.decisions.length}>
+        {v.decisions.length ? <table className="tb"><thead><tr><th style={{ width: "34%" }}>Artifact</th><th style={{ width: "14%" }}>Boundary</th><th style={{ width: "16%" }}>Outcome</th><th>Reason</th></tr></thead><tbody>{v.decisions.map((d, i) => <tr key={i}><td><span className="mono t-mono-sm trunc">{d.artifact_id}</span></td><td className="t-sm">{d.boundary}</td><td><Status kind={glyphFor(d.outcome)} weight="strong">{d.outcome}</Status></td><td className="t-sm i2"><span>{d.reason}</span></td></tr>)}</tbody></table> : <p className="t-sm i3">No egress decisions recorded.</p>}
+      </Section>
+      <Section title="Classifications" count={v.classifications.length}>
+        {v.classifications.length ? v.classifications.map((c) => <div key={c.artifact_id} className="lr" style={{ gridTemplateColumns: "minmax(0,1fr) 160px minmax(0,1fr)" }}><span className="mono t-mono-sm trunc">{c.artifact_id}</span><span className="t-sm">{c.data_class}</span><span className="t-sm i3 trunc">{c.basis}</span></div>) : <p className="t-sm i3">No artifacts classified in this project.</p>}
+      </Section>
+      <Section title="Transform receipts" count={v.receipts.length}>
+        {v.receipts.length ? v.receipts.map((r) => <div key={r.id} className="lr" style={{ gridTemplateColumns: "minmax(0,1fr) 120px minmax(0,1fr)" }}><span className="mono t-mono-sm trunc">{r.id}</span><Status kind={glyphFor(r.status)}>{r.status}</Status><span className="t-sm i3 trunc">{r.residual}</span></div>) : <p className="t-sm i3">No pseudonymization receipts.</p>}
+      </Section>
+      <Authority>Nothing leaves by default. A yes covers one item at one boundary, and is not a standing permission.</Authority>
+    </>
+  );
+}
+
+/* ───────────────────────────── Audit, Exports, Integrations ───────────────────────────── */
+export function AuditTrail() {
+  const { state, reload } = useGov();
+  return (
+    <div className="pane">
+      <PageHead title="Audit Trail" sub="Every disclosure, recorded by Core. There is no way to edit it here, though restoring an older backup can shorten it." />
+      {state.status === "loading" && <Skeleton />}
+      {state.status === "error" && <ErrorState error={state.error} onRetry={reload} />}
+      {state.status === "ready" && <>
+        {state.data.audit_rows.length ? <table className="tb"><thead><tr><th style={{ width: "20%" }}>Record</th><th style={{ width: "17%" }}>Action</th><th style={{ width: "20%" }}>Subject</th><th style={{ width: "28%" }}>Status</th><th>Detail</th></tr></thead>
+          <tbody>{state.data.audit_rows.map((r) => <tr key={r.record_id}><td><span className="mono t-mono-sm trunc">{r.record_id}</span></td><td className="t-sm">{r.action}</td><td className="t-sm i2"><span className="trunc">{r.subject}</span></td><td><Status kind={glyphFor(r.status)}>{r.status}</Status></td><td className="t-sm i3"><span className="trunc">{r.detail}</span></td></tr>)}</tbody></table>
+          : <Empty icon="audit" title="No disclosures recorded">Core records a disclosure whenever data leaves the vault through an authorized path. None have happened in this workspace.</Empty>}
+        <p className="t-sm i3" style={{ marginTop: 12 }}>{state.data.audit_boundary}</p>
+      </>}
+    </div>
+  );
+}
+
+type SubjectExport = {
+  exports: Array<{ resource_type: string; field_losses: Array<{ fhir_path: string; loss_class: string; note: string }>; unsupported_fields_preserved: string[]; full_conformance_claimed: boolean }>;
+  disclosure: { disclosure_id: string; purpose: string; artifact_refs: string[]; export_digest: string | null };
+};
+
+function SubjectExportForm({ onDone }: { onDone: () => void }) {
+  const patients = useCommand<{ subjects: Array<{ subject_ref: string; display_name: string }> }>("patients_list");
+  const [subject, setSubject] = useState("");
+  const [purpose, setPurpose] = useState("");
+  const [result, setResult] = useState<SubjectExport | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
+  const subjects = patients.state.status === "ready" ? patients.state.data.subjects : [];
+  useEffect(() => { if (!subject && subjects[0]) setSubject(subjects[0].subject_ref); }, [subjects, subject]);
+  async function run(e: FormEvent) {
+    e.preventDefault();
+    setBusy(true); setError(null);
+    try { setResult(await call<SubjectExport>("exports_subject", { subjectRef: subject, purpose })); onDone(); }
+    catch (err) { setError((err as CmdError).message ?? String(err)); }
+    finally { setBusy(false); }
+  }
+  return (
+    <Section n="01" title="Export a subject" count="loss-aware · disclosed">
+      <form onSubmit={run} className="stack" style={{ gap: 8, maxWidth: 640 }}>
+        <label className="lbl" htmlFor="xs">Subject</label>
+        <select id="xs" value={subject} onChange={(e) => setSubject(e.target.value)}>{subjects.map((s) => <option key={s.subject_ref} value={s.subject_ref}>{s.display_name} · {s.subject_ref}</option>)}</select>
+        <label className="lbl" htmlFor="xp">Purpose (recorded in the disclosure)</label>
+        <input id="xp" value={purpose} maxLength={200} onChange={(e) => setPurpose(e.target.value)} placeholder="For example: synthetic interchange review" />
+        <div><button type="submit" className="btn btn-p" disabled={!subject || !purpose.trim() || busy}>{busy ? <Glyph kind="running" /> : null}Export FHIR R4 (loss-aware)</button></div>
+      </form>
+      {error && <Notice kind="unavailable" title="Not exported.">{error}</Notice>}
+      {result && <div style={{ marginTop: 12 }}>
+        <Ledger items={[{ k: "disclosure", v: result.disclosure.disclosure_id, mono: true }, { k: "resources", v: result.exports.length, mono: true }, { k: "digest", v: result.disclosure.export_digest ?? "—", mono: true }]} />
+        <table className="tb"><thead><tr><th style={{ width: "22%" }}>Resource</th><th style={{ width: "14%" }}>Losses</th><th>Lost or unsupported fields</th></tr></thead>
+          <tbody>{result.exports.map((x, i) => <tr key={i}><td className="t-sm">{x.resource_type}</td><td className="mono t-mono-sm">{x.field_losses.length}</td><td className="t-sm i2"><span>{[...x.field_losses.map((l) => `${l.fhir_path} (${l.loss_class})`), ...x.unsupported_fields_preserved].join(", ") || "none"}</span></td></tr>)}</tbody></table>
+        <p className="t-sm i3" style={{ marginTop: 6 }}>Full conformance is not claimed. This is a summary of the export: its contents are not displayed or written to disk. The disclosure is in the Audit Trail.</p>
+      </div>}
+    </Section>
+  );
+}
+
+export function Exports() {
+  const { state, reload } = useGov();
+  return (
+    <div className="pane">
+      <PageHead title="Exports" sub="Loss-aware interchange. What can leave, in which format, and what would be lost." />
+      <SubjectExportForm onDone={reload} />
+      {state.status === "loading" && <Skeleton />}
+      {state.status === "error" && <ErrorState error={state.error} onRetry={reload} />}
+      {state.status === "ready" && <>
+        <RowList rows={state.data.export_rows} />
+        {state.data.fhir_support && <Section n="02" title="FHIR support matrix" count={`R${state.data.fhir_support.fhir_version}`}>
+          <Ledger items={[{ k: "full_conformance", v: state.data.fhir_support.full_conformance_claimed ? "Claimed" : "Not claimed" }, { k: "synthetic_only", v: String(state.data.fhir_support.synthetic_only), mono: true }, { k: "resources", v: state.data.fhir_support.resources.length, mono: true }]} />
+          <table className="tb"><thead><tr><th style={{ width: "26%" }}>Resource</th><th>Support</th></tr></thead>
+            <tbody>{state.data.fhir_support.resources.map((r, i) => <tr key={i}><td className="t-sm">{String(r.resource_type ?? r.resource ?? `resource ${i + 1}`)}</td><td className="t-sm i2"><span className="trunc">{Object.entries(r).filter(([k]) => k !== "resource_type").map(([k, v]) => `${k}: ${typeof v === "object" ? JSON.stringify(v) : String(v)}`).join(" · ")}</span></td></tr>)}</tbody></table>
+          {state.data.fhir_support.limitations.map((l) => <p key={l} className="t-sm i3" style={{ marginTop: 6 }}>{l}</p>)}
+        </Section>}
+        <p className="t-sm i3" style={{ marginTop: 12 }}>{state.data.export_boundary}</p>
+      </>}
+    </div>
+  );
+}
+
+export function Integrations() {
+  const { state, reload } = useGov();
+  return (
+    <div className="pane">
+      <PageHead title="Integrations" sub="Brokered integration posture. Nothing connects without the network broker and an external gate." />
+      {state.status === "loading" && <Skeleton />}
+      {state.status === "error" && <ErrorState error={state.error} onRetry={reload} />}
+      {state.status === "ready" && <><RowList rows={state.data.integration_rows} /><p className="t-sm i3" style={{ marginTop: 12 }}>{state.data.integrations_boundary}</p></>}
+    </div>
+  );
+}
+
+/* ───────────────────────────── Settings ───────────────────────────── */
+// Module scope: a component defined during render remounts on every state
+// change, which drops keyboard focus to the document body.
+function Seg<T extends string>({ value, options, onChange, label }: { value: T; options: T[]; onChange: (v: T) => void; label: string }) {
+  return <div role="radiogroup" aria-label={label} className="seg">{options.map((o) => <button key={o} type="button" role="radio" aria-checked={value === o} onClick={() => onChange(o)}>{o[0]!.toUpperCase() + o.slice(1)}</button>)}</div>;
+}
+function SettingRow({ label, detail, children }: { label: string; detail: string; children: ReactNode }) {
+  return (
+    <div style={{ display: "grid", gridTemplateColumns: "minmax(0,1fr) 280px", gap: 24, alignItems: "center", minHeight: 56, borderBottom: "1px solid var(--line-subtle)" }}>
+      <div><div style={{ fontSize: 13, fontWeight: 500 }}>{label}</div><div className="t-sm i3" style={{ marginTop: 2 }}>{detail}</div></div><div>{children}</div>
+    </div>
+  );
+}
+
+type RecoveryItem = { kind: "pre_recovery_copy" | "discarded_session"; id: string; bytes: number; modified_unix: number | null };
+
+/** Spec 109 PR 3: what crash recovery kept for this vault, so it is never hidden. */
+function recoveryLabel(item: RecoveryItem): string {
+  return item.kind === "pre_recovery_copy" ? "Earlier saved copy" : "Discarded session";
+}
+
+function recoveryDate(item: RecoveryItem): string {
+  return item.modified_unix ? new Date(item.modified_unix * 1000).toLocaleString() : "Date unknown";
+}
+
+function RecoveryKept({ onRestored }: { onRestored: () => void }) {
+  const list = useCommand<RecoveryItem[]>("vault_recovery_items");
+  const { pending, run } = useAction();
+  const outcome = useOutcome();
+  const [confirming, setConfirming] = useState<{ action: "restore" | "delete"; item: RecoveryItem } | null>(null);
+  async function confirm() {
+    if (!confirming) return;
+    const { action, item } = confirming;
+    if (action === "restore") {
+      const r = await run<null>("recovery", "vault_recovery_restore", { id: item.id });
+      setConfirming(null);
+      if (outcome(r, "Copy restored · unlock to see it")) onRestored();
+      else void list.reload();
+    } else {
+      const r = await run<unknown>("recovery", "vault_recovery_delete", { kind: item.kind, id: item.id });
+      setConfirming(null);
+      if (outcome(r, "Deleted")) {
+        void list.reload();
+        // The row that opened this is gone, so focus needs somewhere to go.
+        document.getElementById("main")?.focus();
+      }
+    }
+  }
+  return (
+    <Section n="03" title="Crash recovery" count={list.state.status === "ready" ? list.state.data.length : "…"}>
+      <p className="t-sm i3" style={{ marginBottom: 8 }}>What MedScale kept after it did not close normally. These stay in the vault folder until you delete them, except that only the three newest copies and stale sessions are kept. Copies are encrypted. A discarded session could not be verified and cannot be opened here.</p>
+      {list.state.status === "error" && <ErrorState error={list.state.error} onRetry={list.reload} />}
+      {list.state.status === "ready" && !list.state.data.length && <p className="t-sm i3">Nothing kept.</p>}
+      {list.state.status === "ready" && list.state.data.map((item) => (
+        <div key={item.kind + item.id} className="lr" style={{ gridTemplateColumns: "minmax(0,1fr) 170px 90px auto auto" }}>
+          <span className="t-sm">{recoveryLabel(item)}</span>
+          <span className="t-sm i3">{recoveryDate(item)}</span>
+          <span className="mono t-mono-sm i3">{formatStorage(item.bytes)}</span>
+          {item.kind === "pre_recovery_copy"
+            ? <button type="button" className="btn btn-g" aria-label={`Restore ${recoveryLabel(item)}, ${recoveryDate(item)}`} disabled={!!pending} onClick={() => setConfirming({ action: "restore", item })}>Restore…</button>
+            : <span />}
+          <button type="button" className="btn btn-g" aria-label={`Delete ${recoveryLabel(item)}, ${recoveryDate(item)}`} disabled={!!pending} onClick={() => setConfirming({ action: "delete", item })}>Delete…</button>
+        </div>
+      ))}
+      {confirming && (() => {
+        const dialog = confirming.action === "restore" ? RESTORE_COPY_DIALOG : DELETE_RECOVERY_DIALOG;
+        return <ConfirmPanel title={dialog.title} confirmLabel={dialog.confirm} busy={!!pending} onConfirm={confirm} onCancel={() => setConfirming(null)}><b>{recoveryLabel(confirming.item)}, {recoveryDate(confirming.item)}, {formatStorage(confirming.item.bytes)}.</b> {dialog.body}</ConfirmPanel>;
+      })()}
+    </Section>
+  );
+}
+
+/** Copies the sealed vault into a folder the person chooses. Locks first. */
+function BackupRow({ onLocked }: { onLocked: () => void }) {
+  const { ws } = useApp();
+  const { pending, run } = useAction();
+  const outcome = useOutcome();
+  const toast = useToast();
+  async function backUp() {
+    let folder: string | null = null;
+    try {
+      const selected = await open({ multiple: false, directory: true, title: "Choose where to save the vault backup" });
+      folder = typeof selected === "string" ? selected : null;
+    } catch {
+      toast({ kind: "blocked", title: "Cannot open folder chooser", detail: "Try again, or back up from the command line with medscale vault backup." });
+      return;
+    }
+    if (!folder) return;
+    const wasOpen = ws?.workspace?.kind === "encrypted";
+    const r = await run<{ path: string; files: number; bytes: number }>("backup", "vault_backup", { folder });
+    if (r.ok) toast({ kind: "completed", title: "Vault backed up and checked", detail: `${r.data.files} files, ${formatStorage(r.data.bytes)}, in ${r.data.path}` });
+    else outcome(r, "");
+    if (wasOpen) onLocked();
+  }
+  return (
+    <SettingRow label="Back up vault" detail="Locks the vault, copies its encrypted files into a new folder you choose, and checks every copy. The backup opens with the same passphrase and recovery codes.">
+      <button type="button" className="btn btn-s" onClick={() => void backUp()} disabled={!!pending}>{pending === "backup" ? "Backing up…" : "Lock and back up…"}</button>
+    </SettingRow>
+  );
+}
+
+/** B3: change the passphrase or replace every recovery code. Both need the current passphrase. */
+function VaultKeys() {
+  const { pending, run } = useAction();
+  const outcome = useOutcome();
+  const [mode, setMode] = useState<"passphrase" | "codes" | null>(null);
+  const [current, setCurrent] = useState("");
+  const [next, setNext] = useState("");
+  const [confirm, setConfirm] = useState("");
+  const [codes, setCodes] = useState<string[]>([]);
+  const mismatch = mode === "passphrase" && confirm.length > 0 && next !== confirm;
+  function reset() { setMode(null); setCurrent(""); setNext(""); setConfirm(""); }
+  async function submit(e: FormEvent) {
+    e.preventDefault();
+    if (mode === "passphrase") {
+      if (next !== confirm) return;
+      const r = await run<null>("rekey", "vault_change_passphrase", { current, newPassphrase: next });
+      if (outcome(r, "Passphrase changed · use the new one next time")) reset();
+    } else if (mode === "codes") {
+      const r = await run<{ recovery_codes: string[] }>("rekey", "vault_replace_recovery_codes", { current });
+      if (r.ok) { reset(); setCodes(r.data.recovery_codes); } else outcome(r, "");
+    }
+  }
+  if (codes.length) {
+    return (
+      <SettingRow label="New recovery codes" detail="Shown once. Every earlier code no longer opens this vault. Backups made before now still open with the codes they had.">
+        <div>
+          <div className="codes" aria-label="New recovery codes">{codes.map((c) => <span key={c}>{c}</span>)}</div>
+          <button type="button" className="btn btn-p" style={{ marginTop: 8 }} onClick={() => setCodes([])}>I saved them</button>
+        </div>
+      </SettingRow>
+    );
+  }
+  return (
+    <>
+      <SettingRow label="Passphrase and recovery codes" detail="Changing the passphrase or replacing the codes needs the current passphrase. Backups made earlier keep the passphrase and codes they had.">
+        <span className="row-gap" style={{ gap: 8 }}>
+          <button type="button" className="btn btn-s" aria-pressed={mode === "passphrase"} onClick={() => { reset(); setMode("passphrase"); }}>Change passphrase…</button>
+          <button type="button" className="btn btn-s" aria-pressed={mode === "codes"} onClick={() => { reset(); setMode("codes"); }}>Replace codes…</button>
+        </span>
+      </SettingRow>
+      {mode && (
+        <form onSubmit={(e) => void submit(e)} aria-label={mode === "passphrase" ? "Change passphrase" : "Replace recovery codes"} style={{ display: "grid", gap: 8, padding: "12px 0", borderBottom: "1px solid var(--line-subtle)" }}>
+          <label className="t-sm">Current passphrase<input style={{ display: "block", width: "100%", height: 36, marginTop: 4 }} type="password" autoComplete="current-password" value={current} onChange={(e) => setCurrent(e.target.value)} required /></label>
+          {mode === "passphrase" && <>
+            <label className="t-sm">New passphrase (8–256 characters)<input style={{ display: "block", width: "100%", height: 36, marginTop: 4 }} type="password" autoComplete="new-password" minLength={8} maxLength={256} value={next} onChange={(e) => setNext(e.target.value)} required /></label>
+            <label className="t-sm">Confirm new passphrase<input style={{ display: "block", width: "100%", height: 36, marginTop: 4 }} type="password" autoComplete="new-password" value={confirm} onChange={(e) => setConfirm(e.target.value)} aria-invalid={mismatch} required /></label>
+            {mismatch && <span className="t-sm" role="alert">The new passphrases don't match.</span>}
+          </>}
+          {mode === "codes" && <p className="t-sm i3">Every current recovery code stops working. The new codes are shown once.</p>}
+          <span className="row-gap" style={{ gap: 8 }}>
+            <button type="submit" className="btn btn-p" disabled={!!pending || mismatch}>{pending === "rekey" ? "Saving…" : mode === "passphrase" ? "Change passphrase" : "Replace codes"}</button>
+            <button type="button" className="btn btn-g" onClick={reset}>Cancel</button>
+          </span>
+        </form>
+      )}
+    </>
+  );
+}
+
+export function Settings() {
+  const { theme, setTheme, density, setDensity, ws, lock, vaultClosed } = useApp();
+  const gov = useCommand<Gov>(ws?.open ? "governance_overview" : null);
+
+  return (
+    <div className="pane">
+      <PageHead title="Settings" sub="Read-only facts are shown as status. Anything you can change is a control." />
+      <div className="settings-layout">
+        <nav className="settings-nav" aria-label="Settings sections">
+          {[["set-appearance", "Appearance"], ["set-workspace", "Workspace"], ...(ws?.workspace?.kind === "encrypted" ? [["set-recovery", "Crash recovery"]] : []), ...(gov.state.status === "ready" ? [["set-privacy", "Privacy & network"], ["set-qualification", "Qualification"]] : []), ["set-keyboard", "Keyboard"]].map(([id, label]) => (
+            <button key={id} type="button" className="settings-link" onClick={() => { const target = document.getElementById(id!); target?.focus({ preventScroll: true }); target?.scrollIntoView({ block: "start" }); }}>{label}</button>
+          ))}
+        </nav>
+        <div className="settings-body">
+        <div id="set-appearance" tabIndex={-1}><Section title="Appearance">
+          <SettingRow label="Theme" detail="Saved on this device. Also available from the command palette."><Seg label="Theme" value={theme} options={["dark", "light"]} onChange={setTheme} /></SettingRow>
+          <SettingRow label="Density" detail="Compact tightens rows, padding and gaps. Type size does not change."><Seg label="Density" value={density} options={["standard", "compact"]} onChange={setDensity} /></SettingRow>
+          <SettingRow label="Reduce motion" detail="Follows the operating system. State changes stay immediate."><Status kind="available">Follows system</Status></SettingRow>
+        </Section></div>
+        <div id="set-workspace" tabIndex={-1}><Section title="Workspace">
+          <SettingRow label="Open workspace" detail={ws?.workspace ? `${ws.workspace.subjects} subjects · ${ws.workspace.sources} sources promoted by this desktop` : "No vault is open."}>
+            {ws?.workspace ? <span className="mono" style={{ fontSize: 12 }}>{ws.workspace.vault_id}</span> : <Status kind="unavailable">None</Status>}
+          </SettingRow>
+          {ws?.workspace?.kind === "encrypted" && <SettingRow label="Clinical ingest" detail="FHIR imports, the patient list, projects, data, analytics and collaboration stay sealed in this vault. Real patient data is still not authorized: use synthetic or permitted test data only."><Status kind="limited">Synthetic or test data only</Status></SettingRow>}
+          {ws?.workspace?.kind === "encrypted" && <VaultKeys />}
+          {ws?.encrypted_vault_exists && <BackupRow onLocked={() => void vaultClosed()} />}
+          <SettingRow label="Lock workspace" detail="Closes the vault and releases keys from memory.">
+            <span className="row-gap" style={{ gap: 8 }}><button type="button" className="btn btn-s" onClick={() => void lock()} disabled={!ws?.open}>Lock now</button><span className="kbd">{MOD} Shift L</span></span>
+          </SettingRow>
+        </Section></div>
+        {ws?.workspace?.kind === "encrypted" && <div id="set-recovery" tabIndex={-1}><RecoveryKept onRestored={() => void vaultClosed()} /></div>}
+        {gov.state.status === "ready" && <>
+          <div id="set-privacy" tabIndex={-1}><Section title="Privacy & network"><RowList rows={gov.state.data.settings_rows.filter((r) => !/release|accessib/i.test(r.label))} /></Section></div>
+          <div id="set-qualification" tabIndex={-1}><Section title="Qualification" count="read-only"><RowList rows={gov.state.data.settings_rows.filter((r) => /release|accessib/i.test(r.label))} /><p className="t-sm i3" style={{ marginTop: 10 }}>{gov.state.data.missing_release_evidence}</p></Section></div>
+        </>}
+        {gov.state.status === "error" && <ErrorState error={gov.state.error} onRetry={gov.reload} />}
+        <div id="set-keyboard" tabIndex={-1}><Section title="Keyboard">
+          <KV keyWidth={150} rows={[[`${MOD} K`, "Search or run a command"], [`${MOD} ,`, "Settings"], [`${MOD} Shift L`, "Lock workspace"], ["Enter", "Open the focused row"], ["Space", "Preview the focused row"], ["Esc", "Close the palette or dialog"]]} />
+        </Section></div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* ───────────────────────────── About ───────────────────────────── */
+type AboutVm = { product: string; tagline: string; version: string; shell: string; core: string; local_only: boolean; network_default_deny: boolean; license: string; build_profile: string; target: string; release_ready: boolean };
+
+export function About() {
+  const { state, reload } = useCommand<AboutVm>("about_info");
+  if (state.status === "loading") return <div className="pane"><Skeleton /></div>;
+  if (state.status === "error") return <div className="pane"><ErrorState error={state.error} onRetry={reload} /></div>;
+  const a = state.data;
+  return (
+    <div className="pane">
+      <div style={{ maxWidth: 980 }} className="stack">
+        <h1 className="sr-only">About MedScale</h1>
+        <div className="row-gap" style={{ alignItems: "flex-end", gap: 40, paddingBottom: 32, borderBottom: "1px solid var(--line)", marginBottom: 28 }}>
+          <Mark height={66} />
+          <div className="stack" style={{ gap: 6, flex: 1, minWidth: 260 }}><Wordmark height={34} title={a.product} /><span style={{ fontSize: 15, color: "var(--ink-2)" }}>{a.tagline}</span></div>
+          <div className="stack" style={{ alignItems: "flex-end", gap: 6 }}><span className="mono" style={{ fontSize: 20 }}>{a.version}</span><span style={{ fontSize: 11, letterSpacing: "0.28em", textTransform: "uppercase", color: "var(--ink-3)" }}>Evidence. Privacy. Scale.</span></div>
+        </div>
+        <div className="grid-2">
+          <Section n="01" title="Build"><KV keyWidth={110} rows={[["version", <span className="mono t-mono-sm">{a.version}</span>], ["profile", <span className="mono t-mono-sm">{a.build_profile}</span>], ["target", <span className="mono t-mono-sm">{a.target}</span>], ["license", <span className="mono t-mono-sm">{a.license}</span>], ["build status", a.release_ready ? <Status kind="available">Release qualified</Status> : <Status kind="limited">Beta build · not clinically validated</Status>]]} /></Section>
+          <Section n="02" title="Local runtime"><KV keyWidth={110} rows={[["shell", a.shell], ["core", a.core], ["network", <Status kind={a.network_default_deny ? "blocked" : "unknown"}>{a.network_default_deny ? "Default deny" : "Not verified"}</Status>], ["locality", <Status kind={a.local_only ? "available" : "unknown"}>{a.local_only ? "Local only" : "Unknown"}</Status>]]} /></Section>
+          <Section n="03" title="Licenses"><KV keyWidth={110} rows={[["MedScale", <span className="mono t-mono-sm">Apache-2.0</span>], ["Inter", <span className="mono t-mono-sm">OFL-1.1</span>], ["JetBrains Mono", <span className="mono t-mono-sm">OFL-1.1</span>], ["third party", "See docs/legal/NOTICE_INVENTORY.md"]]} /></Section>
+          <Section n="04" title="Provenance"><KV keyWidth={110} rows={[["dependencies", "cargo-deny policy and supply-chain audits"], ["signing", <Status kind="pending">Not claimed</Status>], ["clinical use", <Status kind="blocked">Not authorized · synthetic only</Status>]]} /></Section>
+        </div>
+        <Notice kind="synthetic" title="Synthetic fixtures.">Patients, evidence and model packs in the synthetic workspace come from the repository's synthetic fixtures. They are not real records.</Notice>
+        <SetAsideNotice />
+        <ReportProblem about={a} />
+      </div>
+    </div>
+  );
+}
+
+/** Spec 108 step 5: the set-aside sample copy is always disclosed here with
+ * a confirmed, permanent delete. */
+function SetAsideNotice() {
+  const { ws, refreshWorkspace } = useApp();
+  const { pending, run } = useAction();
+  const toast = useToast();
+  const [confirming, setConfirming] = useState(false);
+  if (!ws?.set_aside_exists) return null;
+  async function remove() {
+    const r = await run<unknown>("delete-set-aside", "workspace_delete_set_aside_synthetic");
+    setConfirming(false);
+    if (r.ok) toast({ kind: "completed", title: "Set-aside sample deleted" });
+    else toast({ kind: "blocked", title: "Not deleted", detail: r.error.message });
+    await refreshWorkspace();
+  }
+  return (
+    <Section n="06" title="Set-aside sample">
+      <p className="t-sm i2" style={{ margin: "0 0 10px", whiteSpace: "normal" }}>{SET_ASIDE_EXISTS_NOTICE}</p>
+      <button type="button" className="btn btn-g" aria-expanded={confirming} onClick={() => setConfirming(true)} disabled={!!pending}>Delete set-aside sample…</button>
+      {confirming && (
+        <ConfirmPanel title={DELETE_SET_ASIDE_DIALOG.title} confirmLabel={DELETE_SET_ASIDE_DIALOG.confirm} busy={!!pending}
+          onConfirm={remove} onCancel={() => setConfirming(false)}>{DELETE_SET_ASIDE_DIALOG.body}</ConfirmPanel>
+      )}
+    </Section>
+  );
+}
+
+/** Spec 107 D2: copy-only defect reporting. MedScale does not open the
+ * browser itself; no opener, shell or navigation capability is added. */
+function ReportProblem({ about }: { about: AboutVm }) {
+  const [copied, setCopied] = useState<"link" | "diagnostics" | "failed" | null>(null);
+  const diagnostics = supportDiagnostics(about);
+  async function copy(kind: "link" | "diagnostics", text: string) {
+    try {
+      await navigator.clipboard.writeText(text);
+      setCopied(kind);
+    } catch {
+      setCopied("failed");
+    }
+  }
+  return (
+    <Section n="05" title="Report a problem">
+      <p className="t-sm i2" style={{ margin: "0 0 10px" }}>Open this address in your web browser and choose the bug-report template. MedScale does not open this link for you.</p>
+      <div className="row-gap" style={{ gap: 8, marginBottom: 12 }}>
+        <code className="mono t-mono-sm" style={{ userSelect: "all", overflowWrap: "anywhere" }} aria-label="Support address">{SUPPORT_ISSUES_URL}</code>
+        <button type="button" className="btn btn-g" onClick={() => copy("link", SUPPORT_ISSUES_URL)}>Copy link</button>
+      </div>
+      <div className="lbl" id="support-diag-label">Diagnostics to paste into the report</div>
+      <pre className="pre" aria-labelledby="support-diag-label" style={{ margin: "6px 0 8px" }}>{diagnostics}</pre>
+      <div className="row-gap" style={{ gap: 8, marginBottom: 10 }}>
+        <button type="button" className="btn btn-g" onClick={() => copy("diagnostics", diagnostics)}>Copy diagnostics</button>
+        <span className="t-sm i3" role="status" aria-live="polite">
+          {copied === "link" ? "Link copied." : copied === "diagnostics" ? "Diagnostics copied." : copied === "failed" ? "Copy failed. Select the text above and copy it manually." : ""}
+        </span>
+      </div>
+      <Notice kind="blocked" title="Synthetic examples only.">{SUPPORT_DATA_RULE}</Notice>
+    </Section>
+  );
+}

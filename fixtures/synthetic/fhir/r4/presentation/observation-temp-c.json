@@ -1,0 +1,1 @@
+{"resourceType":"Observation","id":"temp-c","status":"final","code":{"coding":[{"code":"8310-5"}]},"valueQuantity":{"value":37,"unit":"Cel","code":"Cel"},"effectiveDateTime":"2020-01-04T00:00:00Z"}

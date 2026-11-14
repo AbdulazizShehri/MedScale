@@ -1,0 +1,68 @@
+# Disposable macOS WKWebView low-storage negative test: no real disk filling or model weights.
+name: macos-whisper-low-storage-qualification
+
+on:
+  pull_request:
+    paths:
+      - scripts/ci/macos-model-low-storage-instrument.py
+      - scripts/ci/macos-webdriver-smoke.py
+      - scripts/ci/macos-webdriver-instrument.py
+      - .github/workflows/macos-whisper-low-storage-qualification.yml
+
+permissions:
+  contents: read
+
+concurrency:
+  group: macos-whisper-low-storage-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  native-low-storage:
+    name: macOS native Whisper low-storage GUI and IPC (no model)
+    runs-on: macos-latest
+    timeout-minutes: 140
+    env:
+      CARGO_BUILD_JOBS: "2"
+      RUSTFLAGS: "-Dwarnings"
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: "24.19.0"
+          cache: npm
+          cache-dependency-path: apps/desktop-tauri/package-lock.json
+      - uses: dtolnay/rust-toolchain@d1031067263f94b142dd6c0ce24c5eb9d02d52a0
+        with:
+          toolchain: "1.97.1"
+          components: rustfmt
+      - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6
+        with:
+          workspaces: apps/desktop-tauri/src-tauri -> target
+          key: macos-whisper-low-storage-isolated
+      - name: Inject CI-only zero-byte budget and native WebDriver
+        run: |
+          set -euo pipefail
+          python3 -m py_compile scripts/ci/macos-webdriver-instrument.py scripts/ci/macos-model-low-storage-instrument.py scripts/ci/macos-webdriver-smoke.py
+          python3 scripts/ci/macos-webdriver-instrument.py
+          python3 scripts/ci/macos-model-low-storage-instrument.py
+          grep -q 'MEDSCALE_MAC_E2E_FORCE_LOW_SPACE' apps/desktop-tauri/src-tauri/src/audio_model_manager.rs
+          cd apps/desktop-tauri
+          npm ci --ignore-scripts --no-audit --no-fund
+          npm test
+          npm run build
+      - name: Build unsigned disposable native desktop without weights
+        working-directory: apps/desktop-tauri
+        run: npm run tauri -- build --bundles app --no-sign --ci --features custom-protocol,macos-webdriver-ci
+      - name: Prove native GUI and direct IPC low-space denial without staging
+        timeout-minutes: 12
+        env:
+          MEDSCALE_MAC_E2E_FORCE_LOW_SPACE: "1"
+        run: python3 -u scripts/ci/macos-webdriver-smoke.py
+      - name: Record limited acceptance scope
+        if: success()
+        run: |
+          echo 'Native WKWebView zero-byte budget: GUI disabled after consent, direct IPC denied, no model staging or worker acquisition: PASS.' >> "$GITHUB_STEP_SUMMARY"
+          echo 'CI-only simulated budget, not physical OS low-disk; no weights, recordings, PHI, signed release, customer device or clinical qualification.' >> "$GITHUB_STEP_SUMMARY"
+      - name: Remove CI-only probes
+        if: always()
+        run: rm -f "$RUNNER_TEMP/medscale-low-space-cache-root.txt" "$RUNNER_TEMP/medscale-low-space-acquire-entered.txt"

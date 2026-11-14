@@ -1,0 +1,1 @@
+{"resourceType":"Condition","id":"cond-1","clinicalStatus":{"coding":[{"code":"active"}]},"code":{"coding":[{"system":"http://hl7.org/fhir/sid/icd-10","code":"J06.9"}]},"onsetDateTime":"2019-12-01"}

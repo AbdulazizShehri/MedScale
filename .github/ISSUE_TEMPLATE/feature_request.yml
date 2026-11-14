@@ -1,0 +1,62 @@
+name: Feature request
+description: Suggest a new feature or an improvement
+title: "[Feature]: "
+labels: ["enhancement", "needs-triage"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Start with the problem, then your idea. A clear problem helps us find the best fix, even if it is not the one you first had in mind.
+
+        MedScale Beta is not a clinical product and is not authorized for real patient data. Please do not propose features that assume either.
+  - type: textarea
+    id: description
+    attributes:
+      label: Problem to solve
+      description: What are you trying to do, and what gets in the way?
+      placeholder: "When I ..., I can't ..., so I have to ..."
+    validations:
+      required: true
+  - type: textarea
+    id: solution
+    attributes:
+      label: Proposed solution
+      description: What would you like MedScale to do? Mention other options you thought about, if any.
+    validations:
+      required: true
+  - type: dropdown
+    id: scope
+    attributes:
+      label: Area
+      options:
+        - Desktop app
+        - Accessibility
+        - Encrypted vault, unlock or recovery
+        - Audio and transcription
+        - Models and packs
+        - FHIR import
+        - Install and update
+        - Command line (CLI)
+        - Website or documentation
+        - Other
+    validations:
+      required: true
+  - type: textarea
+    id: safety
+    attributes:
+      label: Privacy, safety or compatibility concerns
+      description: Anything that could affect privacy, data safety or existing vaults. Write "none known" if that is true.
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: MedScale version (optional)
+    validations:
+      required: false
+  - type: input
+    id: os
+    attributes:
+      label: Operating system and version (optional)
+    validations:
+      required: false

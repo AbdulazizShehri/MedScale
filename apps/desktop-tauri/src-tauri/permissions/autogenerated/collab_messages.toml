@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-collab-messages"
+description = "Enables the collab_messages command without any pre-configured scope."
+commands.allow = ["collab_messages"]
+
+[[permission]]
+identifier = "deny-collab-messages"
+description = "Denies the collab_messages command without any pre-configured scope."
+commands.deny = ["collab_messages"]

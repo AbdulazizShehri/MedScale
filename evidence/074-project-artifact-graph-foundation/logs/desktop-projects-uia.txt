@@ -1,0 +1,60 @@
+MedScale
+System Menu Bar
+System
+Minimize
+Maximize
+Close
+Home
+Patients and documents
+Intelligence
+Operations
+Governance
+Commands
+Settings
+CLINICAL INTELLIGENCE
+WORKSPACE
+Patients
+Documents
+Projects, selected
+Projects
+INTELLIGENCE
+Insights
+Models
+Evidence
+OPERATIONS
+Workflows
+Tasks
+Messages
+GOVERNANCE
+Audit Trail
+Exports
+Integrations
+Runtime status: local-first, network default deny, model runtime state visible in Model Center
+LOCAL RUNTIME
+No default egress
+v0.1.0
+About
+Global search
+Model Fabric status. Model Fabric · real portable ONNX runtime · 0 Pack(s) admitted this session
+Model Fabric · local
+JD
+Project and artifact organization · Core-backed references, never payload copies
+Project authority boundary. Projects reference canonical objects by identity · membership never copies payloads · every mutation is revision-guarded
+Project authority boundary
+Projects reference canonical objects by identity · membership never copies payloads · every mutation is revision-guarded
+Create a project. 1 project · Core-backed
+NEW PROJECT
+1 project · Core-backed
+New project name
+New project description
+Create
+Refresh
+Core-backed session state
+Desktop Parity Proof, active, revision 1
+Desktop Parity Proof
+proj-1 · rev 1
+active
+experiments 0 · refs 0 · edges 0
+Open. Detail
+Open
+Detail

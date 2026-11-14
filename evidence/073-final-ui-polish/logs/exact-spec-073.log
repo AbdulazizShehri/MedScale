@@ -1,0 +1,12 @@
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.61s
+     Running tests/final_ui_polish_073.rs (target/debug/deps/final_ui_polish_073-47cd3307794be835)
+
+running 6 tests
+test web_reference_is_explicitly_documentation_only ... ok
+test approved_monochrome_mark_is_runtime_bound ... ok
+test cli_identity_is_human_facing_without_json_brand_decorations ... ok
+test dual_dock_and_custom_icon_family_cover_product_areas ... ok
+test adaptive_theme_and_admitted_typography_are_active ... ok
+test spec_073_keeps_release_truth_and_mesc_separate ... ok
+
+test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.24s

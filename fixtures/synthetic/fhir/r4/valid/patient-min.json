@@ -1,0 +1,16 @@
+{
+  "resourceType": "Patient",
+  "id": "example",
+  "identifier": [
+    {
+      "system": "http://hospital.example/mrn",
+      "value": "12345"
+    }
+  ],
+  "name": [
+    {
+      "family": "Synthetic",
+      "given": ["Ada"]
+    }
+  ]
+}

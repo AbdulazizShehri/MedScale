@@ -1,0 +1,38 @@
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.57s
+     Running unittests src/main.rs (target/debug/deps/medscale_desktop-b4f8073c5f1e459e)
+
+running 23 tests
+test population_insights::tests::mismatched_subjects_fail_closed ... ok
+test population_insights::tests::dishonest_retrieval_envelope_fails_closed ... ok
+test population_insights::tests::synthetic_population_preserves_coverage_and_no_risk_claim ... ok
+test population_insights::tests::assistant_is_bounded_and_relevance_never_becomes_authority ... ok
+test patient_workspace::tests::mismatched_subjects_fail_closed ... ok
+test patient_workspace::tests::conflict_and_unknown_are_not_flattened_to_present ... ok
+test patient_workspace::tests::synthetic_demo_is_explicit_and_source_aware ... ok
+test product_intelligence::tests::malformed_claim_ledger_fails_closed ... ok
+test product_intelligence::tests::spec_071_claim_ledger_is_complete_and_fail_closed ... ok
+test tests::model_pack_path_requires_an_absolute_directory_path ... ok
+test product_intelligence::tests::empty_inventory_is_explicit_and_qualification_is_not_installed ... ok
+test product_intelligence::tests::current_truth_never_fakes_model_runtime_or_openmed_superiority ... ok
+test product_intelligence::tests::admitted_pack_row_exposes_runtime_trust_digest_benchmark_and_promotion ... ok
+test workflow_studio::tests::review_detail_never_claims_commit ... ok
+test workflow_studio::tests::synthetic_studio_maps_all_effect_states_without_blind_retry ... ok
+test workflow_studio::tests::tasks_and_messages_are_explicitly_non_authoritative_views ... ok
+test tests::no_tauri_or_runtime_crate_in_manifest ... ok
+test tests::perf_idle_probe_is_bounded_and_explicit ... ok
+test product_intelligence::tests::duplicate_capability_claim_ledger_fails_closed ... ok
+test tests::model_pack_admission_releases_session_borrow_before_refresh ... ok
+test product_intelligence::tests::session_projection_reads_core_admitted_pack_inventory ... ok
+test utility_surfaces::tests::integrations_keep_default_deny_and_external_gates_visible ... ok
+test utility_surfaces::tests::synthetic_utility_surfaces_preserve_non_claims ... ok
+
+test result: ok. 23 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.24s
+
+     Running tests/runtime_perf_057.rs (target/debug/deps/runtime_perf_057-a0a5f64ed2ca1e98)
+
+running 3 tests
+test rss_probe_window_covers_windows_process_enumeration_latency ... ok
+test tasklist_rss_parser_tolerates_transient_empty_output ... ok
+test runtime_perf_057_measures_without_claiming_attainment ... ok
+
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 7.70s

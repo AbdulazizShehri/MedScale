@@ -1,0 +1,55 @@
+# ocr --version
+open-code-review v1.12.7 (85cecfe) windows/amd64
+built at: 2026-09-19T08:48:49Z
+https://github.com/alibaba/open-code-review
+
+# ocr delegate preview --from ff2e677294b1ea8704bbeefa605d129c1a99e8f2 --to 547fb4175be4211798cc85631eabea8968b2ffb4 --color never
+# Files (22 reviewable / 40 total)
+
+- mode: range
+- from: ff2e677294b1ea8704bbeefa605d129c1a99e8f2
+- to: 547fb4175be4211798cc85631eabea8968b2ffb4
+- merge_base: ff2e677294b1ea8704bbeefa605d129c1a99e8f2
+- total_insertions: 11168
+- total_deletions: 21
+
+  - `crates/medscale-cli/src/main.rs` [modified] +7/-0
+  - `crates/medscale-cli/src/model_fleet.rs` [added] +886/-0
+  - `crates/medscale-contracts/src/envelopes/mod.rs` [modified] +117/-0
+  - `crates/medscale-contracts/src/lib.rs` [modified] +1/-0
+  - `crates/medscale-contracts/src/model_fleet.rs` [added] +771/-0
+  - `crates/medscale-core/src/authority/facade.rs` [modified] +283/-0
+  - `crates/medscale-core/src/authority/mod.rs` [modified] +2/-0
+  - `crates/medscale-core/src/authority/model_fleet.rs` [added] +835/-0
+  - `crates/medscale-core/src/authority/model_fleet_compare.rs` [added] +627/-0
+  - `crates/medscale-core/src/cli_session.rs` [modified] +288/-0
+  - `crates/medscale-core/tests/model_fleet_078.rs` [added] +1691/-0
+  - `crates/medscale-desktop/src/main.rs` [modified] +257/-0
+  - `crates/medscale-desktop/src/model_fleet_workspace.rs` [added] +401/-0
+~~- `crates/medscale-desktop/ui/app.slint` [modified] +154/-1 (excluded: unsupported_ext)~~
+  - `crates/medscale-storage/src/backup.rs` [modified] +92/-2
+  - `crates/medscale-storage/src/lib.rs` [modified] +1/-0
+  - `crates/medscale-storage/src/model_fleet.rs` [added] +906/-0
+  - `crates/medscale-storage/src/sqlite_meta.rs` [modified] +15/-1
+  - `crates/medscale-storage/tests/collaboration_076.rs` [modified] +3/-3
+  - `crates/medscale-storage/tests/data_sources_075.rs` [modified] +2/-2
+  - `crates/medscale-storage/tests/medagent_077.rs` [modified] +4/-4
+  - `crates/medscale-storage/tests/model_fleet_078.rs` [added] +1050/-0
+  - `crates/medscale-storage/tests/project_graph_074.rs` [modified] +10/-6
+~~- `docs/planning/BUILD_QUEUE.md` [modified] +3/-2 (excluded: unsupported_ext)~~
+~~- `docs/planning/EXTERNAL_GATES.md` [modified] +1/-0 (excluded: unsupported_ext)~~
+~~- `docs/planning/SPEC_078_PROMOTION.md` [added] +372/-0 (excluded: unsupported_ext)~~
+~~- `evidence/078-model-fleet-compare/CLI_QUALIFICATION.md` [added] +38/-0 (excluded: unsupported_ext)~~
+~~- `evidence/078-model-fleet-compare/CORE_AUTHORITY_QUALIFICATION.md` [added] +53/-0 (excluded: unsupported_ext)~~
+~~- `evidence/078-model-fleet-compare/DESKTOP_QUALIFICATION.md` [added] +53/-0 (excluded: unsupported_ext)~~
+~~- `evidence/078-model-fleet-compare/LANE_PLURALITY_QUALIFICATION.md` [added] +63/-0 (excluded: unsupported_ext)~~
+~~- `evidence/078-model-fleet-compare/LIVE_TRUTH.md` [added] +221/-0 (excluded: unsupported_ext)~~
+~~- `evidence/078-model-fleet-compare/README.md` [added] +61/-0 (excluded: unsupported_ext)~~
+~~- `evidence/078-model-fleet-compare/SECURITY_ADVERSARIAL.md` [added] +44/-0 (excluded: unsupported_ext)~~
+~~- `evidence/078-model-fleet-compare/STORAGE_MIGRATION_RECOVERY.md` [added] +128/-0 (excluded: unsupported_ext)~~
+~~- `specs/078-model-fleet-compare/contracts.md` [added] +328/-0 (excluded: unsupported_ext)~~
+~~- `specs/078-model-fleet-compare/migration.md` [added] +358/-0 (excluded: unsupported_ext)~~
+~~- `specs/078-model-fleet-compare/plan.md` [added] +288/-0 (excluded: unsupported_ext)~~
+~~- `specs/078-model-fleet-compare/security.md` [added] +305/-0 (excluded: unsupported_ext)~~
+~~- `specs/078-model-fleet-compare/spec.md` [added] +230/-0 (excluded: unsupported_ext)~~
+~~- `specs/078-model-fleet-compare/tasks.md` [added] +219/-0 (excluded: unsupported_ext)~~

@@ -1,0 +1,199 @@
+//! Spec 104 external qualification: catalog row -> verified Hub snapshot with
+//! `model.safetensors` -> signed candle Pack -> admission -> local execution.
+//! Weights are not vendored; the caller supplies them (pinned qualification
+//! acquisition, see `.github/workflows/model-qualification.yml`).
+//!
+//! MEDSCALE_CATALOG_SNAPSHOT, MEDSCALE_CATALOG_COMMIT, MEDSCALE_HF_SNAPSHOT_DIR,
+//! MEDSCALE_SAMPLE_TEXT as for `reference_snapshot_external_103`; the weight file
+//! is `model.safetensors`.
+//! cargo test --release -p medscale-pack --test safetensors_external_104 -- --ignored --nocapture
+
+use std::path::PathBuf;
+use std::time::Instant;
+
+use medscale_pack::{
+    CandleRunOptions, HfRepoMetadata, ModelCatalog, TokenClassifierSnapshot, admit_pack_dir,
+    build_token_classifier_pack, prepare_candle_token_classifier,
+};
+
+fn env(name: &str) -> String {
+    std::env::var(name).unwrap_or_else(|_| panic!("{name} must be set"))
+}
+
+#[test]
+#[ignore = "requires a pinned, locally supplied Hugging Face snapshot; weights are not vendored"]
+fn safetensors_catalog_row_to_local_execution() {
+    let catalog = ModelCatalog::import(
+        "maziyarpanahi/openmed",
+        &env("MEDSCALE_CATALOG_COMMIT"),
+        &std::fs::read(env("MEDSCALE_CATALOG_SNAPSHOT")).unwrap(),
+    )
+    .unwrap();
+    let snapshot = PathBuf::from(env("MEDSCALE_HF_SNAPSHOT_DIR"));
+    let meta: HfRepoMetadata =
+        serde_json::from_slice(&std::fs::read(snapshot.join("metadata.json")).unwrap()).unwrap();
+    let row = catalog
+        .get(&meta.id)
+        .expect("repository must be in the catalog");
+    // `model.safetensors` (Transformers layout) or `weights.safetensors`
+    // (OpenMed MLX export, renamed keys).
+    let weight_file =
+        std::env::var("MEDSCALE_HF_ONNX_FILE").unwrap_or_else(|_| "model.safetensors".into());
+    let out = std::env::temp_dir().join(format!("medscale-104-pack-{}", std::process::id()));
+    // OpenMed MLX exports ship no tokenizer; acquisition stored the verified
+    // source's metadata beside the snapshot.
+    let source_meta = medscale_pack::snapshot_tokenizer_source(&snapshot).unwrap();
+    let tokenizer_source = source_meta
+        .as_ref()
+        .map(|m| medscale_pack::TokenizerSource {
+            meta: m,
+            row: catalog
+                .get(&m.id)
+                .expect("tokenizer source must be in the catalog"),
+        });
+    let pack_id = build_token_classifier_pack(
+        &TokenClassifierSnapshot {
+            meta: &meta,
+            row,
+            snapshot_dir: &snapshot,
+            onnx_file: &weight_file,
+            fixed_sequence_length: 512,
+            tokenizer_source,
+        },
+        &out,
+    )
+    .expect("verified snapshot must build a Pack");
+    let manifest = admit_pack_dir(&out).expect("signed Pack must admit");
+    assert_eq!(manifest.pack_id.as_str(), pack_id);
+    let t0 = Instant::now();
+    let prepared = prepare_candle_token_classifier(&out, &manifest).expect("model must prepare");
+    let prepare_ms = t0.elapsed().as_millis();
+    let text = env("MEDSCALE_SAMPLE_TEXT");
+    let _ = prepared
+        .run_document(&manifest.pack_id, &text, CandleRunOptions::default())
+        .unwrap();
+    let t1 = Instant::now();
+    let output = prepared
+        .run_document(&manifest.pack_id, &text, CandleRunOptions::default())
+        .expect("model must run");
+    let run_ms = t1.elapsed().as_millis();
+    assert!(output.evidence_only);
+    assert_eq!(prepared.provenance().revision, meta.sha);
+    println!(
+        "SNAPSHOT_EVIDENCE runtime=candle device={} device_fallback={:?} repo={} revision={} model_type={} window={} prepare_ms={} warm_run_ms={}",
+        prepared.device_name(),
+        prepared.device_fallback(),
+        meta.id,
+        meta.sha,
+        prepared.model_type(),
+        prepared.window(),
+        prepare_ms,
+        run_ms
+    );
+    println!(
+        "SNAPSHOT_DOCUMENT {}",
+        serde_json::to_string(&output.proposal_payload["entities"]).unwrap()
+    );
+    // The optional word-level aggregation, printed beside the OpenMed-compatible
+    // baseline for comparison (never replaces it).
+    let word = prepared
+        .run_document(
+            &manifest.pack_id,
+            &text,
+            CandleRunOptions {
+                aggregation: medscale_pack::EntityAggregation::WordFirst,
+                ..CandleRunOptions::default()
+            },
+        )
+        .expect("word-aggregated run");
+    println!(
+        "SNAPSHOT_DOCUMENT_WORD_FIRST {}",
+        serde_json::to_string(&word.proposal_payload["entities"]).unwrap()
+    );
+    // Optional deterministic accuracy evaluation on a gold set
+    // (`MEDSCALE_EVAL_SET`, for example the synthetic PII set). Evaluation
+    // evidence only; never clinical validation.
+    if let Some(path) = std::env::var("MEDSCALE_EVAL_SET")
+        .ok()
+        .filter(|p| !p.is_empty())
+    {
+        use medscale_pack::entity_eval::{
+            EvalSet, evaluate, latency_summary, peak_rss_kib, predicted_spans_at,
+        };
+        // Repository-relative paths resolve against the workspace root
+        // (`cargo test` runs in the crate directory).
+        let path = std::path::Path::new(&path);
+        let path = if path.is_relative() {
+            std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+                .join("../..")
+                .join(path)
+        } else {
+            path.to_path_buf()
+        };
+        let set = EvalSet::from_json(&std::fs::read(&path).unwrap()).expect("valid gold set");
+        // The OpenMed-compatible default and MedScale's optional decoders.
+        let configs = [
+            ("openmed_default", CandleRunOptions::default(), "entities"),
+            (
+                "word_first",
+                CandleRunOptions {
+                    aggregation: medscale_pack::EntityAggregation::WordFirst,
+                    ..CandleRunOptions::default()
+                },
+                "entities",
+            ),
+            (
+                "word_average",
+                CandleRunOptions {
+                    aggregation: medscale_pack::EntityAggregation::WordAverage,
+                    ..CandleRunOptions::default()
+                },
+                "entities",
+            ),
+            (
+                "pii_merge",
+                CandleRunOptions {
+                    pii_semantic_merge: true,
+                    ..CandleRunOptions::default()
+                },
+                "pii_merged_entities",
+            ),
+            (
+                "word_first_pii_merge",
+                CandleRunOptions {
+                    aggregation: medscale_pack::EntityAggregation::WordFirst,
+                    pii_semantic_merge: true,
+                    ..CandleRunOptions::default()
+                },
+                "pii_merged_entities",
+            ),
+        ];
+        for (config, options, field) in configs {
+            let mut predictions = std::collections::BTreeMap::new();
+            let mut doc_ms = Vec::with_capacity(set.documents.len());
+            for doc in &set.documents {
+                let started = Instant::now();
+                let payload = prepared
+                    .run_document(&manifest.pack_id, &doc.text, options)
+                    .expect("gold document run")
+                    .proposal_payload;
+                doc_ms.push(started.elapsed().as_secs_f64() * 1000.0);
+                predictions.insert(doc.id.clone(), predicted_spans_at(&payload, field));
+            }
+            let report = evaluate(&set, &predictions);
+            // Same-runner timing for the OpenMed head-to-head: prepare (cold
+            // start) once, then warm per-document wall time.
+            println!(
+                "EVAL_METRICS {}",
+                serde_json::json!({
+                    "repo": meta.id, "revision": meta.sha, "config": config, "report": report,
+                    "runtime": "medscale",
+                    "prepare_ms": prepare_ms,
+                    "doc_latency_ms": latency_summary(&doc_ms),
+                    "peak_rss_kib": peak_rss_kib(),
+                })
+            );
+        }
+    }
+    let _ = std::fs::remove_dir_all(&out);
+}

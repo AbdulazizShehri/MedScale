@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-research-os-rows"
+description = "Enables the research_os_rows command without any pre-configured scope."
+commands.allow = ["research_os_rows"]
+
+[[permission]]
+identifier = "deny-research-os-rows"
+description = "Denies the research_os_rows command without any pre-configured scope."
+commands.deny = ["research_os_rows"]

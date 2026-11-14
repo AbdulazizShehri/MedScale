@@ -1,0 +1,998 @@
+   Compiling medscale-cli v0.1.0 (/Users/abdulazizalsh/Projects/MedScale-073/crates/medscale-cli)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 1.82s
+     Running unittests src/main.rs (target/debug/deps/medscale-ad07c3e5cc9a6a01)
+
+running 10 tests
+test tests::cli_does_not_depend_on_storage_or_rusqlite ... ok
+test tests::human_identity_is_terminal_native_and_json_contracts_stay_separate ... ok
+test tests::capability_map_is_explicit_about_visual_only_parity ... ok
+test tests::cli_read_parity_uses_existing_authority_contracts ... ok
+test tests::privacy_proof_limitations_include_tauri_and_no_systemwide_claim ... ok
+test tests::cli_product_paths_are_discoverable_and_structured ... ok
+test tests::cli_longitudinal_wedge ... ok
+test tests::doctor_json_has_required_axes_and_no_secrets ... ok
+test tests::fixture_ui_doctor_respects_phi_and_has_no_secrets ... ok
+test tests::fixture_ui_and_cli_help_surface_required_a11y_labels_without_wcag_claim ... ok
+
+test result: ok. 10 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.26s
+
+     Running unittests src/lib.rs (target/debug/deps/medscale_contracts-75516873fce0d209)
+
+running 23 tests
+test fixture_ui::tests::required_surface_labels_cover_fixture_surfaces ... ok
+test doctor::release_qualification_tests::prep_ready_base_never_claims_release_ready ... ok
+test fhir::tests::matrix_is_honest_ready_base ... ok
+test legal::tests::pending_has_no_invented_conclusion ... ok
+test fhir::tests::loss_aware_export_preserves_unsupported ... ok
+test legal::tests::pending_with_conclusion_is_invalid ... ok
+test doctor::release_qualification_tests::accessibility_ready_base_never_claims_wcag_or_release ... ok
+test objects::record_semantics::tests::missingness_roundtrip ... ok
+test objects::record_semantics::tests::unresolved_candidates_from_shared_identifier ... ok
+test objects::time_effect::tests::refuse_year_to_instant_upgrade ... ok
+test objects::time_effect::tests::timezone_offset_roundtrip ... ok
+test objects::time_effect::tests::year_precision_preserved_and_bounds_are_range ... ok
+test os_sandbox::tests::doctor_axis_honest ... ok
+test fhir::tests::matrix_serde_roundtrip ... ok
+test os_sandbox::tests::linux_ready_base_on_non_linux_is_not_ready ... ok
+test os_sandbox::tests::platform_qualified_still_refused ... ok
+test fixture_ui::tests::doctor_view_model_is_synthetic ... ok
+test os_sandbox::tests::ready_base_linux_without_allowlist_fails ... ok
+test os_sandbox::tests::scaffolds_and_ready_base_claims ... ok
+test tests::current_identity_uses_package_version ... ok
+test os_sandbox::tests::windows_ready_base_on_non_windows_is_not_ready ... ok
+test workflow::tests::cli_json_error_shape ... ok
+test workflow::tests::workflow_doctor_honest ... ok
+
+test result: ok. 23 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running unittests src/bin/os_sandbox_probe.rs (target/debug/deps/medscale_os_sandbox_probe-30dc697cbf947ad5)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/object_no_coercion.rs (target/debug/deps/object_no_coercion-0a9632433975fef6)
+
+running 3 tests
+test source_requires_bytes_and_digest ... ok
+test wrong_class_fields_do_not_decode_as_source ... ok
+test valid_source_decodes ... ok
+
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/object_roundtrip.rs (target/debug/deps/object_roundtrip-ba6b55dbe226e265)
+
+running 1 test
+test object_roundtrip_all_classes ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/os_sandbox_030.rs (target/debug/deps/os_sandbox_030-c740a03bfe327b00)
+
+running 5 tests
+test platform_qualified_never_honored ... ok
+test doctor_windows_measured_honest ... ok
+test macos_scaffold_unchanged ... ok
+test windows_ready_base_not_ready_off_windows ... ok
+test appcontainer_scaffold_still_not_platform_qualified ... ok
+
+test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/os_sandbox_031.rs (target/debug/deps/os_sandbox_031-1535f55bc0191f1f)
+
+running 5 tests
+test appcontainer_scaffold_unchanged ... ok
+test doctor_macos_measured_honest ... ok
+test platform_qualified_never_honored ... ok
+test macos_scaffold_still_not_platform_qualified ... ok
+test seatbelt_measured_denies_network ... ok
+
+test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.36s
+
+     Running tests/os_sandbox_033.rs (target/debug/deps/os_sandbox_033-94a6873c5ebf6bcb)
+
+running 4 tests
+test doctor_windows_appcontainer_fs_measured_honest ... ok
+test scaffold_still_not_platform_qualified ... ok
+test appcontainer_fs_not_ready_off_windows ... ok
+test platform_qualified_never_honored ... ok
+
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/os_sandbox_038.rs (target/debug/deps/os_sandbox_038-75e74588569508e5)
+
+running 4 tests
+test platform_qualified_never_honored ... ok
+test appcontainer_network_not_ready_off_windows ... ok
+test scaffold_still_not_platform_qualified ... ok
+test doctor_windows_appcontainer_network_measured_honest ... ok
+
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/os_sandbox_040.rs (target/debug/deps/os_sandbox_040-e71e466187e2d583)
+
+running 4 tests
+test doctor_windows_appcontainer_lpac_measured_honest ... ok
+test appcontainer_lpac_not_ready_off_windows ... ok
+test platform_qualified_never_honored ... ok
+test scaffold_still_not_platform_qualified_composition_residual ... ok
+
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/os_sandbox_041.rs (target/debug/deps/os_sandbox_041-bef6b3e8697511c8)
+
+running 6 tests
+test detection_probe_runs_without_panic ... ok
+test platform_qualified_never_honored ... ok
+test doctor_macos_app_sandbox_entitlements_honest ... ok
+test scaffold_still_not_platform_qualified ... ok
+test ready_base_apply_validates_artifact ... ok
+test entitlements_artifact_validates ... ok
+
+test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/os_sandbox_052.rs (target/debug/deps/os_sandbox_052-8af4d57639181000)
+
+running 3 tests
+test composition_plan_never_claims_platform_qualified ... ok
+test composition_not_ready_on_non_linux ... ok
+test doctor_linux_composition_axis_honest ... ok
+
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/os_sandbox_053.rs (target/debug/deps/os_sandbox_053-64f7c60eed1c508e)
+
+running 3 tests
+test doctor_seccomp_axis_honest ... ok
+test seccomp_plan_never_claims_platform_qualified ... ok
+test seccomp_not_ready_on_non_linux ... ok
+
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running unittests src/lib.rs (target/debug/deps/medscale_core-5e206c925d7a70e8)
+
+running 7 tests
+test authority::handles::tests::no_secret_handles_marker_exists ... ok
+test effects::tests::unknown_requires_reconcile ... ok
+test tests::bootstrap_report_is_local_and_non_medical ... ok
+test authority::corpus::tests::builtin_admits_and_identity_is_not_digest ... ok
+test release_sbom::unit_tests::fixture_verifies_clean ... ok
+test release_sbom::unit_tests::generator_is_deterministic ... ok
+test authority::corpus::tests::scale_10k_is_deterministic_and_distinct_from_builtin ... ok
+
+test result: ok. 7 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.14s
+
+     Running tests/actions_014.rs (target/debug/deps/actions_014-ad651db4fdf07215)
+
+running 5 tests
+test nphies_invoke_requires_workflow_evidence_gate ... ok
+test unknown_requires_reconcile_after_bound_send ... ok
+test sent_without_payload_digest_denied ... ok
+test create_intent_binds_payload_and_lists_outbox ... ok
+test doctor_controlled_actions_axis ... ok
+
+test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.28s
+
+     Running tests/cli_product_experience_065.rs (target/debug/deps/cli_product_experience_065-fbb24efb8d19e711)
+
+running 3 tests
+test cli_still_has_no_direct_storage_key_or_network_privilege ... ok
+test product_guide_preserves_privacy_and_transient_host_honesty ... ok
+test cli_reuses_facade_contracts_for_product_parity ... ok
+
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/desktop_cli_hardening_066.rs (target/debug/deps/desktop_cli_hardening_066-ce892eca2ad4e94a)
+
+running 5 tests
+test ci_keeps_pr_and_main_gates_without_duplicate_spec_push ... ok
+test window_floor_and_command_copy_are_hardened ... ok
+test every_advertised_route_is_honest_and_documents_is_real ... ok
+test primary_text_tokens_keep_engineering_contrast_floor_without_wcag_claim ... ok
+test home_demo_does_not_invent_clinical_risk_or_real_roster ... ok
+
+test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/documents_010.rs (target/debug/deps/documents_010-21c9294813c3617d)
+
+running 4 tests
+test mime_deny_html_and_office ... ok
+test worker_policies_ambient_deny ... ok
+test quarantine_denied_mime_no_source ... ok
+test admit_text_plain_then_ocr_asr_stubs ... ok
+
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+
+     Running tests/durable_restart_016.rs (target/debug/deps/durable_restart_016-fff7fc5d52d09b0d)
+
+running 4 tests
+test writer_lock_second_process_denied_016 ... ok
+test digest_mismatch_refuses_016 ... ok
+test same_process_reopen_retains_objects_016 ... ok
+
+running 1 test
+test durable_restart_two_process_016 ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 3 filtered out; finished in 0.00s
+
+test durable_restart_two_process_016 ... ok
+
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.10s
+
+     Running tests/effect_unknown_no_retry.rs (target/debug/deps/effect_unknown_no_retry-70211b7f0332561d)
+
+running 1 test
+test unknown_without_reconcile_denied ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+
+     Running tests/encrypted_authority_035.rs (target/debug/deps/encrypted_authority_035-eae1b2828484e74d)
+
+running 2 tests
+test doctor_encrypted_authority_sync_axis ... ok
+test encrypted_vault_authority_survives_reopen_035 ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.90s
+
+     Running tests/evidence_corpus_025.rs (target/debug/deps/evidence_corpus_025-40180634ad3916e8)
+
+running 6 tests
+test load_corpus_fixture_and_builtin ... ok
+test version_bump_changes_source_identity_and_digest ... ok
+test conflict_and_freshness_markers_are_evidence_metadata ... ok
+test lexical_search_hits_over_versioned_corpus ... ok
+test retracted_doc_excluded_by_default_marked_when_included ... ok
+test doctor_evidence_corpus_honesty ... ok
+
+test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.21s
+
+     Running tests/ffi_admission_validate.rs (target/debug/deps/ffi_admission_validate-7c6beb4f19db2745)
+
+running 2 tests
+test incomplete_ffi_record_fails ... ok
+test complete_ffi_record_passes ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/fhir_interchange_020.rs (target/debug/deps/fhir_interchange_020-2e9cc536bf4a307d)
+
+running 6 tests
+test matrix_honesty_axes_separated ... ok
+test loss_aware_export_stub_documents_losses ... ok
+test facade_get_fhir_support_matrix ... ok
+test facade_export_fhir_loss_aware ... ok
+test capability_mismatch_rejected ... ok
+test doctor_embeds_honest_matrix ... ok
+
+test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.25s
+
+     Running tests/final_release_closure_059.rs (target/debug/deps/final_release_closure_059-58b2931a582f8a1f)
+
+running 2 tests
+test living_release_documents_encode_external_only_residual_truth ... ok
+test release_residuals_are_exactly_external_after_material_clearance ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.21s
+
+     Running tests/final_ui_polish_073.rs (target/debug/deps/final_ui_polish_073-011cea3b0ba8ebd6)
+
+running 6 tests
+test web_reference_is_explicitly_documentation_only ... ok
+test cli_identity_is_human_facing_without_json_brand_decorations ... ok
+test approved_monochrome_mark_is_runtime_bound ... ok
+test dual_dock_and_custom_icon_family_cover_product_areas ... ok
+test adaptive_theme_and_admitted_typography_are_active ... ok
+test spec_073_keeps_release_truth_and_mesc_separate ... ok
+
+test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.21s
+
+     Running tests/final_ui_product_qualification_067.rs (target/debug/deps/final_ui_product_qualification_067-c7590ca327f8b4cd)
+
+running 5 tests
+test final_ui_performance_language_no_longer_claims_ui_absence ... ok
+test external_accessibility_and_performance_packets_are_exact_and_non_claiming ... ok
+test final_native_surface_inventory_has_no_future_placeholder_or_risk_claim ... ok
+test final_qualification_keeps_release_private_data_and_mesc_separate ... ok
+test final_accessibility_posture_is_engineering_qualified_but_not_wcag ... ok
+
+test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.23s
+
+     Running tests/fixture_a11y_semantics_056.rs (target/debug/deps/fixture_a11y_semantics_056-e76544ad71615680)
+
+running 6 tests
+test spec_and_evidence_present ... ok
+test dishonest_semantics_rejected ... ok
+test legacy_view_model_json_without_semantics_still_parses ... ok
+test every_lifecycle_state_has_canonical_announcement ... ok
+test doctor_semantics_flag_honest_without_wcag_claim ... ok
+test doctor_view_model_carries_honest_semantics ... ok
+
+test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.22s
+
+     Running tests/h0a_ingest_durability.rs (target/debug/deps/h0a_ingest_durability-9a4c2404852fe9ce)
+
+running 3 tests
+test duplicate_key_reject ... ok
+test lexical_fhir_ingest_accept_and_duplicate ... ok
+test backup_restore_roundtrip ... ok
+
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.08s
+
+     Running tests/h0b_presentation_coverage.rs (target/debug/deps/h0b_presentation_coverage-d30f25870cc4ddcc)
+
+running 6 tests
+test no_fhirpath_engine_dependency ... ok
+test presentation_drilldown ... ok
+test brief_golden ... ok
+test coverage_absence_conflict ... ok
+test timeline_golden_rebuild ... ok
+test presentation_golden_rebuild ... ok
+
+test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.15s
+
+     Running tests/host_os_ipc_024.rs (target/debug/deps/host_os_ipc_024-3eef5a55eb524908)
+
+running 6 tests
+test strict_default_denies_mutating_without_session ... ok
+test legacy_escape_still_allows_lease_only_mutation ... ok
+test second_ipc_host_cannot_take_writer_lock ... ok
+test ipc_capability_deny_across_clients ... ok
+test ipc_session_open_mutate_revoke_across_two_clients ... ok
+test doctor_os_ipc_qualified_not_multi_client ... ok
+
+test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.22s
+
+     Running tests/host_perf_measurement_050.rs (target/debug/deps/host_perf_measurement_050-638f0609b3622884)
+
+running 2 tests
+test host_perf_measurement_script_and_evidence_present ... ok
+test host_perf_measurement_path_doctor_honest ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.22s
+
+     Running tests/host_session_018.rs (target/debug/deps/host_session_018-5af6dd3f94682abb)
+
+running 5 tests
+test expiry_denies_further_use ... ok
+test mutating_without_session_id_denied_under_strict ... ok
+test open_session_requires_lease_holder_match ... ok
+test revoke_denies_further_use ... ok
+test doctor_host_authority_ready_base_os_ipc_not_multi_client ... ok
+
+test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.21s
+
+     Running tests/hostile_mime_010.rs (target/debug/deps/hostile_mime_010-04ea7547fcb5a47c)
+
+running 2 tests
+test empty_payload_quarantines ... ok
+test denied_mime_classes_quarantine ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/lease_single_writer.rs (target/debug/deps/lease_single_writer-5bcc92baf6d770dd)
+
+running 1 test
+test exclusive_lease_second_acquire_already_held ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+
+     Running tests/lexical_scale_045.rs (target/debug/deps/lexical_scale_045-b37f464d6be6d5f4)
+
+running 2 tests
+test small_scale_builder_is_deterministic ... ok
+test scale_10k_corpus_retrievable_and_honest ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.34s
+
+     Running tests/macos_ci_accessibility_029.rs (target/debug/deps/macos_ci_accessibility_029-018704c5c656e475)
+
+running 3 tests
+test accessibility_axis_is_honest_ready_base_not_wcag ... ok
+test fixture_ui_doctor_surfaces_required_labels ... ok
+test release_qualification_reports_macos_ci_without_claiming_qualified_or_release ... ok
+
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.23s
+
+     Running tests/mesc_admit_012.rs (target/debug/deps/mesc_admit_012-287193626cc321dd)
+
+running 3 tests
+test mesc_admit_refuses_without_released_artifact_gate ... ok
+test mesc_admit_requires_pack_path_flag ... ok
+test doctor_mesc_axis_gate_blocked ... ok
+
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.22s
+
+     Running tests/mesc_boundary_012.rs (target/debug/deps/mesc_boundary_012-d01f99b4afda9e04)
+
+running 1 test
+test workspace_crates_do_not_depend_on_mesc_python_runtime ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/mesc_optional_decoupling.rs (target/debug/deps/mesc_optional_decoupling-4a087085ddeb647d)
+
+running 5 tests
+test doctor_reports_mesc_optional_not_required ... ok
+test legacy_doctor_json_still_parses_without_new_fields ... ok
+test admit_path_stays_fail_closed_but_optional ... ok
+test malformed_optional_artifact_verify_fails_closed ... ok
+test trusted_core_starts_and_workflow_ready_with_no_mesc_artifact ... ok
+
+test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.23s
+
+     Running tests/mesc_verifier_036.rs (target/debug/deps/mesc_verifier_036-184bd07e07b46040)
+
+running 5 tests
+test synthetic_good_verifies_without_product_admit ... ok
+test replay_rejects_second_identical_verified_epoch ... ok
+test admit_still_gate_blocked_after_synthetic_verify ... ok
+test adversarial_fixtures_reject_with_stable_reasons ... ok
+test doctor_reports_verifier_ready_base_without_admit ... ok
+
+test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.22s
+
+     Running tests/migration_recovery_048.rs (target/debug/deps/migration_recovery_048-c0ec0894af93619e)
+
+running 2 tests
+test migration_recovery_evidence_present ... ok
+test migration_recovery_doctor_honest ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.21s
+
+     Running tests/mobile_009.rs (target/debug/deps/mobile_009-18592d9470b46c03)
+
+running 4 tests
+test keystore_policy_forbids_icloud_sync ... ok
+test mobile_doctor_ready_base_axes ... ok
+test ffi_stubs_incomplete_until_platform_evidence ... ok
+test doctor_json_includes_mobile_axis ... ok
+
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.21s
+
+     Running tests/native_desktop_ui_060.rs (target/debug/deps/native_desktop_ui_060-72ade4d75cc4a3cc)
+
+running 3 tests
+test product_phase_keeps_mobile_after_desktop_cli_launch ... ok
+test native_desktop_shell_is_pinned_non_webview_and_branded ... ok
+test doctor_reports_native_final_v0_without_inventing_wcag_or_release ... ok
+
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.21s
+
+     Running tests/native_patient_workspace_061.rs (target/debug/deps/native_patient_workspace_061-c38d801fb872693b)
+
+running 4 tests
+test unsupported_capabilities_are_explicit_non_claims ... ok
+test patient_boundary_uses_trusted_contracts_and_fails_closed ... ok
+test spec_061_keeps_mesc_and_release_claims_out_of_scope ... ok
+test patients_route_is_real_and_keyboard_reachable ... ok
+
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/native_population_insights_062.rs (target/debug/deps/native_population_insights_062-02bf12f66c70ee1d)
+
+running 4 tests
+test spec_062_keeps_mesc_phi_and_release_claims_out_of_scope ... ok
+test population_boundary_uses_trusted_contracts_without_new_authority ... ok
+test assistant_is_deterministic_and_no_provider_authority_is_added ... ok
+test insights_route_is_real_native_and_accessible ... ok
+
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/native_utility_surfaces_064.rs (target/debug/deps/native_utility_surfaces_064-133240d866634fb3)
+
+running 4 tests
+test desktop_still_has_no_direct_storage_or_network_client ... ok
+test spec_064_keeps_release_phi_and_mesc_claims_honest ... ok
+test utility_boundary_reuses_doctor_fhir_disclosure_and_broker_truth ... ok
+test audit_exports_settings_integrations_are_real_native_surfaces ... ok
+
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/native_workflow_studio_063.rs (target/debug/deps/native_workflow_studio_063-b4dec06a094adad6)
+
+running 4 tests
+test tasks_messages_do_not_claim_second_authority_or_transport ... ok
+test workflow_boundary_reuses_existing_outbox_and_effect_state ... ok
+test spec_063_keeps_external_authority_and_mesc_out_of_scope ... ok
+test workflow_tasks_messages_are_real_native_surfaces ... ok
+
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/network_broker_013.rs (target/debug/deps/network_broker_013-eb9a93e195b52634)
+
+running 9 tests
+test real_phi_data_class_refused ... ok
+test cli_and_desktop_do_not_depend_on_ureq ... ok
+test integrity_helper ... ok
+test purpose_mismatch_denies ... ok
+test stub_adapters_and_live_refused ... ok
+test fixture_transport_failed_maps_stable_reason ... ok
+test broker_allow_fixture_receipt ... ok
+test fixture_transport_timeout_maps_stable_reason ... ok
+test broker_deny_empty_allowlist_no_transport ... ok
+
+test result: ok. 9 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+
+     Running tests/online_packs_015.rs (target/debug/deps/online_packs_015-3ac2fa2087fc39aa)
+
+running 4 tests
+test workspace_cargo_tomls_have_no_hf_sdk ... ok
+test online_acquire_requires_broker_flag ... ok
+test online_acquire_refuses_hf_gate ... ok
+test doctor_online_packs_denied ... ok
+
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.24s
+
+     Running tests/os_sandbox_026.rs (target/debug/deps/os_sandbox_026-5e258a978c22aaf6)
+
+running 4 tests
+test platform_qualified_never_honored_while_gate_open ... ok
+test windows_appcontainer_and_macos_scaffold_remain_not_platform_qualified ... ok
+test doctor_os_sandbox_and_pack_signer_honest ... ok
+test ready_base_linux_plan_not_ready_on_this_host ... ok
+
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.22s
+
+     Running tests/os_sandbox_044.rs (target/debug/deps/os_sandbox_044-92def8574dcd2d8c)
+
+running 2 tests
+test composition_inventory_never_claims_platform_qualified ... ok
+test doctor_exposes_composition_inventory ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.21s
+
+     Running tests/os_sandbox_052.rs (target/debug/deps/os_sandbox_052-65cd0d046640017a)
+
+running 2 tests
+test evidence_and_promotion_present ... ok
+test doctor_linux_landlock_composition_honest ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.21s
+
+     Running tests/os_sandbox_053.rs (target/debug/deps/os_sandbox_053-eb2afb9ed9f040bd)
+
+running 2 tests
+test evidence_and_promotion_present ... ok
+test doctor_linux_seccomp_composition_honest ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.21s
+
+     Running tests/outbox_restart_034.rs (target/debug/deps/outbox_restart_034-37c6a0ba95dc1b03)
+
+running 2 tests
+test outbox_survives_synthetic_vault_restart_034 ... ok
+test doctor_outbox_restart_axis_honest ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.22s
+
+     Running tests/pack_signer_026.rs (target/debug/deps/pack_signer_026-c6736ed0768f2829)
+
+running 6 tests
+test admits_updated_008_fixture_with_signer ... ok
+test admits_signed_synthetic_pack ... ok
+test anti_rollback_allows_higher_epoch ... ok
+test anti_rollback_rejects_lower_epoch ... ok
+test rejects_unknown_trust_root ... ok
+test rejects_tampered_signature ... ok
+
+test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+
+     Running tests/package_upgrade_rollback_049.rs (target/debug/deps/package_upgrade_rollback_049-181b5d85fef6016b)
+
+running 2 tests
+test package_upgrade_rollback_scripts_and_evidence_present ... ok
+test package_upgrade_rollback_scaffold_doctor_honest ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.20s
+
+     Running tests/packs_008.rs (target/debug/deps/packs_008-b89f037d93a7e365)
+
+running 5 tests
+test format_deny_pickle_and_custom_op ... ok
+test cli_desktop_do_not_depend_on_medscale_pack_directly ... ok
+test admit_fixture_dir_direct ... ok
+test worker_ambient_deny_and_fixture_runtime_not_assertion ... ok
+test offline_pack_install_and_list ... ok
+
+test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.02s
+
+     Running tests/perf_attainment_dossier_055.rs (target/debug/deps/perf_attainment_dossier_055-12fa8e7b2414520c)
+
+running 2 tests
+test dossier_claims_no_attainment_or_release ... ok
+test dossier_and_binding_present_with_verdict ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/perf_harness_027.rs (target/debug/deps/perf_harness_027-d2fceadf1e215ea2)
+
+running 1 test
+test perf_harness_027_runs_and_reports_numbers_without_budget_pass ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 8.05s
+
+     Running tests/portable_release_package_058.rs (target/debug/deps/portable_release_package_058-d64561282bda06b5)
+
+running 2 tests
+test package_scripts_encode_fail_closed_honesty ... ok
+test doctor_closes_only_proven_package_residuals ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.21s
+
+     Running tests/privacy_honesty_043.rs (target/debug/deps/privacy_honesty_043-f4d486740e1a8615)
+
+running 2 tests
+test swap_snapshot_honesty_never_claims_protection_measured ... ok
+test doctor_exposes_043_honesty_fields ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.23s
+
+     Running tests/privacy_probes_032.rs (target/debug/deps/privacy_probes_032-496431b9db45145a)
+
+running 3 tests
+test storage_probe_api_matches_doctor_residual_classes ... ok
+test vault_privacy_probes_present_and_residuals_open ... ok
+test release_qualification_notice_inventory_with_license_decision ... ok
+
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.26s
+
+     Running tests/product_differentiation_068.rs (target/debug/deps/product_differentiation_068-a8753239ba682c99)
+
+running 5 tests
+test spec_068_closure_remains_historical_while_spec_073_is_active ... ok
+test brand_identity_is_canonical_and_runtime_bound ... ok
+test historical_spec_068_rejected_multicolor_palette_remains_retired ... ok
+test models_and_competitive_evidence_are_first_class_and_truthful ... ok
+test home_is_a_clinical_workspace_not_an_admin_dashboard ... ok
+
+test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/product_requalification_072.rs (target/debug/deps/product_requalification_072-9264ce367c5e8e86)
+
+running 5 tests
+test rebuilt_performance_packet_covers_models_evidence_without_attainment_claim ... ok
+test rebuilt_native_route_inventory_includes_models_and_evidence ... ok
+test rebuilt_model_and_evidence_surfaces_preserve_truth_boundaries ... ok
+test rebuilt_accessibility_packet_covers_models_evidence_and_stays_external ... ok
+test release_residuals_remain_exactly_external_after_rebuild ... ok
+
+test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.24s
+
+     Running tests/promote_and_identity.rs (target/debug/deps/promote_and_identity-007c5c0c98979cf0)
+
+running 3 tests
+test unauthorized_capability_mismatch_denied ... ok
+test no_silent_identity_merge ... ok
+test authorized_promote_and_cross_scope_deny ... ok
+
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+
+     Running tests/real_local_model_runtime_069.rs (target/debug/deps/real_local_model_runtime_069-2ff8d06d9caa868f)
+
+running 6 tests
+test desktop_and_cli_still_do_not_own_runtime_dependencies ... ok
+test strict_mode_requires_client_session_for_model_execution ... ok
+test real_phi_runtime_remains_explicitly_gated ... ok
+test core_runs_real_local_onnx_as_evidence_only ... ok
+test prepared_cache_reuse_never_leaks_the_first_pack_identity ... ok
+test prepared_cache_reuse_requires_the_same_runtime_contract ... ok
+
+test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.14s
+
+     Running tests/record_semantics_019.rs (target/debug/deps/record_semantics_019-28980a2c767feb4c)
+
+running 6 tests
+test missingness_roundtrip ... ok
+test partial_date_precision_preserved ... ok
+test identity_unresolved_candidates ... ok
+test refuse_false_instant_upgrade ... ok
+test amendment_lineage_append_only ... ok
+test doctor_record_semantics_axis ... ok
+
+test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.25s
+
+     Running tests/release_dry_run_047.rs (target/debug/deps/release_dry_run_047-60978e50fecdb2d5)
+
+running 2 tests
+test release_dry_run_scripts_and_evidence_present ... ok
+test release_dry_run_verifier_doctor_honest ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.22s
+
+     Running tests/release_qualification_022.rs (target/debug/deps/release_qualification_022-743d967e2759a6f6)
+
+running 1 test
+test release_qualification_axis_is_honest_prep_not_release_ready ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.22s
+
+     Running tests/release_qualification_integrity_057.rs (target/debug/deps/release_qualification_integrity_057-ba5740db86466df6)
+
+running 3 tests
+test every_github_action_use_is_sha_pinned ... ok
+test final_ui_latency_is_present_but_external_measurement_gated ... ok
+test runtime_perf_coverage_is_present_without_attainment_claim ... ok
+
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.23s
+
+     Running tests/release_sbom_054.rs (target/debug/deps/release_sbom_054-cadd5e4c37f8032c)
+
+running 11 tests
+test verifier_rejects_malformed_json ... ok
+test verifier_accepts_fixture_document ... ok
+test generator_is_deterministic ... ok
+test verifier_rejects_missing_required_property ... ok
+test verifier_rejects_stale_source_sha ... ok
+test verifier_rejects_stale_lock_digest ... ok
+test verifier_rejects_missing_workspace_package ... ok
+test verifier_rejects_unclassified_native_dep ... ok
+test verifier_rejects_tampered_component ... ok
+test committed_document_is_self_consistent ... ok
+test doctor_reports_sbom_qualified_without_release_ready ... ok
+
+test result: ok. 11 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.22s
+
+     Running tests/required_checks_sync_051.rs (target/debug/deps/required_checks_sync_051-85f9e223702a505e)
+
+running 3 tests
+test required_checks_owner_action_and_evidence_present ... ok
+test required_checks_packet_lists_perf_job ... ok
+test required_checks_packet_doctor_honest ... ok
+
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.23s
+
+     Running tests/retrieval_011.rs (target/debug/deps/retrieval_011-c9b26714ffcb2e28)
+
+running 2 tests
+test lexical_retrieve_ranks_and_evidence_only ... ok
+test unknown_corpus_denied ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.08s
+
+     Running tests/source_immutability.rs (target/debug/deps/source_immutability-1ff7600daddce5b3)
+
+running 1 test
+test digest_verify_and_no_overwrite ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/text_span_coords.rs (target/debug/deps/text_span_coords-a366beeb21481550)
+
+running 5 tests
+test out_of_bounds_byte ... ok
+test invalid_utf8_fails_closed ... ok
+test multibyte_scalar_boundary ... ok
+test ascii_roundtrip ... ok
+test out_of_bounds_scalar ... ok
+
+test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/vault_privacy_023.rs (target/debug/deps/vault_privacy_023-f0197a17163771c9)
+
+running 2 tests
+test doctor_os_keyring_028_honesty ... ok
+test doctor_vault_privacy_023 ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.22s
+
+     Running tests/worker_policy_deny_default.rs (target/debug/deps/worker_policy_deny_default-49585e2cee720ef5)
+
+running 2 tests
+test deny_by_default_passes ... ok
+test ambient_network_fails_validator ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/workflow_021.rs (target/debug/deps/workflow_021-61b8432681d75d07)
+
+running 5 tests
+test reject_and_list_disclosures_facade_021 ... ok
+test doctor_workflow_honesty_021 ... ok
+test journey_reject_no_assertion_021 ... ok
+
+running 1 test
+test workflow_two_process_reopen_021 ... test journey_accept_backup_restore_021 ... ok
+ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 4 filtered out; finished in 0.00s
+
+test workflow_two_process_reopen_021 ... ok
+
+test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.37s
+
+     Running unittests src/main.rs (target/debug/deps/medscale_desktop-268905a1f670b592)
+
+running 23 tests
+test population_insights::tests::mismatched_subjects_fail_closed ... ok
+test population_insights::tests::dishonest_retrieval_envelope_fails_closed ... ok
+test patient_workspace::tests::mismatched_subjects_fail_closed ... ok
+test patient_workspace::tests::synthetic_demo_is_explicit_and_source_aware ... ok
+test population_insights::tests::synthetic_population_preserves_coverage_and_no_risk_claim ... ok
+test population_insights::tests::assistant_is_bounded_and_relevance_never_becomes_authority ... ok
+test patient_workspace::tests::conflict_and_unknown_are_not_flattened_to_present ... ok
+test product_intelligence::tests::malformed_claim_ledger_fails_closed ... ok
+test tests::model_pack_path_requires_an_absolute_directory_path ... ok
+test product_intelligence::tests::spec_071_claim_ledger_is_complete_and_fail_closed ... ok
+test product_intelligence::tests::empty_inventory_is_explicit_and_qualification_is_not_installed ... ok
+test product_intelligence::tests::current_truth_never_fakes_model_runtime_or_openmed_superiority ... ok
+test product_intelligence::tests::admitted_pack_row_exposes_runtime_trust_digest_benchmark_and_promotion ... ok
+test tests::no_tauri_or_runtime_crate_in_manifest ... ok
+test workflow_studio::tests::review_detail_never_claims_commit ... ok
+test workflow_studio::tests::synthetic_studio_maps_all_effect_states_without_blind_retry ... ok
+test workflow_studio::tests::tasks_and_messages_are_explicitly_non_authoritative_views ... ok
+test tests::perf_idle_probe_is_bounded_and_explicit ... ok
+test product_intelligence::tests::duplicate_capability_claim_ledger_fails_closed ... ok
+test tests::model_pack_admission_releases_session_borrow_before_refresh ... ok
+test product_intelligence::tests::session_projection_reads_core_admitted_pack_inventory ... ok
+test utility_surfaces::tests::integrations_keep_default_deny_and_external_gates_visible ... ok
+test utility_surfaces::tests::synthetic_utility_surfaces_preserve_non_claims ... ok
+
+test result: ok. 23 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.23s
+
+     Running tests/runtime_perf_057.rs (target/debug/deps/runtime_perf_057-2f5f3a534928da24)
+
+running 3 tests
+test rss_probe_window_covers_windows_process_enumeration_latency ... ok
+test tasklist_rss_parser_tolerates_transient_empty_output ... ok
+test runtime_perf_057_measures_without_claiming_attainment ... ok
+
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 8.12s
+
+     Running unittests src/lib.rs (target/debug/deps/medscale_fhir-6c89a8e907bd3c90)
+
+running 9 tests
+test lexical::tests::fractional_number_rejected ... ok
+test lexical::tests::duplicate_key_rejected ... ok
+test units::tests::incompatible_units_not_equal ... ok
+test units::tests::unrecognized_no_silent_convert ... ok
+test extractors::tests::unsupported_resource ... ok
+test extractors::tests::patient_happy_path ... ok
+test extractors::tests::condition_extractor ... ok
+test extractors::tests::observation_value_quantity ... ok
+test units::tests::subset_digest_matches_sorted_list ... ok
+
+test result: ok. 9 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running unittests src/lib.rs (target/debug/deps/medscale_keys-45a11c1e6d3b6166)
+
+running 8 tests
+test keystore::tests::memory_keystore_roundtrip ... ok
+test keystore::tests::fake_os_keystore_namespace_boundary ... ok
+test pack_trust::tests::wrong_trust_root_rejected ... ok
+test pack_trust::tests::round_trip_sign_verify ... ok
+test keystore::tests::os_keystore_roundtrip_or_skip_if_unavailable ... ok
+test keystore::tests::fake_os_keystore_keyprovider_roundtrip ... ok
+test provider::tests::keystore_roundtrip_and_wipe ... ok
+test provider::tests::passphrase_and_recovery_roundtrip ... ok
+
+test result: ok. 8 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.81s
+
+     Running unittests src/lib.rs (target/debug/deps/medscale_network-f931d250cbe3a73b)
+
+running 2 tests
+test allowlist::tests::empty_allowlist_denies ... ok
+test allowlist::tests::unknown_host_denies ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running unittests src/lib.rs (target/debug/deps/medscale_pack-e4832e1163c2fde1)
+
+running 3 tests
+test mesc_verify::tests::anti_rollback_and_replay ... ok
+test mesc_verify::tests::digest_mismatch_rejects ... ok
+test mesc_verify::tests::good_fixture_verifies_without_product_admit ... ok
+
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/hf_runtime_external_069.rs (target/debug/deps/hf_runtime_external_069-fe34357436e36824)
+
+running 1 test
+test pinned_hugging_face_onnx_model_executes_locally ... ignored, requires pinned external Hugging Face model bytes; weights are not vendored
+
+test result: ok. 0 passed; 0 failed; 1 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/onnx_runtime_069.rs (target/debug/deps/onnx_runtime_069-4eca3832673edf7f)
+
+running 9 tests
+test pack_admission_rejects_oversized_manifest_before_json_parse ... ok
+test pack_admission_rejects_symlink_escape_even_when_bytes_match ... ok
+test pack_admission_rejects_parent_traversal_before_reading_artifact ... ok
+test runtime_never_accepts_unsafe_artifact_paths ... ok
+test post_admission_artifact_swap_fails_closed ... ok
+test admission_and_runtime_reject_oversized_model_before_loading ... ok
+test runtime_rejects_post_admission_symlink_escape_even_when_bytes_match ... ok
+test prepare_rejects_static_output_shape_before_execution ... ok
+test real_onnx_fixture_runs_evidence_only ... ok
+
+test result: ok. 9 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.12s
+
+     Running unittests src/lib.rs (target/debug/deps/medscale_storage-36bc0b2de41b46df)
+
+running 2 tests
+test privacy_probes::tests::leftover_scan_detects_planted_crash_sidecar ... ok
+test privacy_probes::tests::probe_report_lists_open_residual_classes_and_never_claims_ready ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.03s
+
+     Running tests/encrypted_vault_005.rs (target/debug/deps/encrypted_vault_005-bc8f48c911ccd806)
+
+running 6 tests
+test digest_helper_compiles ... ok
+test vault_sync_root_and_lease ... ok
+test migrate_synthetic_to_encrypted ... ok
+test vault_recovery_key_loss ... ok
+test encrypted_vault_roundtrip ... ok
+test encrypted_backup_restore_retention ... ok
+
+test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.17s
+
+     Running tests/migration_recovery_048.rs (target/debug/deps/migration_recovery_048-b46be18752529699)
+
+running 4 tests
+test migration_journal_interrupted_predicate ... ok
+test migration_interrupt_detected_fail_closed_on_reopen ... ok
+test interrupted_synthetic_vault_recovered_via_backup_restore ... ok
+test encrypted_backup_restore_release_bar_closure ... ok
+
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.05s
+
+     Running tests/vault_open_metadata_023.rs (target/debug/deps/vault_open_metadata_023-090fbfdd014621c1)
+
+running 5 tests
+test sqlcipher_backend_active_023 ... ok
+test open_work_disk_scan_hides_plaintext_marker_023 ... ok
+test sqlcipher_wrong_key_fail_closed_023 ... ok
+test wrong_passphrase_fail_closed_023 ... ok
+test roundtrip_authority_meta_through_sqlcipher_023 ... ok
+
+test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.83s
+
+     Running tests/vault_privacy_017.rs (target/debug/deps/vault_privacy_017-a8523569b14c742a)
+
+running 2 tests
+test encrypted_close_removes_work_and_sidecars_017 ... ok
+test leftover_work_wiped_before_reopen_017 ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.55s
+
+   Doc-tests medscale_contracts
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+   Doc-tests medscale_core
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+   Doc-tests medscale_fhir
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+   Doc-tests medscale_keys
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+   Doc-tests medscale_network
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+   Doc-tests medscale_pack
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+   Doc-tests medscale_storage
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s

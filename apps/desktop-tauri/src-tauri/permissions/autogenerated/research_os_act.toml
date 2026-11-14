@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-research-os-act"
+description = "Enables the research_os_act command without any pre-configured scope."
+commands.allow = ["research_os_act"]
+
+[[permission]]
+identifier = "deny-research-os-act"
+description = "Denies the research_os_act command without any pre-configured scope."
+commands.deny = ["research_os_act"]

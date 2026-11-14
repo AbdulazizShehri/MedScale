@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-governance-overview"
+description = "Enables the governance_overview command without any pre-configured scope."
+commands.allow = ["governance_overview"]
+
+[[permission]]
+identifier = "deny-governance-overview"
+description = "Denies the governance_overview command without any pre-configured scope."
+commands.deny = ["governance_overview"]

@@ -1,0 +1,102 @@
+[
+  {
+    "id": "note-en-us",
+    "locale": "en-US",
+    "media_type": "text/plain",
+    "text": "Discharge summary. Patient: Jane Q. Doe, MRN: 004512. Admitted 2024-03-12 and seen by Dr. Alan Smith on March 14, 2024. Call +1 555 201 7788 or jane.doe@example.org. Portal https://portal.example.org/p/1. Address: 42 Elm Street, Springfield. SSN 123-45-6789. Blood pressure 120/80 mmHg, metformin 500 mg twice daily.",
+    "expected": [
+      {"kind": "person_name", "value": "Jane Q. Doe"},
+      {"kind": "identifier", "value": "004512"},
+      {"kind": "date", "value": "2024-03-12"},
+      {"kind": "person_name", "value": "Alan Smith"},
+      {"kind": "date", "value": "March 14, 2024"},
+      {"kind": "phone", "value": "+1 555 201 7788"},
+      {"kind": "email", "value": "jane.doe@example.org"},
+      {"kind": "url", "value": "https://portal.example.org/p/1"},
+      {"kind": "postal_address", "value": "42 Elm Street"},
+      {"kind": "identifier", "value": "123-45-6789"}
+    ]
+  },
+  {
+    "id": "note-en-gb",
+    "locale": "en-GB",
+    "media_type": "text/plain",
+    "text": "Referral letter. Name: Oliver Hughes. NHS number 943 476 5919 was not verified; record no: RX-778120. Seen 14/02/1975 follow-up booked 03/11/2020. Contact: Mrs. Amelia Hughes on +44 20 7946 0958. Address: 10 Downing Lane, London SW1A 1AA. Workstation 192.168.10.44.",
+    "expected": [
+      {"kind": "person_name", "value": "Oliver Hughes"},
+      {"kind": "identifier", "value": "RX-778120"},
+      {"kind": "date", "value": "14/02/1975"},
+      {"kind": "date", "value": "03/11/2020"},
+      {"kind": "person_name", "value": "Amelia Hughes"},
+      {"kind": "phone", "value": "+44 20 7946 0958"},
+      {"kind": "postal_address", "value": "10 Downing Lane"},
+      {"kind": "postal_code", "value": "SW1A 1AA"},
+      {"kind": "ip_address", "value": "192.168.10.44"}
+    ]
+  },
+  {
+    "id": "note-es-formats",
+    "locale": "es-ES formats in English text",
+    "media_type": "text/plain",
+    "text": "Clinic note from Madrid. Patient: Lucia Rivera Gomez, DNI 12345678Z. Visit on 12 de marzo de 2024 with Dra. Carmen Ortega. Phone +34 600 123 456, email lucia.rivera@example.es. Home: Calle Mayor 12, 28013 Madrid.",
+    "expected": [
+      {"kind": "person_name", "value": "Lucia Rivera Gomez"},
+      {"kind": "identifier", "value": "12345678Z"},
+      {"kind": "date", "value": "12 de marzo de 2024"},
+      {"kind": "person_name", "value": "Carmen Ortega"},
+      {"kind": "phone", "value": "+34 600 123 456"},
+      {"kind": "email", "value": "lucia.rivera@example.es"},
+      {"kind": "postal_address", "value": "Calle Mayor 12"},
+      {"kind": "postal_code", "value": "28013"}
+    ]
+  },
+  {
+    "id": "note-fr-formats",
+    "locale": "fr-FR formats in English text",
+    "media_type": "text/plain",
+    "text": "Transfer note from Paris. Patient: Chloe Martin, IPP 55012345. Admitted 3 mars 2023 under Dr. Paul Lefevre. Phone +33 1 42 68 53 00. Address: 8 rue de la Paix, 75002 Paris. Results at www.example.fr/r/9.",
+    "expected": [
+      {"kind": "person_name", "value": "Chloe Martin"},
+      {"kind": "identifier", "value": "55012345"},
+      {"kind": "date", "value": "3 mars 2023"},
+      {"kind": "person_name", "value": "Paul Lefevre"},
+      {"kind": "phone", "value": "+33 1 42 68 53 00"},
+      {"kind": "postal_address", "value": "8 rue de la Paix"},
+      {"kind": "postal_code", "value": "75002"},
+      {"kind": "url", "value": "www.example.fr/r/9"}
+    ]
+  },
+  {
+    "id": "note-de-formats",
+    "locale": "de-DE formats in English text",
+    "media_type": "text/plain",
+    "text": "Consult note from Berlin. Patient: Lukas Schneider, Versichertennummer A123456780. Seen on 5. März 2022 and again 14.02.2023 by Frau Anna Becker. Phone +49 30 901820. Address: Hauptstrasse 5, 10115 Berlin.",
+    "expected": [
+      {"kind": "person_name", "value": "Lukas Schneider"},
+      {"kind": "identifier", "value": "A123456780"},
+      {"kind": "date", "value": "5. März 2022"},
+      {"kind": "date", "value": "14.02.2023"},
+      {"kind": "person_name", "value": "Anna Becker"},
+      {"kind": "phone", "value": "+49 30 901820"},
+      {"kind": "postal_address", "value": "Hauptstrasse 5"},
+      {"kind": "postal_code", "value": "10115"}
+    ]
+  },
+  {
+    "id": "fhir-patient",
+    "locale": "FHIR R4 Patient",
+    "media_type": "application/fhir+json",
+    "text": "{\"resourceType\":\"Patient\",\"id\":\"synthetic-1\",\"name\":[{\"family\":\"Rivera\",\"given\":[\"Lucia\"]}],\"birthDate\":\"1980-07-01\",\"identifier\":[{\"system\":\"urn:example:mrn\",\"value\":\"MRN-778812\"}],\"telecom\":[{\"system\":\"phone\",\"value\":\"+34 600 123 456\"},{\"system\":\"email\",\"value\":\"lucia@example.es\"}],\"address\":[{\"line\":[\"Calle Mayor 12\"],\"city\":\"Toledo\",\"postalCode\":\"45001\"}],\"gender\":\"female\"}",
+    "expected": [
+      {"kind": "person_name", "value": "Rivera"},
+      {"kind": "person_name", "value": "Lucia"},
+      {"kind": "date", "value": "1980-07-01"},
+      {"kind": "identifier", "value": "MRN-778812"},
+      {"kind": "phone", "value": "+34 600 123 456"},
+      {"kind": "email", "value": "lucia@example.es"},
+      {"kind": "postal_address", "value": "Calle Mayor 12"},
+      {"kind": "postal_address", "value": "Toledo"},
+      {"kind": "postal_code", "value": "45001"}
+    ]
+  }
+]

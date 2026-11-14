@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-collab-rooms"
+description = "Enables the collab_rooms command without any pre-configured scope."
+commands.allow = ["collab_rooms"]
+
+[[permission]]
+identifier = "deny-collab-rooms"
+description = "Denies the collab_rooms command without any pre-configured scope."
+commands.deny = ["collab_rooms"]

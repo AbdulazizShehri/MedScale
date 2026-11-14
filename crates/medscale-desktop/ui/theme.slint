@@ -1,0 +1,117 @@
+import { Palette } from "std-widgets.slint";
+
+export global Theme {
+    // Spec 095: neutral, light-first product foundation. Engineering overrides
+    // select deterministic evidence; the ordinary product follows the OS.
+    // 0 = system, 1 = light, 2 = dark.
+    in-out property <int> evidence-theme: 0;
+    in-out property <bool> compact: false;
+    in-out property <bool> reduced-motion: true;
+    in-out property <bool> semantic-color: false;
+    out property <bool> dark: evidence-theme == 2 ? true : evidence-theme == 1 ? false : Palette.color-scheme == ColorScheme.dark;
+
+    // Embedded, licensed families. Machine values never rely on host fonts.
+    out property <string> font-ui: "Inter";
+    out property <string> font-mono: "JetBrains Mono NL";
+    out property <int> weight-regular: 400;
+    out property <int> weight-medium: 500;
+    out property <int> weight-semibold: 600;
+    out property <int> weight-bold: 700;
+    out property <length> type-display: 32px;
+    out property <length> type-page: 28px;
+    out property <length> type-section: 18px;
+    out property <length> type-subsection: 14px;
+    out property <length> type-body: 14px;
+    out property <length> type-control: 13px;
+    out property <length> type-row: 13px;
+    out property <length> type-caption: 12px;
+    out property <length> type-micro: 11px;
+    out property <length> type-code: 12px;
+    out property <length> tracking-heading: -0.3px;
+    out property <length> tracking-label: 0.8px;
+
+    // The brand and all selection/focus treatment use true neutral values.
+    out property <color> brand-black: #000000;
+    out property <color> brand-white: #FFFFFF;
+    out property <color> obsidian: brand-black;
+    out property <color> graphite: #101010;
+    out property <color> graphite-raised: #242424;
+    out property <color> nav-text: brand-white;
+    out property <color> nav-subtle: #C2C2C2;
+    out property <color> nav-hover: #191919;
+    out property <color> nav-selected: #303030;
+
+    out property <color> ink: dark ? brand-white : brand-black;
+    out property <color> ink-subtle: dark ? #C7C7C7 : #525252;
+    out property <color> ink-quiet: dark ? #A3A3A3 : #666666;
+    out property <color> ink-disabled: dark ? #949494 : #737373;
+    out property <color> border: dark ? #3D3D3D : #D7D7D7;
+    out property <color> border-strong: dark ? #707070 : #8A8A8A;
+    out property <color> canvas: dark ? #101010 : #F7F7F7;
+    out property <color> surface: dark ? #181818 : brand-white;
+    out property <color> surface-raised: dark ? #242424 : #F1F1F1;
+    out property <color> surface-recessed: dark ? #121212 : #EDEDED;
+    out property <color> sidebar: dark ? #141414 : #FAFAFA;
+    out property <color> sidebar-selected: dark ? #303030 : #E7E7E7;
+    out property <color> selection-background: ink;
+    out property <color> selection-foreground: surface;
+    out property <color> focus: ink;
+    out property <color> focus-on-dark: brand-white;
+
+    // Compatibility names keep existing routes on the same neutral system.
+    out property <color> signal: ink;
+    out property <color> signal-hover: dark ? #D4D4D4 : #242424;
+    out property <color> signal-strong: ink;
+    out property <color> signal-soft: dark ? #2D2D2D : #E9E9E9;
+    out property <color> signal-glow: focus-on-dark;
+    out property <color> success: ink;
+    // Optional accents supplement literal state names and distinct markers.
+    // They never become the brand, selection or keyboard-focus palette.
+    out property <color> warning: semantic-color ? (dark ? #E7BD82 : #855D20) : ink;
+    out property <color> danger: semantic-color ? (dark ? #EDA3A3 : #A52222) : ink;
+
+    // One measured spacing scale, shared by rows, controls and work surfaces.
+    out property <length> space-0: 0px;
+    out property <length> space-1: 4px;
+    out property <length> space-2: 8px;
+    out property <length> space-3: 12px;
+    out property <length> space-4: 16px;
+    out property <length> space-5: 20px;
+    out property <length> space-6: 24px;
+    out property <length> space-8: 32px;
+    out property <length> space-10: 40px;
+    out property <length> space-12: 48px;
+
+    out property <length> border-width: 1px;
+    out property <length> border-width-strong: 2px;
+    out property <length> focus-width: 2px;
+    out property <length> radius-none: 0px;
+    out property <length> radius-control: 6px;
+    out property <length> radius-panel: 8px;
+    out property <length> radius-compact: 4px;
+    out property <length> radius-badge: 3px;
+
+    // Compact changes geometry, never the readable text scale. Interactive
+    // targets remain at least 36px normally and 32px in compact presentation.
+    out property <length> target-min: compact ? 32px : 36px;
+    out property <length> control-height: compact ? 36px : 40px;
+    out property <length> control-height-small: compact ? 32px : 36px;
+    out property <length> row-height: compact ? 32px : 40px;
+    out property <length> rail-target: compact ? 36px : 42px;
+    out property <length> action-height: compact ? 68px : 76px;
+    out property <length> badge-height: compact ? 24px : 28px;
+    out property <length> control-padding: compact ? space-2 : space-3;
+    out property <length> row-padding: compact ? space-2 : space-3;
+    out property <length> content-padding: compact ? space-4 : space-6;
+    out property <length> section-gap: compact ? space-4 : space-6;
+    out property <length> stack-gap: compact ? space-2 : space-3;
+    out property <length> icon-size: 20px;
+
+    // The foundation has no decorative elevation or motion. A future bounded
+    // transition must explicitly opt in and respect reduced-motion.
+    out property <color> shadow: transparent;
+    out property <length> elevation-blur: 0px;
+    out property <length> elevation-offset: 0px;
+    out property <duration> motion-duration: 0ms;
+    out property <duration> transition-duration: reduced-motion ? 0ms : 120ms;
+}

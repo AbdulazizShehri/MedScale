@@ -1,0 +1,11 @@
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.18s
+     Running tests/desktop_cli_hardening_066.rs (target/debug/deps/desktop_cli_hardening_066-fab388fdccbb9100)
+
+running 5 tests
+test ci_keeps_pr_and_main_gates_without_duplicate_spec_push ... ok
+test window_floor_and_command_copy_are_hardened ... ok
+test every_advertised_route_is_honest_and_documents_is_real ... ok
+test primary_text_tokens_keep_engineering_contrast_floor_without_wcag_claim ... ok
+test home_demo_does_not_invent_clinical_risk_or_real_roster ... ok
+
+test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s

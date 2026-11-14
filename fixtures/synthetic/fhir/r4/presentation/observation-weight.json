@@ -1,0 +1,1 @@
+{"resourceType":"Observation","id":"wt-1","status":"final","code":{"coding":[{"system":"http://loinc.org","code":"29463-7"}]},"valueQuantity":{"value":70,"unit":"kg","system":"http://unitsofmeasure.org","code":"kg"},"effectiveDateTime":"2020-01-01T09:00:00Z"}

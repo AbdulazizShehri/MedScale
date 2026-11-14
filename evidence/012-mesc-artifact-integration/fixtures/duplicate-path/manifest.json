@@ -1,0 +1,51 @@
+{
+  "schema_version": 1,
+  "producer_id": "synthetic.medscale.mesc",
+  "release_id": "syn-036-001",
+  "release_tag": "syn-v0.0.1",
+  "source_commit": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+  "source_tree": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+  "model_id": "syn-model",
+  "tokenizer_id": "syn-tok",
+  "base_model_id": "syn-base",
+  "corpus_id": "syn-corpus",
+  "training_receipt_digest_hex": "5d5a13bd5fb121f5d28f4f492c1487cadf752396d81395bf84ae81f8ac87247a",
+  "evaluation_receipt_digest_hex": "5d9704d7b81d528a7427beb4ce543a782ac671835da2e523a223312daa627719",
+  "sbom_path": "sbom.json",
+  "sbom_digest_hex": "556a2835e9feaf8d5b899871f9e24aa551423885663b261e2f582dfca1171224",
+  "rights_license": "SYNTHETIC-NO-RIGHTS",
+  "rights_notice_path": "NOTICE",
+  "provenance_note": "synthetic fixture for Spec 036; not a real MESC release",
+  "limitations": [
+    "not a real MESC release",
+    "product admit remains gate-blocked"
+  ],
+  "runtime_requirements": "offline-fixture-only",
+  "epoch": 1,
+  "artifacts": [
+    {
+      "kind": "model_weights",
+      "path": "model.bin",
+      "byte_length": 24,
+      "sha256_hex": "cd770a345c4809f8d2727c6b16092e00f4c2dfef1906039b830afd5bac89d5eb"
+    },
+    {
+      "kind": "sbom",
+      "path": "sbom.json",
+      "byte_length": 61,
+      "sha256_hex": "556a2835e9feaf8d5b899871f9e24aa551423885663b261e2f582dfca1171224"
+    },
+    {
+      "kind": "notice",
+      "path": "NOTICE",
+      "byte_length": 53,
+      "sha256_hex": "8703fef81020fb9523ad67cf72e5bd7fcf53e4139b03efbba3c06053104be334"
+    },
+    {
+      "kind": "model_weights",
+      "path": "model.bin",
+      "byte_length": 24,
+      "sha256_hex": "cd770a345c4809f8d2727c6b16092e00f4c2dfef1906039b830afd5bac89d5eb"
+    }
+  ]
+}

@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-data-transform"
+description = "Enables the data_transform command without any pre-configured scope."
+commands.allow = ["data_transform"]
+
+[[permission]]
+identifier = "deny-data-transform"
+description = "Denies the data_transform command without any pre-configured scope."
+commands.deny = ["data_transform"]

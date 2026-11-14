@@ -1,0 +1,11 @@
+{
+  "schema_version": 1,
+  "corpus_id": "om-ner-synthetic-en-v0",
+  "synthetic_only": true,
+  "examples": [
+    {
+      "text": "Patient reports mild headache after starting synthetic drug SYN-001.",
+      "spans": [{ "label": "CONDITION", "start": 22, "end": 29 }]
+    }
+  ]
+}

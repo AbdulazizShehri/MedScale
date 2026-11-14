@@ -1,0 +1,2 @@
+# Exemptions / audits will be recorded here as dependencies are admitted.
+# Spec 001 bootstrap crates depend only on path crates and the standard library.

@@ -1,0 +1,1511 @@
+//! Intelligence and operations commands: models, MedAgent, model fleet,
+//! collaboration, workflows and audio.
+
+use medscale_contracts::audio::{MAX_AUDIO_BYTES, PcmFormat};
+use medscale_contracts::envelopes::{AuthorityError, ResponseBody};
+use medscale_contracts::medagent::ToolKind;
+use medscale_contracts::objects::OpaqueId;
+use medscale_contracts::project_graph::{ArtifactDescriptor, ArtifactKind, ArtifactVersionBinding};
+use medscale_core::CliSession;
+use medscale_desktop_vm::{
+    audio_workspace, collaboration_workspace, medagent_workspace, model_fleet_workspace,
+    product_intelligence::ProductIntelligenceVm, workflow_studio::WorkflowStudioVm,
+};
+use serde_json::{Value, json};
+
+use crate::cmd_core::lock;
+use crate::host::{self, CmdError, CmdResult, Host, ONNX_FIXTURE_PACK, State};
+
+// ───────────────────────────── models ─────────────────────────────
+
+#[tauri::command(async)]
+pub fn models_overview(host: tauri::State<'_, Host>) -> CmdResult<Value> {
+    let mut state = lock(&host)?;
+    let vm = ProductIntelligenceVm::from_session(state.packs()?)?;
+    Ok(json!({
+        "model_runtime_summary": vm.model_runtime_summary,
+        "model_runtime_boundary": vm.model_runtime_boundary,
+        "model_source_summary": vm.model_source_summary,
+        "model_inventory_summary": vm.model_inventory_summary,
+        "reference_baseline": vm.reference_baseline,
+        "competitive_summary": vm.competitive_summary,
+        "models": vm.models.iter().map(|m| crate::obj!(m => scope, task, model, source, runtime, device, trust, benchmark, digest, state)).collect::<Vec<_>>(),
+        "evidence": vm.evidence.iter().map(|e| crate::obj!(e => capability, medscale, reference, verdict, evidence, limitations)).collect::<Vec<_>>(),
+    }))
+}
+
+/// Admits the bundled synthetic ONNX fixture pack through the least-privilege
+/// Model Center session. Core verifies the manifest, digests and signature.
+#[tauri::command(async)]
+pub fn models_admit_fixture_pack(host: tauri::State<'_, Host>) -> CmdResult<Value> {
+    let mut state = lock(&host)?;
+    let dir = state.materialize_pack(ONNX_FIXTURE_PACK)?;
+    let result = state
+        .packs()?
+        .packs_install_local(&dir.display().to_string())?;
+    Ok(json!(result))
+}
+
+/// MedScale's offline catalog bundle. The pinned source metadata stays in the
+/// technical catalog directory; no external catalog is a MedScale identity.
+const CATALOG_JSONL: &[u8] =
+    include_bytes!("../../../../third_party/medscale-model-catalog-v3/models.jsonl");
+const CATALOG_SOURCE_JSON: &str =
+    include_str!("../../../../third_party/medscale-model-catalog-v3/source.json");
+
+#[derive(Debug, serde::Deserialize)]
+#[serde(deny_unknown_fields)]
+struct BundledCatalogSource {
+    repository: String,
+    commit: String,
+    manifest_sha256: String,
+}
+
+fn bundled_catalog_source() -> CmdResult<BundledCatalogSource> {
+    let source: BundledCatalogSource = serde_json::from_str(CATALOG_SOURCE_JSON)
+        .map_err(|_| CmdError::unavailable("Unavailable: invalid MedScale catalog metadata"))?;
+    if source.repository.trim().is_empty()
+        || source.commit.len() != 40
+        || !source.commit.bytes().all(|b| b.is_ascii_hexdigit())
+        || source.manifest_sha256.len() != 64
+        || !source
+            .manifest_sha256
+            .bytes()
+            .all(|b| b.is_ascii_hexdigit())
+    {
+        return Err(CmdError::unavailable(
+            "Unavailable: invalid MedScale catalog source identity",
+        ));
+    }
+    Ok(source)
+}
+
+fn catalog_path(state: &State) -> CmdResult<String> {
+    let path = state
+        .data_dir()?
+        .join("catalog")
+        .join("medscale-model-catalog-v3.jsonl");
+    let current = std::fs::metadata(&path)
+        .map(|m| m.len() == CATALOG_JSONL.len() as u64)
+        .unwrap_or(false);
+    if !current {
+        std::fs::create_dir_all(path.parent().expect("catalog folder"))
+            .map_err(|_| CmdError::unavailable("Unavailable: catalog folder"))?;
+        std::fs::write(&path, CATALOG_JSONL)
+            .map_err(|_| CmdError::unavailable("Unavailable: catalog not writable"))?;
+    }
+    Ok(path.display().to_string())
+}
+
+fn filter(value: Option<String>) -> CmdResult<Option<String>> {
+    value
+        .filter(|v| !v.trim().is_empty())
+        .map(|v| host::bounded_text(&v, 120))
+        .transpose()
+}
+
+/// One page of the pinned model catalog through Core. A listing is not a
+/// download and not an executable model; each row carries its expectation.
+#[tauri::command(async)]
+#[allow(clippy::too_many_arguments)]
+pub fn models_catalog(
+    host: tauri::State<'_, Host>,
+    text: Option<String>,
+    task: Option<String>,
+    family: Option<String>,
+    format: Option<String>,
+    status: Option<String>,
+    offset: Option<u32>,
+) -> CmdResult<Value> {
+    let mut state = lock(&host)?;
+    let snapshot_path = catalog_path(&state)?;
+    let source = bundled_catalog_source()?;
+    let page = state.session()?.model_catalog_query(
+        medscale_contracts::model_catalog::ModelCatalogQueryRequest {
+            snapshot_path,
+            repository: source.repository,
+            commit: source.commit,
+            text: filter(text)?,
+            task: filter(task)?,
+            family: filter(family)?,
+            format: filter(format)?,
+            status: filter(status)?,
+            offset: offset.unwrap_or(0),
+            limit: 50,
+            ..Default::default()
+        },
+    )?;
+    if page.manifest_sha256 != source.manifest_sha256 {
+        return Err(CmdError::unavailable(
+            "Unavailable: bundled MedScale catalog hash mismatch",
+        ));
+    }
+    Ok(json!(page))
+}
+
+/// Evaluates an admitted Pack on synthetic text through Core, with an
+/// optional entity decoding (token classification) or labels (GLiNER).
+#[tauri::command(async)]
+pub fn models_evaluate(
+    host: tauri::State<'_, Host>,
+    pack_id: String,
+    input: String,
+    decoding: Option<String>,
+    labels: Option<Vec<String>>,
+) -> CmdResult<Value> {
+    let pack_id = host::bounded_id(&pack_id)?.to_owned();
+    let input = host::bounded_text(&input, 4000)?;
+    let decoding = decoding
+        .filter(|d| !d.is_empty())
+        .map(|d| {
+            serde_json::from_value::<medscale_contracts::packs::EntityDecoding>(Value::String(d))
+                .map_err(|_| CmdError::invalid("Invalid: unknown entity decoding"))
+        })
+        .transpose()?;
+    let labels = labels
+        .filter(|l| !l.is_empty())
+        .map(|l| {
+            l.iter()
+                .map(|x| host::bounded_text(x, 64))
+                .collect::<CmdResult<Vec<_>>>()
+        })
+        .transpose()?;
+    let mut state = lock(&host)?;
+    let local_path = pack_dir(&mut state, &pack_id)?;
+    let result = state.session()?.packs_evaluate_local(
+        medscale_contracts::packs::PackEvaluationRequest {
+            pack_id: OpaqueId::new(&pack_id),
+            local_path,
+            input,
+            max_tokens: 512,
+            // The desktop evaluates synthetic text only; Core enforces it too.
+            synthetic_only: true,
+            zero_shot_labels: labels,
+            decoding,
+        },
+    )?;
+    Ok(json!(result))
+}
+
+// ─────────────────────── shared agent fixtures ───────────────────────
+
+/// Installs the ONNX fixture pack into the workspace session and returns
+/// (pack id, pack dir). Idempotent at the Core level.
+fn workspace_pack(state: &mut State) -> CmdResult<(OpaqueId, String)> {
+    let dir = state.materialize_pack(ONNX_FIXTURE_PACK)?;
+    let dir = dir.display().to_string();
+    let result = state.session()?.packs_install_local(&dir)?;
+    let pack_id = result
+        .pack_id
+        .ok_or_else(|| CmdError::new("denied", "Denied: fixture pack was not admitted"))?;
+    Ok((pack_id, dir))
+}
+
+/// Context artifacts bind to real sources this desktop ingested.
+fn source_artifacts(state: &mut State, count: usize) -> CmdResult<Vec<ArtifactDescriptor>> {
+    let ws = state.workspace()?;
+    let mut ids: Vec<String> = ws
+        .seed
+        .sources
+        .iter()
+        .map(|s| s.source_id.clone())
+        .collect();
+    ids.dedup();
+    if ids.is_empty() {
+        return Err(CmdError::unavailable(
+            "Unavailable: no ingested sources to bind; load synthetic fixtures first",
+        ));
+    }
+    Ok(ids
+        .into_iter()
+        .take(count)
+        .map(|id| ArtifactDescriptor {
+            object_id: OpaqueId::new(id),
+            kind: ArtifactKind::SourceRecord,
+            binding: ArtifactVersionBinding::IdentityOnly,
+        })
+        .collect())
+}
+
+// ───────────────────────────── medagent ─────────────────────────────
+
+#[tauri::command(async)]
+pub fn medagent_runs(host: tauri::State<'_, Host>, project_id: String) -> CmdResult<Value> {
+    let mut state = lock(&host)?;
+    let rows = medagent_workspace::refresh_runs(state.session()?, host::bounded_id(&project_id)?)?;
+    let identities = state
+        .session()?
+        .medagent_identity_list(OpaqueId::new(host::bounded_id(&project_id)?), None)?;
+    Ok(json!({
+        "runs": rows.iter().map(|r| crate::obj!(r => id, status, revision, prompt)).collect::<Vec<_>>(),
+        "agents": identities.iter().map(|i| json!({ "id": i.header.id.as_str(), "label": i.display_name, "status": i.status })).collect::<Vec<_>>(),
+    }))
+}
+
+#[tauri::command(async)]
+pub fn medagent_turns(host: tauri::State<'_, Host>, run_id: String) -> CmdResult<Value> {
+    let mut state = lock(&host)?;
+    let rows = medagent_workspace::refresh_turns(state.session()?, host::bounded_id(&run_id)?)?;
+    Ok(json!(
+        rows.iter()
+            .map(|r| crate::obj!(r => seq, kind, payload))
+            .collect::<Vec<_>>()
+    ))
+}
+
+/// A remembered folder, if this build may still run it. The list is a plain file
+/// beside the vault, and a vault from an earlier build can name any folder.
+pub(crate) fn remembered_pack_dir(
+    mut dirs: std::collections::BTreeMap<String, String>,
+    pack_id: &str,
+    data_dir: &std::path::Path,
+    allow_external: bool,
+) -> CmdResult<String> {
+    let dir = dirs.remove(pack_id).ok_or_else(|| {
+        CmdError::unavailable(
+            "Unavailable: this Pack's folder is not known to this desktop; admit it again",
+        )
+    })?;
+    let path = std::path::Path::new(&dir);
+    if !host::is_local_absolute(path)
+        || !host::pack_dir_allowed(path, data_dir, allow_external)
+        || !crate::audio_model_manager::pinned_pack_verified(path, data_dir, allow_external)
+    {
+        return Err(CmdError::new(
+            "denied",
+            "Denied: this version doesn't run Packs from that folder",
+        ));
+    }
+    Ok(dir)
+}
+
+/// Folder of an admitted Pack: the bundled fixture, or one this desktop
+/// admitted into the open vault.
+fn pack_dir(state: &mut State, pack_id: &str) -> CmdResult<String> {
+    let (fixture_id, fixture_dir) = workspace_pack(state)?;
+    if fixture_id.as_str() == pack_id {
+        return Ok(fixture_dir);
+    }
+    let root = state.workspace()?.vault_root.clone();
+    let data_dir = state.data_dir()?.to_path_buf();
+    let dir = remembered_pack_dir(
+        host::load_pack_dirs(&root),
+        pack_id,
+        &data_dir,
+        host::EXTERNAL_PACKS_ALLOWED,
+    )?;
+    // Core's Pack registry is per session: admit the remembered folder again
+    // (idempotent; Core re-verifies it) so runs resume after a restart.
+    state.session()?.packs_install_local(&dir)?;
+    Ok(dir)
+}
+
+/// Models an agent can use: Packs admitted in the open vault. The bundled
+/// fixture is always admitted; other Packs come from `medagent_admit_pack`.
+#[tauri::command(async)]
+pub fn medagent_models(host: tauri::State<'_, Host>) -> CmdResult<Value> {
+    let mut state = lock(&host)?;
+    let (fixture_id, _) = workspace_pack(&mut state)?;
+    let root = state.workspace()?.vault_root.clone();
+    let dirs = host::load_pack_dirs(&root);
+    let data_dir = state.data_dir()?.to_path_buf();
+    let packs = state.session()?.packs_list()?;
+    Ok(json!(
+        packs
+            .iter()
+            .map(|p| {
+                let id = p.pack_id.as_str();
+                json!({
+                    "id": id,
+                    "version": p.version,
+                    "runtime": p.runtime_requirements,
+                    "fixture": id == fixture_id.as_str(),
+                    "runnable": id == fixture_id.as_str()
+                        || dirs.get(id).is_some_and(|dir| {
+                            let path = std::path::Path::new(dir);
+                            host::is_local_absolute(path)
+                                && host::pack_dir_allowed(
+                                    path,
+                                    &data_dir,
+                                    host::EXTERNAL_PACKS_ALLOWED,
+                                )
+                        }),
+                })
+            })
+            .collect::<Vec<_>>()
+    ))
+}
+
+/// Admits a local Pack folder into the open vault. Core verifies the
+/// manifest, digests, signature and trust root; nothing is downloaded.
+#[tauri::command(async)]
+pub fn medagent_admit_pack(host: tauri::State<'_, Host>, path: String) -> CmdResult<Value> {
+    let path = host::bounded_text(&path, 1024)?;
+    let dir = std::path::Path::new(&path);
+    if !host::is_local_absolute(dir) || !dir.is_dir() {
+        return Err(CmdError::invalid(
+            "Invalid: choose an existing Pack folder on this computer",
+        ));
+    }
+    if !host::EXTERNAL_PACKS_ALLOWED {
+        return Err(CmdError::new(
+            "denied",
+            "Denied: this version doesn't admit Packs from a folder",
+        ));
+    }
+    let mut state = lock(&host)?;
+    let result = state.session()?.packs_install_local(&path)?;
+    let Some(pack_id) = result.pack_id.clone().filter(|_| result.admitted) else {
+        return Err(CmdError::new(
+            "denied",
+            format!("Denied: Pack not admitted ({:?})", result.reason),
+        ));
+    };
+    let root = state.workspace()?.vault_root.clone();
+    let mut dirs = host::load_pack_dirs(&root);
+    dirs.insert(pack_id.as_str().to_owned(), path);
+    host::save_pack_dirs(&root, &dirs)?;
+    Ok(json!({ "id": pack_id.as_str(), "admitted": true }))
+}
+
+/// Ingested sources an agent's context can bind.
+#[tauri::command(async)]
+pub fn medagent_sources(host: tauri::State<'_, Host>) -> CmdResult<Value> {
+    let mut state = lock(&host)?;
+    let ws = state.workspace()?;
+    let mut seen = std::collections::BTreeSet::new();
+    Ok(json!(
+        ws.seed
+            .sources
+            .iter()
+            .filter(|s| seen.insert(s.source_id.clone()))
+            .map(|s| json!({
+                "id": s.source_id,
+                "fixture": s.fixture,
+                "resource_type": s.resource_type,
+                "subject": s.subject_ref,
+            }))
+            .collect::<Vec<_>>()
+    ))
+}
+
+/// Registers a named agent on an admitted Pack with the granted tools.
+#[tauri::command(async)]
+pub fn medagent_create_agent(
+    host: tauri::State<'_, Host>,
+    project_id: String,
+    name: String,
+    pack_id: String,
+    tools: Vec<String>,
+) -> CmdResult<Value> {
+    let project_id = host::bounded_id(&project_id)?.to_owned();
+    let pack_id = host::bounded_id(&pack_id)?.to_owned();
+    let name = host::bounded_text(&name, 80)?;
+    let tools = tools
+        .iter()
+        .map(|t| {
+            serde_json::from_value::<ToolKind>(Value::String(t.clone()))
+                .map_err(|_| CmdError::invalid("Invalid: unknown agent tool"))
+        })
+        .collect::<CmdResult<Vec<_>>>()?;
+    if tools.is_empty() {
+        return Err(CmdError::invalid("Invalid: grant at least one tool"));
+    }
+    let mut state = lock(&host)?;
+    let (identity, capabilities) = state.session()?.medagent_identity_register(
+        OpaqueId::new(&project_id),
+        OpaqueId::new(&pack_id),
+        name,
+        tools,
+    )?;
+    Ok(agent_json(&identity, &capabilities))
+}
+
+fn agent_json(
+    identity: &medscale_contracts::medagent::AgentIdentity,
+    capabilities: &medscale_contracts::medagent::AgentCapabilityManifest,
+) -> Value {
+    json!({
+        "id": identity.header.id.as_str(),
+        "label": identity.display_name,
+        "status": identity.status,
+        "revision": identity.revision,
+        "pack_id": identity.pack_id.as_str(),
+        "pack_version": identity.pack_version,
+        "tools": capabilities.granted_tool_kinds,
+    })
+}
+
+/// Revokes an agent; its existing runs and turns stay on record.
+#[tauri::command(async)]
+pub fn medagent_revoke_agent(
+    host: tauri::State<'_, Host>,
+    agent_id: String,
+    revision: u64,
+) -> CmdResult<Value> {
+    let agent_id = host::bounded_id(&agent_id)?.to_owned();
+    let mut state = lock(&host)?;
+    let session = state.session()?;
+    session.medagent_identity_revoke(OpaqueId::new(&agent_id), revision)?;
+    let (identity, capabilities) = session.medagent_identity_get(OpaqueId::new(&agent_id))?;
+    Ok(agent_json(&identity, &capabilities))
+}
+
+/// One run with its agent, model and the evidence its context binds.
+#[tauri::command(async)]
+pub fn medagent_run_detail(host: tauri::State<'_, Host>, run_id: String) -> CmdResult<Value> {
+    let run_id = host::bounded_id(&run_id)?.to_owned();
+    let mut state = lock(&host)?;
+    let sources: std::collections::BTreeMap<String, host::SeededSource> = state
+        .workspace()?
+        .seed
+        .sources
+        .iter()
+        .map(|s| (s.source_id.clone(), s.clone()))
+        .collect();
+    let session = state.session()?;
+    let run = session.medagent_run_get(OpaqueId::new(&run_id))?;
+    let (identity, capabilities) = session.medagent_identity_get(run.agent_identity_id.clone())?;
+    let (context, resolutions) = session.medagent_context_get(run.context_manifest_id.clone())?;
+    let evidence = context
+        .selected_artifacts
+        .iter()
+        .enumerate()
+        .map(|(i, a)| {
+            let id = a.object_id.as_str();
+            let source = sources.get(id);
+            json!({
+                "id": id,
+                "resolution": resolutions.get(i),
+                "fixture": source.map(|s| s.fixture.clone()),
+                "resource_type": source.map(|s| s.resource_type.clone()),
+                "subject": source.map(|s| s.subject_ref.clone()),
+            })
+        })
+        .collect::<Vec<_>>();
+    Ok(json!({
+        "run": {
+            "id": run.header.id.as_str(),
+            "status": run.status.as_str(),
+            "revision": run.revision,
+            "prompt": run.prompt,
+        },
+        "agent": agent_json(&identity, &capabilities),
+        "context_id": context.header.id.as_str(),
+        "evidence": evidence,
+    }))
+}
+
+/// Creates a pending run. With `agent_id` and `source_ids`, the run uses that
+/// agent and a context bound to exactly those ingested sources; without them,
+/// the first active agent (or a new synthetic review agent on the fixture
+/// Pack) and the first two sources.
+#[tauri::command(async)]
+pub fn medagent_create_run(
+    host: tauri::State<'_, Host>,
+    project_id: String,
+    prompt: String,
+    agent_id: Option<String>,
+    source_ids: Option<Vec<String>>,
+) -> CmdResult<Value> {
+    let project_id = host::bounded_id(&project_id)?.to_owned();
+    let prompt = host::bounded_text(&prompt, 2000)?;
+    let agent_id = agent_id
+        .map(|a| host::bounded_id(&a).map(str::to_owned))
+        .transpose()?;
+    let mut state = lock(&host)?;
+    let artifacts = match source_ids {
+        Some(ids) => selected_sources(&mut state, &ids)?,
+        None => source_artifacts(&mut state, 2)?,
+    };
+    let (pack_id, _) = workspace_pack(&mut state)?;
+    let session = state.session()?;
+    let existing = session.medagent_identity_list(OpaqueId::new(&project_id), None)?;
+    let active = existing
+        .iter()
+        .find(|i| i.status == medscale_contracts::medagent::AgentIdentityStatus::Active);
+    let agent_id = match (agent_id, active) {
+        (Some(id), _) => OpaqueId::new(id),
+        (None, Some(identity)) => identity.header.id.clone(),
+        (None, None) => {
+            session
+                .medagent_identity_register(
+                    OpaqueId::new(&project_id),
+                    pack_id,
+                    "Synthetic review agent".to_owned(),
+                    vec![ToolKind::ReadContextArtifact],
+                )?
+                .0
+                .header
+                .id
+        }
+    };
+    let (context, _) = session.medagent_context_create(OpaqueId::new(&project_id), artifacts)?;
+    let run = medagent_workspace::create_run(
+        session,
+        &project_id,
+        agent_id.as_str(),
+        context.header.id.as_str(),
+        prompt,
+    )?;
+    Ok(crate::obj!(run => id, status, revision, prompt))
+}
+
+/// Context artifacts for exactly the chosen ingested sources (1 to 16).
+fn selected_sources(state: &mut State, ids: &[String]) -> CmdResult<Vec<ArtifactDescriptor>> {
+    if ids.is_empty() || ids.len() > 16 {
+        return Err(CmdError::invalid("Invalid: choose 1 to 16 sources"));
+    }
+    let ws = state.workspace()?;
+    let mut out: Vec<ArtifactDescriptor> = Vec::new();
+    for id in ids {
+        let id = host::bounded_id(id)?;
+        if !ws.seed.sources.iter().any(|s| s.source_id == id) {
+            return Err(CmdError::invalid(
+                "Invalid: source is not ingested in this workspace",
+            ));
+        }
+        if out.iter().any(|a| a.object_id.as_str() == id) {
+            continue;
+        }
+        out.push(ArtifactDescriptor {
+            object_id: OpaqueId::new(id),
+            kind: ArtifactKind::SourceRecord,
+            binding: ArtifactVersionBinding::IdentityOnly,
+        });
+    }
+    Ok(out)
+}
+
+#[tauri::command(async)]
+pub fn medagent_start(
+    host: tauri::State<'_, Host>,
+    run_id: String,
+    revision: u64,
+) -> CmdResult<Value> {
+    let mut state = lock(&host)?;
+    let r = medagent_workspace::start_run(state.session()?, host::bounded_id(&run_id)?, revision)?;
+    Ok(crate::obj!(r => id, status, revision, prompt))
+}
+
+#[tauri::command(async)]
+pub fn medagent_cancel(
+    host: tauri::State<'_, Host>,
+    run_id: String,
+    revision: u64,
+) -> CmdResult<Value> {
+    let mut state = lock(&host)?;
+    let r = medagent_workspace::cancel_run(state.session()?, host::bounded_id(&run_id)?, revision)?;
+    Ok(crate::obj!(r => id, status, revision, prompt))
+}
+
+/// Completes a running run (`Running -> Completed`) and returns its receipt.
+#[tauri::command(async)]
+pub fn medagent_complete(
+    host: tauri::State<'_, Host>,
+    run_id: String,
+    revision: u64,
+) -> CmdResult<Value> {
+    let run_id = host::bounded_id(&run_id)?.to_owned();
+    let mut state = lock(&host)?;
+    let (run, receipt) = state
+        .session()?
+        .medagent_run_complete(OpaqueId::new(&run_id), revision)?;
+    Ok(json!({
+        "id": run.header.id.as_str(),
+        "status": run.status.as_str(),
+        "revision": run.revision,
+        "prompt": run.prompt,
+        "receipt": receipt,
+    }))
+}
+
+/// Executes a started run on the local ONNX fixture runtime. The result is a
+/// proposal; nothing is promoted or written to a record.
+#[tauri::command(async)]
+pub fn medagent_execute(host: tauri::State<'_, Host>, run_id: String) -> CmdResult<Value> {
+    let run_id = host::bounded_id(&run_id)?.to_owned();
+    let mut state = lock(&host)?;
+    // The run's own agent Pack; Core rejects a folder that is not exactly it.
+    let session = state.session()?;
+    let run = session.medagent_run_get(OpaqueId::new(&run_id))?;
+    let (identity, _) = session.medagent_identity_get(run.agent_identity_id)?;
+    let dir = pack_dir(&mut state, identity.pack_id.as_str())?;
+    let (turn, proposal) = state
+        .session()?
+        .medagent_run_execute(OpaqueId::new(&run_id), dir, 4, true)
+        .map_err(execute_error)?;
+    Ok(json!({ "turn": turn, "proposal": proposal }))
+}
+
+/// Core's refusal code when none of a run's sources is still current
+/// (`medscale_clinical::summary_empty_evidence`).
+const EMPTY_EVIDENCE_REFUSAL: &str = "empty_approved_evidence";
+
+/// The empty-evidence gate is a refusal the person can act on, not a stale
+/// screen to reload.
+fn execute_error(err: AuthorityError) -> CmdError {
+    match &err {
+        AuthorityError::StaleReference { message }
+            if message.starts_with(EMPTY_EVIDENCE_REFUSAL) =>
+        {
+            CmdError::new(
+                "blocked",
+                "Refused: none of this run's sources is still current, so the model was not run and nothing was generated. Create a new run with current sources.",
+            )
+        }
+        _ => CmdError::from(err),
+    }
+}
+
+// ───────────────────────────── model fleet ─────────────────────────────
+
+#[tauri::command(async)]
+pub fn fleet_overview(host: tauri::State<'_, Host>, project_id: String) -> CmdResult<Value> {
+    let project_id = host::bounded_id(&project_id)?.to_owned();
+    let mut state = lock(&host)?;
+    let session = state.session()?;
+    let lanes = model_fleet_workspace::refresh_lanes(session, &project_id)?;
+    let fleets = model_fleet_workspace::refresh_fleets(session, &project_id)?;
+    Ok(json!({
+        "lanes": lanes.iter().map(|r| crate::obj!(r => id, role_label, status, revision)).collect::<Vec<_>>(),
+        "fleets": fleets.iter().map(|r| crate::obj!(r => id, status, revision)).collect::<Vec<_>>(),
+    }))
+}
+
+/// Creates one lane: an existing agent (and so its Pack) with a role and a
+/// context bound to the chosen ingested sources.
+#[tauri::command(async)]
+pub fn fleet_create_lane(
+    host: tauri::State<'_, Host>,
+    project_id: String,
+    role: String,
+    agent_id: String,
+    source_ids: Vec<String>,
+) -> CmdResult<Value> {
+    let project_id = host::bounded_id(&project_id)?.to_owned();
+    let agent_id = host::bounded_id(&agent_id)?.to_owned();
+    let role = host::bounded_text(&role, 80)?;
+    let mut state = lock(&host)?;
+    let artifacts = selected_sources(&mut state, &source_ids)?;
+    let session = state.session()?;
+    let (context, _) = session.medagent_context_create(OpaqueId::new(&project_id), artifacts)?;
+    let lane = session.model_fleet_lane_create(
+        OpaqueId::new(&project_id),
+        OpaqueId::new(&agent_id),
+        context.header.id,
+        role,
+        None,
+        None,
+    )?;
+    Ok(json!({
+        "id": lane.header.id.as_str(),
+        "role_label": lane.role_label,
+        "agent_id": agent_id,
+        "status": lane.status,
+    }))
+}
+
+/// Creates two independent reviewer lanes on the fixture pack, each bound to a
+/// different ingested source.
+#[tauri::command(async)]
+pub fn fleet_setup_lanes(host: tauri::State<'_, Host>, project_id: String) -> CmdResult<Value> {
+    let project_id = host::bounded_id(&project_id)?.to_owned();
+    let mut state = lock(&host)?;
+    let (pack_id, _) = workspace_pack(&mut state)?;
+    let artifacts = source_artifacts(&mut state, 2)?;
+    let session = state.session()?;
+    let mut created = Vec::new();
+    for (n, artifact) in artifacts.into_iter().enumerate() {
+        let (identity, _) = session.medagent_identity_register(
+            OpaqueId::new(&project_id),
+            pack_id.clone(),
+            format!("Fleet lane agent {}", n + 1),
+            vec![ToolKind::ReadContextArtifact],
+        )?;
+        let (context, _) =
+            session.medagent_context_create(OpaqueId::new(&project_id), vec![artifact])?;
+        let lane = session.model_fleet_lane_create(
+            OpaqueId::new(&project_id),
+            identity.header.id,
+            context.header.id,
+            format!("reviewer {}", n + 1),
+            None,
+            None,
+        )?;
+        created.push(lane.header.id.as_str().to_owned());
+    }
+    Ok(json!({ "lanes": created }))
+}
+
+#[tauri::command(async)]
+pub fn fleet_create(
+    host: tauri::State<'_, Host>,
+    project_id: String,
+    prompt: String,
+) -> CmdResult<Value> {
+    let prompt = host::bounded_text(&prompt, 2000)?;
+    let mut state = lock(&host)?;
+    let r = model_fleet_workspace::create_fleet(
+        state.session()?,
+        host::bounded_id(&project_id)?,
+        prompt,
+    )?;
+    Ok(crate::obj!(r => id, status, revision))
+}
+
+#[tauri::command(async)]
+pub fn fleet_dispatch(
+    host: tauri::State<'_, Host>,
+    fleet_id: String,
+    revision: u64,
+    lane_ids: Vec<String>,
+) -> CmdResult<Value> {
+    let fleet_id = host::bounded_id(&fleet_id)?.to_owned();
+    let mut lanes = Vec::new();
+    for id in &lane_ids {
+        lanes.push(host::bounded_id(id)?.to_owned());
+    }
+    if lanes.is_empty() || lanes.len() > 16 {
+        return Err(CmdError::invalid("Invalid: choose 1–16 lanes"));
+    }
+    let mut state = lock(&host)?;
+    let (_, dir) = workspace_pack(&mut state)?;
+    let r = model_fleet_workspace::dispatch_fleet(
+        state.session()?,
+        &fleet_id,
+        revision,
+        &lanes.join(","),
+        &dir,
+    )?;
+    Ok(crate::obj!(r => id, status, revision))
+}
+
+#[tauri::command(async)]
+pub fn fleet_execute_lane(
+    host: tauri::State<'_, Host>,
+    fleet_id: String,
+    lane_id: String,
+) -> CmdResult<Value> {
+    let fleet_id = host::bounded_id(&fleet_id)?.to_owned();
+    let lane_id = host::bounded_id(&lane_id)?.to_owned();
+    let mut state = lock(&host)?;
+    // Each lane runs on its own agent's Pack, so a fleet can compare models.
+    let session = state.session()?;
+    let lane = session.model_fleet_lane_get(OpaqueId::new(&lane_id))?;
+    let (identity, _) = session.medagent_identity_get(lane.agent_identity_id)?;
+    let dir = pack_dir(&mut state, identity.pack_id.as_str())?;
+    let r = model_fleet_workspace::execute_lane(state.session()?, &fleet_id, &lane_id, &dir)?;
+    Ok(crate::obj!(r => id, status, revision))
+}
+
+#[tauri::command(async)]
+pub fn fleet_cancel(
+    host: tauri::State<'_, Host>,
+    fleet_id: String,
+    revision: u64,
+) -> CmdResult<Value> {
+    let mut state = lock(&host)?;
+    let r = model_fleet_workspace::cancel_fleet(
+        state.session()?,
+        host::bounded_id(&fleet_id)?,
+        revision,
+    )?;
+    Ok(crate::obj!(r => id, status, revision))
+}
+
+fn report_json(r: &model_fleet_workspace::ReportVm) -> Value {
+    json!({
+        "id": r.id, "participating": r.participating, "excluded": r.excluded,
+        "observations": r.observations.iter().map(|o| crate::obj!(o => kind, lanes, detail)).collect::<Vec<_>>(),
+    })
+}
+
+#[tauri::command(async)]
+pub fn fleet_detail(host: tauri::State<'_, Host>, fleet_id: String) -> CmdResult<Value> {
+    let fleet_id = host::bounded_id(&fleet_id)?.to_owned();
+    let mut state = lock(&host)?;
+    let session = state.session()?;
+    let d = model_fleet_workspace::open_fleet(session, &fleet_id)?;
+    let report = model_fleet_workspace::latest_report(session, &fleet_id)?;
+    Ok(json!({
+        "fleet": crate::obj!(d.fleet => id, status, revision),
+        "lanes": d.lanes.iter().map(|l| crate::obj!(l => lane_id, run_id, run_status)).collect::<Vec<_>>(),
+        "report": report.as_ref().map(report_json),
+    }))
+}
+
+#[tauri::command(async)]
+pub fn fleet_compare(host: tauri::State<'_, Host>, fleet_id: String) -> CmdResult<Value> {
+    let mut state = lock(&host)?;
+    let r = model_fleet_workspace::compare_fleet(state.session()?, host::bounded_id(&fleet_id)?)?;
+    Ok(report_json(&r))
+}
+
+// ───────────────────────────── collaboration ─────────────────────────────
+
+#[tauri::command(async)]
+pub fn collab_rooms(host: tauri::State<'_, Host>, project_id: String) -> CmdResult<Value> {
+    let mut state = lock(&host)?;
+    let rows =
+        collaboration_workspace::refresh_rooms(state.session()?, host::bounded_id(&project_id)?)?;
+    Ok(json!(
+        rows.iter()
+            .map(|r| crate::obj!(r => id, name, revision))
+            .collect::<Vec<_>>()
+    ))
+}
+
+#[tauri::command(async)]
+pub fn collab_create_room(
+    host: tauri::State<'_, Host>,
+    project_id: String,
+    name: String,
+) -> CmdResult<Value> {
+    let name = host::bounded_text(&name, 128)?;
+    let mut state = lock(&host)?;
+    let r = collaboration_workspace::create_room(
+        state.session()?,
+        host::bounded_id(&project_id)?,
+        name,
+    )?;
+    Ok(crate::obj!(r => id, name, revision))
+}
+
+#[tauri::command(async)]
+pub fn collab_room_detail(host: tauri::State<'_, Host>, room_id: String) -> CmdResult<Value> {
+    let room_id = host::bounded_id(&room_id)?.to_owned();
+    let mut state = lock(&host)?;
+    let session = state.session()?;
+    let threads = collaboration_workspace::refresh_threads(session, &room_id)?;
+    let tasks = collaboration_workspace::refresh_tasks(session, &room_id)?;
+    Ok(json!({
+        "threads": threads.iter().map(|r| crate::obj!(r => id, status, resolution, artifact_id)).collect::<Vec<_>>(),
+        "tasks": tasks.iter().map(|r| crate::obj!(r => id, title, status, revision)).collect::<Vec<_>>(),
+    }))
+}
+
+/// Opens a discussion thread anchored to an ingested source (a real artifact).
+#[tauri::command(async)]
+pub fn collab_open_thread(
+    host: tauri::State<'_, Host>,
+    room_id: String,
+    artifact_id: String,
+) -> CmdResult<Value> {
+    let mut state = lock(&host)?;
+    let r = collaboration_workspace::open_thread(
+        state.session()?,
+        host::bounded_id(&room_id)?,
+        host::bounded_id(&artifact_id)?,
+    )?;
+    Ok(crate::obj!(r => id, status, resolution, artifact_id))
+}
+
+#[tauri::command(async)]
+pub fn collab_messages(host: tauri::State<'_, Host>, thread_id: String) -> CmdResult<Value> {
+    let mut state = lock(&host)?;
+    let rows =
+        collaboration_workspace::refresh_messages(state.session()?, host::bounded_id(&thread_id)?)?;
+    Ok(json!(
+        rows.iter()
+            .map(|r| crate::obj!(r => author, body, seq))
+            .collect::<Vec<_>>()
+    ))
+}
+
+#[tauri::command(async)]
+pub fn collab_post_message(
+    host: tauri::State<'_, Host>,
+    thread_id: String,
+    body: String,
+) -> CmdResult<()> {
+    let body = host::bounded_text(&body, 4000)?;
+    let mut state = lock(&host)?;
+    Ok(collaboration_workspace::post_message(
+        state.session()?,
+        host::bounded_id(&thread_id)?,
+        body,
+    )?)
+}
+
+#[tauri::command(async)]
+pub fn collab_create_task(
+    host: tauri::State<'_, Host>,
+    room_id: String,
+    title: String,
+) -> CmdResult<Value> {
+    let title = host::bounded_text(&title, 256)?;
+    let mut state = lock(&host)?;
+    let r =
+        collaboration_workspace::create_task(state.session()?, host::bounded_id(&room_id)?, title)?;
+    Ok(crate::obj!(r => id, title, status, revision))
+}
+
+#[tauri::command(async)]
+pub fn collab_complete_task(
+    host: tauri::State<'_, Host>,
+    task_id: String,
+    revision: u64,
+) -> CmdResult<Value> {
+    let mut state = lock(&host)?;
+    let r = collaboration_workspace::complete_task(
+        state.session()?,
+        host::bounded_id(&task_id)?,
+        revision,
+    )?;
+    Ok(crate::obj!(r => id, title, status, revision))
+}
+
+// ───────────────────────────── workflows ─────────────────────────────
+
+#[tauri::command(async)]
+pub fn workflow_overview(host: tauri::State<'_, Host>) -> CmdResult<Value> {
+    let mut state = lock(&host)?;
+    let entries = state.session()?.outbox()?;
+    let vm = WorkflowStudioVm::from_outbox(&entries);
+    Ok(json!({
+        "synthetic_only": vm.synthetic_only,
+        "workflow_name": vm.workflow_name,
+        "workflow_state": vm.workflow_state,
+        "outbox_summary": vm.outbox_summary,
+        "action_boundary": vm.action_boundary,
+        "task_boundary": vm.task_boundary,
+        "message_boundary": vm.message_boundary,
+        "steps": vm.steps.iter().map(|s| crate::obj!(s => order, title, detail, state)).collect::<Vec<_>>(),
+        "tasks": vm.tasks.iter().map(|t| crate::obj!(t => action_id, title, state, payload_digest, next_step, reconcile_required)).collect::<Vec<_>>(),
+        "messages": vm.messages.iter().map(|m| crate::obj!(m => title, body, status, related_action_id)).collect::<Vec<_>>(),
+        "outbox_entries": entries.len(),
+    }))
+}
+
+// ───────────────────────────── audio ─────────────────────────────
+
+/// Pinned, supported Whisper options. No download or installation side effect.
+#[tauri::command(async)]
+pub fn audio_model_catalog(host: tauri::State<'_, Host>) -> CmdResult<Value> {
+    let state = lock(&host)?;
+    Ok(json!(crate::audio_model_manager::catalog(
+        state.data_dir()?
+    )))
+}
+
+/// Checks the selected pinned model's conservative staging + Pack disk budget.
+#[tauri::command(async)]
+pub fn audio_model_preflight(host: tauri::State<'_, Host>, model_id: String) -> CmdResult<Value> {
+    let state = lock(&host)?;
+    crate::audio_model_manager::preflight(&model_id, state.data_dir()?)
+}
+
+#[tauri::command(async)]
+pub fn audio_overview(host: tauri::State<'_, Host>, project_id: String) -> CmdResult<Value> {
+    let mut state = lock(&host)?;
+    let o = audio_workspace::refresh(state.session()?, host::bounded_id(&project_id)?)?;
+    Ok(json!({
+        "sources": o.sources.iter().map(|r| crate::obj!(r => id, label, kind, detail, health)).collect::<Vec<_>>(),
+        "captures": o.captures.iter().map(|r| crate::obj!(r => id, label, state, detail)).collect::<Vec<_>>(),
+        "routes": o.routes,
+        "native_capture": o.native_capture,
+    }))
+}
+
+/// Read-only storage/lineage preview for one selected source. This is not a
+/// deletion capability: source, revisions, receipts, and encrypted bytes stay
+/// unchanged. Compare project IDs before returning any source metadata.
+#[tauri::command(async)]
+pub fn audio_source_retention_preview(
+    host: tauri::State<'_, Host>,
+    project_id: String,
+    source_id: String,
+) -> CmdResult<Value> {
+    let mut state = lock(&host)?;
+    let project_id = host::bounded_id(&project_id)?;
+    let source_id = host::bounded_id(&source_id)?;
+    let session = state.session()?;
+    let source = session.audio_source_get(OpaqueId::new(source_id))?;
+    if source.project_id.as_str() != project_id {
+        return Err(CmdError::invalid(
+            "Audio source does not belong to the selected project",
+        ));
+    }
+    // Core, not the WebView, checks linked recordings in AudioFlow,
+    // Huddles and capture sessions before returning advisory retention facts.
+    // This remains read-only even for currently unreferenced imported files.
+    let preflight =
+        session.audio_retention_preflight(OpaqueId::new(project_id), OpaqueId::new(source_id))?;
+    let ResponseBody::AudioRetentionPreflight {
+        expected_digest,
+        imported_file,
+        has_transcript_revisions,
+        has_audit_receipts,
+        has_huddle_media_link,
+        has_capture_reference,
+        unreferenced_imported_file,
+        delete_available,
+        older_backups_may_retain_recording,
+        ..
+    } = preflight
+    else {
+        return Err(CmdError::invalid("Unexpected retention preflight response"));
+    };
+    let revisions = session.audio_transcript_list(OpaqueId::new(source_id))?;
+    let receipts = session.audio_receipt_list(OpaqueId::new(source_id))?;
+    Ok(json!({
+        "project_id": project_id,
+        "source_id": source_id,
+        "source_kind": source.kind,
+        "recording_bytes": source.byte_length,
+        "revision_count": revisions.len(),
+        "receipt_count": receipts.len(),
+        "expected_digest": expected_digest.to_hex(),
+        "imported_file": imported_file,
+        "has_transcript_revisions": has_transcript_revisions,
+        "has_audit_receipts": has_audit_receipts,
+        "has_huddle_media_link": has_huddle_media_link,
+        "has_capture_reference": has_capture_reference,
+        "unreferenced_imported_file": unreferenced_imported_file,
+        "delete_available": delete_available,
+        "active_vault_only": true,
+        "older_backups_may_retain_recording": older_backups_may_retain_recording,
+        "linked_evidence_requires_separate_retention_policy": true,
+        "message": "Read-only inspection. No data was deleted. Linked transcripts, Huddles media and audit receipts are retained. Older backups or snapshots may still contain this recording after future active-vault removal."
+    }))
+}
+
+/// Explicitly removes one unreferenced imported recording from the active
+/// vault. The selected source/digest are checked again by Core and inside
+/// storage's delete+durable-receipt transaction; the preview is advisory.
+/// Older backups, snapshots and physical storage are not erased.
+#[tauri::command(async)]
+pub fn audio_source_remove_confirmed(
+    host: tauri::State<'_, Host>,
+    project_id: String,
+    source_id: String,
+    expected_digest: String,
+    confirmation: String,
+) -> CmdResult<Value> {
+    let mut state = lock(&host)?;
+    let project_id = host::bounded_id(&project_id)?;
+    let source_id = host::bounded_id(&source_id)?;
+    let session = state.session()?;
+    let source = session.audio_source_get(OpaqueId::new(source_id))?;
+    if source.project_id.as_str() != project_id {
+        return Err(CmdError::invalid(
+            "Audio source does not belong to the selected project",
+        ));
+    }
+    if source.content_digest.to_hex() != expected_digest {
+        return Err(CmdError::invalid(
+            "Audio recording changed since inspection. Inspect stored data again.",
+        ));
+    }
+    let removed = session.audio_retention_remove(
+        OpaqueId::new(project_id),
+        OpaqueId::new(source_id),
+        source.content_digest,
+        confirmation,
+    )?;
+    let ResponseBody::AudioRetentionRemoved {
+        receipt_id,
+        removed_bytes,
+        older_backups_may_retain_recording,
+        ..
+    } = removed
+    else {
+        return Err(CmdError::invalid("Unexpected retention removal response"));
+    };
+    Ok(json!({
+        "project_id": project_id,
+        "source_id": source_id,
+        "receipt_id": receipt_id,
+        "removed_bytes": removed_bytes,
+        "active_vault_only": true,
+        "older_backups_may_retain_recording": older_backups_may_retain_recording,
+    }))
+}
+
+/// Audio routes and the installed local speech recognition, if any.
+#[tauri::command(async)]
+pub fn audio_asr_status(host: tauri::State<'_, Host>) -> CmdResult<Value> {
+    let mut state = lock(&host)?;
+    let root = state.workspace()?.vault_root.clone();
+    let routes = state.session()?.audio_routes()?;
+    Ok(json!({
+        "routes": routes,
+        "asr_pack_dir": host::load_asr_pack(&root),
+    }))
+}
+
+/// Starts a user-consented acquisition of a pinned Whisper Audio Pack.
+#[tauri::command(async)]
+pub fn audio_model_download_start(
+    host: tauri::State<'_, Host>,
+    model_id: String,
+    consent: bool,
+) -> CmdResult<Value> {
+    crate::audio_model_manager::start(&host, model_id, consent)
+}
+
+#[tauri::command(async)]
+pub fn audio_model_download_status(host: tauri::State<'_, Host>) -> CmdResult<Value> {
+    crate::audio_model_manager::status(&host)
+}
+
+#[tauri::command(async)]
+pub fn audio_model_download_cancel(host: tauri::State<'_, Host>) -> CmdResult<Value> {
+    crate::audio_model_manager::cancel(&host)
+}
+
+/// Re-admit a previously downloaded, app-owned Pack without downloading any
+/// weights again. Core verifies the signature and all artifact digests.
+#[tauri::command(async)]
+pub fn audio_model_activate_existing(
+    host: tauri::State<'_, Host>,
+    model_id: String,
+) -> CmdResult<Value> {
+    let path = {
+        let state = lock(&host)?;
+        crate::audio_model_manager::existing_pack_path(&model_id, state.data_dir()?)?
+    };
+    audio_admit_asr_pack(host, path)
+}
+
+/// Admits an Audio Pack folder (Spec 106) and installs its Whisper engine
+/// behind the local ASR route. Core verifies the Pack; nothing is downloaded.
+#[tauri::command(async)]
+pub fn audio_admit_asr_pack(host: tauri::State<'_, Host>, path: String) -> CmdResult<Value> {
+    let path = host::bounded_text(&path, 1024)?;
+    let dir = std::path::Path::new(&path);
+    if !host::is_local_absolute(dir) || !dir.is_dir() {
+        return Err(CmdError::invalid(
+            "Invalid: choose an existing Audio Pack folder on this computer",
+        ));
+    }
+    let mut state = lock(&host)?;
+    if !host::pack_dir_allowed(dir, state.data_dir()?, host::EXTERNAL_PACKS_ALLOWED) {
+        return Err(CmdError::new(
+            "denied",
+            "Denied: this version installs Whisper models only through Download, verify and install",
+        ));
+    }
+    if !crate::audio_model_manager::pinned_pack_verified(
+        dir,
+        state.data_dir()?,
+        host::EXTERNAL_PACKS_ALLOWED,
+    ) {
+        return Err(CmdError::new(
+            "denied",
+            "Denied: this saved model doesn't match what MedScale pinned. Delete its folder inside audio-models, then download it again.",
+        ));
+    }
+    let session = state.session()?;
+    let admitted = session.packs_install_local(&path)?;
+    let Some(pack_id) = admitted.pack_id.clone().filter(|_| admitted.admitted) else {
+        return Err(CmdError::new(
+            "denied",
+            format!("Denied: Pack not admitted ({:?})", admitted.reason),
+        ));
+    };
+    session.use_local_asr_pack(&path)?;
+    let root = state.workspace()?.vault_root.clone();
+    host::save_asr_pack(&root, &path)?;
+    Ok(json!({ "id": pack_id.as_str(), "installed": true }))
+}
+
+// Keep desktop import bound identical to the Core audio contract.
+const WAV_IMPORT_MAX_BYTES: u64 = MAX_AUDIO_BYTES as u64;
+
+/// Imports a user-selected bounded PCM WAV recording (absolute path) into a project.
+/// The sample workspace is not encrypted, so a recording goes there only when
+/// the user has confirmed it holds no real patient information.
+#[tauri::command(async)]
+pub fn audio_import_wav(
+    host: tauri::State<'_, Host>,
+    project_id: String,
+    path: String,
+    sample_confirmed: Option<bool>,
+) -> CmdResult<Value> {
+    let project_id = host::bounded_id(&project_id)?.to_owned();
+    let path = host::bounded_text(&path, 1024)?;
+    let file = std::path::Path::new(&path);
+    if !host::is_local_absolute(file) || !path.to_ascii_lowercase().ends_with(".wav") {
+        return Err(CmdError::invalid(
+            "Invalid: choose a .wav file on this computer of at most 32 MiB",
+        ));
+    }
+    let wav = host::read_bounded(file, WAV_IMPORT_MAX_BYTES)?;
+    let label = file
+        .file_name()
+        .map(|n| n.to_string_lossy().into_owned())
+        .unwrap_or_else(|| "recording.wav".to_owned());
+    let mut state = lock(&host)?;
+    if state.workspace()?.kind == host::VaultKind::Synthetic && sample_confirmed != Some(true) {
+        return Err(CmdError::new(
+            "denied",
+            "Denied: the sample workspace isn't encrypted. Confirm the recording holds no real \
+             patient information, or import it into an encrypted workspace",
+        ));
+    }
+    let source = state
+        .session()?
+        .audio_import(OpaqueId::new(&project_id), label, wav)?;
+    Ok(json!({ "source_id": source.header.id.as_str() }))
+}
+
+fn transcript_json(revision: &medscale_contracts::audio::TranscriptRevision) -> Value {
+    json!({
+        "revision_id": revision.header.id.as_str(),
+        "revision_no": revision.revision_no,
+        "state": revision.state,
+        "origin": revision.origin,
+        "segments": revision.segments.iter().map(|s| json!({
+            "seq": s.seq, "start_ms": s.start_ms, "end_ms": s.end_ms, "speaker": s.speaker,
+            "status": s.status, "text": s.text,
+        })).collect::<Vec<_>>(),
+    })
+}
+
+/// Transcribes one source on a route (`local_asr_pack`, `fixture_asr` or
+/// `segmentation_only`). The transcript is a draft for review.
+#[tauri::command(async)]
+pub fn audio_transcribe(
+    host: tauri::State<'_, Host>,
+    project_id: String,
+    source_id: String,
+    route: String,
+    diarize: Option<bool>,
+    language: Option<String>,
+) -> CmdResult<Value> {
+    use medscale_contracts::audio::{AudioRoute, AudioRouteRequest, VoiceInputMode};
+    let language = language.unwrap_or_else(|| "en".to_owned());
+    if language.len() != 2 || !language.bytes().all(|b| b.is_ascii_lowercase()) {
+        return Err(CmdError::invalid(
+            "Invalid: language must be two lowercase ASCII letters",
+        ));
+    }
+    let route = match route.as_str() {
+        "local_asr_pack" => AudioRoute::LocalAsrPack,
+        "fixture_asr" => AudioRoute::FixtureAsr,
+        "segmentation_only" => AudioRoute::SegmentationOnly,
+        _ => return Err(CmdError::invalid("Invalid: unknown audio route")),
+    };
+    let mut state = lock(&host)?;
+    let view = state.session()?.audio_transcribe(AudioRouteRequest {
+        project_id: OpaqueId::new(host::bounded_id(&project_id)?),
+        source_id: OpaqueId::new(host::bounded_id(&source_id)?),
+        route,
+        mode: VoiceInputMode::Dictation,
+        language: Some(language),
+        // Optional speaker grouping: unvalidated acoustic clustering (Spec 106).
+        diarization_required: diarize.unwrap_or(false),
+    })?;
+    Ok(json!({
+        "decision": view.receipt.decision,
+        "engine": view.receipt.engine,
+        "limitations": view.receipt.limitations,
+        "transcript": view.revision.as_ref().map(transcript_json),
+    }))
+}
+
+/// Reads back the newest transcript revision of one source, in the same shape
+/// as `audio_transcribe`, so a transcript survives leaving the Audio page and a
+/// restart. Read-only. The decision, engine and limitations come from the
+/// receipt of the engine revision this one descends from; `transcript` is null
+/// when the source has no transcript.
+#[tauri::command(async)]
+pub fn audio_transcript_latest(
+    host: tauri::State<'_, Host>,
+    project_id: String,
+    source_id: String,
+) -> CmdResult<Value> {
+    use medscale_contracts::audio::TranscriptOrigin;
+    let mut state = lock(&host)?;
+    let project_id = host::bounded_id(&project_id)?;
+    let source_id = OpaqueId::new(host::bounded_id(&source_id)?);
+    let session = state.session()?;
+    let source = session.audio_source_get(source_id.clone())?;
+    if source.project_id.as_str() != project_id {
+        return Err(CmdError::invalid(
+            "Audio source does not belong to the selected project",
+        ));
+    }
+    let revisions = session.audio_transcript_list(source_id.clone())?;
+    let Some(latest) = revisions.iter().max_by_key(|r| r.revision_no) else {
+        return Ok(json!({ "transcript": Value::Null }));
+    };
+    // A correction names its parent; revision numbers strictly decrease along
+    // the chain, so this ends even on malformed data.
+    let mut root = latest;
+    while let TranscriptOrigin::HumanCorrection {
+        parent_revision_id, ..
+    } = &root.origin
+    {
+        match revisions
+            .iter()
+            .find(|r| r.header.id == *parent_revision_id && r.revision_no < root.revision_no)
+        {
+            Some(parent) => root = parent,
+            None => break,
+        }
+    }
+    let receipts = session.audio_receipt_list(source_id)?;
+    let receipt = receipts
+        .iter()
+        .find(|r| r.transcript_revision_id.as_ref() == Some(&root.header.id));
+    Ok(json!({
+        "decision": receipt.map_or_else(|| json!({ "outcome": "allow" }), |r| json!(r.decision)),
+        "engine": receipt.and_then(|r| r.engine.as_ref()),
+        "limitations": receipt.map_or_else(|| json!([]), |r| json!(r.limitations)),
+        "transcript": transcript_json(latest),
+    }))
+}
+
+/// Records a person's correction of one segment as a new revision.
+#[tauri::command(async)]
+pub fn audio_correct(
+    host: tauri::State<'_, Host>,
+    revision_id: String,
+    seq: u32,
+    text: String,
+    reason: String,
+) -> CmdResult<Value> {
+    let revision_id = host::bounded_id(&revision_id)?.to_owned();
+    let text = host::bounded_text(&text, 2000)?;
+    let reason = host::bounded_text(&reason, 200)?;
+    let mut state = lock(&host)?;
+    let revision = state.session()?.audio_transcript_correct(
+        OpaqueId::new(&revision_id),
+        vec![(seq, text)],
+        reason,
+    )?;
+    Ok(transcript_json(&revision))
+}
+
+/// Drafts a note from a transcript revision: an admitted token-classification
+/// Pack runs on each transcribed segment, and the entities it finds are
+/// grouped by label. Every item cites its segment and time span. The draft is
+/// a proposal for review; nothing is written to a record (Spec 106 T106-06).
+#[tauri::command(async)]
+pub fn audio_draft_note(
+    host: tauri::State<'_, Host>,
+    revision_id: String,
+    pack_id: String,
+) -> CmdResult<Value> {
+    let revision_id = host::bounded_id(&revision_id)?.to_owned();
+    let pack_id = host::bounded_id(&pack_id)?.to_owned();
+    let mut state = lock(&host)?;
+    let local_path = pack_dir(&mut state, &pack_id)?;
+    let session = state.session()?;
+    let revision = session.audio_transcript_get(OpaqueId::new(&revision_id))?;
+    let mut sections: std::collections::BTreeMap<String, Vec<Value>> =
+        std::collections::BTreeMap::new();
+    let mut evaluated = 0usize;
+    for segment in &revision.segments {
+        let Some(text) = segment.text.as_deref().filter(|t| !t.trim().is_empty()) else {
+            continue;
+        };
+        let result =
+            session.packs_evaluate_local(medscale_contracts::packs::PackEvaluationRequest {
+                pack_id: OpaqueId::new(&pack_id),
+                local_path: local_path.clone(),
+                input: text.to_owned(),
+                max_tokens: 512,
+                synthetic_only: true,
+                zero_shot_labels: None,
+                decoding: Some(medscale_contracts::packs::EntityDecoding::WordFirst),
+            })?;
+        evaluated += 1;
+        let entities = result.proposal_payload["entities"]
+            .as_array()
+            .cloned()
+            .unwrap_or_default();
+        for e in entities {
+            // An entity without offsets or a label cannot be cited; skip it.
+            let (Some(start), Some(end), Some(label)) =
+                (e["start"].as_u64(), e["end"].as_u64(), e["label"].as_str())
+            else {
+                continue;
+            };
+            let label = label.to_owned();
+            let span: String = text
+                .chars()
+                .skip(usize::try_from(start).unwrap_or(0))
+                .take(usize::try_from(end.saturating_sub(start)).unwrap_or(0))
+                .collect();
+            sections.entry(label).or_default().push(json!({
+                "text": span,
+                "segment_seq": segment.seq,
+                "start_ms": segment.start_ms,
+                "end_ms": segment.end_ms,
+            }));
+        }
+    }
+    Ok(json!({
+        "revision_id": revision_id,
+        "revision_no": revision.revision_no,
+        "pack_id": pack_id,
+        "segments_evaluated": evaluated,
+        "sections": sections,
+        "status": "proposal",
+        "note": "Draft from a transcript; each item cites its segment. Not a record and not clinical truth.",
+    }))
+}
+
+/// Imports a generated synthetic tone/silence WAV (no microphone, no person).
+#[tauri::command(async)]
+pub fn audio_import_synthetic(
+    host: tauri::State<'_, Host>,
+    project_id: String,
+) -> CmdResult<Value> {
+    let project_id = host::bounded_id(&project_id)?.to_owned();
+    let wav = CliSession::synthetic_wav(
+        PcmFormat::mono_16k(),
+        &[(300, false), (800, true), (600, false), (400, true)],
+    );
+    let mut state = lock(&host)?;
+    let source = state.session()?.audio_import(
+        OpaqueId::new(&project_id),
+        "Synthetic tone sample".to_owned(),
+        wav,
+    )?;
+    Ok(json!({ "source_id": source.header.id.as_str() }))
+}
+
+#[tauri::command(async)]
+pub fn audio_segment(
+    host: tauri::State<'_, Host>,
+    project_id: String,
+    source_id: String,
+) -> CmdResult<Value> {
+    let mut state = lock(&host)?;
+    let (summary, lines) = audio_workspace::segment(
+        state.session()?,
+        host::bounded_id(&project_id)?,
+        host::bounded_id(&source_id)?,
+    )?;
+    Ok(json!({ "summary": summary, "lines": lines }))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn the_empty_evidence_gate_is_shown_as_a_refusal() {
+        let refused = execute_error(AuthorityError::StaleReference {
+            message: "empty_approved_evidence: none of the 2 context artifacts resolves to its \
+                      current version; nothing was generated"
+                .to_owned(),
+        });
+        assert_eq!(refused.kind, "blocked");
+        assert!(
+            refused
+                .message
+                .starts_with("Refused: none of this run's sources")
+        );
+
+        let other = execute_error(AuthorityError::StaleReference {
+            message: "something else".to_owned(),
+        });
+        assert_eq!(other.kind, "stale");
+    }
+}

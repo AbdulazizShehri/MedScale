@@ -1,0 +1,10 @@
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.16s
+     Running tests/native_population_insights_062.rs (target/debug/deps/native_population_insights_062-1920135f083b1f27)
+
+running 4 tests
+test spec_062_keeps_mesc_phi_and_release_claims_out_of_scope ... ok
+test population_boundary_uses_trusted_contracts_without_new_authority ... ok
+test assistant_is_deterministic_and_no_provider_authority_is_added ... ok
+test insights_route_is_real_native_and_accessible ... ok
+
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s

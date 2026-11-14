@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-workspace-unlock-with-recovery-code"
+description = "Enables the workspace_unlock_with_recovery_code command without any pre-configured scope."
+commands.allow = ["workspace_unlock_with_recovery_code"]
+
+[[permission]]
+identifier = "deny-workspace-unlock-with-recovery-code"
+description = "Denies the workspace_unlock_with_recovery_code command without any pre-configured scope."
+commands.deny = ["workspace_unlock_with_recovery_code"]

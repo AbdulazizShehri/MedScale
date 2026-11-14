@@ -1,0 +1,20 @@
+{
+  "pack_id": "pack-fixture-signed-v1",
+  "version": "0.1.0",
+  "pack_epoch": 1,
+  "content_digest": "5cc645671bd2a5b4592783be6dd880f37d7580fdc87caf647561a4c7d2570052",
+  "artifacts": [
+    {
+      "relative_path": "payload.txt",
+      "kind": "fixture_bytes",
+      "digest": "0721e615102a1a5c1116192bcde127f0e93637a9e5d164e11c499177a5ea60bd"
+    }
+  ],
+  "rights_uri": "https://medscale.local/rights/synthetic-fixture",
+  "sbom_ref": "sbom:fixture-signed-v1",
+  "runtime_requirements": "fixture_runtime_v0",
+  "benchmark_links": [],
+  "promotion_state": "candidate",
+  "trust_root_id": "synthetic-pack-trust-v1",
+  "signature_hex": "513d37761208005603ad99dc30e3abf6897ac3450ca3365a923383815847e4895676137dd8efc4cafc74c8e84bca20eb45f3e299afa24f2dcc7437389bcc4b03"
+}

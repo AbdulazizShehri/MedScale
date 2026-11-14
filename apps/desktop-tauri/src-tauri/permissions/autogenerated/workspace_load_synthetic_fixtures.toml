@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-workspace-load-synthetic-fixtures"
+description = "Enables the workspace_load_synthetic_fixtures command without any pre-configured scope."
+commands.allow = ["workspace_load_synthetic_fixtures"]
+
+[[permission]]
+identifier = "deny-workspace-load-synthetic-fixtures"
+description = "Denies the workspace_load_synthetic_fixtures command without any pre-configured scope."
+commands.deny = ["workspace_load_synthetic_fixtures"]

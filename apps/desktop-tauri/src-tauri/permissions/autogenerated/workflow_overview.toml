@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-workflow-overview"
+description = "Enables the workflow_overview command without any pre-configured scope."
+commands.allow = ["workflow_overview"]
+
+[[permission]]
+identifier = "deny-workflow-overview"
+description = "Denies the workflow_overview command without any pre-configured scope."
+commands.deny = ["workflow_overview"]

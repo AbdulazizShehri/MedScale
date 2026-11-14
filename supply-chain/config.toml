@@ -1,0 +1,3 @@
+name = "medscale"
+# cargo-vet policy scaffold for Spec 001. Audits are added as third-party
+# crates are admitted by owning specs. Bootstrap workspace has no crates.io deps.

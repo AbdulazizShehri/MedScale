@@ -1,0 +1,1 @@
+{"resourceType":"Observation","id":"bad-unit","status":"final","code":{"coding":[{"code":"8867-4"}]},"valueQuantity":{"value":1,"unit":"furlong","code":"furlong"},"effectiveDateTime":"2020-01-03T00:00:00Z"}

@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-medagent-create-agent"
+description = "Enables the medagent_create_agent command without any pre-configured scope."
+commands.allow = ["medagent_create_agent"]
+
+[[permission]]
+identifier = "deny-medagent-create-agent"
+description = "Denies the medagent_create_agent command without any pre-configured scope."
+commands.deny = ["medagent_create_agent"]

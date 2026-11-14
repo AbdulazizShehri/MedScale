@@ -1,0 +1,26 @@
+{
+  "schema_version": 1,
+  "corpus_id": "om-saudi-arabic-design-v0",
+  "synthetic_only": true,
+  "trap_classes": [
+    "msa_vs_dialect",
+    "code_switch",
+    "national_id_synthetic",
+    "critical_number",
+    "rtl_entity"
+  ],
+  "examples": [
+    {
+      "trap": "code_switch",
+      "text": "Patient أحمد took 5 mg metformin after iftar."
+    },
+    {
+      "trap": "national_id_synthetic",
+      "text": "Synthetic ID 1XXXXXXXXX (not a real national ID)."
+    },
+    {
+      "trap": "critical_number",
+      "text": "Insulin dose 12 units vs 21 units — digit transposition trap."
+    }
+  ]
+}

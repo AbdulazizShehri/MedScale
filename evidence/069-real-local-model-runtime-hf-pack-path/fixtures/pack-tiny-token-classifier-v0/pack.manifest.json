@@ -1,0 +1,37 @@
+{
+  "pack_id": "pack-tiny-token-classifier-v0",
+  "version": "0.1.0",
+  "pack_epoch": 1,
+  "rights_uri": "https://medscale.local/rights/synthetic-runtime-fixture",
+  "sbom_ref": "sbom:spec069-tiny-token-classifier",
+  "runtime_requirements": "tract_onnx_token_classification_v1;max_tokens=4;output=logits",
+  "benchmark_links": [
+    "evidence/069-real-local-model-runtime-hf-pack-path/RUNTIME_QUALIFICATION.md"
+  ],
+  "promotion_state": "candidate",
+  "trust_root_id": "synthetic-pack-trust-v1",
+  "signature_hex": "1c222a20d368c0194b56ba22ee7a5e2ee5608eff5c9f5140b06deaaaa7db21a0df19119f3db397144240bd9956f92812e4f156408e69ece999320f39371ca40b",
+  "content_digest": "aae4bd57ff1d1981e30b07b795efcfcf4fa5d09c968f04a8b22f3d27fe0d0801",
+  "artifacts": [
+    {
+      "relative_path": "labels.json",
+      "kind": "tokenizer_meta",
+      "digest": "24bfd52f039959dfcdbfc56a5247f4594129e01552060162818eba6ac2c8ba43"
+    },
+    {
+      "relative_path": "model.meta.json",
+      "kind": "model_metadata",
+      "digest": "bfc1310d30a0c83a2fd59ec4169b87ed37a97ce3d7e4688338dbd1965b26daa2"
+    },
+    {
+      "relative_path": "model.onnx",
+      "kind": "onnx_model",
+      "digest": "a0ef12de79a197ff6788d8f29d47f8f2e14eea224b7aae9dec756c44f7aec988"
+    },
+    {
+      "relative_path": "tokenizer.json",
+      "kind": "tokenizer_meta",
+      "digest": "08e4216a3341f18188c388305b0489a6f7e10caa7e10bc7c83098004a3ae3a32"
+    }
+  ]
+}

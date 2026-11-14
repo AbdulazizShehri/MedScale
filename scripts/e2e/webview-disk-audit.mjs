@@ -1,0 +1,253 @@
+/**
+ * Read-only, bounded synthetic Tauri APP-LOCAL DATA inspection on a disposable
+ * GitHub Windows runner. This root INCLUDES the WebView2 EBWebView subdirectory
+ * AND the app's synthetic workspace/vault. It is NOT limited to browser cache.
+ * This is NOT a PHI/OS privacy attestation: content is not
+ * printed, uploaded, or copied, and the scan excludes OS swap, crash and backups.
+ */
+import { createReadStream } from "node:fs";
+import { lstat, readdir, mkdir, writeFile } from "node:fs/promises";
+import path from "node:path";
+import { fileURLToPath } from "node:url";
+
+const probes = ["medscale.project", "synthetic-subject-"];
+const needleSets = probes.map((key) => [Buffer.from(key, "utf8"), Buffer.from(key, "utf16le")]);
+const overlap = Math.max(...needleSets.flat().map((b) => b.length)) - 1;
+const defaults = { maxFiles: 1500, maxBytes: 128 * 1024 * 1024, maxFileBytes: 24 * 1024 * 1024 };
+
+function classify(parts) {
+  const names = parts.map((x) => x.toLowerCase());
+  if (names.includes("local storage")) return "local_storage";
+  if (names.includes("indexeddb")) return "indexed_db";
+  if (names.some((x) => /^(cache|cache_storage|code cache|gpucache|dawncache)$/.test(x))) return "cache";
+  if (names.some((x) => /^(crashpad|logs?)$/.test(x))) return "crash_or_log";
+  return "other";
+}
+
+
+// Coarse fixed labels only. File and directory names are NEVER exported.
+// These labels are heuristics for synthetic runner triage, not proof of origin.
+function otherStorageHint(parts, filename) {
+  const names = parts.map((name) => name.toLowerCase());
+  if (names.some((name) => /^(session storage|sessions)$/.test(name))) return "session_state";
+  if (names.includes("service worker")) return "service_worker_state";
+  if (names.some((name) => /^(blob_storage|blob storage|file system|webstorage)$/.test(name))) {
+    return "blob_or_file_state";
+  }
+  if (names.includes("leveldb") || /\.(ldb|sst)$/i.test(filename)) return "leveldb_like";
+  if (/\.(sqlite3?|db)$/i.test(filename)) return "sqlite_like";
+  if (parts.length <= 1) return "profile_root_or_default";
+  return "unclassified_other";
+}
+
+// The scan root is the WHOLE Tauri app-local data directory, not just EBWebView.
+// Scope names are fixed: never export user paths, filenames or marker bytes.
+function appDataScope(parts, filename) {
+  const first = parts[0]?.toLowerCase();
+  if (first === "ebwebview") return "webview2_runtime";
+  // Spec 108: the set-aside copy and the workspace's own temp and discard
+  // siblings are synthetic workspace data, never unattributed.
+  if (first === "synthetic-workspace" || first === "fixture-staging" ||
+      first === "synthetic-set-aside" || /^synthetic-workspace\./i.test(first ?? "") ||
+      (parts.length === 0 && /^synthetic-workspace\./i.test(filename))) {
+    return "synthetic_workspace";
+  }
+  return "other_app_data";
+}
+
+async function scanNeedles(file, remaining, found) {
+  let scanned = 0;
+  let tail = Buffer.alloc(0);
+  const reader = createReadStream(file, { highWaterMark: 64 * 1024 });
+  for await (const chunk of reader) {
+    const n = Math.min(chunk.length, remaining - scanned);
+    if (n <= 0) break;
+    const buf = Buffer.concat([tail, chunk.subarray(0, n)]);
+    for (let i = 0; i < needleSets.length; i++) {
+      if (!found[i] && needleSets[i].some((needle) => buf.includes(needle))) found[i] = true;
+    }
+    scanned += n;
+    tail = buf.subarray(Math.max(0, buf.length - overlap));
+    if (scanned >= remaining) break;
+  }
+  return scanned;
+}
+
+/** A same-sized rewrite or file replacement must not count as stable coverage. */
+export function sameRegularFileSnapshot(before, after) {
+  return after.isFile() && before.dev === after.dev && before.ino === after.ino &&
+    before.size === after.size && before.mtimeMs === after.mtimeMs &&
+    before.ctimeMs === after.ctimeMs;
+}
+
+export async function auditProfiles(roots, limits = defaults) {
+  const report = { scope: "synthetic-only-ci-tauri-app-local-data-including-webview2; not a privacy clearance", profiles: [] };
+  for (const { label, root } of roots) {
+    const info = {
+      label, exists: false, files_examined: 0, bytes_examined: 0, skipped_symlinks: 0,
+      skipped_large_files: 0, unreadable_entries: 0, bounded: false, categories: {},
+      other_marker_storage_hints: {}, app_data_scopes: {},
+    };
+    report.profiles.push(info);
+    let stat;
+    try { stat = await lstat(root); } catch (e) {
+      if (e.code !== "ENOENT") info.unreadable_entries++;
+      continue;
+    }
+    if (!stat.isDirectory() || stat.isSymbolicLink()) { info.unreadable_entries++; continue; }
+    info.exists = true;
+    const pending = [{ dir: root, parts: [] }];
+    while (pending.length) {
+      if (info.files_examined >= limits.maxFiles || info.bytes_examined >= limits.maxBytes) {
+        info.bounded = true; break;
+      }
+      const { dir, parts } = pending.pop();
+      let entries;
+      try { entries = await readdir(dir, { withFileTypes: true }); }
+      catch { info.unreadable_entries++; continue; }
+      for (const ent of entries) {
+        if (info.files_examined >= limits.maxFiles || info.bytes_examined >= limits.maxBytes) {
+          info.bounded = true; break;
+        }
+        // No junction or symlink traversal, no ownership mutation, no names in report.
+        if (ent.isSymbolicLink()) { info.skipped_symlinks++; continue; }
+        const file = path.join(dir, ent.name);
+        if (ent.isDirectory()) { pending.push({ dir: file, parts: [...parts, ent.name] }); continue; }
+        if (!ent.isFile()) continue;
+        const category = classify(parts);
+        const bucket = info.categories[category] ??= {
+          files: 0, key_marker_files: 0, synthetic_subject_marker_files: 0,
+        };
+        bucket.files++;
+        let metadata;
+        try { metadata = await lstat(file); } catch { info.unreadable_entries++; continue; }
+        if (!metadata.isFile() || metadata.size > limits.maxFileBytes) { info.skipped_large_files++; continue; }
+        // A 0-byte file has no content that could carry a marker, so it is
+        // fully examined without opening it. This matters for MedScale's own
+        // always-empty instance lock (Spec 108 step 3), which Windows
+        // LockFileEx makes unreadable while the app runs.
+        if (metadata.size === 0) {
+          info.files_examined++;
+          const scope = appDataScope(parts, ent.name);
+          (info.app_data_scopes[scope] ??= {
+            files_examined: 0, key_marker_files: 0, synthetic_subject_marker_files: 0,
+          }).files_examined++;
+          continue;
+        }
+        const found = [false, false];
+        try {
+          const n = await scanNeedles(file, limits.maxBytes - info.bytes_examined, found);
+          // A concurrent WebView2 rewrite can preserve byte length. Re-stat
+          // after reading and refuse full coverage if identity or timestamps
+          // changed, rather than relying on the pre-read size alone.
+          const after = await lstat(file);
+          if (!sameRegularFileSnapshot(metadata, after)) info.bounded = true;
+          info.bytes_examined += n;
+          info.files_examined++;
+          const scope = appDataScope(parts, ent.name);
+          const scopeCounts = info.app_data_scopes[scope] ??= {
+            files_examined: 0, key_marker_files: 0, synthetic_subject_marker_files: 0,
+          };
+          scopeCounts.files_examined++;
+          if (found[0]) scopeCounts.key_marker_files++;
+          if (found[1]) scopeCounts.synthetic_subject_marker_files++;
+          // The final file can exhaust the byte budget without another loop
+          // iteration to set bounded. Reject partial reads and files changing
+          // size during inspection instead of claiming complete coverage.
+          if (n !== metadata.size) info.bounded = true;
+          if (found[0]) bucket.key_marker_files++;
+          if (found[1]) {
+            bucket.synthetic_subject_marker_files++;
+            if (category === "other") {
+              const hint = otherStorageHint(parts, ent.name);
+              info.other_marker_storage_hints[hint] =
+                (info.other_marker_storage_hints[hint] ?? 0) + 1;
+            }
+          }
+        } catch { info.unreadable_entries++; }
+      }
+    }
+  }
+  return report;
+}
+
+/** A successful scan with zero readable app-profile bytes is not evidence. */
+export function hasObservedProfileBytes(report) {
+  return report.profiles.some(({ exists, bytes_examined }) => exists && bytes_examined > 0);
+}
+
+/** Even after reading bytes, a bounded or partially skipped scan cannot pass
+ * the CI evidence gate. Missing optional legacy roots are not errors. */
+export function hasCompleteAuditCoverage(report) {
+  return report.profiles.every(({ bounded, unreadable_entries, skipped_large_files, skipped_symlinks }) =>
+    !bounded && unreadable_entries === 0 && skipped_large_files === 0 && skipped_symlinks === 0);
+}
+
+/**
+ * A just-closed WebView2 process may temporarily hold a file while the
+ * disposable-runner baseline is scanned. Retry only that narrow case.
+ * Every attempt remains a full scan: no unreadable, skipped, or bounded
+ * entries can be accepted as complete. Never use on a live user profile.
+ */
+export async function auditProfilesWithTransientRetry(roots, {
+  scan = auditProfiles,
+  attempts = 5,
+  pause = () => new Promise((resolve) => setTimeout(resolve, 750)),
+} = {}) {
+  if (!Number.isSafeInteger(attempts) || attempts < 1 || attempts > 10) {
+    throw new Error("Invalid bounded audit retry count");
+  }
+  let report;
+  for (let n = 1; n <= attempts; n++) {
+    report = await scan(roots);
+    const qualified = hasObservedProfileBytes(report) && hasCompleteAuditCoverage(report);
+    if (qualified) return { report, attempts: n, qualified: true };
+    // Never retry a bounded scan, skipped content, or absent profile as if
+    // they were a transient sharing violation. Persistent unreadability
+    // remains an explicit failed qualification.
+    const transientUnreadable = report.profiles.some((p) => p.unreadable_entries > 0) &&
+      report.profiles.every((p) => !p.bounded && p.skipped_large_files === 0 &&
+        p.skipped_symlinks === 0);
+    if (!transientUnreadable || n === attempts) {
+      return { report, attempts: n, qualified: false };
+    }
+    await pause();
+  }
+  throw new Error("Unreachable bounded audit retry state");
+}
+
+async function main() {
+  // Guard against accidental use on the owner's workstation or a live profile.
+  if (process.env.GITHUB_ACTIONS !== "true" || process.env.MEDSCALE_CI_WEBVIEW_AUDIT !== "1" ||
+      process.platform !== "win32" || !process.env.RUNNER_TEMP || !process.env.LOCALAPPDATA) {
+    throw new Error("Disposable Windows GitHub runner and explicit CI profile-audit opt-in required");
+  }
+  const report = await auditProfiles([
+    { label: "tauri_identifier_profile", root: path.join(process.env.LOCALAPPDATA, "org.medscale.desktop.preview") },
+    { label: "legacy_medscale_profile", root: path.join(process.env.LOCALAPPDATA, "MedScale") },
+  ]);
+  const output = path.join("target", "e2e-shots", "webview-disk-profile-audit.json");
+  await mkdir(path.dirname(output), { recursive: true });
+  await writeFile(output, JSON.stringify(report, null, 2) + "\n", "utf8");
+  console.log("WEBVIEW_SYNTHETIC_DISK_AUDIT=" + JSON.stringify({
+    scope: report.scope,
+    profiles: report.profiles.map(({ label, exists, files_examined, bytes_examined, bounded, unreadable_entries, skipped_large_files, skipped_symlinks }) =>
+      ({ label, exists, files_examined, bytes_examined, bounded, unreadable_entries, skipped_large_files, skipped_symlinks })),
+  }));
+  if (!hasObservedProfileBytes(report)) {
+    // Fail closed without exposing profile paths, file names or content.
+    throw new Error("No readable app-owned WebView profile bytes observed");
+  }
+  if (!hasCompleteAuditCoverage(report)) {
+    // A truncated, inaccessible or skipped profile is not full scan evidence.
+    throw new Error("Incomplete app-owned WebView profile inspection");
+  }
+}
+
+if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
+  main().catch(() => {
+    // No native error path or byte content in public logs.
+    console.error("WEBVIEW_SYNTHETIC_DISK_AUDIT=UNQUALIFIED");
+    process.exitCode = 1;
+  });
+}

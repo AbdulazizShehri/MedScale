@@ -1,0 +1,17 @@
+{
+  "schema_version": 1,
+  "corpus_id": "om-pii-synthetic-multi-v0",
+  "synthetic_only": true,
+  "examples": [
+    {
+      "lang": "en",
+      "text": "Contact synthetic patient Pat Example at +1-555-0100.",
+      "pii": ["PHONE"]
+    },
+    {
+      "lang": "ar",
+      "text": "رقم الهاتف التجريبي +966500000000",
+      "pii": ["PHONE"]
+    }
+  ]
+}

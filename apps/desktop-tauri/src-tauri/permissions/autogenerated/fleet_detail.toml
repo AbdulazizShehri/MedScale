@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-fleet-detail"
+description = "Enables the fleet_detail command without any pre-configured scope."
+commands.allow = ["fleet_detail"]
+
+[[permission]]
+identifier = "deny-fleet-detail"
+description = "Denies the fleet_detail command without any pre-configured scope."
+commands.deny = ["fleet_detail"]

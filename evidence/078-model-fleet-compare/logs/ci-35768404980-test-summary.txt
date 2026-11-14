@@ -1,0 +1,33 @@
+== rust (ubuntu-latest) job 106883812075
+     Running unittests src/lib.rs (target/debug/deps/medscale_contracts-9a2059abc5672183) -> test result: ok. 81 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+     Running unittests src/lib.rs (target/debug/deps/medscale_core-14b389b73c6668e9) -> test result: ok. 26 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.40s
+     Running tests/model_fleet_078.rs (target/debug/deps/model_fleet_078-0a96beb1992ad9c7) -> test result: ok. 18 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 2.01s
+     Running unittests src/main.rs (target/debug/deps/medscale_desktop-8ca84ac65c40880e) -> test result: ok. 37 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.47s
+     Running unittests src/lib.rs (target/debug/deps/medscale_storage-34d903d70f191b24) -> test result: ok. 7 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+     Running tests/model_fleet_078.rs (target/debug/deps/model_fleet_078-3b6005a5e696a9b4) -> test result: ok. 14 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 2.99s
+078-related test lines ok: 42
+test binaries ok: 113
+FAILED lines: 0
+== rust (macos-latest) job 106883811949
+     Running unittests src/lib.rs (target/debug/deps/medscale_contracts-be0bb1bcb1670032) -> test result: ok. 80 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+     Running unittests src/lib.rs (target/debug/deps/medscale_core-99bb5e524700346b) -> test result: ok. 26 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.35s
+     Running tests/model_fleet_078.rs (target/debug/deps/model_fleet_078-e26a2bf38327a4ab) -> test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.09s
+     Running unittests src/main.rs (target/debug/deps/medscale_desktop-a9719bf00cd0c6b8) -> test result: ok. 37 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.93s
+     Running unittests src/lib.rs (target/debug/deps/medscale_storage-096f8b588fe3dc64) -> test result: ok. 7 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.03s
+     Running tests/model_fleet_078.rs (target/debug/deps/model_fleet_078-fcef70171cc84207) -> test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 3.34s
+078-related test lines ok: 42
+test binaries ok: 113
+FAILED lines: 0
+
+NOTE (macOS): GitHub interleaves the stdout/stderr streams in the macOS job
+log, so the "Running <binary> -> test result" pairing above is not reliable
+there. Individual test names were verified present with "... ok" in the
+macOS log instead, e.g. two_real_lanes_produce_a_factual_grounded_report,
+dispatch_refusals_write_nothing,
+migration_v6_to_v7_preserves_populated_pre_078_vault_and_binds_to_its_077_objects,
+restore_rejects_hand_edited_078_snapshots,
+model_fleet_workspace_flows_through_real_core_session,
+lane_commands_run_through_core_across_fresh_sessions,
+computation_has_no_score_rank_or_winner_logic. FAILED lines: 0 in both logs.
+Ubuntu pairing is consistent: core model_fleet_078 = 18 passed,
+storage model_fleet_078 = 14 passed.

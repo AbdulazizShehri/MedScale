@@ -1,0 +1,94 @@
+# Licensed human speech -> genuine native macOS Tauri IPC -> MedScale Core.
+# This is NOT macOS WebView GUI automation or a clinical benchmark.
+# Heavy models and recordings remain only on a disposable public CI runner.
+name: audio-real-macos-native
+on:
+  push:
+    branches: ["feature/audio-macos-native-*"]
+permissions:
+  contents: read
+concurrency:
+  group: medscale-real-macos-native-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  native-real-human-speech:
+    name: verified public LibriSpeech -> local Whisper -> macOS Tauri Core
+    runs-on: macos-latest
+    timeout-minutes: 125
+    env:
+      CARGO_BUILD_JOBS: "2"
+      MEDSCALE_QUAL_REAL_MAC_AUDIO: "1"
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v4
+      - uses: dtolnay/rust-toolchain@d1031067263f94b142dd6c0ce24c5eb9d02d52a0
+        with:
+          toolchain: "1.97.1"
+          components: rustfmt
+      - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2
+        with:
+          workspaces: apps/desktop-tauri/src-tauri -> target
+          key: real-human-macos-whisper
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: "24.19.0"
+          cache: npm
+          cache-dependency-path: apps/desktop-tauri/package-lock.json
+      - name: Build required bundled desktop frontend before model acquisition
+        working-directory: apps/desktop-tauri
+        run: |
+          npm ci --ignore-scripts --no-audit --no-fund
+          npm test
+          npm run build
+          test -d dist
+      - name: Ensure decoder on disposable macOS runner
+        run: |
+          set -euo pipefail
+          if ! command -v ffmpeg >/dev/null 2>&1; then brew install ffmpeg; fi
+          ffmpeg -version | head -1
+      - name: Download licensed public speech and authenticate original archive
+        run: |
+          set -euo pipefail
+          archive="$RUNNER_TEMP/test-clean.tar.gz"
+          curl -fsSL --retry 3 --max-time 480 \
+            https://www.openslr.org/resources/12/test-clean.tar.gz -o "$archive"
+          [ "$(stat -f '%z' "$archive")" = "346663984" ]
+          [ "$(md5 -q "$archive")" = "32fa31d27d2e1cad72775fee3f4849a9" ]
+          wav="$RUNNER_TEMP/real-human-voice.wav"
+          python3 scripts/qualification/prepare_librispeech_one_wav.py "$archive" "$wav"
+          echo "MEDSCALE_E2E_REAL_WAV_PATH=$wav" >> "$GITHUB_ENV"
+      - name: Download pinned public Whisper and build digest-verified signed Pack
+        run: |
+          set -euo pipefail
+          snap="$RUNNER_TEMP/pinned-whisper-snapshot"
+          pack="$RUNNER_TEMP/pinned-whisper-pack"
+          mkdir -p "$snap"
+          rev=87c7102498dcde7456f24cfd30239ca606ed9063
+          curl -fsSL --retry 3 --max-time 240 \
+            "https://huggingface.co/api/models/openai/whisper-tiny.en/revision/$rev?blobs=true" \
+            -o "$snap/metadata.json"
+          for f in config.json tokenizer.json model.safetensors; do
+            curl -fsSL --retry 3 --max-time 600 \
+              "https://huggingface.co/openai/whisper-tiny.en/resolve/$rev/$f" -o "$snap/$f"
+          done
+          cargo run --release --locked -p medscale-pack \
+            --example prepare_asr_e2e_pack -- "$snap" "$pack"
+          echo "MEDSCALE_E2E_REAL_ASR_PACK_PATH=$pack" >> "$GITHUB_ENV"
+      - name: Rust format
+        run: cargo fmt --all -- --check
+      - name: Execute real native Tauri/Core import transcribe and restart
+        run: |
+          cargo test --manifest-path apps/desktop-tauri/src-tauri/Cargo.toml \
+            --features custom-protocol --locked \
+            verified_public_human_wav_transcribes_via_native_tauri \
+            -- --ignored --nocapture --test-threads=1
+      - name: Record bounded macOS evidence
+        if: success()
+        run: |
+          echo "Real native Tauri/Core on macOS: verified pinned Pack, one CC BY 4.0 LibriSpeech clip, nonfixture Whisper transcription and persisted restart: PASS." >> "$GITHUB_STEP_SUMMARY"
+          echo "This test replaces only the OS WebView with a mock runtime; it does NOT prove macOS graphical end-user usability or clinical accuracy." >> "$GITHUB_STEP_SUMMARY"
+      - name: Remove recordings, archive, snapshots and Pack
+        if: always()
+        run: |
+          for name in test-clean.tar.gz real-human-voice.wav pinned-whisper-snapshot pinned-whisper-pack; do
+            rm -rf -- "$RUNNER_TEMP/$name"
+          done

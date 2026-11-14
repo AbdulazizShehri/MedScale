@@ -1,0 +1,16 @@
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.54s
+     Running unittests src/main.rs (target/debug/deps/medscale-f6a4bc3e494a4f49)
+
+running 10 tests
+test tests::cli_does_not_depend_on_storage_or_rusqlite ... ok
+test tests::cli_read_parity_uses_existing_authority_contracts ... ok
+test tests::human_identity_is_terminal_native_and_json_contracts_stay_separate ... ok
+test tests::capability_map_is_explicit_about_visual_only_parity ... ok
+test tests::cli_product_paths_are_discoverable_and_structured ... ok
+test tests::privacy_proof_limitations_include_tauri_and_no_systemwide_claim ... ok
+test tests::cli_longitudinal_wedge ... ok
+test tests::fixture_ui_doctor_respects_phi_and_has_no_secrets ... ok
+test tests::doctor_json_has_required_axes_and_no_secrets ... ok
+test tests::fixture_ui_and_cli_help_surface_required_a11y_labels_without_wcag_claim ... ok
+
+test result: ok. 10 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.21s

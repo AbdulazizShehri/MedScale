@@ -1,0 +1,24 @@
+{
+  "schema_version": 1,
+  "spec_id": "050-host-perf-measurement",
+  "generated_at": "2026-09-10T23:45:39.6246766Z",
+  "budgets_claimed_met": false,
+  "release_ready": false,
+  "scale": {
+    "timeline_events": 1000,
+    "lexical_scale": false,
+    "timed_runs": 3,
+    "delivery_plan_scale": true
+  },
+  "binding": {
+    "source_sha": "805e0aaf5751958ec6b36d6eda647aed83cce3fa",
+    "tree_sha": "95b4e10a26972cae0aa0c817bb455bf1ad2f66e6",
+    "cargo_lock_sha256": "427c4fe7bc1bbdbccba58c2598616e7b5bd480ff23b883ec3976a3df6ea7fe84",
+    "rustc": "rustc 1.97.1 (8bab26f4f 2026-07-14)",
+    "os": "Microsoft Windows 10.0.26200",
+    "arch": "X64",
+    "cpu": "Intel64 Family 6 Model 186 Stepping 2, GenuineIntel",
+    "ram": "16106 MiB"
+  },
+  "note": "Host measurement path only. Do not claim budgets_claimed_met or RELEASE_READY from this sidecar alone. Harness JSON is written under evidence/027 or evidence/042/045 paths by the test."
+}

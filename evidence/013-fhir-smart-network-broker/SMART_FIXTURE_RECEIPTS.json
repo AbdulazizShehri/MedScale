@@ -1,0 +1,28 @@
+{
+  "schema_version": 1,
+  "spec_id": "013-fhir-smart-network-broker",
+  "synthetic_only": true,
+  "real_phi": false,
+  "receipts": [
+    {
+      "fixture_id": "smart-discovery-fixture",
+      "purpose": "smart_discovery",
+      "decision": "allow",
+      "transport": "fixture",
+      "body_redacted": true,
+      "note": "StubSmartAdapter via Network Broker; no live token"
+    },
+    {
+      "fixture_id": "fhir-patient-read-fixture",
+      "purpose": "fhir_read_fixture",
+      "decision": "allow",
+      "transport": "fixture",
+      "body_redacted": true,
+      "note": "StubFhirAdapter via Network Broker; synthetic Patient"
+    }
+  ],
+  "limitations": [
+    "No client_secret, access_token, or refresh_token material in this artifact",
+    "Live SMART authorize refused with ExternalGateRequired"
+  ]
+}

@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-analytics-receipts"
+description = "Enables the analytics_receipts command without any pre-configured scope."
+commands.allow = ["analytics_receipts"]
+
+[[permission]]
+identifier = "deny-analytics-receipts"
+description = "Denies the analytics_receipts command without any pre-configured scope."
+commands.deny = ["analytics_receipts"]

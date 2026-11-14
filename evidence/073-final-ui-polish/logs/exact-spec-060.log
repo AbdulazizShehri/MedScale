@@ -1,0 +1,9 @@
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.17s
+     Running tests/native_desktop_ui_060.rs (target/debug/deps/native_desktop_ui_060-f6d741cd6d80e7aa)
+
+running 3 tests
+test product_phase_keeps_mobile_after_desktop_cli_launch ... ok
+test native_desktop_shell_is_pinned_non_webview_and_branded ... ok
+test doctor_reports_native_final_v0_without_inventing_wcag_or_release ... ok
+
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.24s

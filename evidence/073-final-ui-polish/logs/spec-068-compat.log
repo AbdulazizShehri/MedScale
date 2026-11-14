@@ -1,0 +1,11 @@
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.16s
+     Running tests/product_differentiation_068.rs (target/debug/deps/product_differentiation_068-3747fdca0dea87e2)
+
+running 5 tests
+test spec_068_closure_remains_historical_while_spec_073_is_active ... ok
+test brand_identity_is_canonical_and_runtime_bound ... ok
+test historical_spec_068_rejected_multicolor_palette_remains_retired ... ok
+test models_and_competitive_evidence_are_first_class_and_truthful ... ok
+test home_is_a_clinical_workspace_not_an_admin_dashboard ... ok
+
+test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s

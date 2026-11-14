@@ -1,0 +1,2695 @@
+import "../../../assets/brand/fonts/InterVariable.ttf";
+import "../../../assets/brand/fonts/JetBrainsMonoNL-Regular.ttf";
+import { CommandCenter } from "command-center.slint";
+import { AboutSlint, ScrollView } from "std-widgets.slint";
+import { Theme } from "theme.slint";
+export { Theme } from "theme.slint";
+import { AdaptiveLineEdit, HonestyPanel, NavItem, QuickAction, RailAction, SegmentTab, ToolbarAction, MetricCard, StatusPill } from "components.slint";
+
+export struct PatientTimelineItem {
+    date: string,
+    title: string,
+    detail: string,
+    source: string,
+    status: string,
+}
+
+export struct PatientLabItem {
+    label: string,
+    value: string,
+    unit: string,
+    status: string,
+    source: string,
+}
+
+export struct PatientSourceItem {
+    source-id: string,
+    note: string,
+}
+
+export struct PopulationDistributionItem {
+    label: string,
+    value: string,
+    detail: string,
+    status: string,
+}
+
+export struct PopulationCohortItem {
+    name: string,
+    subject-ref: string,
+    condition: string,
+    evidence-state: string,
+    review-attention: string,
+}
+
+export struct AssistantEvidenceItem {
+    source: string,
+    title: string,
+    snippet: string,
+    metadata: string,
+}
+
+export struct WorkflowStepItem {
+    order: string,
+    title: string,
+    detail: string,
+    state: string,
+}
+
+export struct WorkflowTaskItem {
+    action-id: string,
+    title: string,
+    state: string,
+    payload-digest: string,
+    next-step: string,
+    reconcile-required: bool,
+}
+
+export struct WorkflowMessageItem {
+    title: string,
+    body: string,
+    status: string,
+    related-action-id: string,
+}
+
+export struct UtilityStatusItem {
+    label: string,
+    value: string,
+    detail: string,
+    status: string,
+}
+
+export struct AuditTrailItem {
+    record-id: string,
+    action: string,
+    subject: string,
+    detail: string,
+    status: string,
+}
+
+export struct ModelStatusItem {
+    scope: string,
+    task: string,
+    model: string,
+    source: string,
+    runtime: string,
+    device: string,
+    trust: string,
+    benchmark: string,
+    digest: string,
+    state: string,
+}
+
+export struct CompetitiveEvidenceItem {
+    capability: string,
+    medscale: string,
+    reference: string,
+    verdict: string,
+    evidence: string,
+    limitations: string,
+}
+
+export struct ProjectRowItem {
+    id: string,
+    name: string,
+    status: string,
+    revision: string,
+    experiments: string,
+    refs: string,
+    edges: string,
+}
+
+export struct ExperimentRowItem {
+    id: string,
+    name: string,
+    status: string,
+    revision: string,
+}
+
+export struct RefRowItem {
+    ref-id: string,
+    kind: string,
+    object-id: string,
+    resolution: string,
+}
+
+export struct EdgeRowItem {
+    edge-id: string,
+    subject: string,
+    predicate: string,
+    object: string,
+    revision: string,
+}
+
+export struct DataSourceRowItem {
+    id: string,
+    name: string,
+    kind: string,
+    health: string,
+    revision: string,
+}
+
+export struct SnapshotRowItem {
+    id: string,
+    rows: string,
+    digest: string,
+}
+
+export struct WorkbenchRowItem {
+    text: string,
+}
+
+export struct RoomRowItem {
+    id: string,
+    name: string,
+    revision: string,
+}
+
+export struct ThreadRowItem {
+    id: string,
+    status: string,
+    resolution: string,
+    artifact-id: string,
+}
+
+export struct MessageRowItem {
+    author: string,
+    body: string,
+    seq: string,
+}
+
+export struct TaskRowItem {
+    id: string,
+    title: string,
+    status: string,
+    revision: string,
+}
+
+export struct AgentRunRowItem {
+    id: string,
+    status: string,
+    revision: string,
+    prompt: string,
+}
+
+export struct FleetLaneRowItem {
+    id: string,
+    role: string,
+    status: string,
+    revision: string,
+}
+
+export struct FleetRunRowItem {
+    id: string,
+    status: string,
+    revision: string,
+}
+
+export struct FleetLaneRunRowItem {
+    lane-id: string,
+    run-id: string,
+    run-status: string,
+}
+
+export struct FleetObservationRowItem {
+    kind: string,
+    lanes: string,
+    detail: string,
+}
+
+export struct KnowledgeCanvasRowItem {
+    id: string,
+    title: string,
+    detail: string,
+}
+
+export struct ResearchOsRowItem {
+    plane: string,
+    id: string,
+    state: string,
+    detail: string,
+    action: string,
+}
+
+export struct AnalyticsReceiptRowItem {
+    id: string,
+    outcome: string,
+    detail: string,
+}
+
+export struct AudioSourceRowItem {
+    id: string,
+    label: string,
+    kind: string,
+    detail: string,
+    health: string,
+}
+
+export struct AudioCaptureRowItem {
+    id: string,
+    label: string,
+    state: string,
+    detail: string,
+}
+
+export struct BrowseAllowRowItem {
+    id: string,
+    target: string,
+    enabled: bool,
+    revision: string,
+}
+
+export struct BrowseSessionRowItem {
+    id: string,
+    url: string,
+    state: string,
+    reason: string,
+}
+
+export struct PrivacyClassificationRowItem {
+    artifact-id: string,
+    data-class: string,
+    basis: string,
+    revision: string,
+}
+
+export struct PrivacyReceiptRowItem {
+    id: string,
+    source: string,
+    output: string,
+    status: string,
+    residual: string,
+    revision: string,
+}
+
+export struct PrivacyDecisionRowItem {
+    artifact-id: string,
+    boundary: string,
+    outcome: string,
+    reason: string,
+}
+
+export struct AgentTurnRowItem {
+    seq: string,
+    kind: string,
+    payload: string,
+}
+
+export component AppWindow inherits Window {
+    title: "MedScale";
+    icon: Theme.dark ? @image-url("assets/medscale-app-icon.svg") : @image-url("assets/medscale-app-icon-light.svg");
+    preferred-width: 1440px;
+    preferred-height: 900px;
+    min-width: 1100px;
+    min-height: 720px;
+    background: Theme.canvas;
+    default-font-family: Theme.font-ui;
+    default-font-size: 14px;
+
+    in-out property <string> active-route: "Home";
+    in-out property <bool> palette-open: false;
+    in-out property <string> patient-tab: "Overview";
+    in property <string> product-version: "0.1.0";
+    in property <string> patient-name: "Synthetic subject";
+    in property <string> patient-subject-ref: "synthetic-subject";
+    in property <string> patient-birth-date: "Unknown — not inferred";
+    in property <string> patient-condition-summary: "No supported condition facts in this projection";
+    in property <string> patient-coverage-summary: "No coverage summary";
+    in property <string> patient-coverage-state: "Unknown";
+    in property <[PatientTimelineItem]> patient-timeline;
+    in property <[PatientLabItem]> patient-labs;
+    in property <[PatientSourceItem]> patient-sources;
+    in property <string> patient-medications-state;
+    in property <string> patient-documents-state;
+    in property <string> patient-care-plan-state;
+    in-out property <string> insights-tab: "Overview";
+    in property <string> insights-cohort-size: "0";
+    in property <string> insights-review-attention: "0";
+    in property <string> insights-evidence-gaps: "0";
+    in property <string> insights-present-count: "0";
+    in property <[PopulationDistributionItem]> insights-conditions;
+    in property <[PopulationDistributionItem]> insights-coverage;
+    in property <[PopulationCohortItem]> insights-cohorts;
+    in property <[AssistantEvidenceItem]> insights-evidence;
+    in property <string> insights-risk-state;
+    in property <string> insights-trend-state;
+    in property <string> insights-gap-state;
+    in property <string> insights-recommendation-state;
+    in-out property <string> insights-assistant-answer;
+    in property <string> workflow-name;
+    in property <string> workflow-state;
+    in property <string> workflow-outbox-summary;
+    in property <string> workflow-action-boundary;
+    in property <string> workflow-task-boundary;
+    in property <string> workflow-message-boundary;
+    in-out property <string> workflow-review-detail;
+    in property <[WorkflowStepItem]> workflow-steps;
+    in property <[WorkflowTaskItem]> workflow-tasks;
+    in property <[WorkflowMessageItem]> workflow-messages;
+    in property <string> utility-audit-boundary;
+    in property <string> utility-export-boundary;
+    in property <string> utility-settings-boundary;
+    in property <string> utility-integrations-boundary;
+    in property <string> utility-missing-release-evidence;
+    in property <[AuditTrailItem]> utility-audit-rows;
+    in property <[UtilityStatusItem]> utility-export-rows;
+    in property <[UtilityStatusItem]> utility-settings-rows;
+    in property <[UtilityStatusItem]> utility-integration-rows;
+    in property <string> model-runtime-summary;
+    in property <string> model-runtime-boundary;
+    in property <string> model-source-summary;
+    in property <string> model-inventory-summary;
+    in-out property <string> model-pack-path: "";
+    in property <string> model-operator-status: "Ready for local Pack inspection";
+    in property <string> reference-baseline;
+    in property <string> competitive-summary;
+    in property <[ModelStatusItem]> model-rows;
+    in property <[CompetitiveEvidenceItem]> competitive-evidence-rows;
+    in property <[ProjectRowItem]> project-rows;
+    in-out property <string> project-status: "Projects not loaded";
+    in-out property <string> project-name-input: "";
+    in-out property <string> project-desc-input: "";
+    in-out property <string> project-active-id: "";
+    in-out property <string> project-active-revision: "";
+    in property <string> project-detail-name: "";
+    in property <string> project-detail-meta: "";
+    in property <[ExperimentRowItem]> project-experiments;
+    in property <[RefRowItem]> project-refs;
+    in property <[EdgeRowItem]> project-edges;
+    in-out property <string> project-experiment-input: "";
+    in-out property <string> data-status: "Data not loaded";
+    in property <[DataSourceRowItem]> data-sources;
+    in property <[SnapshotRowItem]> data-snapshots;
+    in-out property <string> data-active-source: "";
+    in-out property <string> data-active-snapshot: "";
+    in property <string> data-schema-line: "";
+    in property <[WorkbenchRowItem]> data-rows;
+    in property <string> data-detail: "";
+    in property <string> data-next-cursor: "";
+    in-out property <string> data-columns-input: "";
+    in-out property <string> data-filter-col: "";
+    in-out property <string> data-filter-op: "equals";
+    in-out property <string> data-filter-value: "";
+    in-out property <string> data-sort-input: "";
+    in-out property <string> collab-status: "Rooms not loaded";
+    in property <[RoomRowItem]> collab-rooms;
+    in-out property <string> collab-room-name-input: "";
+    in-out property <string> collab-active-room-id: "";
+    in property <[ThreadRowItem]> collab-threads;
+    in-out property <string> collab-active-thread-id: "";
+    in-out property <string> collab-thread-artifact-input: "";
+    in property <[MessageRowItem]> collab-messages;
+    in-out property <string> collab-message-input: "";
+    in property <[TaskRowItem]> collab-tasks;
+    in-out property <string> collab-task-title-input: "";
+    in-out property <string> medagent-status: "Runs not loaded";
+    in property <[AgentRunRowItem]> medagent-runs;
+    in-out property <string> medagent-agent-id-input: "";
+    in-out property <string> medagent-context-id-input: "";
+    in-out property <string> medagent-prompt-input: "";
+    in-out property <string> medagent-active-run-id: "";
+    in-out property <string> medagent-active-run-revision: "";
+    in property <[AgentTurnRowItem]> medagent-turns;
+    in-out property <string> fleet-status: "Fleet runs not loaded";
+    in property <[FleetLaneRowItem]> fleet-lanes;
+    in property <[FleetRunRowItem]> fleet-runs;
+    in-out property <string> fleet-prompt-input: "";
+    in-out property <string> fleet-lane-ids-input: "";
+    in-out property <string> fleet-pack-dir-input: "";
+    in-out property <string> fleet-active-id: "";
+    in-out property <string> fleet-active-status: "";
+    in-out property <string> fleet-active-revision: "";
+    in property <[FleetLaneRunRowItem]> fleet-lane-runs;
+    in-out property <string> fleet-report-summary: "";
+    in property <[FleetObservationRowItem]> fleet-observations;
+    in-out property <string> research-os-status: "Research OS operations not loaded";
+    in property <[ResearchOsRowItem]> research-os-rows;
+    in-out property <string> analytics-status: "Analytics not loaded";
+    in property <[AnalyticsReceiptRowItem]> analytics-receipts;
+    in-out property <string> analytics-sql-input: "";
+    in-out property <string> analytics-bindings-input: "";
+    in-out property <string> analytics-last-result: "";
+    in-out property <string> analytics-preview: "";
+    in-out property <string> knowledge-status: "Knowledge not loaded";
+    in property <[KnowledgeCanvasRowItem]> knowledge-canvases;
+    in-out property <string> knowledge-query-input: "";
+    in-out property <string> knowledge-last-result: "";
+    in-out property <string> knowledge-hits: "";
+    in-out property <string> audio-status: "AudioFlow not loaded";
+    in-out property <string> audio-native-capture: "";
+    in property <[AudioSourceRowItem]> audio-sources;
+    in property <[AudioCaptureRowItem]> audio-captures;
+    in-out property <string> audio-last-result: "";
+    in-out property <string> audio-transcript: "";
+    in-out property <string> browse-status: "Browse not loaded";
+    in property <[BrowseAllowRowItem]> browse-allowlist;
+    in property <[BrowseSessionRowItem]> browse-sessions;
+    in-out property <string> browse-host-input: "";
+    in-out property <string> browse-prefix-input: "/";
+    in-out property <string> browse-url-input: "";
+    in-out property <string> browse-last-result: "";
+    in-out property <string> browse-last-excerpt: "";
+    in-out property <string> privacy-status: "Privacy state not loaded";
+    in property <[PrivacyClassificationRowItem]> privacy-classifications;
+    in property <[PrivacyReceiptRowItem]> privacy-receipts;
+    in property <[PrivacyDecisionRowItem]> privacy-decisions;
+    in-out property <string> privacy-artifact-input: "";
+    in-out property <string> privacy-boundary-input: "browse";
+    in-out property <string> privacy-last-decision: "";
+    callback ui-action(string);
+
+    forward-focus: global-keys;
+
+    global-keys := FocusScope {
+        key-pressed(event) => {
+            if ((event.modifiers.control || event.modifiers.meta) && (event.text == "k" || event.text == "K")) {
+                root.palette-open = !root.palette-open;
+                return accept;
+            }
+            if (event.text == Key.Escape) {
+                root.palette-open = false;
+                return accept;
+            }
+            return reject;
+        }
+
+        HorizontalLayout {
+            spacing: 0px;
+
+            rail := Rectangle {
+                width: 72px;
+                background: Theme.obsidian;
+
+                VerticalLayout {
+                    padding-left: 8px;
+                    padding-right: 8px;
+                    padding-top: 12px;
+                    padding-bottom: 12px;
+                    spacing: 7px;
+
+                    Rectangle {
+                        height: 46px;
+                        background: transparent;
+                        Image {
+                            source: @image-url("assets/medscale-mark-white.svg");
+                            width: 30px;
+                            height: 16.238px;
+                            image-fit: contain;
+                            x: (parent.width - self.width) / 2;
+                            y: (parent.height - self.height) / 2;
+                        }
+                    }
+
+                    RailAction {
+                        label: "Home";
+                        icon: @image-url("assets/icons/home.svg");
+                        selected: root.active-route == "Home";
+                        activated => { root.active-route = "Home"; }
+                    }
+                    RailAction {
+                        label: "Patients and documents";
+                        icon: @image-url("assets/icons/patients.svg");
+                        selected: root.active-route == "Patients" || root.active-route == "Documents";
+                        activated => { root.active-route = "Patients"; }
+                    }
+                    RailAction {
+                        label: "Intelligence";
+                        icon: @image-url("assets/icons/intelligence.svg");
+                        selected: root.active-route == "Insights" || root.active-route == "Models" || root.active-route == "Evidence";
+                        activated => { root.active-route = "Insights"; }
+                    }
+                    RailAction {
+                        label: "Operations";
+                        icon: @image-url("assets/icons/workflows.svg");
+                        selected: root.active-route == "Workflows" || root.active-route == "Tasks" || root.active-route == "Messages";
+                        activated => { root.active-route = "Workflows"; }
+                    }
+                    RailAction {
+                        label: "Governance";
+                        icon: @image-url("assets/icons/governance.svg");
+                        selected: root.active-route == "Audit Trail" || root.active-route == "Exports" || root.active-route == "Integrations";
+                        activated => { root.active-route = "Audit Trail"; }
+                    }
+
+                    Rectangle { vertical-stretch: 1; background: transparent; }
+
+                    RailAction {
+                        label: "Commands";
+                        icon: @image-url("assets/icons/commands.svg");
+                        activated => { root.palette-open = true; }
+                    }
+                    RailAction {
+                        label: "Settings";
+                        icon: @image-url("assets/icons/settings.svg");
+                        selected: root.active-route == "Settings" || root.active-route == "About";
+                        activated => { root.active-route = "Settings"; }
+                    }
+                }
+            }
+
+            sidebar := Rectangle {
+                width: 204px;
+                background: Theme.sidebar;
+                border-width: 0px;
+
+                VerticalLayout {
+                    padding-left: 14px;
+                    padding-right: 14px;
+                    padding-top: 15px;
+                    padding-bottom: 14px;
+                    spacing: 6px;
+
+                    VerticalLayout {
+                        height: 51px;
+                        spacing: 1px;
+                        Text { text: "MedScale"; color: Theme.ink; font-size: 16px; font-weight: 680; letter-spacing: -0.2px; }
+                        Text { text: "CLINICAL INTELLIGENCE"; color: Theme.ink-quiet; font-size: 11px; letter-spacing: 1.05px; }
+                    }
+
+                    ScrollView {
+                        vertical-stretch: 1;
+                        VerticalLayout {
+                            spacing: 6px;
+                    Text { text: "WORKSPACE"; color: Theme.ink-quiet; font-size: 11px; letter-spacing: 1.05px; }
+                    NavItem { label: "Home"; selected: root.active-route == "Home"; activated => { root.active-route = "Home"; } }
+                    NavItem { label: "Patients"; selected: root.active-route == "Patients"; activated => { root.active-route = "Patients"; } }
+                    NavItem { label: "Documents"; selected: root.active-route == "Documents"; activated => { root.active-route = "Documents"; } }
+                    NavItem { label: "Projects"; selected: root.active-route == "Projects"; activated => { root.active-route = "Projects"; } }
+                    NavItem { label: "Data"; selected: root.active-route == "Data"; activated => { root.active-route = "Data"; } }
+
+                    Rectangle { height: 4px; background: transparent; }
+                    Text { text: "INTELLIGENCE"; color: Theme.ink-quiet; font-size: 11px; letter-spacing: 1.05px; }
+                    NavItem { label: "Insights"; selected: root.active-route == "Insights"; activated => { root.active-route = "Insights"; } }
+                    NavItem { label: "Models"; selected: root.active-route == "Models"; activated => { root.active-route = "Models"; } }
+                    NavItem { label: "Evidence"; selected: root.active-route == "Evidence"; activated => { root.active-route = "Evidence"; } }
+
+                    Rectangle { height: 4px; background: transparent; }
+                    Text { text: "OPERATIONS"; color: Theme.ink-quiet; font-size: 11px; letter-spacing: 1.05px; }
+                    NavItem { label: "Workflows"; selected: root.active-route == "Workflows"; activated => { root.active-route = "Workflows"; } }
+                    NavItem { label: "Tasks"; selected: root.active-route == "Tasks"; activated => { root.active-route = "Tasks"; } }
+                    NavItem { label: "Messages"; selected: root.active-route == "Messages"; activated => { root.active-route = "Messages"; } }
+                    NavItem { label: "Collaboration"; selected: root.active-route == "Collaboration"; activated => { root.active-route = "Collaboration"; } }
+                    NavItem { label: "MedAgent"; selected: root.active-route == "MedAgent"; activated => { root.active-route = "MedAgent"; } }
+                    NavItem { label: "Model Fleet"; selected: root.active-route == "Model Fleet"; activated => { root.active-route = "Model Fleet"; } }
+                    NavItem { label: "Browse"; selected: root.active-route == "Browse"; activated => { root.active-route = "Browse"; } }
+                    NavItem { label: "Audio"; selected: root.active-route == "Audio"; activated => { root.active-route = "Audio"; } }
+                    NavItem { label: "Analytics"; selected: root.active-route == "Analytics"; activated => { root.active-route = "Analytics"; } }
+                    NavItem { label: "Knowledge"; selected: root.active-route == "Knowledge"; activated => { root.active-route = "Knowledge"; } }
+                    NavItem { label: "Research OS"; selected: root.active-route == "Research OS"; activated => { root.active-route = "Research OS"; } }
+
+                    Rectangle { height: 4px; background: transparent; }
+                    Text { text: "GOVERNANCE"; color: Theme.ink-quiet; font-size: 11px; letter-spacing: 1.05px; }
+                    NavItem { label: "Privacy"; selected: root.active-route == "Privacy"; activated => { root.active-route = "Privacy"; } }
+                    NavItem { label: "Audit Trail"; selected: root.active-route == "Audit Trail"; activated => { root.active-route = "Audit Trail"; } }
+                    NavItem { label: "Exports"; selected: root.active-route == "Exports"; activated => { root.active-route = "Exports"; } }
+                    NavItem { label: "Integrations"; selected: root.active-route == "Integrations"; activated => { root.active-route = "Integrations"; } }
+
+                        }
+                    }
+
+                    Rectangle {
+                        height: 64px;
+                        border-radius: Theme.radius-compact;
+                        border-width: 1px;
+                        border-color: Theme.border;
+                        background: Theme.surface-raised;
+                        accessible-role: text;
+                        accessible-label: "Runtime status: local-first, network default deny, model runtime state visible in Model Center";
+                        VerticalLayout {
+                            padding-left: 10px;
+                            padding-right: 10px;
+                            padding-top: 7px;
+                            padding-bottom: 7px;
+                            spacing: 2px;
+                            Text { text: "LOCAL RUNTIME"; color: Theme.ink-quiet; font-size: 11px; letter-spacing: 1px; }
+                            Text { text: "No default egress"; color: Theme.ink; font-size: 11px; font-weight: 650; }
+                            Text { text: "v" + root.product-version; color: Theme.ink-quiet; font-size: 11px; }
+                        }
+                    }
+
+                    NavItem { label: "Settings"; selected: root.active-route == "Settings"; activated => { root.active-route = "Settings"; } }
+                    NavItem { label: "About"; selected: root.active-route == "About"; activated => { root.active-route = "About"; } }
+                }
+            }
+
+            Rectangle { width: 1px; background: Theme.border; }
+
+            VerticalLayout {
+                spacing: 0px;
+
+                topbar := Rectangle {
+                    height: 64px;
+                    background: Theme.surface;
+                    border-width: 0px;
+
+                    HorizontalLayout {
+                        padding-left: 24px;
+                        padding-right: 24px;
+                        padding-top: 10px;
+                        padding-bottom: 10px;
+                        spacing: 14px;
+
+                        Rectangle {
+                            horizontal-stretch: 1;
+                            background: transparent;
+                            Text {
+                                text: "SYNTHETIC WORKSPACE";
+                                color: Theme.ink-quiet;
+                                font-family: Theme.font-ui;
+                                font-size: Theme.type-caption;
+                                letter-spacing: Theme.tracking-label;
+                                height: parent.height;
+                                vertical-alignment: center;
+                            }
+                        }
+                        ToolbarAction { label: "Patients"; activated => { root.active-route = "Patients"; } }
+
+                        Rectangle {
+                            width: 156px;
+                            height: 40px;
+                            border-radius: 10px;
+                            background: Theme.surface-raised;
+                            border-width: 1px;
+                            border-color: Theme.border;
+                            accessible-role: text;
+                            accessible-label: "Model Fabric status. " + root.model-runtime-summary;
+                            Text {
+                                text: "Local runtime";
+                                color: Theme.ink-subtle;
+                                font-size: 11px;
+                                font-weight: 650;
+                                horizontal-alignment: center;
+                                vertical-alignment: center;
+                            }
+                        }
+
+                        ToolbarAction { label: "Commands"; activated => { root.palette-open = true; } }
+
+                        Rectangle {
+                            width: 40px;
+                            border-radius: 20px;
+                            background: Theme.surface-raised;
+                            border-width: 1px;
+                            border-color: Theme.border;
+                            Text { text: "MS"; color: Theme.ink-subtle; font-size: 11px; font-weight: 700; horizontal-alignment: center; }
+                        }
+                    }
+                }
+
+                Rectangle { height: 1px; background: Theme.border; }
+
+                ScrollView {
+                    horizontal-stretch: 1;
+                    vertical-stretch: 1;
+
+                    VerticalLayout {
+                        padding: Theme.content-padding;
+                        spacing: Theme.section-gap;
+
+                        HorizontalLayout {
+                            height: 78px;
+                            spacing: 16px;
+                            VerticalLayout {
+                                spacing: 2px;
+                                Text { text: root.active-route == "Home" ? "Command Center" : root.active-route == "Patients" ? root.patient-name : root.active-route; color: Theme.ink; font-size: 28px; font-weight: 720; letter-spacing: -0.4px; }
+                                Text { text: root.active-route == "Home" ? "Local clinical intelligence · Synthetic demo" : root.active-route == "Patients" ? "Trusted longitudinal workspace · Synthetic demo" : root.active-route == "Insights" ? "Evidence-aware population view · Synthetic demo" : root.active-route == "Models" ? "Local model fabric · provenance, runtime and benchmark state" : root.active-route == "Evidence" ? "MedScale evidence · measured claims only · limitations explicit" : root.active-route == "Workflows" ? "Review-first controlled-action studio · Synthetic demo" : root.active-route == "Tasks" ? "Derived outbox review queue · No second task authority" : root.active-route == "Messages" ? "Local review previews · No external transport claim" : root.active-route == "Documents" ? "Bounded document intake posture · Custody is not understanding" : root.active-route == "Projects" ? "Project and artifact organization · Core-backed references, never payload copies" : root.active-route == "Data" ? "Governed datasets · immutable snapshots, saved views and deterministic transforms" : root.active-route == "Collaboration" ? "Local-first rooms, threads and tasks · Core-backed, membership-gated" : root.active-route == "MedAgent" ? "Governed agent runs · bound context, typed tools, evidence-only proposals" : root.active-route == "Model Fleet" ? "Independent agent lanes on one task · factual comparison, never a ranking" : root.active-route == "Privacy" ? "Data classes, de-identification receipts and egress decisions · unclassified stays local" : root.active-route == "Browse" ? "Read-only https retrieval · allowlisted hosts, private networks refused, content is evidence only" : root.active-route == "Audio" ? "Local audio sources and transcript lineage · nothing leaves this device" : root.active-route == "Analytics" ? "Read-only SQL over exact snapshots · every run leaves a receipt" : root.active-route == "Knowledge" ? "Lexical search over exact source revisions · stale evidence is labelled, never served as current" : root.active-route == "Research OS" ? "Hub, Compute, R, extensions, huddles, packs, adapters and federation · through Core; reversible row actions only" : root.active-route == "Audit Trail" ? "Synthetic disclosure history · Core Host remains canonical" : root.active-route == "Exports" ? "Loss-aware FHIR support · No full conformance claim" : root.active-route == "Settings" ? "Doctor truth and evidence-gated readiness" : root.active-route == "Integrations" ? "Brokered integration posture · Default deny" : root.active-route == "About" ? "Native product and attribution details" : "Unrecognized route"; color: Theme.ink-subtle; font-size: 13px; }
+                            }
+                            Rectangle { horizontal-stretch: 1; background: transparent; }
+                            if root.active-route == "Home": Text {
+                                text: "Evidence first · action second";
+                                color: Theme.signal-strong;
+                                font-size: 11px;
+                                font-weight: 650;
+                            }
+                        }
+
+                        if root.active-route == "Projects": VerticalLayout {
+                            spacing: 14px;
+                            HonestyPanel { title: "Project authority boundary"; body: "Projects reference canonical objects by identity · membership never copies payloads · every mutation is revision-guarded"; accent: Theme.success; }
+
+                            Rectangle {
+                                min-height: 150px;
+                                border-radius: Theme.radius-compact;
+                                border-width: 1px;
+                                border-color: Theme.border;
+                                background: Theme.surface;
+                                accessible-role: groupbox;
+                                accessible-label: "Create a project. " + root.project-status;
+                                VerticalLayout {
+                                    padding: 15px;
+                                    spacing: 8px;
+                                    HorizontalLayout {
+                                        Text { text: "NEW PROJECT"; color: Theme.signal-strong; font-size: 11px; font-weight: 650; letter-spacing: 1px; }
+                                        Rectangle { horizontal-stretch: 1; background: transparent; }
+                                        Text { text: root.project-status; color: Theme.ink-quiet; font-size: 11px; }
+                                    }
+                                    HorizontalLayout {
+                                        spacing: 8px;
+                                        AdaptiveLineEdit {
+                                            horizontal-stretch: 1;
+                                            text <=> root.project-name-input;
+                                            placeholder: "Project name (1-128 characters)";
+                                            accessible-name: "New project name";
+                                            accepted(text) => { root.project-name-input = text; root.ui-action("projects-create"); }
+                                        }
+                                        AdaptiveLineEdit {
+                                            horizontal-stretch: 1;
+                                            text <=> root.project-desc-input;
+                                            placeholder: "Description (optional)";
+                                            accessible-name: "New project description";
+                                            accepted(text) => { root.project-desc-input = text; root.ui-action("projects-create"); }
+                                        }
+                                        ToolbarAction { label: "Create"; activated => { root.ui-action("projects-create"); } }
+                                        ToolbarAction { label: "Refresh"; activated => { root.ui-action("projects-refresh"); } }
+                                    }
+                                }
+                            }
+
+                            HorizontalLayout {
+                                spacing: 8px;
+                                Text { text: "Projects"; color: Theme.ink; font-size: 14px; font-weight: 680; }
+                                Rectangle { horizontal-stretch: 1; background: transparent; }
+                                Text { text: "Core-backed session state"; color: Theme.ink-quiet; font-size: 11px; }
+                            }
+
+                            for item in root.project-rows: Rectangle {
+                                min-height: 64px;
+                                border-width: 1px;
+                                border-color: Theme.border;
+                                background: Theme.surface;
+                                accessible-role: groupbox;
+                                accessible-label: item.name + ", " + item.status + ", revision " + item.revision;
+                                HorizontalLayout {
+                                    padding-left: 10px;
+                                    padding-right: 10px;
+                                    spacing: 12px;
+                                    VerticalLayout { width: 260px; alignment: center; spacing: 2px;
+                                        Text { text: item.name; color: Theme.ink; font-size: 12px; font-weight: 680; wrap: word-wrap; }
+                                        Text { text: item.id + " · rev " + item.revision; color: Theme.ink-quiet; font-size: 11px; }
+                                    }
+                                    Text { width: 80px; text: item.status; color: Theme.ink-subtle; font-size: 11px; font-weight: 650; }
+                                    Text { horizontal-stretch: 1; text: "experiments " + item.experiments + " · refs " + item.refs + " · edges " + item.edges; color: Theme.ink-subtle; font-size: 11px; }
+                                    QuickAction { width: 110px; title: "Open"; subtitle: "Detail"; glyph: ""; accent: Theme.signal; activated => { root.ui-action("projects-open:" + item.id); } }
+                                }
+                            }
+
+                            if root.project-active-id != "": VerticalLayout {
+                                spacing: 12px;
+                                Rectangle {
+                                    border-radius: Theme.radius-compact;
+                                    border-width: 1px;
+                                    border-color: Theme.border;
+                                    background: Theme.surface;
+                                    accessible-role: groupbox;
+                                    accessible-label: "Open project detail. " + root.project-detail-name;
+                                    VerticalLayout {
+                                        padding: 15px;
+                                        spacing: 8px;
+                                        HorizontalLayout {
+                                            spacing: 8px;
+                                            VerticalLayout { horizontal-stretch: 1; spacing: 2px;
+                                                Text { text: root.project-detail-name; color: Theme.ink; font-size: 16px; font-weight: 700; wrap: word-wrap; }
+                                                Text { text: root.project-detail-meta; color: Theme.ink-quiet; font-size: 11px; wrap: word-wrap; }
+                                            }
+                                            ToolbarAction { label: "Archive"; activated => { root.ui-action("projects-archive"); } }
+                                        }
+                                        HorizontalLayout {
+                                            spacing: 8px;
+                                            AdaptiveLineEdit {
+                                                horizontal-stretch: 1;
+                                                text <=> root.project-experiment-input;
+                                                placeholder: "New experiment name";
+                                                accessible-name: "New experiment name";
+                                                accepted(text) => { root.project-experiment-input = text; root.ui-action("projects-exp-create"); }
+                                            }
+                                            ToolbarAction { label: "Add experiment"; activated => { root.ui-action("projects-exp-create"); } }
+                                        }
+                                    }
+                                }
+
+                                Text { text: "Experiments"; color: Theme.ink; font-size: 14px; font-weight: 680; }
+                                for item in root.project-experiments: Rectangle {
+                                    min-height: 52px;
+                                    border-width: 1px;
+                                    border-color: Theme.border;
+                                    background: Theme.surface;
+                                    accessible-role: text;
+                                    accessible-label: item.name + ", " + item.status + ", revision " + item.revision;
+                                    HorizontalLayout {
+                                        padding-left: 10px;
+                                        padding-right: 10px;
+                                        spacing: 12px;
+                                        Text { width: 260px; text: item.name; color: Theme.ink; font-size: 11px; font-weight: 650; }
+                                        Text { width: 90px; text: item.status; color: Theme.ink-subtle; font-size: 11px; }
+                                        Text { horizontal-stretch: 1; text: item.id + " · rev " + item.revision; color: Theme.ink-quiet; font-size: 11px; }
+                                    }
+                                }
+
+                                Text { text: "Artifact references"; color: Theme.ink; font-size: 14px; font-weight: 680; }
+                                for item in root.project-refs: Rectangle {
+                                    min-height: 52px;
+                                    border-width: 1px;
+                                    border-color: Theme.border;
+                                    background: Theme.surface;
+                                    accessible-role: text;
+                                    accessible-label: item.kind + " reference " + item.object-id + ", " + item.resolution;
+                                    HorizontalLayout {
+                                        padding-left: 10px;
+                                        padding-right: 10px;
+                                        spacing: 12px;
+                                        Text { width: 160px; text: item.kind; color: Theme.ink; font-size: 11px; font-weight: 650; }
+                                        Text { horizontal-stretch: 1; text: item.object-id; color: Theme.ink-subtle; font-size: 11px; }
+                                        StatusPill { label: item.resolution; accent: item.resolution == "current" ? Theme.success : item.resolution == "stale" || item.resolution == "missing" ? Theme.warning : Theme.danger; }
+                                    }
+                                }
+
+                                Text { text: "Relationships"; color: Theme.ink; font-size: 14px; font-weight: 680; }
+                                for item in root.project-edges: Rectangle {
+                                    min-height: 52px;
+                                    border-width: 1px;
+                                    border-color: Theme.border;
+                                    background: Theme.surface;
+                                    accessible-role: text;
+                                    accessible-label: item.subject + " " + item.predicate + " " + item.object;
+                                    HorizontalLayout {
+                                        padding-left: 10px;
+                                        padding-right: 10px;
+                                        spacing: 12px;
+                                        Text { horizontal-stretch: 1; text: item.subject + "  " + item.predicate + "  " + item.object; color: Theme.ink-subtle; font-size: 11px; wrap: word-wrap; }
+                                        Text { width: 70px; text: "rev " + item.revision; color: Theme.ink-quiet; font-size: 11px; horizontal-alignment: right; }
+                                    }
+                                }
+                            }
+                        }
+
+                        if root.active-route == "Data": VerticalLayout {
+                            spacing: 14px;
+                            HonestyPanel { title: "Dataset authority boundary"; body: "Snapshots are immutable and content-addressed · views are projections, never copies · transforms create new snapshots with lineage"; accent: Theme.success; }
+
+                            Rectangle {
+                                min-height: 64px;
+                                border-radius: Theme.radius-compact;
+                                border-width: 1px;
+                                border-color: Theme.border;
+                                background: Theme.surface;
+                                accessible-role: groupbox;
+                                accessible-label: "Data sources. " + root.data-status;
+                                HorizontalLayout {
+                                    padding-left: 10px;
+                                    padding-right: 10px;
+                                    spacing: 12px;
+                                    VerticalLayout { horizontal-stretch: 1; alignment: center; spacing: 2px;
+                                        Text { text: "Data sources follow the active project"; color: Theme.ink; font-size: 12px; font-weight: 680; }
+                                        Text { text: root.data-status; color: Theme.ink-quiet; font-size: 11px; wrap: word-wrap; }
+                                    }
+                                    ToolbarAction { label: "Refresh"; activated => { root.ui-action("data-refresh"); } }
+                                    ToolbarAction { label: "Import"; activated => { root.ui-action("data-import"); } }
+                                    ToolbarAction { label: "Re-check"; activated => { root.ui-action("data-refresh-source"); } }
+                                    ToolbarAction { label: "Ack schema"; activated => { root.ui-action("data-refresh-source-force"); } }
+                                }
+                            }
+
+                            Text { text: "Sources"; color: Theme.ink; font-size: 14px; font-weight: 680; }
+                            for item in root.data-sources: Rectangle {
+                                min-height: 52px;
+                                border-width: 1px;
+                                border-color: Theme.border;
+                                background: Theme.surface;
+                                accessible-role: groupbox;
+                                accessible-label: item.name + ", " + item.kind + ", " + item.health;
+                                HorizontalLayout {
+                                    padding-left: 10px;
+                                    padding-right: 10px;
+                                    spacing: 12px;
+                                    VerticalLayout { width: 260px; alignment: center; spacing: 2px;
+                                        Text { text: item.name; color: Theme.ink; font-size: 12px; font-weight: 680; wrap: word-wrap; }
+                                        Text { text: item.id + " · rev " + item.revision; color: Theme.ink-quiet; font-size: 11px; }
+                                    }
+                                    Text { width: 130px; text: item.kind; color: Theme.ink-subtle; font-size: 11px; }
+                                    StatusPill { label: item.health; accent: item.health == "healthy" ? Theme.success : item.health == "stale" || item.health == "schema_changed" ? Theme.warning : Theme.danger; }
+                                    QuickAction { width: 110px; title: "Open"; subtitle: "Snapshots"; glyph: ""; accent: Theme.signal; activated => { root.ui-action("data-open:" + item.id); } }
+                                }
+                            }
+
+                            if root.data-active-source != "": VerticalLayout {
+                                spacing: 12px;
+                                Text { text: "Snapshots"; color: Theme.ink; font-size: 14px; font-weight: 680; }
+                                for item in root.data-snapshots: Rectangle {
+                                    min-height: 52px;
+                                    border-width: 1px;
+                                    border-color: Theme.border;
+                                    background: Theme.surface;
+                                    accessible-role: text;
+                                    accessible-label: "Snapshot " + item.id + ", " + item.rows + " rows";
+                                    HorizontalLayout {
+                                        padding-left: 10px;
+                                        padding-right: 10px;
+                                        spacing: 12px;
+                                        Text { width: 120px; text: item.id; color: Theme.ink; font-size: 11px; font-weight: 650; }
+                                        Text { width: 90px; text: item.rows + " rows"; color: Theme.ink-subtle; font-size: 11px; }
+                                        Text { horizontal-stretch: 1; text: item.digest; color: Theme.ink-quiet; font-size: 11px; wrap: word-wrap; }
+                                        QuickAction { width: 110px; title: "Inspect"; subtitle: "Rows"; glyph: ""; accent: Theme.signal; activated => { root.ui-action("data-snapshot:" + item.id); } }
+                                    }
+                                }
+
+                                if root.data-active-snapshot != "": VerticalLayout {
+                                    spacing: 8px;
+                                    Text { text: "Workbench"; color: Theme.ink; font-size: 14px; font-weight: 680; }
+                                    Text { text: root.data-schema-line; color: Theme.signal-strong; font-size: 11px; font-weight: 650; wrap: word-wrap; }
+                                    Text { text: root.data-detail; color: Theme.ink-quiet; font-size: 11px; wrap: word-wrap; }
+                                    for item in root.data-rows: Rectangle {
+                                        min-height: 40px;
+                                        border-width: 1px;
+                                        border-color: Theme.border;
+                                        background: Theme.surface;
+                                        accessible-role: text;
+                                        accessible-label: item.text;
+                                        HorizontalLayout {
+                                            padding-left: 10px;
+                                            padding-right: 10px;
+                                            Text { horizontal-stretch: 1; text: item.text; color: Theme.ink-subtle; font-size: 11px; wrap: word-wrap; }
+                                        }
+                                    }
+                                    HorizontalLayout {
+                                        spacing: 8px;
+                                        AdaptiveLineEdit {
+                                            horizontal-stretch: 1;
+                                            text <=> root.data-columns-input;
+                                            placeholder: "Select columns (comma separated, optional)";
+                                            accessible-name: "Transform select columns";
+                                        }
+                                        AdaptiveLineEdit {
+                                            width: 130px;
+                                            text <=> root.data-filter-col;
+                                            placeholder: "Filter column";
+                                            accessible-name: "Transform filter column";
+                                        }
+                                        AdaptiveLineEdit {
+                                            width: 110px;
+                                            text <=> root.data-filter-op;
+                                            placeholder: "equals";
+                                            accessible-name: "Transform filter op";
+                                        }
+                                        AdaptiveLineEdit {
+                                            width: 130px;
+                                            text <=> root.data-filter-value;
+                                            placeholder: "Filter value";
+                                            accessible-name: "Transform filter value";
+                                        }
+                                        AdaptiveLineEdit {
+                                            width: 130px;
+                                            text <=> root.data-sort-input;
+                                            placeholder: "Sort column[:desc]";
+                                            accessible-name: "Transform sort";
+                                        }
+                                    }
+                                    HorizontalLayout {
+                                        spacing: 8px;
+                                        ToolbarAction { label: "Save grid view"; activated => { root.ui-action("data-view-grid"); } }
+                                        ToolbarAction { label: "Apply transform"; activated => { root.ui-action("data-transform-apply"); } }
+                                    }
+                                }
+                            }
+                        }
+
+                        if root.active-route == "Collaboration": VerticalLayout {
+                            spacing: 14px;
+                            HonestyPanel { title: "Collaboration authority boundary"; body: "Rooms/threads/tasks are membership-gated, independent of Core capability grants · an approval decision never triggers a canonical/external effect · notes preserve conflicting edits, never overwrite"; accent: Theme.success; }
+
+                            Rectangle {
+                                min-height: 64px;
+                                border-radius: Theme.radius-compact;
+                                border-width: 1px;
+                                border-color: Theme.border;
+                                background: Theme.surface;
+                                accessible-role: groupbox;
+                                accessible-label: "Rooms. " + root.collab-status;
+                                HorizontalLayout {
+                                    padding-left: 10px;
+                                    padding-right: 10px;
+                                    spacing: 12px;
+                                    VerticalLayout { horizontal-stretch: 1; alignment: center; spacing: 2px;
+                                        Text { text: "Rooms follow the active project"; color: Theme.ink; font-size: 12px; font-weight: 680; }
+                                        Text { text: root.collab-status; color: Theme.ink-quiet; font-size: 11px; wrap: word-wrap; }
+                                    }
+                                    AdaptiveLineEdit {
+                                        width: 200px;
+                                        text <=> root.collab-room-name-input;
+                                        placeholder: "New room name";
+                                        accessible-name: "New room name";
+                                    }
+                                    ToolbarAction { label: "Create"; activated => { root.ui-action("collab-room-create"); } }
+                                    ToolbarAction { label: "Refresh"; activated => { root.ui-action("collab-rooms-refresh"); } }
+                                }
+                            }
+
+                            Text { text: "Rooms"; color: Theme.ink; font-size: 14px; font-weight: 680; }
+                            for item in root.collab-rooms: Rectangle {
+                                min-height: 48px;
+                                border-width: 1px;
+                                border-color: Theme.border;
+                                background: Theme.surface;
+                                accessible-role: groupbox;
+                                accessible-label: item.name + ", revision " + item.revision;
+                                HorizontalLayout {
+                                    padding-left: 10px;
+                                    padding-right: 10px;
+                                    spacing: 12px;
+                                    VerticalLayout { horizontal-stretch: 1; alignment: center; spacing: 2px;
+                                        Text { text: item.name; color: Theme.ink; font-size: 12px; font-weight: 680; wrap: word-wrap; }
+                                        Text { text: item.id + " · rev " + item.revision; color: Theme.ink-quiet; font-size: 11px; }
+                                    }
+                                    QuickAction { width: 110px; title: "Open"; subtitle: "Threads/Tasks"; glyph: ""; accent: Theme.signal; activated => { root.ui-action("collab-room-open:" + item.id); } }
+                                }
+                            }
+
+                            if root.collab-active-room-id != "": VerticalLayout {
+                                spacing: 12px;
+
+                                Text { text: "Threads (comments/review)"; color: Theme.ink; font-size: 14px; font-weight: 680; }
+                                HorizontalLayout {
+                                    spacing: 8px;
+                                    AdaptiveLineEdit {
+                                        horizontal-stretch: 1;
+                                        text <=> root.collab-thread-artifact-input;
+                                        placeholder: "Artifact id to open a thread on";
+                                        accessible-name: "Thread anchor artifact id";
+                                    }
+                                    ToolbarAction { label: "Open thread"; activated => { root.ui-action("collab-thread-open"); } }
+                                }
+                                for item in root.collab-threads: Rectangle {
+                                    min-height: 48px;
+                                    border-width: 1px;
+                                    border-color: Theme.border;
+                                    background: Theme.surface;
+                                    accessible-role: groupbox;
+                                    accessible-label: "Thread " + item.id + ", " + item.status + ", resolution " + item.resolution;
+                                    HorizontalLayout {
+                                        padding-left: 10px;
+                                        padding-right: 10px;
+                                        spacing: 12px;
+                                        VerticalLayout { horizontal-stretch: 1; alignment: center; spacing: 2px;
+                                            Text { text: item.id; color: Theme.ink; font-size: 12px; font-weight: 680; }
+                                            Text { text: "anchor " + item.artifact-id + " · " + item.status; color: Theme.ink-quiet; font-size: 11px; }
+                                        }
+                                        StatusPill { label: item.resolution; accent: item.resolution == "current" ? Theme.success : item.resolution == "stale" || item.resolution == "missing" ? Theme.warning : Theme.danger; }
+                                        QuickAction { width: 100px; title: "Open"; subtitle: "Messages"; glyph: ""; accent: Theme.signal; activated => { root.ui-action("collab-thread-select:" + item.id); } }
+                                    }
+                                }
+
+                                if root.collab-active-thread-id != "": VerticalLayout {
+                                    spacing: 8px;
+                                    Text { text: "Messages"; color: Theme.ink; font-size: 14px; font-weight: 680; }
+                                    for item in root.collab-messages: Rectangle {
+                                        min-height: 40px;
+                                        border-width: 1px;
+                                        border-color: Theme.border;
+                                        background: Theme.surface;
+                                        accessible-role: text;
+                                        accessible-label: item.author + ": " + item.body;
+                                        HorizontalLayout {
+                                            padding-left: 10px;
+                                            padding-right: 10px;
+                                            spacing: 8px;
+                                            Text { width: 140px; text: item.author; color: Theme.ink-subtle; font-size: 11px; }
+                                            Text { horizontal-stretch: 1; text: item.body; color: Theme.ink; font-size: 11px; wrap: word-wrap; }
+                                        }
+                                    }
+                                    HorizontalLayout {
+                                        spacing: 8px;
+                                        AdaptiveLineEdit {
+                                            horizontal-stretch: 1;
+                                            text <=> root.collab-message-input;
+                                            placeholder: "Post a message";
+                                            accessible-name: "New message body";
+                                        }
+                                        ToolbarAction { label: "Post"; activated => { root.ui-action("collab-message-post"); } }
+                                    }
+                                }
+
+                                Text { text: "Tasks"; color: Theme.ink; font-size: 14px; font-weight: 680; }
+                                HorizontalLayout {
+                                    spacing: 8px;
+                                    AdaptiveLineEdit {
+                                        horizontal-stretch: 1;
+                                        text <=> root.collab-task-title-input;
+                                        placeholder: "New task title";
+                                        accessible-name: "New task title";
+                                    }
+                                    ToolbarAction { label: "Add task"; activated => { root.ui-action("collab-task-create"); } }
+                                }
+                                for item in root.collab-tasks: Rectangle {
+                                    min-height: 48px;
+                                    border-width: 1px;
+                                    border-color: Theme.border;
+                                    background: Theme.surface;
+                                    accessible-role: groupbox;
+                                    accessible-label: item.title + ", " + item.status;
+                                    HorizontalLayout {
+                                        padding-left: 10px;
+                                        padding-right: 10px;
+                                        spacing: 12px;
+                                        VerticalLayout { horizontal-stretch: 1; alignment: center; spacing: 2px;
+                                            Text { text: item.title; color: Theme.ink; font-size: 12px; font-weight: 680; wrap: word-wrap; }
+                                            Text { text: item.id + " · rev " + item.revision; color: Theme.ink-quiet; font-size: 11px; }
+                                        }
+                                        StatusPill { label: item.status; accent: item.status == "Done" ? Theme.success : item.status == "Cancelled" ? Theme.danger : Theme.warning; }
+                                        QuickAction { width: 100px; title: "Complete"; subtitle: "Mark done"; glyph: ""; accent: Theme.signal; activated => { root.ui-action("collab-task-complete:" + item.id + ":" + item.revision); } }
+                                    }
+                                }
+                            }
+                        }
+
+                        if root.active-route == "MedAgent": VerticalLayout {
+                            spacing: 14px;
+                            HonestyPanel { title: "MedAgent authority boundary"; body: "A run may only read what its bound ContextManifest names · tool dispatch is refused before execution when ungranted · output is always an evidence-only AgentProposal, never a ClinicalAssertion or canonical effect"; accent: Theme.success; }
+
+                            Rectangle {
+                                min-height: 96px;
+                                border-radius: Theme.radius-compact;
+                                border-width: 1px;
+                                border-color: Theme.border;
+                                background: Theme.surface;
+                                accessible-role: groupbox;
+                                accessible-label: "Runs. " + root.medagent-status;
+                                VerticalLayout {
+                                    padding-left: 10px;
+                                    padding-right: 10px;
+                                    padding-top: 8px;
+                                    padding-bottom: 8px;
+                                    spacing: 6px;
+                                    Text { text: "New run follows the active project"; color: Theme.ink; font-size: 12px; font-weight: 680; }
+                                    Text { text: root.medagent-status; color: Theme.ink-quiet; font-size: 11px; wrap: word-wrap; }
+                                    HorizontalLayout {
+                                        spacing: 8px;
+                                        AdaptiveLineEdit { horizontal-stretch: 1; text <=> root.medagent-agent-id-input; placeholder: "Agent identity id"; accessible-name: "Agent identity id"; }
+                                        AdaptiveLineEdit { horizontal-stretch: 1; text <=> root.medagent-context-id-input; placeholder: "Context manifest id"; accessible-name: "Context manifest id"; }
+                                    }
+                                    HorizontalLayout {
+                                        spacing: 8px;
+                                        AdaptiveLineEdit { horizontal-stretch: 1; text <=> root.medagent-prompt-input; placeholder: "Prompt"; accessible-name: "Run prompt"; }
+                                        ToolbarAction { label: "Create + start"; activated => { root.ui-action("medagent-run-create-start"); } }
+                                        ToolbarAction { label: "Refresh"; activated => { root.ui-action("medagent-runs-refresh"); } }
+                                    }
+                                }
+                            }
+
+                            Text { text: "Runs"; color: Theme.ink; font-size: 14px; font-weight: 680; }
+                            for item in root.medagent-runs: Rectangle {
+                                min-height: 56px;
+                                border-width: 1px;
+                                border-color: Theme.border;
+                                background: Theme.surface;
+                                accessible-role: groupbox;
+                                accessible-label: "Run " + item.id + ", " + item.status + ", revision " + item.revision;
+                                HorizontalLayout {
+                                    padding-left: 10px;
+                                    padding-right: 10px;
+                                    spacing: 12px;
+                                    VerticalLayout { horizontal-stretch: 1; alignment: center; spacing: 2px;
+                                        Text { text: item.prompt; color: Theme.ink; font-size: 12px; font-weight: 680; wrap: word-wrap; }
+                                        Text { text: item.id + " · rev " + item.revision; color: Theme.ink-quiet; font-size: 11px; }
+                                    }
+                                    StatusPill { label: item.status; accent: item.status == "completed" ? Theme.success : item.status == "cancelled" || item.status == "failed" ? Theme.danger : Theme.warning; }
+                                    QuickAction { width: 100px; title: "Open"; subtitle: "Turns"; glyph: ""; accent: Theme.signal; activated => { root.ui-action("medagent-run-select:" + item.id + ":" + item.revision); } }
+                                    if item.status == "pending" || item.status == "running": QuickAction { width: 100px; title: "Cancel"; subtitle: "Interrupt"; glyph: ""; accent: Theme.danger; activated => { root.ui-action("medagent-run-cancel:" + item.id + ":" + item.revision); } }
+                                }
+                            }
+
+                            if root.medagent-active-run-id != "": VerticalLayout {
+                                spacing: 8px;
+                                Text { text: "Turns · " + root.medagent-active-run-id; color: Theme.ink; font-size: 14px; font-weight: 680; }
+                                for item in root.medagent-turns: Rectangle {
+                                    min-height: 40px;
+                                    border-width: 1px;
+                                    border-color: Theme.border;
+                                    background: Theme.surface;
+                                    accessible-role: text;
+                                    accessible-label: "Turn " + item.seq + ", " + item.kind;
+                                    HorizontalLayout {
+                                        padding-left: 10px;
+                                        padding-right: 10px;
+                                        spacing: 8px;
+                                        Text { width: 40px; text: item.seq; color: Theme.ink-subtle; font-size: 11px; }
+                                        Text { width: 120px; text: item.kind; color: Theme.ink-subtle; font-size: 11px; }
+                                        Text { horizontal-stretch: 1; text: item.payload; color: Theme.ink; font-size: 11px; wrap: word-wrap; }
+                                    }
+                                }
+                            }
+                        }
+
+                        if root.active-route == "Model Fleet": VerticalLayout {
+                            spacing: 14px;
+                            HonestyPanel { title: "Model Fleet boundary"; body: "Each lane runs its own governed MedAgent run under its bound identity, context and narrower lane policy · lanes never read each other's context · a comparison states facts grounded in lane receipts and proposals, never a score, rank or winner, and never promotes or acts on any output"; accent: Theme.success; }
+
+                            Rectangle {
+                                min-height: 120px;
+                                border-radius: Theme.radius-compact;
+                                border-width: 1px;
+                                border-color: Theme.border;
+                                background: Theme.surface;
+                                accessible-role: groupbox;
+                                accessible-label: "Fleet runs. " + root.fleet-status;
+                                VerticalLayout {
+                                    padding-left: 10px;
+                                    padding-right: 10px;
+                                    padding-top: 8px;
+                                    padding-bottom: 8px;
+                                    spacing: 6px;
+                                    Text { text: "New fleet run follows the active project · lanes are created with the CLI"; color: Theme.ink; font-size: 12px; font-weight: 680; }
+                                    Text { text: root.fleet-status; color: Theme.ink-quiet; font-size: 11px; wrap: word-wrap; }
+                                    HorizontalLayout {
+                                        spacing: 8px;
+                                        AdaptiveLineEdit { horizontal-stretch: 1; text <=> root.fleet-prompt-input; placeholder: "Task prompt for every lane"; accessible-name: "Fleet task prompt"; }
+                                        ToolbarAction { label: "Create"; activated => { root.ui-action("fleet-create"); } }
+                                        ToolbarAction { label: "Refresh"; activated => { root.ui-action("fleet-refresh"); } }
+                                    }
+                                    HorizontalLayout {
+                                        spacing: 8px;
+                                        AdaptiveLineEdit { horizontal-stretch: 1; text <=> root.fleet-lane-ids-input; placeholder: "Lane ids, comma-separated (2 to 8)"; accessible-name: "Fleet lane ids"; }
+                                        AdaptiveLineEdit { horizontal-stretch: 1; text <=> root.fleet-pack-dir-input; placeholder: "Absolute admitted Pack directory"; accessible-name: "Local Pack directory for fleet lanes"; }
+                                    }
+                                }
+                            }
+
+                            Text { text: "Lanes"; color: Theme.ink; font-size: 14px; font-weight: 680; }
+                            for item in root.fleet-lanes: Rectangle {
+                                min-height: 40px;
+                                border-width: 1px;
+                                border-color: Theme.border;
+                                background: Theme.surface;
+                                accessible-role: text;
+                                accessible-label: "Lane " + item.id + ", " + item.role + ", " + item.status;
+                                HorizontalLayout {
+                                    padding-left: 10px;
+                                    padding-right: 10px;
+                                    spacing: 12px;
+                                    Text { horizontal-stretch: 1; vertical-alignment: center; text: item.role; color: Theme.ink; font-size: 12px; font-weight: 680; wrap: word-wrap; }
+                                    Text { vertical-alignment: center; text: item.id + " · rev " + item.revision; color: Theme.ink-quiet; font-size: 11px; }
+                                    StatusPill { label: item.status; accent: item.status == "active" ? Theme.success : Theme.ink-quiet; }
+                                }
+                            }
+
+                            Text { text: "Fleet runs"; color: Theme.ink; font-size: 14px; font-weight: 680; }
+                            for item in root.fleet-runs: Rectangle {
+                                min-height: 56px;
+                                border-width: 1px;
+                                border-color: Theme.border;
+                                background: Theme.surface;
+                                accessible-role: groupbox;
+                                accessible-label: "Fleet run " + item.id + ", " + item.status + ", revision " + item.revision;
+                                HorizontalLayout {
+                                    padding-left: 10px;
+                                    padding-right: 10px;
+                                    spacing: 12px;
+                                    Text { horizontal-stretch: 1; vertical-alignment: center; text: item.id + " · rev " + item.revision; color: Theme.ink; font-size: 12px; font-weight: 680; }
+                                    StatusPill { label: item.status; accent: item.status == "completed" ? Theme.success : item.status == "partially_failed" ? Theme.warning : item.status == "failed" || item.status == "cancelled" ? Theme.danger : Theme.signal; }
+                                    QuickAction { width: 100px; title: "Open"; subtitle: "Lanes"; glyph: ""; accent: Theme.signal; activated => { root.ui-action("fleet-open:" + item.id); } }
+                                    if item.status == "pending": QuickAction { width: 100px; title: "Dispatch"; subtitle: "Lane ids"; glyph: ""; accent: Theme.success; activated => { root.ui-action("fleet-dispatch:" + item.id + ":" + item.revision); } }
+                                    if item.status == "pending" || item.status == "running": QuickAction { width: 100px; title: "Cancel"; subtitle: "Every lane"; glyph: ""; accent: Theme.danger; activated => { root.ui-action("fleet-cancel:" + item.id + ":" + item.revision); } }
+                                }
+                            }
+
+                            if root.fleet-active-id != "": VerticalLayout {
+                                spacing: 8px;
+                                HorizontalLayout {
+                                    spacing: 8px;
+                                    Text { horizontal-stretch: 1; vertical-alignment: center; text: "Lanes of " + root.fleet-active-id + " · " + root.fleet-active-status; color: Theme.ink; font-size: 14px; font-weight: 680; }
+                                    if root.fleet-active-status == "completed" || root.fleet-active-status == "partially_failed": ToolbarAction { label: "Compare"; activated => { root.ui-action("fleet-compare:" + root.fleet-active-id); } }
+                                }
+                                for item in root.fleet-lane-runs: Rectangle {
+                                    min-height: 48px;
+                                    border-width: 1px;
+                                    border-color: Theme.border;
+                                    background: Theme.surface;
+                                    accessible-role: groupbox;
+                                    accessible-label: "Lane " + item.lane-id + ", run " + item.run-id + ", " + item.run-status;
+                                    HorizontalLayout {
+                                        padding-left: 10px;
+                                        padding-right: 10px;
+                                        spacing: 12px;
+                                        Text { horizontal-stretch: 1; vertical-alignment: center; text: item.lane-id + " → " + item.run-id; color: Theme.ink; font-size: 12px; }
+                                        StatusPill { label: item.run-status; accent: item.run-status == "completed" ? Theme.success : item.run-status == "failed" || item.run-status == "cancelled" ? Theme.danger : Theme.warning; }
+                                        if item.run-status == "running": QuickAction { width: 100px; title: "Execute"; subtitle: "Local Pack"; glyph: ""; accent: Theme.signal; activated => { root.ui-action("fleet-execute:" + root.fleet-active-id + ":" + item.lane-id); } }
+                                    }
+                                }
+                                if root.fleet-report-summary != "": Text { text: root.fleet-report-summary; color: Theme.ink-subtle; font-size: 12px; wrap: word-wrap; }
+                                for item in root.fleet-observations: Rectangle {
+                                    min-height: 40px;
+                                    border-width: 1px;
+                                    border-color: Theme.border;
+                                    background: Theme.surface;
+                                    accessible-role: text;
+                                    accessible-label: "Observation " + item.kind + " for " + item.lanes + ": " + item.detail;
+                                    HorizontalLayout {
+                                        padding-left: 10px;
+                                        padding-right: 10px;
+                                        spacing: 8px;
+                                        Text { width: 170px; vertical-alignment: center; text: item.kind; color: Theme.ink-subtle; font-size: 11px; }
+                                        Text { width: 160px; vertical-alignment: center; text: item.lanes; color: Theme.ink-quiet; font-size: 11px; wrap: word-wrap; }
+                                        Text { horizontal-stretch: 1; vertical-alignment: center; text: item.detail; color: Theme.ink; font-size: 11px; wrap: word-wrap; }
+                                    }
+                                }
+                            }
+                        }
+
+                        if root.active-route == "Browse": VerticalLayout {
+                            spacing: 14px;
+                            HonestyPanel { title: "Governed Browse boundary"; body: "Only https hosts you allow for this project · private, loopback and cloud-metadata addresses are refused and every redirect is re-checked · project content never leaves without a Privacy Gate allow · pages are stored as evidence and never change instructions · no forms, logins or purchases"; accent: Theme.success; }
+
+                            Rectangle {
+                                min-height: 140px;
+                                border-radius: Theme.radius-compact;
+                                border-width: 1px;
+                                border-color: Theme.border;
+                                background: Theme.surface;
+                                accessible-role: groupbox;
+                                accessible-label: "Governed Browse. " + root.browse-status;
+                                VerticalLayout {
+                                    padding-left: 10px;
+                                    padding-right: 10px;
+                                    padding-top: 8px;
+                                    padding-bottom: 8px;
+                                    spacing: 6px;
+                                    Text { text: "Allowlist and fetch follow the active project"; color: Theme.ink; font-size: 12px; font-weight: 680; }
+                                    Text { text: root.browse-status; color: Theme.ink-quiet; font-size: 11px; wrap: word-wrap; }
+                                    HorizontalLayout {
+                                        spacing: 8px;
+                                        AdaptiveLineEdit { horizontal-stretch: 1; text <=> root.browse-host-input; placeholder: "Host, e.g. pubmed.ncbi.nlm.nih.gov"; accessible-name: "Allowed host"; }
+                                        AdaptiveLineEdit { width: 160px; text <=> root.browse-prefix-input; placeholder: "Path prefix"; accessible-name: "Allowed path prefix"; }
+                                        ToolbarAction { label: "Allow"; activated => { root.ui-action("browse-allow-add"); } }
+                                        ToolbarAction { label: "Refresh"; activated => { root.ui-action("browse-refresh"); } }
+                                    }
+                                    HorizontalLayout {
+                                        spacing: 8px;
+                                        AdaptiveLineEdit { horizontal-stretch: 1; text <=> root.browse-url-input; placeholder: "https URL on an allowed host"; accessible-name: "URL to fetch"; }
+                                        ToolbarAction { label: "Fetch"; activated => { root.ui-action("browse-fetch"); } }
+                                    }
+                                    if root.browse-last-result != "": Text { text: root.browse-last-result; color: Theme.ink; font-size: 11px; wrap: word-wrap; accessible-role: text; accessible-label: "Last fetch: " + root.browse-last-result; }
+                                    if root.browse-last-excerpt != "": Text { text: root.browse-last-excerpt; color: Theme.ink-subtle; font-size: 11px; wrap: word-wrap; accessible-role: text; accessible-label: "Evidence excerpt: " + root.browse-last-excerpt; }
+                                }
+                            }
+
+                            Text { text: "Allowed targets"; color: Theme.ink; font-size: 14px; font-weight: 680; }
+                            for item in root.browse-allowlist: Rectangle {
+                                min-height: 44px;
+                                border-width: 1px;
+                                border-color: Theme.border;
+                                background: Theme.surface;
+                                accessible-role: groupbox;
+                                accessible-label: "Allowed target " + item.target + (item.enabled ? ", enabled" : ", disabled");
+                                HorizontalLayout {
+                                    padding-left: 10px;
+                                    padding-right: 10px;
+                                    spacing: 12px;
+                                    Text { horizontal-stretch: 1; vertical-alignment: center; text: item.target + " · rev " + item.revision; color: Theme.ink; font-size: 12px; }
+                                    StatusPill { label: item.enabled ? "enabled" : "disabled"; accent: item.enabled ? Theme.success : Theme.ink-quiet; }
+                                    if item.enabled: QuickAction { width: 100px; title: "Disable"; subtitle: "Stops fetches"; glyph: ""; accent: Theme.danger; activated => { root.ui-action("browse-allow-disable:" + item.id + ":" + item.revision); } }
+                                }
+                            }
+
+                            Text { text: "Sessions (newest first)"; color: Theme.ink; font-size: 14px; font-weight: 680; }
+                            for item in root.browse-sessions: Rectangle {
+                                min-height: 40px;
+                                border-width: 1px;
+                                border-color: Theme.border;
+                                background: Theme.surface;
+                                accessible-role: text;
+                                accessible-label: "Session " + item.id + ", " + item.state + " " + item.reason + ", " + item.url;
+                                HorizontalLayout {
+                                    padding-left: 10px;
+                                    padding-right: 10px;
+                                    spacing: 12px;
+                                    Text { horizontal-stretch: 1; vertical-alignment: center; text: item.url; color: Theme.ink; font-size: 12px; wrap: word-wrap; }
+                                    Text { vertical-alignment: center; text: item.reason; color: Theme.ink-quiet; font-size: 11px; }
+                                    StatusPill { label: item.state; accent: item.state == "completed" ? Theme.success : item.state == "awaiting_human_takeover" ? Theme.warning : Theme.danger; }
+                                }
+                            }
+                        }
+
+                        if root.active-route == "Knowledge": VerticalLayout {
+                            spacing: 14px;
+                            HonestyPanel { title: "Knowledge boundary"; body: "The index is a rebuildable projection, never a source of truth · every match names the exact source revision and span it came from · superseded and archived sources are labelled and archived text is never shown · no match is reported as insufficient evidence · retrieval is lexical only; no vector or model ranking runs here"; accent: Theme.success; }
+
+                            Rectangle {
+                                min-height: 120px;
+                                border-radius: Theme.radius-compact;
+                                border-width: 1px;
+                                border-color: Theme.border;
+                                background: Theme.surface;
+                                accessible-role: groupbox;
+                                accessible-label: "Knowledge. " + root.knowledge-status;
+                                VerticalLayout {
+                                    padding-left: 10px;
+                                    padding-right: 10px;
+                                    padding-top: 8px;
+                                    padding-bottom: 8px;
+                                    spacing: 6px;
+                                    HorizontalLayout {
+                                        spacing: 8px;
+                                        Text { horizontal-stretch: 1; text: "Search follows the active project"; color: Theme.ink; font-size: 12px; font-weight: 680; }
+                                        ToolbarAction { label: "Refresh"; activated => { root.ui-action("knowledge-refresh"); } }
+                                        ToolbarAction { label: "Build index"; activated => { root.ui-action("knowledge-build"); } }
+                                    }
+                                    Text { text: root.knowledge-status; color: Theme.ink-quiet; font-size: 11px; wrap: word-wrap; }
+                                    HorizontalLayout {
+                                        spacing: 8px;
+                                        AdaptiveLineEdit { horizontal-stretch: 1; text <=> root.knowledge-query-input; placeholder: "Search words, e.g. myalgia statin"; accessible-name: "Knowledge search query"; }
+                                        ToolbarAction { label: "Search"; activated => { root.ui-action("knowledge-search"); } }
+                                    }
+                                    if root.knowledge-last-result != "": Text { text: root.knowledge-last-result; color: Theme.ink; font-size: 11px; wrap: word-wrap; accessible-role: text; accessible-label: "Last search: " + root.knowledge-last-result; }
+                                    if root.knowledge-hits != "": Text { text: root.knowledge-hits; color: Theme.ink-subtle; font-size: 11px; wrap: word-wrap; accessible-role: text; accessible-label: "Matches: " + root.knowledge-hits; }
+                                }
+                            }
+
+                            Text { text: "Research canvases"; color: Theme.ink; font-size: 14px; font-weight: 680; }
+                            for item in root.knowledge-canvases: Rectangle {
+                                min-height: 40px;
+                                border-width: 1px;
+                                border-color: Theme.border;
+                                background: Theme.surface;
+                                accessible-role: text;
+                                accessible-label: "Canvas " + item.title + ", " + item.detail;
+                                HorizontalLayout {
+                                    padding-left: 10px;
+                                    padding-right: 10px;
+                                    spacing: 12px;
+                                    Text { horizontal-stretch: 1; vertical-alignment: center; text: item.title + " · " + item.detail; color: Theme.ink; font-size: 12px; wrap: word-wrap; }
+                                    Text { vertical-alignment: center; text: item.id; color: Theme.ink-quiet; font-size: 11px; }
+                                }
+                            }
+                        }
+
+                        if root.active-route == "Analytics": VerticalLayout {
+                            spacing: 14px;
+                            HonestyPanel { title: "Analytics boundary"; body: "Queries are read-only: writes, schema changes, attachments and pragmas are refused · every run pins the exact snapshots it read and leaves a receipt · truncated or partial-input results are labelled as such · no R, Python or shell runs here"; accent: Theme.success; }
+
+                            Rectangle {
+                                min-height: 120px;
+                                border-radius: Theme.radius-compact;
+                                border-width: 1px;
+                                border-color: Theme.border;
+                                background: Theme.surface;
+                                accessible-role: groupbox;
+                                accessible-label: "Analytics. " + root.analytics-status;
+                                VerticalLayout {
+                                    padding-left: 10px;
+                                    padding-right: 10px;
+                                    padding-top: 8px;
+                                    padding-bottom: 8px;
+                                    spacing: 6px;
+                                    HorizontalLayout {
+                                        spacing: 8px;
+                                        Text { horizontal-stretch: 1; text: "Queries follow the active project"; color: Theme.ink; font-size: 12px; font-weight: 680; }
+                                        ToolbarAction { label: "Refresh"; activated => { root.ui-action("analytics-refresh"); } }
+                                    }
+                                    Text { text: root.analytics-status; color: Theme.ink-quiet; font-size: 11px; wrap: word-wrap; }
+                                    AdaptiveLineEdit { text <=> root.analytics-bindings-input; placeholder: "Bindings, e.g. labs=snap-1"; accessible-name: "Snapshot bindings"; }
+                                    HorizontalLayout {
+                                        spacing: 8px;
+                                        AdaptiveLineEdit { horizontal-stretch: 1; text <=> root.analytics-sql-input; placeholder: "SELECT ... FROM labs"; accessible-name: "Read-only SQL query"; }
+                                        ToolbarAction { label: "Run"; activated => { root.ui-action("analytics-run"); } }
+                                    }
+                                    if root.analytics-last-result != "": Text { text: root.analytics-last-result; color: Theme.ink; font-size: 11px; wrap: word-wrap; accessible-role: text; accessible-label: "Last run: " + root.analytics-last-result; }
+                                    if root.analytics-preview != "": Text { text: root.analytics-preview; color: Theme.ink-subtle; font-size: 11px; wrap: word-wrap; accessible-role: text; accessible-label: "Result preview: " + root.analytics-preview; }
+                                }
+                            }
+
+                            Text { text: "Query receipts (newest first)"; color: Theme.ink; font-size: 14px; font-weight: 680; }
+                            for item in root.analytics-receipts: Rectangle {
+                                min-height: 40px;
+                                border-width: 1px;
+                                border-color: Theme.border;
+                                background: Theme.surface;
+                                accessible-role: text;
+                                accessible-label: "Receipt " + item.id + ", " + item.outcome + ", " + item.detail;
+                                HorizontalLayout {
+                                    padding-left: 10px;
+                                    padding-right: 10px;
+                                    spacing: 12px;
+                                    Text { horizontal-stretch: 1; vertical-alignment: center; text: item.id + " · " + item.detail; color: Theme.ink; font-size: 12px; wrap: word-wrap; }
+                                    StatusPill { label: item.outcome; accent: item.outcome == "completed" ? Theme.success : item.outcome == "truncated" ? Theme.warning : Theme.danger; }
+                                }
+                            }
+                        }
+
+                        if root.active-route == "Research OS": VerticalLayout {
+                            spacing: 14px;
+                            HonestyPanel { title: "Research OS boundary"; body: "Hub, Compute, R Workspace, Extensions, Huddles, Research Packs, Adapters and Federation through Core · Desktop offers only reversible row actions (cancel a job, enable or disable an extension, suspend or resume an adapter); revoke, send, export, import, publish, install and consent stay in the CLI · managed R scripts and extension code never run · the institutional transport is unavailable and federation bundles move only out of band · a plane Core cannot read is shown as unavailable, never as empty · nothing here is a clinical or release claim"; accent: Theme.success; }
+
+                            Rectangle {
+                                min-height: 64px;
+                                border-radius: Theme.radius-compact;
+                                border-width: 1px;
+                                border-color: Theme.border;
+                                background: Theme.surface;
+                                accessible-role: groupbox;
+                                accessible-label: "Research OS. " + root.research-os-status;
+                                VerticalLayout {
+                                    padding-left: 10px;
+                                    padding-right: 10px;
+                                    padding-top: 8px;
+                                    padding-bottom: 8px;
+                                    spacing: 6px;
+                                    HorizontalLayout {
+                                        spacing: 8px;
+                                        Text { horizontal-stretch: 1; text: "Planes follow the active project"; color: Theme.ink; font-size: 12px; font-weight: 680; }
+                                        ToolbarAction { label: "Refresh"; activated => { root.ui-action("research-os-refresh"); } }
+                                    }
+                                    Text { text: root.research-os-status; color: Theme.ink-quiet; font-size: 11px; wrap: word-wrap; }
+                                }
+                            }
+
+                            for item in root.research-os-rows: Rectangle {
+                                min-height: 40px;
+                                border-width: 1px;
+                                border-color: Theme.border;
+                                background: Theme.surface;
+                                accessible-role: text;
+                                accessible-label: item.plane + ": " + item.id + ", " + item.state + ", " + item.detail;
+                                HorizontalLayout {
+                                    padding-left: 10px;
+                                    padding-right: 10px;
+                                    spacing: 12px;
+                                    Text { min-width: 110px; vertical-alignment: center; text: item.plane; color: Theme.ink; font-size: 12px; font-weight: 680; }
+                                    Text { horizontal-stretch: 1; vertical-alignment: center; text: item.id + " · " + item.detail; color: Theme.ink; font-size: 12px; wrap: word-wrap; }
+                                    StatusPill { label: item.state; accent: item.state == "unavailable" ? Theme.danger : item.state == "empty" ? Theme.warning : Theme.success; }
+                                    if item.action != "": ToolbarAction {
+                                        label: item.action;
+                                        activated => { root.ui-action("research-os-act|" + item.plane + "|" + item.action + "|" + item.id); }
+                                    }
+                                }
+                            }
+                        }
+
+                        if root.active-route == "Audio": VerticalLayout {
+                            spacing: 14px;
+                            HonestyPanel { title: "AudioFlow boundary"; body: "Audio stays on this device and no cloud speech route exists · capture only starts on an explicit request and its state is always shown · source audio is never changed; transcripts are separate revisions · automatic text is not clinical truth and speakers are never identified · no speech recognition engine is installed in this build"; accent: Theme.success; }
+
+                            Rectangle {
+                                min-height: 96px;
+                                border-radius: Theme.radius-compact;
+                                border-width: 1px;
+                                border-color: Theme.border;
+                                background: Theme.surface;
+                                accessible-role: groupbox;
+                                accessible-label: "AudioFlow. " + root.audio-status;
+                                VerticalLayout {
+                                    padding-left: 10px;
+                                    padding-right: 10px;
+                                    padding-top: 8px;
+                                    padding-bottom: 8px;
+                                    spacing: 6px;
+                                    HorizontalLayout {
+                                        spacing: 8px;
+                                        Text { horizontal-stretch: 1; text: "Sources and captures follow the active project"; color: Theme.ink; font-size: 12px; font-weight: 680; }
+                                        ToolbarAction { label: "Refresh"; activated => { root.ui-action("audio-refresh"); } }
+                                    }
+                                    Text { text: root.audio-status; color: Theme.ink-quiet; font-size: 11px; wrap: word-wrap; }
+                                    if root.audio-native-capture != "": Text { text: root.audio-native-capture; color: Theme.ink-subtle; font-size: 11px; wrap: word-wrap; accessible-role: text; accessible-label: root.audio-native-capture; }
+                                    if root.audio-last-result != "": Text { text: root.audio-last-result; color: Theme.ink; font-size: 11px; wrap: word-wrap; accessible-role: text; accessible-label: "Last segmentation: " + root.audio-last-result; }
+                                    if root.audio-transcript != "": Text { text: root.audio-transcript; color: Theme.ink-subtle; font-size: 11px; wrap: word-wrap; accessible-role: text; accessible-label: "Transcript segments: " + root.audio-transcript; }
+                                }
+                            }
+
+                            Text { text: "Capture sessions (newest first)"; color: Theme.ink; font-size: 14px; font-weight: 680; }
+                            for item in root.audio-captures: Rectangle {
+                                min-height: 40px;
+                                border-width: 1px;
+                                border-color: Theme.border;
+                                background: Theme.surface;
+                                accessible-role: text;
+                                accessible-label: "Capture " + item.label + ", " + item.state + ", " + item.detail;
+                                HorizontalLayout {
+                                    padding-left: 10px;
+                                    padding-right: 10px;
+                                    spacing: 12px;
+                                    Text { horizontal-stretch: 1; vertical-alignment: center; text: item.label + " · " + item.detail; color: Theme.ink; font-size: 12px; wrap: word-wrap; }
+                                    StatusPill { label: item.state; accent: item.state == "recording" ? Theme.danger : item.state == "stopped" ? Theme.success : Theme.warning; }
+                                }
+                            }
+
+                            Text { text: "Sources (newest first)"; color: Theme.ink; font-size: 14px; font-weight: 680; }
+                            for item in root.audio-sources: Rectangle {
+                                min-height: 44px;
+                                border-width: 1px;
+                                border-color: Theme.border;
+                                background: Theme.surface;
+                                accessible-role: groupbox;
+                                accessible-label: "Audio source " + item.label + ", " + item.kind + ", " + item.detail + ", health " + item.health;
+                                HorizontalLayout {
+                                    padding-left: 10px;
+                                    padding-right: 10px;
+                                    spacing: 12px;
+                                    Text { horizontal-stretch: 1; vertical-alignment: center; text: item.label + " · " + item.kind + " · " + item.detail; color: Theme.ink; font-size: 12px; wrap: word-wrap; }
+                                    StatusPill { label: item.health; accent: item.health == "ok" ? Theme.success : Theme.warning; }
+                                    QuickAction { width: 110px; title: "Segment"; subtitle: "No speech engine"; glyph: ""; accent: Theme.signal; activated => { root.ui-action("audio-segment:" + item.id); } }
+                                }
+                            }
+                        }
+
+                        if root.active-route == "Privacy": VerticalLayout {
+                            spacing: 14px;
+                            HonestyPanel { title: "Privacy Gate boundary"; body: "Unclassified artifacts are treated as local_phi and never leave · de-identified outputs are new artifacts with a receipt · automated recognition can miss values, so no receipt claims data is free of PHI · every egress decision is made and stored by Core; this screen sends nothing"; accent: Theme.success; }
+
+                            Rectangle {
+                                min-height: 110px;
+                                border-radius: Theme.radius-compact;
+                                border-width: 1px;
+                                border-color: Theme.border;
+                                background: Theme.surface;
+                                accessible-role: groupbox;
+                                accessible-label: "Egress check. " + root.privacy-status;
+                                VerticalLayout {
+                                    padding-left: 10px;
+                                    padding-right: 10px;
+                                    padding-top: 8px;
+                                    padding-bottom: 8px;
+                                    spacing: 6px;
+                                    Text { text: "Egress check follows the active project · profiles and transforms use the CLI"; color: Theme.ink; font-size: 12px; font-weight: 680; }
+                                    Text { text: root.privacy-status; color: Theme.ink-quiet; font-size: 11px; wrap: word-wrap; }
+                                    HorizontalLayout {
+                                        spacing: 8px;
+                                        AdaptiveLineEdit { horizontal-stretch: 1; text <=> root.privacy-artifact-input; placeholder: "Artifact id"; accessible-name: "Artifact id for egress check"; }
+                                        AdaptiveLineEdit { horizontal-stretch: 1; text <=> root.privacy-boundary-input; placeholder: "Boundary, e.g. browse or hub"; accessible-name: "Egress boundary"; }
+                                        ToolbarAction { label: "Check"; activated => { root.ui-action("privacy-egress-check"); } }
+                                        ToolbarAction { label: "Refresh"; activated => { root.ui-action("privacy-refresh"); } }
+                                    }
+                                    if root.privacy-last-decision != "": Text { text: root.privacy-last-decision; color: Theme.ink; font-size: 11px; wrap: word-wrap; accessible-role: text; accessible-label: "Last egress decision: " + root.privacy-last-decision; }
+                                }
+                            }
+
+                            Text { text: "Classifications"; color: Theme.ink; font-size: 14px; font-weight: 680; }
+                            for item in root.privacy-classifications: Rectangle {
+                                min-height: 40px;
+                                border-width: 1px;
+                                border-color: Theme.border;
+                                background: Theme.surface;
+                                accessible-role: text;
+                                accessible-label: "Artifact " + item.artifact-id + ", " + item.data-class + ", basis " + item.basis;
+                                HorizontalLayout {
+                                    padding-left: 10px;
+                                    padding-right: 10px;
+                                    spacing: 12px;
+                                    Text { horizontal-stretch: 1; vertical-alignment: center; text: item.artifact-id + " · rev " + item.revision; color: Theme.ink; font-size: 12px; }
+                                    Text { vertical-alignment: center; text: item.basis; color: Theme.ink-quiet; font-size: 11px; }
+                                    StatusPill { label: item.data-class; accent: item.data-class == "public" ? Theme.success : item.data-class == "local_phi" ? Theme.danger : Theme.warning; }
+                                }
+                            }
+
+                            Text { text: "De-identification receipts"; color: Theme.ink; font-size: 14px; font-weight: 680; }
+                            for item in root.privacy-receipts: Rectangle {
+                                min-height: 52px;
+                                border-width: 1px;
+                                border-color: Theme.border;
+                                background: Theme.surface;
+                                accessible-role: groupbox;
+                                accessible-label: "Receipt " + item.id + ", " + item.status + ", residual " + item.residual;
+                                HorizontalLayout {
+                                    padding-left: 10px;
+                                    padding-right: 10px;
+                                    spacing: 12px;
+                                    Text { horizontal-stretch: 1; vertical-alignment: center; text: item.source + " → " + item.output + " · " + item.residual; color: Theme.ink; font-size: 12px; wrap: word-wrap; }
+                                    StatusPill { label: item.status; accent: item.status == "valid" ? Theme.success : Theme.danger; }
+                                    if item.status == "valid": QuickAction { width: 100px; title: "Revoke"; subtitle: "Stops egress"; glyph: ""; accent: Theme.danger; activated => { root.ui-action("privacy-receipt-revoke:" + item.id + ":" + item.revision); } }
+                                }
+                            }
+
+                            Text { text: "Egress decisions (newest first)"; color: Theme.ink; font-size: 14px; font-weight: 680; }
+                            for item in root.privacy-decisions: Rectangle {
+                                min-height: 40px;
+                                border-width: 1px;
+                                border-color: Theme.border;
+                                background: Theme.surface;
+                                accessible-role: text;
+                                accessible-label: "Decision for " + item.artifact-id + " to " + item.boundary + ": " + item.outcome + ", " + item.reason;
+                                HorizontalLayout {
+                                    padding-left: 10px;
+                                    padding-right: 10px;
+                                    spacing: 12px;
+                                    Text { horizontal-stretch: 1; vertical-alignment: center; text: item.artifact-id + " → " + item.boundary; color: Theme.ink; font-size: 12px; }
+                                    Text { vertical-alignment: center; text: item.reason; color: Theme.ink-quiet; font-size: 11px; }
+                                    StatusPill { label: item.outcome; accent: item.outcome == "allow" ? Theme.success : Theme.danger; }
+                                }
+                            }
+                        }
+
+                        if root.active-route == "Models": VerticalLayout {
+                            spacing: 14px;
+
+                            Rectangle {
+                                min-height: 154px;
+                                border-radius: Theme.radius-panel;
+                                background: Theme.obsidian;
+                                accessible-role: groupbox;
+                                accessible-label: "MedScale model fabric. " + root.model-runtime-boundary;
+                                HorizontalLayout {
+                                    padding: 18px;
+                                    spacing: 18px;
+                                    VerticalLayout {
+                                        spacing: 6px;
+                                        Text { text: root.model-runtime-summary; color: Theme.nav-text; font-size: 18px; font-weight: 700; wrap: word-wrap; }
+                                        Text { text: root.model-runtime-boundary; color: Theme.nav-subtle; font-size: 11px; wrap: word-wrap; }
+                                    }
+                                    Rectangle { width: 1px; background: Theme.graphite-raised; }
+                                    VerticalLayout {
+                                        width: 310px;
+                                        spacing: 6px;
+                                        Text { text: "Model source, not authority"; color: Theme.nav-text; font-size: 13px; font-weight: 650; }
+                                        Text { text: root.model-source-summary; color: Theme.nav-subtle; font-size: 11px; wrap: word-wrap; }
+                                    }
+                                }
+                            }
+
+                            Rectangle {
+                                min-height: 116px;
+                                border-radius: Theme.radius-compact;
+                                border-width: 1px;
+                                border-color: Theme.border;
+                                background: Theme.surface;
+                                accessible-role: groupbox;
+                                accessible-label: "Local Pack operator. " + root.model-inventory-summary + ". " + root.model-operator-status;
+                                VerticalLayout {
+                                    padding: 15px;
+                                    spacing: 8px;
+                                    HorizontalLayout {
+                                        Text { text: "LOCAL PACK OPERATOR"; color: Theme.signal-strong; font-size: 11px; font-weight: 650; letter-spacing: 1px; }
+                                        Rectangle { horizontal-stretch: 1; background: transparent; }
+                                        Text { text: root.model-operator-status; color: Theme.ink-quiet; font-size: 11px; }
+                                    }
+                                    Text { text: root.model-inventory-summary; color: Theme.ink-subtle; font-size: 11px; wrap: word-wrap; }
+                                    HorizontalLayout {
+                                        spacing: 8px;
+                                        AdaptiveLineEdit {
+                                            horizontal-stretch: 1;
+                                            text <=> root.model-pack-path;
+                                            placeholder: "Absolute path to a signed local Pack directory";
+                                            accessible-name: "Local signed Pack directory";
+                                            accepted(text) => { root.model-pack-path = text; root.ui-action("model-admit"); }
+                                        }
+                                        ToolbarAction { label: "Admit local Pack"; activated => { root.ui-action("model-admit"); } }
+                                        ToolbarAction { label: "Refresh"; activated => { root.ui-action("model-refresh"); } }
+                                    }
+                                }
+                            }
+
+                            HorizontalLayout {
+                                spacing: 8px;
+                                Text { text: "Runtime inventory"; color: Theme.ink; font-size: 14px; font-weight: 680; }
+                                Rectangle { horizontal-stretch: 1; background: transparent; }
+                                Text { text: "Core-backed session state · qualification references are separate"; color: Theme.ink-quiet; font-size: 11px; }
+                            }
+
+                            for item in root.model-rows: Rectangle {
+                                min-height: 126px;
+                                border-radius: Theme.radius-compact;
+                                border-width: 1px;
+                                border-color: Theme.border;
+                                background: Theme.surface;
+                                accessible-role: groupbox;
+                                accessible-label: item.task + ". " + item.model + ". " + item.state;
+                                HorizontalLayout {
+                                    padding: 15px;
+                                    spacing: 16px;
+                                    VerticalLayout {
+                                        width: 250px;
+                                        spacing: 4px;
+                                        Text { text: item.scope; color: Theme.signal-strong; font-size: 11px; font-weight: 650; letter-spacing: 0.8px; }
+                                        Text { text: item.task; color: Theme.ink; font-size: 13px; font-weight: 680; }
+                                        Text { text: item.model; color: Theme.ink-subtle; font-size: 11px; wrap: word-wrap; }
+                                        Text { text: item.source; color: Theme.signal-strong; font-size: 11px; font-weight: 600; }
+                                    }
+                                    Rectangle { width: 1px; background: Theme.border; }
+                                    VerticalLayout {
+                                        horizontal-stretch: 1;
+                                        spacing: 4px;
+                                        Text { text: "Runtime  ·  " + item.runtime; color: Theme.ink-subtle; font-size: 11px; }
+                                        Text { text: "Device   ·  " + item.device; color: Theme.ink-subtle; font-size: 11px; }
+                                        Text { text: "Trust      ·  " + item.trust; color: Theme.ink-subtle; font-size: 11px; }
+                                        Text { text: "Evidence ·  " + item.benchmark; color: Theme.ink-quiet; font-size: 11px; wrap: word-wrap; }
+                                        Text { text: "Digest    ·  " + item.digest; color: Theme.ink-quiet; font-size: 11px; wrap: word-wrap; }
+                                    }
+                                    StatusPill {
+                                        label: item.state;
+                                        accent: item.state == "CURRENT" || item.state == "QUALIFIED BASELINE" ? Theme.success : item.state == "CANDIDATE" || item.state == "CANARY" || item.state == "LAST GREEN" ? Theme.warning : item.state == "EMPTY" ? Theme.ink-quiet : Theme.danger;
+                                    }
+                                }
+                            }
+                        }
+
+                        if root.active-route == "Evidence": VerticalLayout {
+                            spacing: 14px;
+
+                            Rectangle {
+                                min-height: 148px;
+                                border-radius: Theme.radius-panel;
+                                border-width: 1px;
+                                border-color: Theme.border;
+                                background: Theme.surface;
+                                accessible-role: groupbox;
+                                accessible-label: "MedScale evidence ledger. " + root.competitive-summary;
+                                HorizontalLayout {
+                                    padding: 18px;
+                                    spacing: 18px;
+                                    VerticalLayout {
+                                        horizontal-stretch: 1;
+                                        spacing: 6px;
+                                        Text { text: "MedScale Evidence Center"; color: Theme.ink; font-size: 22px; font-weight: 720; }
+                                        Text { text: root.competitive-summary; color: Theme.ink-subtle; font-size: 11px; wrap: word-wrap; }
+                                    }
+                                    Rectangle {
+                                        width: 300px;
+                                        border-radius: 11px;
+                                        background: Theme.canvas;
+                                        VerticalLayout {
+                                            padding: 13px;
+                                            spacing: 5px;
+                                            Text { text: "PINNED BASELINE"; color: Theme.ink-quiet; font-size: 11px; letter-spacing: 1px; }
+                                            Text { text: root.reference-baseline; color: Theme.ink; font-size: 11px; font-weight: 650; wrap: word-wrap; }
+                                            Text { text: "Every superiority claim requires exact comparative evidence."; color: Theme.ink-subtle; font-size: 11px; wrap: word-wrap; }
+                                        }
+                                    }
+                                }
+                            }
+
+                            for item in root.competitive-evidence-rows: Rectangle {
+                                min-height: 132px;
+                                border-radius: Theme.radius-compact;
+                                border-width: 1px;
+                                border-color: Theme.border;
+                                background: Theme.surface;
+                                accessible-role: groupbox;
+                                accessible-label: item.capability + ". Claim state " + item.verdict + ". " + item.limitations;
+                                VerticalLayout {
+                                    padding: 15px;
+                                    spacing: 9px;
+                                    HorizontalLayout {
+                                        Text { text: item.capability; color: Theme.ink; font-size: 13px; font-weight: 680; }
+                                        Rectangle { horizontal-stretch: 1; background: transparent; }
+                                        StatusPill {
+                                            label: item.verdict;
+                                            accent: item.verdict == "UNMEASURED" ? Theme.warning : item.verdict == "ANTI-METRIC" ? Theme.ink-quiet : Theme.signal-strong;
+                                        }
+                                    }
+                                    HorizontalLayout {
+                                        spacing: 16px;
+                                        VerticalLayout {
+                                            horizontal-stretch: 1;
+                                            spacing: 3px;
+                                            Text { text: "MEDSCALE"; color: Theme.signal-strong; font-size: 11px; letter-spacing: 1px; font-weight: 650; }
+                                            Text { text: item.medscale; color: Theme.ink-subtle; font-size: 11px; wrap: word-wrap; }
+                                        }
+                                        Rectangle { width: 1px; background: Theme.border; }
+                                        VerticalLayout {
+                                            horizontal-stretch: 1;
+                                            spacing: 3px;
+                                            Text { text: "REFERENCE"; color: Theme.ink-quiet; font-size: 11px; letter-spacing: 1px; font-weight: 650; }
+                                            Text { text: item.reference; color: Theme.ink-subtle; font-size: 11px; wrap: word-wrap; }
+                                        }
+                                    }
+                                    Text { text: "Evidence · " + item.evidence; color: Theme.ink-quiet; font-size: 11px; wrap: word-wrap; }
+                                    Text { text: "Limitations · " + item.limitations; color: Theme.ink-subtle; font-size: 11px; wrap: word-wrap; }
+                                }
+                            }
+                        }
+
+                        if root.active-route == "About": Rectangle {
+                            height: 270px;
+                            border-radius: Theme.radius-panel;
+                            border-width: 1px;
+                            border-color: Theme.border;
+                            background: Theme.surface;
+                            accessible-role: groupbox;
+                            accessible-label: "About MedScale and Slint attribution";
+                            HorizontalLayout {
+                                padding: 24px;
+                                spacing: 28px;
+                                VerticalLayout {
+                                    width: 360px;
+                                    alignment: start;
+                                    spacing: 10px;
+                                    Image { source: Theme.dark ? @image-url("assets/medscale-mark-white.svg") : @image-url("assets/medscale-mark.svg"); width: 72px; height: 39px; image-fit: contain; }
+                                    Text { text: "MedScale"; color: Theme.ink; font-size: 26px; font-weight: 700; }
+                                    Text { text: "Local-first healthcare intelligence"; color: Theme.ink-subtle; font-size: 13px; }
+                                    Text { text: "Version " + root.product-version; color: Theme.ink-quiet; font-size: 11px; }
+                                    Text { width: 340px; text: "MedScale source is licensed under Apache-2.0. UI toolkit attribution is shown alongside."; color: Theme.ink-subtle; font-size: 11px; wrap: word-wrap; }
+                                }
+                                Rectangle { width: 1px; background: Theme.border; }
+                                VerticalLayout {
+                                    horizontal-stretch: 1;
+                                    alignment: start;
+                                    spacing: 8px;
+                                    Text { text: "UI TOOLKIT"; color: Theme.ink-quiet; font-size: Theme.type-caption; letter-spacing: Theme.tracking-label; }
+                                    Rectangle {
+                                        width: 220px;
+                                        height: 120px;
+                                        border-radius: Theme.radius-control;
+                                        background: Theme.brand-white;
+                                        AboutSlint { width: 220px; height: 120px; }
+                                    }
+                                    Text { text: "Slint 1.16.1 · slint.dev"; color: Theme.ink-subtle; font-size: Theme.type-caption; }
+                                }
+                            }
+                        }
+
+                        if root.active-route == "Patients": VerticalLayout {
+                            spacing: 16px;
+
+                            Rectangle {
+                                height: 132px;
+                                border-radius: Theme.radius-panel;
+                                border-width: 1px;
+                                border-color: Theme.border;
+                                background: Theme.surface;
+                                accessible-role: groupbox;
+                                accessible-label: "Synthetic patient workspace for " + root.patient-name + ". " + root.patient-coverage-state;
+                                HorizontalLayout {
+                                    padding: 18px;
+                                    spacing: 18px;
+                                    Rectangle {
+                                        width: 72px;
+                                        border-radius: 22px;
+                                        background: Theme.signal-soft;
+                                        Text { text: "SC"; color: Theme.signal-strong; font-size: 20px; font-weight: 700; horizontal-alignment: center; }
+                                    }
+                                    VerticalLayout {
+                                        spacing: 5px;
+                                        Text { text: root.patient-name; color: Theme.ink; font-size: 20px; font-weight: 700; }
+                                        Text { text: "Subject: " + root.patient-subject-ref; color: Theme.ink-subtle; font-size: 11px; }
+                                        Text { text: "Birth date: " + root.patient-birth-date; color: Theme.ink-subtle; font-size: 11px; }
+                                        Text { text: root.patient-condition-summary; color: Theme.ink; font-size: 12px; wrap: word-wrap; }
+                                    }
+                                    Rectangle { horizontal-stretch: 1; background: transparent; }
+                                    VerticalLayout {
+                                        width: 300px;
+                                        alignment: center;
+                                        spacing: 8px;
+                                        StatusPill { label: "Synthetic demo"; accent: Theme.signal; }
+                                        StatusPill { label: root.patient-coverage-state; accent: root.patient-coverage-state == "Supported evidence" ? Theme.success : Theme.warning; }
+                                        Text { text: root.patient-coverage-summary; color: Theme.ink-subtle; font-size: 11px; wrap: word-wrap; horizontal-alignment: right; }
+                                    }
+                                }
+                            }
+
+                            HorizontalLayout {
+                                spacing: 8px;
+                                SegmentTab { label: "Overview"; selected: root.patient-tab == "Overview"; activated => { root.patient-tab = "Overview"; } }
+                                SegmentTab { label: "Timeline"; selected: root.patient-tab == "Timeline"; activated => { root.patient-tab = "Timeline"; } }
+                                SegmentTab { label: "Labs"; selected: root.patient-tab == "Labs"; activated => { root.patient-tab = "Labs"; } }
+                                SegmentTab { label: "Medications"; selected: root.patient-tab == "Medications"; activated => { root.patient-tab = "Medications"; } }
+                                SegmentTab { label: "Documents"; selected: root.patient-tab == "Documents"; activated => { root.patient-tab = "Documents"; } }
+                                SegmentTab { label: "Care Plan"; selected: root.patient-tab == "Care Plan"; activated => { root.patient-tab = "Care Plan"; } }
+                                SegmentTab { label: "Sources"; selected: root.patient-tab == "Sources"; activated => { root.patient-tab = "Sources"; } }
+                            }
+
+                            if root.patient-tab == "Overview": HorizontalLayout {
+                                spacing: 16px;
+                                Rectangle {
+                                    horizontal-stretch: 3;
+                                    min-height: 250px;
+                                    border-radius: Theme.radius-panel;
+                                    border-width: 1px;
+                                    border-color: Theme.border;
+                                    background: Theme.surface;
+                                    VerticalLayout {
+                                        padding: 18px;
+                                        spacing: 12px;
+                                        Text { text: "Trusted overview"; color: Theme.ink; font-size: 15px; font-weight: 650; }
+                                        Text { text: "Identity and conditions are mapped from SubjectBriefV1. Missing or conflicting evidence is never promoted into an affirmative fact."; color: Theme.ink-subtle; font-size: 11px; wrap: word-wrap; }
+                                        Rectangle { height: 1px; background: Theme.border; }
+                                        Text { text: "Conditions"; color: Theme.ink-quiet; font-size: 11px; font-weight: 650; }
+                                        Text { text: root.patient-condition-summary; color: Theme.ink; font-size: 13px; wrap: word-wrap; }
+                                        Text { text: "Coverage"; color: Theme.ink-quiet; font-size: 11px; font-weight: 650; }
+                                        Text { text: root.patient-coverage-summary; color: Theme.ink; font-size: 12px; wrap: word-wrap; }
+                                    }
+                                }
+                                HonestyPanel {
+                                    horizontal-stretch: 2;
+                                    title: "Authority boundary";
+                                    body: "This workspace is read-only presentation. Evidence and provenance remain visible; relevance does not become clinical authority and no action is silently committed.";
+                                    accent: Theme.success;
+                                }
+                            }
+
+                            if root.patient-tab == "Timeline": VerticalLayout {
+                                spacing: 8px;
+                                HorizontalLayout {
+                                    height: 44px;
+                                    Text { text: "Longitudinal timeline"; color: Theme.ink; font-size: 15px; font-weight: 650; }
+                                    Rectangle { horizontal-stretch: 1; background: transparent; }
+                                    ToolbarAction { label: "Inspect sources"; glyph: "◇"; activated => { root.patient-tab = "Sources"; } }
+                                }
+                                Rectangle {
+                                    height: 42px;
+                                    background: Theme.surface-raised;
+                                    HorizontalLayout {
+                                        padding-left: 14px; padding-right: 14px; spacing: 12px;
+                                        Text { width: 120px; text: "DATE"; color: Theme.ink-quiet; font-size: 11px; font-weight: 650; }
+                                        Text { width: 150px; text: "TYPE"; color: Theme.ink-quiet; font-size: 11px; font-weight: 650; }
+                                        Text { horizontal-stretch: 1; text: "LONGITUDINAL EVENT"; color: Theme.ink-quiet; font-size: 11px; font-weight: 650; }
+                                        Text { width: 160px; text: "PROVENANCE"; color: Theme.ink-quiet; font-size: 11px; font-weight: 650; }
+                                    }
+                                }
+                                for item in root.patient-timeline: Rectangle {
+                                    height: 64px;
+                                    background: Theme.surface;
+                                    border-width: 1px;
+                                    border-color: Theme.border;
+                                    accessible-role: text;
+                                    accessible-label: item.date + ", " + item.title + ", " + item.detail + ", " + item.source;
+                                    HorizontalLayout {
+                                        padding-left: 14px; padding-right: 14px; spacing: 12px;
+                                        Text { width: 120px; text: item.date; color: Theme.ink-subtle; font-size: 11px; }
+                                        Text { width: 150px; text: item.title; color: Theme.ink; font-size: 11px; font-weight: 650; }
+                                        Text { horizontal-stretch: 1; text: item.detail; color: Theme.ink-subtle; font-size: 11px; wrap: word-wrap; }
+                                        VerticalLayout { width: 160px; alignment: center; spacing: 2px; Text { text: item.source; color: Theme.signal-strong; font-size: 11px; } Text { text: item.status; color: Theme.ink-quiet; font-size: 11px; } }
+                                    }
+                                }
+                            }
+
+                            if root.patient-tab == "Labs": VerticalLayout {
+                                spacing: 0px;
+                                Rectangle {
+                                    height: 42px; background: Theme.surface-raised;
+                                    HorizontalLayout { padding-left: 14px; padding-right: 14px; spacing: 12px;
+                                        Text { horizontal-stretch: 1; text: "OBSERVATION"; color: Theme.ink-quiet; font-size: 11px; font-weight: 650; }
+                                        Text { width: 110px; text: "VALUE"; color: Theme.ink-quiet; font-size: 11px; font-weight: 650; }
+                                        Text { width: 130px; text: "COVERAGE"; color: Theme.ink-quiet; font-size: 11px; font-weight: 650; }
+                                        Text { width: 160px; text: "SOURCE"; color: Theme.ink-quiet; font-size: 11px; font-weight: 650; }
+                                    }
+                                }
+                                for item in root.patient-labs: Rectangle {
+                                    height: 60px; background: Theme.surface; border-width: 1px; border-color: Theme.border;
+                                    accessible-role: text;
+                                    accessible-label: item.label + ", " + item.value + " " + item.unit + ", " + item.status + ", " + item.source;
+                                    HorizontalLayout { padding-left: 14px; padding-right: 14px; spacing: 12px;
+                                        Text { horizontal-stretch: 1; text: item.label; color: Theme.ink; font-size: 12px; font-weight: 650; }
+                                        Text { width: 110px; text: item.value + " " + item.unit; color: Theme.ink; font-size: 12px; }
+                                        Text { width: 130px; text: item.status; color: Theme.ink-subtle; font-size: 11px; }
+                                        Text { width: 160px; text: item.source; color: Theme.signal-strong; font-size: 11px; }
+                                    }
+                                }
+                            }
+
+                            if root.patient-tab == "Medications": HonestyPanel { title: "Medications — honest unsupported state"; body: root.patient-medications-state; accent: Theme.warning; }
+                            if root.patient-tab == "Documents": HonestyPanel { title: "Documents — custody is not understanding"; body: root.patient-documents-state; accent: Theme.signal; }
+                            if root.patient-tab == "Care Plan": VerticalLayout {
+                                spacing: 12px;
+                                HonestyPanel { title: "Care Plan — review first"; body: root.patient-care-plan-state; accent: Theme.success; }
+                                QuickAction { title: "Prepare in Workflows"; subtitle: "Open review surface; do not commit here"; glyph: "⌘"; accent: Theme.signal; activated => { root.ui-action("care-plan"); } }
+                            }
+
+                            if root.patient-tab == "Sources": VerticalLayout {
+                                spacing: 8px;
+                                Text { text: "Evidence sources"; color: Theme.ink; font-size: 15px; font-weight: 650; }
+                                Text { text: "Synthetic fixture provenance only. A source link supports inspection; it does not make a claim authoritative by itself."; color: Theme.ink-subtle; font-size: 11px; wrap: word-wrap; }
+                                for item in root.patient-sources: Rectangle {
+                                    min-height: 58px; border-radius: Theme.radius-compact; border-width: 1px; border-color: Theme.border; background: Theme.surface;
+                                    accessible-role: text;
+                                    accessible-label: "Source " + item.source-id + ". " + item.note;
+                                    HorizontalLayout { padding: 12px; spacing: 14px;
+                                        Text { width: 220px; text: item.source-id; color: Theme.signal-strong; font-size: 11px; font-weight: 650; }
+                                        Text { horizontal-stretch: 1; text: item.note; color: Theme.ink-subtle; font-size: 11px; wrap: word-wrap; }
+                                    }
+                                }
+                            }
+                        }
+
+                        if root.active-route == "Insights": VerticalLayout {
+                            spacing: 18px;
+
+                            HorizontalLayout {
+                                spacing: 12px;
+                                MetricCard { label: "Synthetic cohort"; value: root.insights-cohort-size; delta: "Trusted projection subjects"; glyph: "◎"; accent: Theme.signal; }
+                                MetricCard { label: "Evidence review"; value: root.insights-review-attention; delta: "Unresolved evidence state"; glyph: "◇"; accent: Theme.warning; }
+                                MetricCard { label: "Evidence gaps"; value: root.insights-evidence-gaps; delta: "Not clinical care gaps"; glyph: "○"; accent: Theme.warning; }
+                                MetricCard { label: "Present slots"; value: root.insights-present-count; delta: "Trusted presentation only"; glyph: "✓"; accent: Theme.success; }
+                            }
+
+                            HorizontalLayout {
+                                spacing: 8px;
+                                SegmentTab { label: "Overview"; selected: root.insights-tab == "Overview"; activated => { root.insights-tab = "Overview"; } }
+                                SegmentTab { label: "Cohorts"; selected: root.insights-tab == "Cohorts"; activated => { root.insights-tab = "Cohorts"; } }
+                                SegmentTab { label: "Evidence"; selected: root.insights-tab == "Evidence"; activated => { root.insights-tab = "Evidence"; } }
+                            }
+
+                            if root.insights-tab == "Overview": VerticalLayout {
+                                spacing: 16px;
+                                HorizontalLayout {
+                                    spacing: 16px;
+                                    Rectangle {
+                                        horizontal-stretch: 3;
+                                        min-height: 310px;
+                                        border-radius: Theme.radius-panel;
+                                        border-width: 1px;
+                                        border-color: Theme.border;
+                                        background: Theme.surface;
+                                        accessible-role: groupbox;
+                                        accessible-label: "Coverage state distribution from trusted synthetic projections";
+                                        VerticalLayout {
+                                            padding: 16px;
+                                            spacing: 8px;
+                                            Text { text: "Coverage state distribution"; color: Theme.ink; font-size: 15px; font-weight: 650; }
+                                            Text { text: "Statuses remain distinct; unresolved evidence is never flattened into present."; color: Theme.ink-subtle; font-size: 11px; wrap: word-wrap; }
+                                            Rectangle { height: 1px; background: Theme.border; }
+                                            for item in root.insights-coverage: HorizontalLayout {
+                                                height: 34px;
+                                                spacing: 12px;
+                                                accessible-role: text;
+                                                accessible-label: item.label + ": " + item.value + ". " + item.detail;
+                                                Text { width: 150px; text: item.label; color: Theme.ink; font-size: 11px; font-weight: 650; }
+                                                Text { width: 46px; text: item.value; color: Theme.signal-strong; font-size: 13px; font-weight: 700; }
+                                                Text { horizontal-stretch: 1; text: item.detail; color: Theme.ink-subtle; font-size: 11px; }
+                                                Text { width: 118px; text: item.status; color: Theme.ink-subtle; font-size: 11px; horizontal-alignment: right; }
+                                            }
+                                        }
+                                    }
+
+                                    Rectangle {
+                                        horizontal-stretch: 2;
+                                        min-height: 310px;
+                                        border-radius: 20px;
+                                        border-width: 1px;
+                                        border-color: Theme.border;
+                                        background: Theme.surface;
+                                        accessible-role: groupbox;
+                                        accessible-label: "Contextual evidence assistant. Suggestions only; relevance is not clinical authority.";
+                                        VerticalLayout {
+                                            padding: 16px;
+                                            spacing: 10px;
+                                            HorizontalLayout {
+                                                Text { text: "MedScale Assistant"; color: Theme.ink; font-size: 15px; font-weight: 680; }
+                                                Rectangle { horizontal-stretch: 1; background: transparent; }
+                                                StatusPill { label: "Evidence context"; accent: Theme.success; }
+                                            }
+                                            Text { text: "Deterministic local UX — no provider/model authority in this slice."; color: Theme.ink-subtle; font-size: 11px; wrap: word-wrap; }
+                                            assistant-query := AdaptiveLineEdit {
+                                                placeholder: "Ask about coverage, cohorts, evidence, or risk limits…";
+                                                accessible-name: "Population evidence assistant query";
+                                                accepted(text) => { root.ui-action("insights-assistant:" + text); }
+                                            }
+                                            Rectangle {
+                                                min-height: 106px;
+                                                border-radius: Theme.radius-panel;
+                                                background: Theme.signal-soft;
+                                                accessible-role: text;
+                                                accessible-label: "Assistant response: " + root.insights-assistant-answer;
+                                                VerticalLayout {
+                                                    padding: 14px;
+                                                    spacing: 6px;
+                                                    Text { text: "Suggestion"; color: Theme.signal-strong; font-size: 11px; font-weight: 700; }
+                                                    Text { text: root.insights-assistant-answer; color: Theme.ink; font-size: 11px; wrap: word-wrap; }
+                                                }
+                                            }
+                                            HorizontalLayout {
+                                                spacing: 8px;
+                                                QuickAction { title: "Explain gaps"; subtitle: "Evidence state only"; glyph: "?"; accent: Theme.warning; activated => { root.ui-action("insights-assistant:Explain coverage gaps"); } }
+                                                QuickAction { title: "Risk limits"; subtitle: "No clinical ranking"; glyph: "!"; accent: Theme.warning; activated => { root.ui-action("insights-assistant:Who is highest risk?"); } }
+                                            }
+                                        }
+                                    }
+                                }
+
+                                HorizontalLayout {
+                                    spacing: 16px;
+                                    HonestyPanel { horizontal-stretch: 1; title: "Risk distribution boundary"; body: root.insights-risk-state; accent: Theme.warning; }
+                                    HonestyPanel { horizontal-stretch: 1; title: "Trend boundary"; body: root.insights-trend-state; accent: Theme.signal; }
+                                }
+                                HorizontalLayout {
+                                    spacing: 16px;
+                                    HonestyPanel { horizontal-stretch: 1; title: "Evidence gaps"; body: root.insights-gap-state; accent: Theme.warning; }
+                                    HonestyPanel { horizontal-stretch: 1; title: "Review recommendation"; body: root.insights-recommendation-state; accent: Theme.success; }
+                                }
+                            }
+
+                            if root.insights-tab == "Cohorts": Rectangle {
+                                min-height: 390px;
+                                border-radius: Theme.radius-panel;
+                                border-width: 1px;
+                                border-color: Theme.border;
+                                background: Theme.surface;
+                                accessible-role: groupbox;
+                                accessible-label: "Synthetic cohort explorer with evidence review state";
+                                VerticalLayout {
+                                    padding: 16px;
+                                    spacing: 0px;
+                                    Text { text: "Cohort explorer"; color: Theme.ink; font-size: 15px; font-weight: 650; }
+                                    Text { text: "Synthetic subjects only. Condition text is shown only when present in trusted presentation; unresolved status remains explicit."; color: Theme.ink-subtle; font-size: 11px; wrap: word-wrap; }
+                                    Rectangle { height: 12px; background: transparent; }
+                                    HorizontalLayout { height: 38px; spacing: 12px;
+                                        Text { width: 160px; text: "SUBJECT"; color: Theme.ink-quiet; font-size: 11px; font-weight: 700; }
+                                        Text { width: 210px; text: "CONDITION"; color: Theme.ink-quiet; font-size: 11px; font-weight: 700; }
+                                        Text { horizontal-stretch: 1; text: "EVIDENCE STATE"; color: Theme.ink-quiet; font-size: 11px; font-weight: 700; }
+                                        Text { width: 150px; text: "REVIEW"; color: Theme.ink-quiet; font-size: 11px; font-weight: 700; horizontal-alignment: right; }
+                                    }
+                                    for item in root.insights-cohorts: Rectangle {
+                                        height: 58px;
+                                        background: Theme.surface;
+                                        border-width: 1px;
+                                        border-color: Theme.border;
+                                        accessible-role: text;
+                                        accessible-label: item.name + ", " + item.condition + ", " + item.evidence-state + ", " + item.review-attention;
+                                        HorizontalLayout { padding-left: 10px; padding-right: 10px; spacing: 12px;
+                                            VerticalLayout { width: 160px; alignment: center; spacing: 1px;
+                                                Text { text: item.name; color: Theme.ink; font-size: 11px; font-weight: 650; }
+                                                Text { text: item.subject-ref; color: Theme.ink-quiet; font-size: 11px; }
+                                            }
+                                            Text { width: 210px; text: item.condition; color: Theme.ink-subtle; font-size: 11px; wrap: word-wrap; }
+                                            Text { horizontal-stretch: 1; text: item.evidence-state; color: Theme.ink-subtle; font-size: 11px; wrap: word-wrap; }
+                                            Text { width: 150px; text: item.review-attention; color: Theme.ink-subtle; font-size: 11px; horizontal-alignment: right; }
+                                        }
+                                    }
+                                }
+                            }
+
+                            if root.insights-tab == "Evidence": HorizontalLayout {
+                                spacing: 16px;
+                                Rectangle {
+                                    horizontal-stretch: 2;
+                                    min-height: 390px;
+                                    border-radius: Theme.radius-panel;
+                                    border-width: 1px;
+                                    border-color: Theme.border;
+                                    background: Theme.surface;
+                                    VerticalLayout {
+                                        padding: 16px;
+                                        spacing: 8px;
+                                        Text { text: "Present condition distribution"; color: Theme.ink; font-size: 15px; font-weight: 650; }
+                                        Text { text: "Only Present condition facts are counted. Conflict/unknown values are not promoted into the distribution."; color: Theme.ink-subtle; font-size: 11px; wrap: word-wrap; }
+                                        Rectangle { height: 1px; background: Theme.border; }
+                                        for item in root.insights-conditions: HorizontalLayout {
+                                            height: 44px;
+                                            accessible-role: text;
+                                            accessible-label: item.label + ": " + item.value + ". " + item.detail;
+                                            Text { horizontal-stretch: 1; text: item.label; color: Theme.ink; font-size: 11px; font-weight: 650; }
+                                            Text { width: 46px; text: item.value; color: Theme.signal-strong; font-size: 15px; font-weight: 700; horizontal-alignment: right; }
+                                        }
+                                    }
+                                }
+                                Rectangle {
+                                    horizontal-stretch: 3;
+                                    min-height: 390px;
+                                    border-radius: Theme.radius-panel;
+                                    border-width: 1px;
+                                    border-color: Theme.border;
+                                    background: Theme.surface;
+                                    accessible-role: groupbox;
+                                    accessible-label: "Evidence retrieval cards; relevance is not authority";
+                                    VerticalLayout {
+                                        padding: 16px;
+                                        spacing: 8px;
+                                        Text { text: "Assistant evidence context"; color: Theme.ink; font-size: 15px; font-weight: 650; }
+                                        Text { text: "Retracted, freshness, conflict, corpus identity, and relevance-only metadata remain visible."; color: Theme.ink-subtle; font-size: 11px; wrap: word-wrap; }
+                                        for item in root.insights-evidence: Rectangle {
+                                            min-height: 104px;
+                                            border-radius: Theme.radius-compact;
+                                            border-width: 1px;
+                                            border-color: Theme.border;
+                                            background: Theme.surface-raised;
+                                            accessible-role: text;
+                                            accessible-label: item.title + ". " + item.metadata + ". " + item.snippet;
+                                            VerticalLayout {
+                                                padding: 12px;
+                                                spacing: 4px;
+                                                HorizontalLayout {
+                                                    Text { text: item.title; color: Theme.ink; font-size: 11px; font-weight: 650; }
+                                                    Rectangle { horizontal-stretch: 1; background: transparent; }
+                                                    Text { text: item.source; color: Theme.signal-strong; font-size: 11px; }
+                                                }
+                                                Text { text: item.snippet; color: Theme.ink-subtle; font-size: 11px; wrap: word-wrap; }
+                                                Text { text: item.metadata; color: Theme.ink-quiet; font-size: 11px; wrap: word-wrap; }
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+
+                        if root.active-route == "Workflows": VerticalLayout {
+                            spacing: 18px;
+                            HorizontalLayout {
+                                spacing: 12px;
+                                MetricCard { label: "Studio posture"; value: "Review first"; delta: "No Desktop commit"; glyph: "⌘"; accent: Theme.signal; }
+                                MetricCard { label: "Outbox state"; value: "5 demo"; delta: root.workflow-outbox-summary; glyph: "⇥"; accent: Theme.success; }
+                                MetricCard { label: "UNKNOWN policy"; value: "Reconcile"; delta: "Blind retry forbidden"; glyph: "!"; accent: Theme.warning; }
+                                MetricCard { label: "Payload identity"; value: "SHA-256"; delta: "Bound before send"; glyph: "#"; accent: Theme.warning; }
+                            }
+
+                            HorizontalLayout {
+                                spacing: 16px;
+                                Rectangle {
+                                    horizontal-stretch: 3;
+                                    min-height: 520px;
+                                    border-radius: Theme.radius-panel;
+                                    border-width: 1px;
+                                    border-color: Theme.border;
+                                    background: Theme.surface;
+                                    accessible-role: groupbox;
+                                    accessible-label: "Review-first workflow graph. Core Host owns controlled actions.";
+                                    VerticalLayout {
+                                        padding: 16px;
+                                        spacing: 8px;
+                                        Text { text: root.workflow-name; color: Theme.ink; font-size: 16px; font-weight: 700; }
+                                        Text { text: root.workflow-state; color: Theme.ink-subtle; font-size: 11px; wrap: word-wrap; }
+                                        Rectangle { height: 1px; background: Theme.border; }
+                                        for item in root.workflow-steps: Rectangle {
+                                            min-height: 82px;
+                                            border-radius: 0px;
+                                            border-width: 0px;
+                                            border-color: transparent;
+                                            background: transparent;
+                                            accessible-role: text;
+                                            accessible-label: "Step " + item.order + ", " + item.title + ", " + item.state + ". " + item.detail;
+                                            HorizontalLayout {
+                                                padding: 12px;
+                                                spacing: 12px;
+                                                Rectangle {
+                                                    width: 38px;
+                                                    height: 38px;
+                                                    background: transparent;
+                                                    Text { text: item.order; color: Theme.signal-strong; font-size: 12px; font-weight: 700; horizontal-alignment: center; }
+                                                }
+                                                VerticalLayout {
+                                                    horizontal-stretch: 1;
+                                                    alignment: center;
+                                                    spacing: 3px;
+                                                    Text { text: item.title; color: Theme.ink; font-size: 12px; font-weight: 650; }
+                                                    Text { text: item.detail; color: Theme.ink-subtle; font-size: 11px; wrap: word-wrap; }
+                                                }
+                                                StatusPill { label: item.state; accent: item.state == "Fail closed" ? Theme.warning : item.state == "Required" ? Theme.warning : Theme.success; }
+                                            }
+                                        }
+                                    }
+                                }
+                                VerticalLayout {
+                                    horizontal-stretch: 2;
+                                    spacing: 12px;
+                                    HonestyPanel { title: "Authority boundary"; body: root.workflow-action-boundary; accent: Theme.success; }
+                                    HonestyPanel { title: "Task semantics"; body: root.workflow-task-boundary; accent: Theme.signal; }
+                                    QuickAction { title: "Open review tasks"; subtitle: "Derived from durable outbox state"; glyph: "✓"; accent: Theme.signal; activated => { root.active-route = "Tasks"; } }
+                                    QuickAction { title: "Open message previews"; subtitle: "No external send from this UI"; glyph: "✉"; accent: Theme.success; activated => { root.active-route = "Messages"; } }
+                                }
+                            }
+                        }
+
+                        if root.active-route == "Tasks": VerticalLayout {
+                            spacing: 16px;
+                            HonestyPanel { title: "Derived review queue"; body: root.workflow-task-boundary; accent: Theme.signal; }
+                            Rectangle {
+                                min-height: 390px;
+                                border-radius: Theme.radius-panel;
+                                border-width: 1px;
+                                border-color: Theme.border;
+                                background: Theme.surface;
+                                accessible-role: groupbox;
+                                accessible-label: "Review tasks derived from durable controlled-action outbox entries";
+                                VerticalLayout {
+                                    padding: 16px;
+                                    spacing: 0px;
+                                    HorizontalLayout { height: 38px; spacing: 12px;
+                                        Text { width: 190px; text: "REVIEW ITEM"; color: Theme.ink-quiet; font-size: 11px; font-weight: 700; }
+                                        Text { width: 90px; text: "STATE"; color: Theme.ink-quiet; font-size: 11px; font-weight: 700; }
+                                        Text { horizontal-stretch: 1; text: "NEXT SAFE STEP"; color: Theme.ink-quiet; font-size: 11px; font-weight: 700; }
+                                        Text { width: 130px; text: "ACTION"; color: Theme.ink-quiet; font-size: 11px; font-weight: 700; horizontal-alignment: right; }
+                                    }
+                                    for item in root.workflow-tasks: Rectangle {
+                                        min-height: 74px;
+                                        border-width: 1px;
+                                        border-color: Theme.border;
+                                        background: Theme.surface;
+                                        accessible-role: groupbox;
+                                        accessible-label: item.title + ", " + item.state + ". " + item.next-step;
+                                        HorizontalLayout {
+                                            padding-left: 10px;
+                                            padding-right: 10px;
+                                            spacing: 12px;
+                                            VerticalLayout { width: 190px; alignment: center; spacing: 2px;
+                                                Text { text: item.title; color: Theme.ink; font-size: 11px; font-weight: 650; wrap: word-wrap; }
+                                                Text { text: item.action-id; color: Theme.ink-quiet; font-size: 11px; }
+                                            }
+                                            Text { width: 90px; text: item.state; color: Theme.ink-subtle; font-size: 11px; font-weight: 650; }
+                                            VerticalLayout { horizontal-stretch: 1; alignment: center; spacing: 2px;
+                                                Text { text: item.next-step; color: Theme.ink-subtle; font-size: 11px; wrap: word-wrap; }
+                                                Text { text: "Payload digest: " + item.payload-digest; color: Theme.ink-quiet; font-size: 11px; }
+                                            }
+                                            QuickAction { width: 130px; title: "Inspect"; subtitle: "No commit"; glyph: "→"; accent: item.reconcile-required ? Theme.warning : Theme.signal; activated => { root.ui-action("workflow-review:" + item.action-id); } }
+                                        }
+                                    }
+                                }
+                            }
+                            HonestyPanel { title: "Selected review detail"; body: root.workflow-review-detail; accent: Theme.success; }
+                        }
+
+                        if root.active-route == "Messages": VerticalLayout {
+                            spacing: 16px;
+                            HonestyPanel { title: "Message boundary"; body: root.workflow-message-boundary; accent: Theme.success; }
+                            Rectangle {
+                                min-height: 420px;
+                                border-radius: Theme.radius-panel;
+                                border-width: 1px;
+                                border-color: Theme.border;
+                                background: Theme.surface;
+                                accessible-role: groupbox;
+                                accessible-label: "Local review message previews; no external messaging transport";
+                                VerticalLayout {
+                                    padding: 16px;
+                                    spacing: 10px;
+                                    for item in root.workflow-messages: Rectangle {
+                                        min-height: 72px;
+                                        border-radius: Theme.radius-compact;
+                                        border-width: 1px;
+                                        border-color: Theme.border;
+                                        background: Theme.surface-raised;
+                                        accessible-role: text;
+                                        accessible-label: item.title + ", " + item.status + ". " + item.body;
+                                        HorizontalLayout {
+                                            padding: 12px;
+                                            spacing: 12px;
+                                            VerticalLayout { horizontal-stretch: 1; alignment: center; spacing: 3px;
+                                                Text { text: item.title; color: Theme.ink; font-size: 11px; font-weight: 650; }
+                                                Text { text: item.body; color: Theme.ink-subtle; font-size: 11px; wrap: word-wrap; }
+                                                Text { text: "Related action: " + item.related-action-id; color: Theme.ink-quiet; font-size: 11px; }
+                                            }
+                                            StatusPill { label: item.status; accent: item.status == "Reconcile first" ? Theme.warning : item.status == "Review required" ? Theme.warning : Theme.success; }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+
+                        if root.active-route == "Audit Trail": VerticalLayout {
+                            spacing: 16px;
+                            HonestyPanel { title: "Audit authority boundary"; body: root.utility-audit-boundary; accent: Theme.success; }
+                            Rectangle {
+                                min-height: 420px;
+                                border-radius: Theme.radius-panel;
+                                border-width: 1px;
+                                border-color: Theme.border;
+                                background: Theme.surface;
+                                accessible-role: groupbox;
+                                accessible-label: "Synthetic disclosure audit history";
+                                VerticalLayout {
+                                    padding: 16px;
+                                    spacing: 0px;
+                                    HorizontalLayout { height: 38px; spacing: 12px;
+                                        Text { width: 185px; text: "DISCLOSURE"; color: Theme.ink-quiet; font-size: 11px; font-weight: 700; }
+                                        Text { width: 170px; text: "PURPOSE"; color: Theme.ink-quiet; font-size: 11px; font-weight: 700; }
+                                        Text { width: 210px; text: "SUBJECT"; color: Theme.ink-quiet; font-size: 11px; font-weight: 700; }
+                                        Text { horizontal-stretch: 1; text: "DETAIL"; color: Theme.ink-quiet; font-size: 11px; font-weight: 700; }
+                                        Text { width: 150px; text: "STATUS"; color: Theme.ink-quiet; font-size: 11px; font-weight: 700; horizontal-alignment: right; }
+                                    }
+                                    for item in root.utility-audit-rows: Rectangle {
+                                        min-height: 64px;
+                                        border-width: 1px;
+                                        border-color: Theme.border;
+                                        background: Theme.surface;
+                                        accessible-role: text;
+                                        accessible-label: item.action + ", " + item.subject + ", " + item.status + ". " + item.detail;
+                                        HorizontalLayout { padding-left: 10px; padding-right: 10px; spacing: 12px;
+                                            Text { width: 185px; text: item.record-id; color: Theme.signal-strong; font-size: 11px; }
+                                            Text { width: 170px; text: item.action; color: Theme.ink; font-size: 11px; font-weight: 650; wrap: word-wrap; }
+                                            Text { width: 210px; text: item.subject; color: Theme.ink-subtle; font-size: 11px; wrap: word-wrap; }
+                                            Text { horizontal-stretch: 1; text: item.detail; color: Theme.ink-subtle; font-size: 11px; wrap: word-wrap; }
+                                            Text { width: 150px; text: item.status; color: Theme.ink-subtle; font-size: 11px; wrap: word-wrap; horizontal-alignment: right; }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+
+                        if root.active-route == "Exports": VerticalLayout {
+                            spacing: 16px;
+                            HonestyPanel { title: "FHIR export boundary"; body: root.utility-export-boundary; accent: Theme.signal; }
+                            Rectangle {
+                                min-height: 390px;
+                                border-radius: Theme.radius-panel;
+                                border-width: 1px;
+                                border-color: Theme.border;
+                                background: Theme.surface;
+                                accessible-role: groupbox;
+                                accessible-label: "FHIR R4 support matrix for loss-aware export";
+                                VerticalLayout {
+                                    padding: 16px;
+                                    spacing: 8px;
+                                    Text { text: "FHIR R4 support matrix"; color: Theme.ink; font-size: 15px; font-weight: 650; }
+                                    Text { text: "Support is axis-specific. Unsupported clinical interpretation is kept explicit."; color: Theme.ink-subtle; font-size: 11px; wrap: word-wrap; }
+                                    for item in root.utility-export-rows: Rectangle {
+                                        min-height: 76px;
+                                        border-radius: Theme.radius-compact;
+                                        border-width: 1px;
+                                        border-color: Theme.border;
+                                        background: Theme.surface-raised;
+                                        accessible-role: text;
+                                        accessible-label: item.label + ", " + item.value + ", " + item.status + ". " + item.detail;
+                                        HorizontalLayout { padding: 12px; spacing: 12px;
+                                            Text { width: 130px; text: item.label; color: Theme.ink; font-size: 12px; font-weight: 700; }
+                                            VerticalLayout { horizontal-stretch: 1; alignment: center; spacing: 3px;
+                                                Text { text: item.value; color: Theme.ink-subtle; font-size: 11px; wrap: word-wrap; }
+                                                Text { text: item.detail; color: Theme.ink-quiet; font-size: 11px; wrap: word-wrap; }
+                                            }
+                                            StatusPill { label: item.status; accent: Theme.warning; }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+
+                        if root.active-route == "Settings": VerticalLayout {
+                            spacing: 16px;
+                            HonestyPanel { title: "Settings are not evidence"; body: root.utility-settings-boundary; accent: Theme.success; }
+                            Rectangle {
+                                min-height: 390px;
+                                border-radius: Theme.radius-panel;
+                                border-width: 1px;
+                                border-color: Theme.border;
+                                background: Theme.surface;
+                                accessible-role: groupbox;
+                                accessible-label: "Doctor-backed product settings and readiness status";
+                                VerticalLayout {
+                                    padding: 16px;
+                                    spacing: 8px;
+                                    for item in root.utility-settings-rows: Rectangle {
+                                        min-height: 72px;
+                                        border-radius: Theme.radius-compact;
+                                        border-width: 1px;
+                                        border-color: Theme.border;
+                                        background: Theme.surface-raised;
+                                        accessible-role: text;
+                                        accessible-label: item.label + ", " + item.value + ", " + item.status + ". " + item.detail;
+                                        HorizontalLayout { padding: 12px; spacing: 12px;
+                                            VerticalLayout { width: 210px; alignment: center; spacing: 2px;
+                                                Text { text: item.label; color: Theme.ink; font-size: 11px; font-weight: 650; }
+                                                Text { text: item.value; color: Theme.signal-strong; font-size: 11px; font-weight: 650; }
+                                            }
+                                            Text { horizontal-stretch: 1; text: item.detail; color: Theme.ink-subtle; font-size: 11px; wrap: word-wrap; }
+                                            StatusPill { label: item.status; accent: item.status == "Fail closed" ? Theme.warning : Theme.warning; }
+                                        }
+                                    }
+                                }
+                            }
+                            HonestyPanel { title: "Missing release evidence"; body: root.utility-missing-release-evidence; accent: Theme.warning; }
+                        }
+
+                        if root.active-route == "Integrations": VerticalLayout {
+                            spacing: 16px;
+                            HonestyPanel { title: "Integration boundary"; body: root.utility-integrations-boundary; accent: Theme.success; }
+                            Rectangle {
+                                min-height: 420px;
+                                border-radius: Theme.radius-panel;
+                                border-width: 1px;
+                                border-color: Theme.border;
+                                background: Theme.surface;
+                                accessible-role: groupbox;
+                                accessible-label: "Integration readiness and default-deny status";
+                                VerticalLayout {
+                                    padding: 16px;
+                                    spacing: 10px;
+                                    for item in root.utility-integration-rows: Rectangle {
+                                        min-height: 76px;
+                                        border-radius: Theme.radius-compact;
+                                        border-width: 1px;
+                                        border-color: Theme.border;
+                                        background: Theme.surface-raised;
+                                        accessible-role: text;
+                                        accessible-label: item.label + ", " + item.value + ", " + item.status + ". " + item.detail;
+                                        HorizontalLayout { padding: 12px; spacing: 12px;
+                                            VerticalLayout { width: 170px; alignment: center; spacing: 2px;
+                                                Text { text: item.label; color: Theme.ink; font-size: 12px; font-weight: 650; }
+                                                Text { text: item.value; color: Theme.signal-strong; font-size: 11px; font-weight: 650; }
+                                            }
+                                            Text { horizontal-stretch: 1; text: item.detail; color: Theme.ink-subtle; font-size: 11px; wrap: word-wrap; }
+                                            StatusPill { label: item.status; accent: item.status == "Untouched" ? Theme.ink-quiet : item.status == "Not live" ? Theme.warning : Theme.success; }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+
+                        if root.active-route == "Documents": VerticalLayout {
+                            spacing: 18px;
+                            HonestyPanel {
+                                title: "Documents — bounded intake";
+                                body: root.patient-documents-state;
+                                accent: Theme.signal;
+                            }
+                            Rectangle {
+                                min-height: 280px;
+                                border-radius: Theme.radius-panel;
+                                border-width: 1px;
+                                border-color: Theme.border;
+                                background: Theme.surface;
+                                accessible-role: groupbox;
+                                accessible-label: "Document intake boundary. Accepted custody does not imply OCR, semantic understanding, or clinical authority.";
+                                VerticalLayout {
+                                    padding: 18px;
+                                    spacing: 12px;
+                                    Text { text: "Document intake boundary"; color: Theme.ink; font-size: 16px; font-weight: 700; }
+                                    Text { text: "Current trusted posture is intentionally narrow. A file may be admitted to local custody without becoming a clinical fact or an understood document."; color: Theme.ink-subtle; font-size: 12px; wrap: word-wrap; }
+                                    HonestyPanel { title: "Understanding"; body: "OCR/ASR remain bounded stubs unless separately qualified. No document-derived clinical interpretation is claimed."; accent: Theme.warning; }
+                                    HonestyPanel { title: "Authority"; body: "Source custody, extraction evidence, and clinical authority remain separate. Review is required before any consequential use."; accent: Theme.success; }
+                                    QuickAction { title: "Open patient documents"; subtitle: "View the current synthetic subject boundary"; glyph: "→"; accent: Theme.signal; activated => { root.patient-tab = "Documents"; root.active-route = "Patients"; } }
+                                }
+                            }
+                        }
+
+                        if root.active-route == "Home": CommandCenter {
+                            patient-name: root.patient-name;
+                            subject-ref: root.patient-subject-ref;
+                            condition-summary: root.patient-condition-summary;
+                            coverage-summary: root.patient-coverage-summary;
+                            source-count: root.patient-sources.length;
+                            model-runtime-summary: root.model-runtime-summary;
+                            navigate(route) => { root.active-route = route; }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    if root.palette-open: Rectangle {
+        x: parent.width / 2 - 270px;
+        y: 104px;
+        width: 540px;
+        height: 338px;
+        border-radius: Theme.radius-panel;
+        border-width: 1px;
+        border-color: Theme.border;
+        background: Theme.surface;
+        accessible-role: groupbox;
+        accessible-label: "MedScale command palette";
+        drop-shadow-blur: 0px;
+        drop-shadow-color: transparent;
+        drop-shadow-offset-y: 0px;
+
+        VerticalLayout {
+            padding: 16px;
+            spacing: 8px;
+            Text { text: "Command palette"; color: Theme.ink; font-size: 16px; font-weight: 700; }
+            palette-search := AdaptiveLineEdit { placeholder: "Search commands…"; accessible-name: "Command palette search"; }
+            QuickAction { title: "Go to Patients"; subtitle: "Open patient workspace"; glyph: ""; accent: Theme.signal; activated => { root.active-route = "Patients"; root.palette-open = false; } }
+            QuickAction { title: "Open Models"; subtitle: "Inspect local model/runtime truth"; glyph: ""; accent: Theme.signal; activated => { root.active-route = "Models"; root.palette-open = false; } }
+            QuickAction { title: "Open Evidence"; subtitle: "MedScale research evidence"; glyph: ""; accent: Theme.signal; activated => { root.active-route = "Evidence"; root.palette-open = false; } }
+        }
+    }
+}
