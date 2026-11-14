@@ -1,1 +1,0 @@
-{"resourceType":"Patient","id":"pres-patient","birthDate":"1990-05-15","name":[{"family":"Synthetic","given":["Ada"]}],"identifier":[{"system":"http://hospital.example/mrn","value":"P-004"}]}
