@@ -339,19 +339,14 @@ async function main() {
     await click(button("Create project"));
     await waitForText("Installed build study", 30000);
   });
-  await step("import-fhir", async () => {
-    const dir = fs.mkdtempSync(path.join(os.tmpdir(), "medscale-fhir-"));
-    const file = path.join(dir, "installed-fictional-patient.json");
-    const bundled = JSON.parse(fs.readFileSync(path.resolve("fixtures/synthetic/fhir/r4/presentation/patient-golden.json"), "utf8"));
-    fs.writeFileSync(file, JSON.stringify({ ...bundled, id: "installed-fictional-patient" }));
+  // B1: the sample workspace refuses imports and points to an encrypted
+  // vault; the real import is the encrypted-vault-fhir-import step.
+  await step("sample-import-needs-encrypted-vault", async () => {
     await nav("Documents");
     await click(button("Import synthetic FHIR"));
-    await type("ip", file);
-    const synthetic = { name: "No real patient information in this file", kind: "CheckBox" };
-    await find(synthetic);
-    if (!(await driver.send({ op: "checked", ...synthetic })).checked) await click(synthetic);
-    await click(button("Ingest through Core"));
-    await waitForText("ingested and promoted as", 60000);
+    await waitForText("Imports go into an encrypted vault", 30000);
+    await find(button("Lock and go to the vault"));
+    await click(button("Import synthetic FHIR"));
   });
   await step("folder-admission-matches-this-build", async () => {
     await nav("Audio");

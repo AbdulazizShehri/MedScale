@@ -995,6 +995,31 @@ fn a_large_bundle_and_ndjson_are_imported_entry_by_entry() {
         "one source per line"
     );
 
+    // Not JSON, or over the gate and not even JSON: refused, nothing written.
+    let not_json = outside.join("not-json.json");
+    std::fs::write(&not_json, b"not json").unwrap();
+    assert_eq!(
+        h.call(
+            "documents_import_fhir",
+            json!({ "path": not_json.display().to_string(), "subjectRef": "large-subject" }),
+        )
+        .unwrap_err()["kind"],
+        "corrupt"
+    );
+    let spaces = outside.join("spaces.json");
+    std::fs::write(
+        &spaces,
+        vec![b' '; crate::host::FHIR_IMPORT_MAX_BYTES as usize + 1],
+    )
+    .unwrap();
+    assert_eq!(
+        h.call(
+            "documents_import_fhir",
+            json!({ "path": spaces.display().to_string(), "subjectRef": "large-subject" }),
+        )
+        .unwrap_err()["kind"],
+        "invalid"
+    );
     // Over the gate and not a Bundle, or one resource over the gate: refused.
     let bad = outside.join("big-patient.json");
     std::fs::write(
@@ -1513,95 +1538,34 @@ fn medagent_workbench_agent_context_evidence_and_resume() {
     );
     assert!(executed["status"].is_string(), "{executed}");
 
-    // Documents: import a synthetic FHIR file for a new subject through Core.
+    // B1: the sample workspace holds only its bundled synthetic records. A
+    // FHIR file is refused, with or without the old confirmation, and
+    // nothing is written; imports go into an encrypted vault.
     let dir = std::env::temp_dir().join(format!("medscale-tauri-import-{}", std::process::id()));
     std::fs::create_dir_all(&dir).unwrap();
     let obs = dir.join("observation-import.json");
     std::fs::write(
         &obs,
-        br#"{"resourceType":"Observation","id":"obs-import","status":"final","code":{"text":"Heart rate"},"subject":{"reference":"Patient/synthetic-import"},"valueQuantity":{"value":72,"unit":"beats/minute","system":"http://unitsofmeasure.org","code":"/min"}}"#,
+        br#"{"resourceType":"Observation","id":"obs-import","status":"final","code":{"text":"Heart rate"},"valueQuantity":{"value":72,"unit":"beats/minute"}}"#,
     )
     .unwrap();
-    let imported = h.ok(
-        "documents_import_fhir",
-        json!({ "path": obs.display().to_string(), "subjectRef": "synthetic-subject-import", "sampleConfirmed": true }),
-    );
-    assert_eq!(imported["resource_type"], "Observation", "{imported}");
-    assert_eq!(imported["claim_kind"], "observation");
-    let docs = h.ok("documents_list", json!({}));
-    assert!(
-        docs["sources"]
-            .as_array()
-            .unwrap()
-            .iter()
-            .any(|s| s["source_id"] == imported["source_id"]),
-        "{docs}"
-    );
-    // The imported source can bind an agent's context.
-    assert!(
-        h.ok("medagent_sources", json!({}))
-            .as_array()
-            .unwrap()
-            .iter()
-            .any(|s| s["id"] == imported["source_id"])
-    );
-    // The sample workspace isn't encrypted: an unconfirmed import is refused,
-    // and a file naming a national patient identifier is refused even when
-    // confirmed.
+    let sources = |h: &Harness| h.ok("documents_list", json!({}))["sources"].as_array().unwrap().len();
+    let before = sources(&h);
+    for extra in [json!({}), json!({ "sampleConfirmed": true })] {
+        let mut args = json!({ "path": obs.display().to_string(), "subjectRef": "synthetic-subject-import" });
+        args.as_object_mut().unwrap().extend(extra.as_object().unwrap().clone());
+        let refused = h.call("documents_import_fhir", args).unwrap_err();
+        assert_eq!(refused["kind"], "denied", "{refused}");
+        assert!(
+            refused["message"].as_str().unwrap().contains("encrypted vault"),
+            "{refused}"
+        );
+    }
+    assert_eq!(sources(&h), before, "nothing was written to the sample workspace");
     assert_eq!(
         h.call(
             "documents_import_fhir",
-            json!({ "path": obs.display().to_string(), "subjectRef": "synthetic-subject-import" }),
-        )
-        .unwrap_err()["kind"],
-        "denied"
-    );
-    std::fs::write(
-        dir.join("real-looking.json"),
-        br#"{"resourceType":"Patient","id":"p","identifier":[{"system":"http://hl7.org/fhir/sid/us-ssn","value":"000-00-0000"}]}"#,
-    )
-    .unwrap();
-    let refused = h
-        .call(
-            "documents_import_fhir",
-            json!({ "path": dir.join("real-looking.json").display().to_string(), "subjectRef": "synthetic-subject-import", "sampleConfirmed": true }),
-        )
-        .unwrap_err();
-    assert_eq!(refused["kind"], "denied");
-    assert!(
-        refused["message"]
-            .as_str()
-            .unwrap()
-            .contains("national patient identifier"),
-        "{refused}"
-    );
-    // The size bound applies to the bytes read.
-    std::fs::write(
-        dir.join("big.json"),
-        vec![b' '; crate::host::FHIR_IMPORT_MAX_BYTES as usize + 1],
-    )
-    .unwrap();
-    assert_eq!(
-        h.call(
-            "documents_import_fhir",
-            json!({ "path": dir.join("big.json").display().to_string(), "subjectRef": "synthetic-subject-import", "sampleConfirmed": true }),
-        )
-        .unwrap_err()["kind"],
-        "invalid"
-    );
-    std::fs::write(dir.join("not-json.json"), b"not json").unwrap();
-    assert_eq!(
-        h.call(
-            "documents_import_fhir",
-            json!({ "path": dir.join("not-json.json").display().to_string(), "subjectRef": "synthetic-subject-import", "sampleConfirmed": true }),
-        )
-        .unwrap_err()["kind"],
-        "corrupt"
-    );
-    assert_eq!(
-        h.call(
-            "documents_import_fhir",
-            json!({ "path": "relative.json", "subjectRef": "synthetic-subject-import", "sampleConfirmed": true }),
+            json!({ "path": "relative.json", "subjectRef": "synthetic-subject-import" }),
         )
         .unwrap_err()["kind"],
         "invalid"

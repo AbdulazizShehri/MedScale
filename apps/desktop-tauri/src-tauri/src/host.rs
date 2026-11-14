@@ -1647,7 +1647,26 @@ pub fn read_bounded(path: &Path, max: u64) -> CmdResult<Vec<u8>> {
 /// Ingests and promotes one synthetic FHIR R4 JSON file through Core for a
 /// subject, and records it in the vault's manifest. Synthetic vaults only:
 /// Core admits no clinical ingest into encrypted vaults yet.
+/// B1: imports go only into an encrypted vault. The sample workspace isn't
+/// encrypted and holds only its bundled synthetic records, so nothing a
+/// person chooses, synthetic or not, is ever written to it in plaintext.
 pub fn import_fhir(
+    workspace: &mut Workspace,
+    path: &Path,
+    subject: &str,
+) -> CmdResult<SeededSource> {
+    if workspace.kind == VaultKind::Synthetic {
+        return Err(CmdError::new(
+            "denied",
+            "Denied: the sample workspace holds only its bundled synthetic records. Create or unlock an encrypted vault to import files",
+        ));
+    }
+    import_fhir_into(workspace, path, subject)
+}
+
+/// The import itself. Tests call it directly to build a sample workspace
+/// holding a user import, the state an earlier version could leave behind.
+pub(crate) fn import_fhir_into(
     workspace: &mut Workspace,
     path: &Path,
     subject: &str,
@@ -3254,7 +3273,7 @@ mod tests {
         let (subject, fixtures) = seed_plan().into_iter().next().expect("plan");
         let file = data_dir.join("same-bytes.json");
         std::fs::write(&file, fixtures[0].bytes).expect("write");
-        import_fhir(state.workspace.as_mut().expect("workspace"), &file, subject)
+        import_fhir_into(state.workspace.as_mut().expect("workspace"), &file, subject)
             .expect("same-content import");
         drop(state);
         assert_eq!(seed_only_vault(&vault_root), SeedOnlyCheck::NotFixtureOnly);
@@ -3270,7 +3289,7 @@ mod tests {
         let plan = seed_plan();
         let file = data_dir.join("cross-subject.json");
         std::fs::write(&file, plan[0].1[0].bytes).expect("write");
-        import_fhir(
+        import_fhir_into(
             state.workspace.as_mut().expect("workspace"),
             &file,
             plan[1].0,
@@ -4096,7 +4115,7 @@ mod tests {
         resource["id"] = serde_json::json!("committed-user-import");
         let file = data_dir.join("committed-user-import.json");
         std::fs::write(&file, serde_json::to_vec(&resource).expect("json")).expect("write");
-        import_fhir(state.workspace.as_mut().expect("workspace"), &file, subject)
+        import_fhir_into(state.workspace.as_mut().expect("workspace"), &file, subject)
             .expect("committed import");
         drop(state);
         let vault = data_dir.join("synthetic-workspace");
@@ -4551,7 +4570,7 @@ mod tests {
         resource["id"] = serde_json::json!("seed-only-user-import");
         let file = data_dir.join("user-import.json");
         std::fs::write(&file, serde_json::to_vec(&resource).expect("json")).expect("write");
-        import_fhir(state.workspace.as_mut().expect("workspace"), &file, subject)
+        import_fhir_into(state.workspace.as_mut().expect("workspace"), &file, subject)
             .expect("user import");
         drop(state);
         assert_eq!(
@@ -4907,7 +4926,7 @@ mod tests {
             .clone();
         let file = dir.join("same-content-user-import.json");
         std::fs::write(&file, fixture.bytes).expect("write synthetic duplicate");
-        let imported = import_fhir(
+        let imported = import_fhir_into(
             state.workspace.as_mut().expect("synthetic workspace"),
             &file,
             subject,
@@ -5013,7 +5032,7 @@ mod tests {
         let file = data_dir.join("unique-fictional-patient.json");
         std::fs::write(&file, serde_json::to_vec(&resource).expect("JSON"))
             .expect("write disposable fictional import");
-        let imported = import_fhir(state.workspace.as_mut().expect("workspace"), &file, subject)
+        let imported = import_fhir_into(state.workspace.as_mut().expect("workspace"), &file, subject)
             .expect("valid novel FHIR import through real Core");
         assert_eq!(imported.fixture, "imported:unique-fictional-patient.json");
         let manifest = state.workspace.as_ref().expect("workspace").seed.clone();
