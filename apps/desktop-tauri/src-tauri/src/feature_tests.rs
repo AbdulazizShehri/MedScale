@@ -1549,19 +1549,34 @@ fn medagent_workbench_agent_context_evidence_and_resume() {
         br#"{"resourceType":"Observation","id":"obs-import","status":"final","code":{"text":"Heart rate"},"valueQuantity":{"value":72,"unit":"beats/minute"}}"#,
     )
     .unwrap();
-    let sources = |h: &Harness| h.ok("documents_list", json!({}))["sources"].as_array().unwrap().len();
+    let sources = |h: &Harness| {
+        h.ok("documents_list", json!({}))["sources"]
+            .as_array()
+            .unwrap()
+            .len()
+    };
     let before = sources(&h);
     for extra in [json!({}), json!({ "sampleConfirmed": true })] {
-        let mut args = json!({ "path": obs.display().to_string(), "subjectRef": "synthetic-subject-import" });
-        args.as_object_mut().unwrap().extend(extra.as_object().unwrap().clone());
+        let mut args =
+            json!({ "path": obs.display().to_string(), "subjectRef": "synthetic-subject-import" });
+        args.as_object_mut()
+            .unwrap()
+            .extend(extra.as_object().unwrap().clone());
         let refused = h.call("documents_import_fhir", args).unwrap_err();
         assert_eq!(refused["kind"], "denied", "{refused}");
         assert!(
-            refused["message"].as_str().unwrap().contains("encrypted vault"),
+            refused["message"]
+                .as_str()
+                .unwrap()
+                .contains("encrypted vault"),
             "{refused}"
         );
     }
-    assert_eq!(sources(&h), before, "nothing was written to the sample workspace");
+    assert_eq!(
+        sources(&h),
+        before,
+        "nothing was written to the sample workspace"
+    );
     assert_eq!(
         h.call(
             "documents_import_fhir",

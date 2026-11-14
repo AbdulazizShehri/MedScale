@@ -5032,8 +5032,9 @@ mod tests {
         let file = data_dir.join("unique-fictional-patient.json");
         std::fs::write(&file, serde_json::to_vec(&resource).expect("JSON"))
             .expect("write disposable fictional import");
-        let imported = import_fhir_into(state.workspace.as_mut().expect("workspace"), &file, subject)
-            .expect("valid novel FHIR import through real Core");
+        let imported =
+            import_fhir_into(state.workspace.as_mut().expect("workspace"), &file, subject)
+                .expect("valid novel FHIR import through real Core");
         assert_eq!(imported.fixture, "imported:unique-fictional-patient.json");
         let manifest = state.workspace.as_ref().expect("workspace").seed.clone();
         assert!(complete_synthetic_core(&vault_root, &manifest));
