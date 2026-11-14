@@ -12,3 +12,4 @@ third_party/medscale-model-catalog-v3/** -text -whitespace
 assets/brand/*.svg text eol=lf
 web/public/brand/*.svg text eol=lf
 crates/medscale-desktop/ui/assets/*.svg text eol=lf
+fixtures/public/hl7/*.json -text -whitespace
