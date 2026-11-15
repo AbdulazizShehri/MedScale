@@ -802,27 +802,16 @@ try {
     await nav("Documents");
     await see("patient-golden.json");
   });
-  // Import a byte-distinct fictional FHIR R4 Patient through the real
-  // Documents UI and Core. The native file chooser is asserted present but
-  // never opened unattended; the path field is the chooser's own target.
-  const novelFhir = path.join(os.tmpdir(), `medscale-e2e-${process.pid}`, "e2e-novel-fictional-patient.json");
-  await journey("documents-import-novel-fhir-ui", async () => {
-    const bundled = JSON.parse(fs.readFileSync(path.resolve("fixtures/synthetic/fhir/r4/presentation/patient-golden.json"), "utf8"));
-    fs.mkdirSync(path.dirname(novelFhir), { recursive: true });
-    fs.writeFileSync(novelFhir, JSON.stringify({ ...bundled, id: "e2e-novel-fictional-patient" }));
-    const before = fs.readFileSync(novelFhir);
+  // B1: the sample workspace holds only its bundled synthetic records. The
+  // import button explains that imports go into an encrypted vault and
+  // offers no file form here.
+  await journey("documents-import-needs-encrypted-vault", async () => {
     await nav("Documents");
     await click(`//button[${text("Import synthetic FHIR")}]`);
-    await find("//form[.//input[@id='ip']]//button[@type='button' and contains(normalize-space(.),'Browse JSON')]");
-    await type(`//input[@id='ip']`, novelFhir);
-    // The sample workspace refuses an import until the file is confirmed synthetic.
-    await assertDisabled(`//button[@type='submit' and ${text("Ingest through Core")}]`);
-    await click(`//input[@id='ip-sample']`);
-    await click(`//button[@type='submit' and ${text("Ingest through Core")}]`);
-    await see("ingested and promoted as", 60000);
-    await see("imported:e2e-novel-fictional-patient.json", 30000);
-    // The user's source file must be read, never rewritten or moved.
-    if (!fs.readFileSync(novelFhir).equals(before)) throw new Error("FHIR import modified the user's source file");
+    await see("Imports go into an encrypted vault", 30000);
+    await find(`//button[${text("Lock and go to the vault")}]`);
+    const form = await wd("POST", `/session/${sid}/execute/sync`, { script: "return !!document.getElementById('ip');", args: [] });
+    if (form) throw new Error("the sample workspace still offers an import form");
   });
   await journey("export-with-disclosure", async () => {
     await nav("Exports");
@@ -904,18 +893,6 @@ try {
     await see("summarize the bound sources", 60000);
     await see("completed");
   });
-  // Reopening must attest the imported row against durable Core evidence
-  // (fail closed otherwise) and show it exactly once, without replay.
-  await journey("imported-fhir-survives-restart-once", async () => {
-    await nav("Documents");
-    await see("imported:e2e-novel-fictional-patient.json", 60000);
-    const count = await wd("POST", `/session/${sid}/execute/sync`, {
-      script: "return [...document.querySelectorAll('table[aria-label=\"Sources\"] tbody tr')].filter(r => r.textContent.includes('imported:e2e-novel-fictional-patient.json')).length;",
-      args: [],
-    });
-    if (count !== 1) throw new Error(`imported FHIR row shown ${count} times after restart, expected exactly 1`);
-    fs.rmSync(path.dirname(novelFhir), { recursive: true, force: true });
-  });
   if (process.env.MEDSCALE_E2E_MODEL_GUI_DOWNLOAD === "1") {
     await journey("whisper-still-active-after-restart", async () => {
       await nav("Audio");
@@ -960,8 +937,7 @@ try {
     }
   });
   // Spec 108 step 5: an un-openable sample (manifest removed after quit, on
-  // a disposable Windows runner only) is set aside and replaced. The
-  // set-aside copy holds the earlier user FHIR import.
+  // a disposable Windows runner only) is set aside and replaced.
   if (process.env.GITHUB_ACTIONS === "true" && (LINUX || MACOS || (WINDOWS && process.env.LOCALAPPDATA))) {
     // Spec 109 Part C through the real screens. A throwaway passphrase on a
     // disposable runner. The code is read from the page and never printed,

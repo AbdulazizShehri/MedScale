@@ -508,7 +508,6 @@ pub fn documents_import_fhir(
     host: tauri::State<'_, Host>,
     path: String,
     subject_ref: String,
-    sample_confirmed: Option<bool>,
 ) -> CmdResult<Value> {
     let path = host::bounded_text(&path, 1024)?;
     let subject = host::bounded_id(&subject_ref)?.to_owned();
@@ -520,14 +519,6 @@ pub fn documents_import_fhir(
     }
     let mut state = lock(&host)?;
     let workspace = state.workspace()?;
-    // The sample workspace isn't encrypted: a file goes there only when the
-    // person has confirmed it holds no real patient information.
-    if workspace.kind == VaultKind::Synthetic && sample_confirmed != Some(true) {
-        return Err(CmdError::new(
-            "denied",
-            "Denied: the sample workspace isn't encrypted. Confirm the file holds no real              patient information, or import it into an encrypted workspace",
-        ));
-    }
     let source = host::import_fhir(workspace, file, &subject)?;
     Ok(json!(source))
 }
