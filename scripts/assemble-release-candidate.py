@@ -81,6 +81,23 @@ def main() -> int:
         installer = one((release / "installer").iterdir(), f"{directory} installer")
         kind = {"windows": "installer", "macos": "dmg", "linux": "deb"}[platform]
         keep(installer, platform, arch, kind, qual, SIGNING[platform])
+        # The website's release gate checks each packaged installer against its
+        # own package manifest, SBOM and NOTICE, so they are published too,
+        # one set per platform and architecture.
+        package = json.loads((release / "package-manifest.json").read_text(encoding="utf-8-sig"))
+        if package.get("installer", {}).get("sha256") != sha256(installer):
+            sys.exit(f"{directory}: package-manifest.json does not describe this installer")
+        for source, companion_kind in (("package-manifest.json", "package-manifest"), ("SBOM.cdx.json", "platform-sbom"), ("NOTICE.md", "platform-notice")):
+            src = release / source
+            if not src.is_file():
+                sys.exit(f"{directory}: {source} is missing")
+            dest = files / f"MedScale_{version}_{platform}-{arch}-{source}"
+            shutil.copy2(src, dest)
+            inventory.append({
+                "name": dest.name, "platform": platform, "arch": arch, "kind": companion_kind,
+                "size": dest.stat().st_size, "sha256": sha256(dest),
+                "qualification": {}, "signing": "n/a",
+            })
         # Notices, licenses and MPL sources for this platform's dependency graph.
         staging = out / "staging" / f"{platform}-{arch}"
         shutil.copytree(release, staging, ignore=shutil.ignore_patterns("installer"))
