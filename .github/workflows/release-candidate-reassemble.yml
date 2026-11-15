@@ -1,0 +1,104 @@
+name: release-candidate-reassemble
+
+# Re-assembles an existing release candidate from the artifacts its run already
+# built and qualified, without rebuilding anything, so the installers stay
+# byte-identical and an approval of their SHA-256 still holds. Used when the
+# assembler gains files (for example the per-platform package manifests the
+# website's release gate needs). Like release-candidate, it publishes nothing.
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "Candidate version, e.g. 0.1.0-beta.1 (the same as the source run)"
+        required: true
+      source_run:
+        description: "Run id of the release-candidate run that built and qualified the files"
+        required: true
+
+permissions:
+  contents: read
+
+concurrency:
+  group: release-candidate
+  cancel-in-progress: false
+
+jobs:
+  reassemble:
+    name: re-assemble, scan and attest
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    permissions:
+      contents: read
+      actions: read
+      id-token: write
+      attestations: write
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v4
+      - name: The source run is a successful release-candidate run
+        id: source
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RUN: ${{ inputs.source_run }}
+        run: |
+          set -euo pipefail
+          case "$RUN" in *[!0-9]*|"") echo "::error::source_run must be a run id"; exit 1 ;; esac
+          read -r path conclusion sha < <(gh api "repos/${{ github.repository }}/actions/runs/$RUN" --jq '"\(.path) \(.conclusion) \(.head_sha)"')
+          [ "$path" = ".github/workflows/release-candidate.yml" ] || { echo "::error::run $RUN is $path, not release-candidate"; exit 1; }
+          [ "$conclusion" = "success" ] || { echo "::error::run $RUN concluded $conclusion"; exit 1; }
+          echo "sha=$sha" >> "$GITHUB_OUTPUT"
+          echo "url=${{ github.server_url }}/${{ github.repository }}/actions/runs/$RUN" >> "$GITHUB_OUTPUT"
+      - name: Download the source run's qualified desktop packages
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        with:
+          run-id: ${{ inputs.source_run }}
+          github-token: ${{ github.token }}
+          pattern: tauri-installer-*
+          path: artifacts
+      - name: Download the source run's CLI archives
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        with:
+          run-id: ${{ inputs.source_run }}
+          github-token: ${{ github.token }}
+          pattern: medscale-cli-*
+          path: artifacts
+      - name: Download the source run's installed-journey reports
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        with:
+          run-id: ${{ inputs.source_run }}
+          github-token: ${{ github.token }}
+          pattern: installed-journey-*
+          path: artifacts
+      - name: Assemble the qualified files
+        run: |
+          python3 scripts/assemble-release-candidate.py artifacts candidate \
+            "${{ steps.source.outputs.sha }}" "${{ steps.source.outputs.url }}" "${{ inputs.version }}"
+      - name: Keep the installed-journey reports as evidence
+        run: |
+          mkdir -p candidate/qualification
+          cp -r artifacts/installed-journey-* candidate/qualification/
+      - name: Malware scan (ClamAV, fresh signatures)
+        run: |
+          set -euo pipefail
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends clamav clamav-freshclam
+          sudo systemctl stop clamav-freshclam || true
+          sudo freshclam
+          clamscan --recursive --infected --scan-archive=yes --max-filesize=1000M --max-scansize=2000M candidate/files | tee candidate/clamav.txt
+          grep -q "Infected files: 0" candidate/clamav.txt
+      - name: Checksums verify
+        working-directory: candidate/files
+        run: sha256sum -c ../SHA256SUMS
+      - name: Build provenance (GitHub artifact attestations)
+        uses: actions/attest-build-provenance@4d101475d8b20a2381f78447822ac1eab6504dd8 # v4.2.2
+        with:
+          subject-checksums: candidate/SHA256SUMS
+      - uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v4.6.2
+        with:
+          name: medscale-release-candidate-${{ inputs.version }}-reassembled
+          path: candidate/
+          if-no-files-found: error
+          retention-days: 90
+          compression-level: 0
+      - name: Summary
+        run: cat candidate/RELEASE_NOTES.md >> "$GITHUB_STEP_SUMMARY"

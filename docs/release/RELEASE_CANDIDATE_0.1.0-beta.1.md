@@ -46,10 +46,14 @@ No file is code-signed by a trusted publisher. See [ZERO_COST_DISTRIBUTION.md](Z
 - Upgrades between released versions are untested: this is the first release.
 - Real patient data blockers B2, B3 and B4 remain (REAL_DATA_READINESS.md).
 
+## Before publishing (engineering)
+
+The website's release gate checks each packaged installer (Windows installer, both DMGs, both `.deb`) against its own package manifest, SBOM and NOTICE, and every other file against `SHA256SUMS`. This candidate kept those inside its notices archives, so it is **re-assembled** from the same run's artifacts by `release-candidate-reassemble` (`version: 0.1.0-beta.1`, `source_run: 43247164670`). Nothing is rebuilt: every installer, archive, SBOM and notices file keeps the SHA-256 above, so the `APPROVE` lines below don't change. The re-assembled set adds 15 files (`MedScale_0.1.0-beta.1_<platform>-<arch>-package-manifest.json`, `-SBOM.cdx.json` and `-NOTICE.md` for windows-x64, macos-arm64, macos-x64, linux-x64 and linux-arm64), is scanned and attested again, and comes with `SHA256SUMS` and `artifact-inventory.json`.
+
 ## To publish (founder only)
 
-1. Review the files and the run above.
-2. Create the GitHub Release `v0.1.0-beta.1` from commit `6d0279e93fd011b719652a14f6cfa74dc82fad1c` with these exact files and make it immutable.
+1. Review the files and the runs above.
+2. Create the GitHub Release `v0.1.0-beta.1` from commit `6d0279e93fd011b719652a14f6cfa74dc82fad1c` with **every file of the re-assembled candidate plus its `SHA256SUMS`**, and make it immutable.
 3. Post one GitHub comment containing these lines, plus one `SIGNING <key> <state>` line per platform:
 
 ```
@@ -68,4 +72,4 @@ APPROVE 630f4e021e4766c9910628e6107adb3888d4fda6bb1c8e1d19d9b2b80607da30
 APPROVE 6035f4a8124d1c82a9c923cb760bfa528e84dad992f1416ec1c2542083eb7f7b
 ```
 
-4. Engineering then adds the tag to the download page's qualification gate and fills `release-manifest.json`; `npm run verify-release` must pass before any link appears.
+4. Engineering then runs, in `web/`, `node --experimental-strip-types scripts/manifest-from-candidate.mjs <artifact-inventory.json> v0.1.0-beta.1 <approval comment URL> [<SIGNING comment URL>]`. It fills `release-manifest.json` and adds the tag to the download page's qualification gate. `npm run verify-release` must then pass against the published bytes before any link appears.
