@@ -1,0 +1,100 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>MedScale Care Loop | Synthetic Research Demo</title>
+<style>
+:root {color-scheme:dark;font:16px/1.55 system-ui,Segoe UI,Arial,sans-serif;background:#0b171b;color:#e7f5ee}
+*{box-sizing:border-box}body{margin:0;min-height:100vh;background:radial-gradient(circle at 18% 3%,#193b35 0%,transparent 38%),#0b171b}
+main{max-width:1120px;margin:auto;padding:32px 22px 64px}
+nav{display:flex;justify-content:space-between;align-items:center;gap:16px;margin-bottom:32px;color:#a1cab9}
+.brand{font-weight:750;letter-spacing:.3px;color:#ebfff5}.pill{font-size:.77rem;letter-spacing:.04em;text-transform:uppercase;border:1px solid #547c6f;padding:5px 12px;border-radius:99px}
+h1{font-size:clamp(2.2rem,6vw,4.4rem);line-height:1.13;letter-spacing:-.05em;margin:0 0 20px;max-width:900px}
+.lede{max-width:750px;color:#b6d1c8;font-size:1.1rem;margin-bottom:24px}
+.callout{border-left:3px solid #8ee1b5;padding:10px 16px;margin-bottom:34px;background:#16312c;font-size:.92rem;color:#c0e5d6}
+.wrap{display:grid;grid-template-columns:1fr 1fr;gap:20px}
+.panel{background:#12262b;border:1px solid #33514b;border-radius:16px;padding:24px;min-width:0}
+.panel h2{font-size:1.02rem;letter-spacing:.01em;color:#9fc9b6;margin:0 0 15px}
+.scenarios{display:flex;flex-wrap:wrap;gap:8px;margin:14px 0 22px}
+button{background:#1a3434;color:#dcefe5;border:1px solid #496a62;padding:9px 12px;border-radius:9px;cursor:pointer;font:inherit;font-size:.86rem}
+button:focus-visible{outline:3px solid #baffd0;outline-offset:3px}
+button[aria-pressed=true]{background:#96e5b7;border-color:#96e5b7;color:#08211a;font-weight:700}
+.status{font-size:clamp(1.4rem,3vw,2rem);font-weight:750;margin:8px 0 8px;letter-spacing:-.035em}
+.muted{color:#aac7bc;font-size:.91rem}ol{padding-left:22px;margin:10px 0}li{margin:11px 0}
+li.ok{color:#a9e4bf}li.waiting{color:#839e94}
+ul{padding-left:20px;overflow-wrap:anywhere}code{font-size:.86rem;color:#c6f4d9}
+#warning{border:1px solid #806b45;background:#392d1c;color:#ffe2a5;border-radius:8px;padding:11px 13px;min-height:50px;white-space:pre-wrap}
+footer{margin-top:28px;color:#9cb7ae;font-size:.85rem}
+@media(max-width:740px){.wrap{grid-template-columns:1fr}main{padding:20px 14px 40px}}
+</style>
+</head>
+<body>
+<main>
+<nav><span class="brand">MedScale <span style="color:#96e5b7">/</span> Care Loop</span><span class="pill">Synthetic research demonstration</span></nav>
+<h1>Evidence before <span style="color:#96e5b7">closure.</span></h1>
+<p class="lede">An offline, transparent simulation of the journey from a screening result to documented follow-up. Select a scenario to see why an incomplete or conflicting chain must not be marked as complete.</p>
+<div class="callout"><strong>Research simulation only.</strong> No actual patient data, AI diagnosis, real referrals, patient messages, or clinical outcomes. This standalone experiment is not integrated into MedScale Core and does not certify FHIR R4 conformance.</div>
+<div class="panel" style="margin-bottom:20px">
+<h2>Choose a synthetic scenario</h2>
+<div class="scenarios" aria-label="Synthetic scenarios">
+<button type="button" data-scenario="complete" aria-pressed="true">Complete evidence</button>
+<button type="button" data-scenario="missing-result" aria-pressed="false">Missing result</button>
+<button type="button" data-scenario="overdue" aria-pressed="false">Overdue appointment</button>
+<button type="button" data-scenario="cancelled" aria-pressed="false">Cancelled visit</button>
+<button type="button" data-scenario="wrong-patient" aria-pressed="false">Wrong patient link</button>
+<button type="button" data-scenario="missing-provenance" aria-pressed="false">Missing provenance</button>
+</div>
+<div class="muted">Each scenario runs the same independent, deterministic FHIR-style evaluator. It never sends any data to a server.</div>
+</div>
+<div class="wrap">
+<section class="panel"><h2>Evaluated state</h2><div class="status" id="status" aria-live="polite">Loading…</div>
+<div class="muted" id="closure"></div>
+<h2 style="margin-top:25px">Required evidence chain</h2>
+<ol id="stages"></ol></section>
+<section class="panel"><h2>Evidence references accepted</h2><ul id="evidence"></ul><h2 style="margin-top:24px">Why closure is blocked</h2><div id="warning" role="status"></div></section>
+</div>
+<footer>Open source research prototype · Apache-2.0 · All identifiers and resource examples are fabricated · No network or AI inference</footer>
+</main>
+<script type="module">
+import {evaluateCareLoop} from "./src/care-loop.mjs";
+import {makeSyntheticBundle} from "./fixtures/synthetic.mjs";
+
+const steps=[
+["Observation/screen-001","Screening observation"],
+["Task/review-001","Human review"],
+["ServiceRequest/request-001","Referral request"],
+["Appointment/appointment-001","Appointment"],
+["Encounter/encounter-001","Attended encounter"],
+["Observation/result-001","Follow-up result"],
+["Task/close-001","Human-confirmed closure"]
+];
+const R=(bundle,type,id)=>bundle.entry.find(x=>x.resource.resourceType===type&&x.resource.id===id)?.resource;
+const REMOVE=(bundle,type,id)=>bundle.entry=bundle.entry.filter(x=>!(x.resource.resourceType===type&&x.resource.id===id));
+const scenarios={
+complete:()=>{},
+"missing-result":b=>REMOVE(b,"Observation","result-001"),
+overdue:b=>{REMOVE(b,"Encounter","encounter-001");R(b,"Appointment","appointment-001").status="booked";},
+cancelled:b=>{R(b,"Appointment","appointment-001").status="cancelled";},
+"wrong-patient":b=>{R(b,"Observation","result-001").subject.reference="Patient/not-this-person";},
+"missing-provenance":b=>REMOVE(b,"Provenance","evidence-result-001")
+};
+function render(name){
+const b=makeSyntheticBundle();scenarios[name](b);
+const r=evaluateCareLoop(b,{now:"2026-11-03T00:00:00Z"});
+document.getElementById("status").textContent=r.status.replaceAll("-"," ").toUpperCase();
+document.getElementById("closure").textContent=r.canClose?"Closed only because all seven human-evidenced stages are present.":"NOT CLOSED — the proof chain is incomplete, ambiguous, or invalid.";
+const ol=document.getElementById("stages");ol.replaceChildren();
+for(const [reference,label] of steps){const li=document.createElement("li");const accepted=r.evidence.includes(reference);li.textContent=label+(accepted?" — evidence verified":" — not established");li.className=accepted?"ok":"waiting";ol.append(li);}
+const ul=document.getElementById("evidence");ul.replaceChildren();
+for(const reference of r.evidence){const li=document.createElement("li");const code=document.createElement("code");code.textContent=reference;li.append(code);ul.append(li);}
+if(!r.evidence.length){const li=document.createElement("li");li.textContent="No valid supporting evidence";ul.append(li);}
+document.getElementById("warning").textContent=r.warnings.join("\n") || "No missing evidence identified in this synthetic case.";
+for(const button of document.querySelectorAll("[data-scenario]"))button.setAttribute("aria-pressed",String(button.dataset.scenario===name));
+}
+for(const button of document.querySelectorAll("[data-scenario]"))
+button.addEventListener("click",()=>render(button.dataset.scenario));
+render("complete");
+</script>
+</body>
+</html>
