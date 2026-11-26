@@ -630,6 +630,18 @@ pub enum RequestBody {
     /// from. Read from Core's own (sealed, for an encrypted vault) records, so
     /// no patient list has to live in a plaintext file beside the vault.
     ListSubjectRoster,
+    /// Reads an allowlisted desktop helper record (`desktop.pack_dirs` or
+    /// `desktop.asr_pack`) stored inside the open vault's metadata database.
+    VaultHelperRecordGet {
+        key: String,
+    },
+    /// Stores or clears an allowlisted desktop helper record inside the open
+    /// vault's metadata database so encrypted vaults keep no plaintext helper
+    /// sidecars on disk.
+    VaultHelperRecordSet {
+        key: String,
+        value_json: Option<String>,
+    },
     OpenSyntheticVault {
         vault_root: String,
     },
@@ -1925,6 +1937,9 @@ pub enum ResponseBody {
     },
     SubjectRoster {
         entries: Vec<SubjectRosterEntry>,
+    },
+    VaultHelperRecord {
+        value_json: Option<String>,
     },
     VaultPassphraseChanged,
     AuditChainVerified {

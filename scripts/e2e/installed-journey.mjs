@@ -496,10 +496,14 @@ async function main() {
     report.webview_scan_positive_control = "PASS";
   });
   await step("webview-residue-measured", async () => {
-    // Reported, not asserted yet: this journey is the first to look after real use.
-    // This step cannot fail, and release documents must say so.
     report.webview_residue = webViewResidue(["Installed build study", VAULT_PROJECT, "installed-fictional-patient", "installed-sealed-patient", INSTALLED_CANVAS]);
     console.log(`WEBVIEW_RESIDUE ${JSON.stringify(report.webview_residue)}`);
+    if (report.pref_on_disk_after_first_launch?.hits !== 0 || report.pref_on_disk_after_second_launch?.hits !== 0) {
+      throw new Error(`WebView profile retained theme preference on disk: first=${report.pref_on_disk_after_first_launch?.hits} second=${report.pref_on_disk_after_second_launch?.hits}`);
+    }
+    if (report.webview_residue.hits !== 0) {
+      throw new Error(`WebView profile retained ${report.webview_residue.hits} file(s) with synthetic workspace markers`);
+    }
   });
   await step("uninstall-keeps-user-data", async () => {
     await uninstall(installed);

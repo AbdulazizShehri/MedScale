@@ -1026,22 +1026,20 @@ pub fn remove_saved_model(host: &Host, model_id: &str) -> CmdResult<Value> {
             "Conflict: wait for or cancel the active model download first",
         ));
     }
-    let (data_dir, active_vault_root) = {
+    let data_dir = {
         let state = host
             .state
             .lock()
             .map_err(|_| CmdError::new("internal", "Internal: host state lock poisoned"))?;
-        (
-            state.data_dir()?.to_path_buf(),
-            state.workspace.as_ref().map(|ws| ws.vault_root.clone()),
-        )
+        state.data_dir()?.to_path_buf()
     };
     let target = remove_saved_model_dir(entry, &data_dir)?;
-    if let Some(root) = active_vault_root
-        && crate::host::load_asr_pack(&root)
+    if let Ok(mut state) = host.state.lock()
+        && let Some(ws) = state.workspace.as_mut()
+        && crate::host::load_asr_pack_for(ws)
             .is_some_and(|saved| Path::new(&saved) == target.as_path())
     {
-        crate::host::clear_asr_pack(&root);
+        let _ = crate::host::save_asr_pack_for(ws, None);
     }
     if manager.status.model_id.as_deref() == Some(entry.id)
         || manager
