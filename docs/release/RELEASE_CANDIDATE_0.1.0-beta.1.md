@@ -44,11 +44,11 @@ No file is code-signed by a trusted publisher. See [ZERO_COST_DISTRIBUTION.md](Z
 - Smart App Control on Windows 11 blocks unsigned apps; there is no workaround we recommend.
 - No automatic updates. Users install a newer version over the old one; back up the vault first.
 - Upgrades between released versions are untested: this is the first release.
-- Real patient data blockers B2, B3 and B4 remain (REAL_DATA_READINESS.md).
+- Real patient data remains unauthorized (`REAL_PHI_AUTHORIZATION=NOT_AUTHORIZED`; see [REAL_DATA_READINESS.md](../beta/REAL_DATA_READINESS.md)). Note: this candidate was built from `6d0279e` prior to subsequent `main` security and FHIR hardening PRs (`#512`–`#531`); the founder may either publish this verified candidate as-is or dispatch `release-candidate` on current `main` for a refreshed build.
 
-## Before publishing (engineering)
+## Before publishing (engineering — completed)
 
-The website's release gate checks each packaged installer (Windows installer, both DMGs, both `.deb`) against its own package manifest, SBOM and NOTICE, and every other file against `SHA256SUMS`. This candidate kept those inside its notices archives, so it is **re-assembled** from the same run's artifacts by `release-candidate-reassemble` (`version: 0.1.0-beta.1`, `source_run: 43247164670`). Nothing is rebuilt: every installer, archive, SBOM and notices file keeps the SHA-256 above, so the `APPROVE` lines below don't change. The re-assembled set adds 15 files (`MedScale_0.1.0-beta.1_<platform>-<arch>-package-manifest.json`, `-SBOM.cdx.json` and `-NOTICE.md` for windows-x64, macos-arm64, macos-x64, linux-x64 and linux-arm64), is scanned and attested again, and comes with `SHA256SUMS` and `artifact-inventory.json`.
+The website's release gate checks each packaged installer (Windows installer, both DMGs, both `.deb`) against its own package manifest, SBOM and NOTICE, and every other file against `SHA256SUMS`. This candidate was **re-assembled** from run `43247164670` by `release-candidate-reassemble` ([run 43693295275](https://github.com/AbdulazizShehri/MedScale/actions/runs/43693295275), artifact `medscale-release-candidate-0.1.0-beta.1-reassembled`, ID `14153860834`, 471,059,001 bytes, expires `2027-02-13T08:10:59Z`). Nothing was rebuilt: every installer, archive, SBOM and notices file kept its exact SHA-256 above, all 34 files passed `sha256sum -c SHA256SUMS` (34/34 OK) and ClamAV (`Scanned files: 34`, `Infected files: 0`), and GitHub build-provenance attestations were created for all 34 subjects. The re-assembled set adds 15 files (`MedScale_0.1.0-beta.1_<platform>-<arch>-package-manifest.json`, `-SBOM.cdx.json` and `-NOTICE.md` for windows-x64, macos-arm64, macos-x64, linux-x64 and linux-arm64) alongside `SHA256SUMS` and `artifact-inventory.json`.
 
 ## To publish (founder only)
 
