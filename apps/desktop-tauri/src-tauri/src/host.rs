@@ -82,6 +82,24 @@ impl CmdError {
     }
 }
 
+/// Scrubs local OS paths and raw OS error text from a user-facing error message
+/// so internal directories or OS usernames never appear on screen.
+pub fn sanitize_error_message(raw: &str) -> String {
+    let trimmed = raw.trim();
+    let leaks_path_or_os = trimmed.contains(":\\")
+        || trimmed.contains("\\\\?\\")
+        || trimmed.contains("/Users/")
+        || trimmed.contains("/home/")
+        || trimmed.contains("/var/")
+        || trimmed.contains("/tmp/")
+        || trimmed.contains("(os error ");
+    if leaks_path_or_os {
+        "the operation could not be completed on local storage".to_owned()
+    } else {
+        trimmed.to_owned()
+    }
+}
+
 impl From<AuthorityError> for CmdError {
     fn from(err: AuthorityError) -> Self {
         let kind = match &err {
@@ -117,10 +135,10 @@ impl From<AuthorityError> for CmdError {
         };
         // Core's own reason for an invalid argument tells the person what to
         // fix (for example "bindings are alias=snapshot_id pairs"); the
-        // generic status string does not.
+        // generic status string does not. Any path-like OS detail is scrubbed.
         let message = match &err {
             AuthorityError::InvalidArgument { message } if !message.trim().is_empty() => {
-                format!("Invalid: {}", message.trim())
+                format!("Invalid: {}", sanitize_error_message(message))
             }
             _ => medscale_desktop_vm::project_workspace::status_message(&err).to_owned(),
         };
@@ -2773,7 +2791,7 @@ fn backup_error(err: AuthorityError) -> CmdError {
     match err {
         AuthorityError::InvalidArgument { message } => CmdError::invalid(format!(
             "Invalid: {}",
-            message.trim().trim_start_matches("invalid: ")
+            sanitize_error_message(message.trim().trim_start_matches("invalid: "))
         )),
         other => CmdError::from(other),
     }
@@ -5067,5 +5085,26 @@ mod tests {
                 }
             )
         );
+    }
+
+    #[test]
+    fn raw_storage_paths_and_os_errors_are_scrubbed_from_cmd_errors() {
+        for raw in [
+            r"io: C:\Users\alice\AppData\Local\MedScale\meta.sealed (os error 5)",
+            "failed reading /Users/alice/Library/Application Support/meta.sealed",
+            "cannot open /home/alice/.local/share/medscale/vault_header.json",
+            "permission denied (os error 13)",
+        ] {
+            let err = CmdError::from(AuthorityError::InvalidArgument {
+                message: raw.to_owned(),
+            });
+            assert!(!err.message.contains("alice"), "leaked username: {}", err.message);
+            assert!(!err.message.contains("os error"), "leaked os error: {}", err.message);
+            assert!(!err.message.contains("meta.sealed"), "leaked filename: {}", err.message);
+            assert_eq!(
+                err.message,
+                "Invalid: the operation could not be completed on local storage"
+            );
+        }
     }
 }

@@ -1128,6 +1128,12 @@ impl EncryptedVault {
         Ok(self.blobs.get(&self.dek, digest)?)
     }
 
+    /// Keyed on-disk path of a sealed blob in this open vault.
+    #[must_use]
+    pub fn sealed_blob_path(&self, digest: &DigestSha256) -> PathBuf {
+        self.blobs.path_for_keyed(&self.dek, digest)
+    }
+
     pub fn insert_source(&self, meta: &SourceMeta) -> Result<(), EncryptedVaultError> {
         self.meta.insert_source(meta)?;
         Ok(())

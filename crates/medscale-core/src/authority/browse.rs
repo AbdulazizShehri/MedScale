@@ -164,22 +164,35 @@ fn percent_decode_lossy(s: &str) -> String {
 
 /// True when the outbound request text carries a sensitive span the Spec
 /// 079 recognizers can see (labelled names, emails, dates, identifiers...).
-/// Scanned: the URL query string and the free-text search query. Not
-/// scanned: URL path segments, because public research sites use
-/// identifier-shaped article ids in paths (recorded limitation).
+/// Scanned: the URL path segments, the URL query string, and the free-text
+/// search query, each percent-decoded before recognition.
 #[must_use]
 pub fn request_has_sensitive_span(request: &BrowseRequest) -> bool {
+    let url_path = request.url.as_deref().and_then(|u| {
+        let without_fragment = u.split('#').next().unwrap_or("");
+        let without_query = without_fragment.split('?').next().unwrap_or("");
+        let after_scheme = without_query
+            .split_once("://")
+            .map(|(_, rest)| rest)
+            .unwrap_or(without_query);
+        after_scheme.find('/').map(|i| &after_scheme[i..])
+    });
     let url_query = request.url.as_deref().and_then(|u| {
         u.split_once('?')
             .map(|(_, q)| q.split('#').next().unwrap_or(""))
     });
-    [url_query, request.query.as_deref()]
-        .into_iter()
-        .flatten()
-        .any(|text| {
-            let decoded = percent_decode_lossy(text).replace(['&', '='], " ");
-            !pattern_recognize(&decoded).is_empty()
-        })
+    let path_sensitive = url_path.is_some_and(|path| {
+        let decoded = percent_decode_lossy(path).replace('/', " ");
+        !pattern_recognize(&decoded).is_empty()
+    });
+    path_sensitive
+        || [url_query, request.query.as_deref()]
+            .into_iter()
+            .flatten()
+            .any(|text| {
+                let decoded = percent_decode_lossy(text).replace(['&', '='], " ");
+                !pattern_recognize(&decoded).is_empty()
+            })
 }
 
 /// Authenticated Governed Browse view for one request.
@@ -695,11 +708,30 @@ mod tests {
         assert!(!request_has_sensitive_span(&fetch(
             "https://pubmed.ncbi.nlm.nih.gov/12345678/"
         )));
+        assert!(!request_has_sensitive_span(&fetch(
+            "https://pmc.ncbi.nlm.nih.gov/articles/PMC1234567/"
+        )));
         assert!(request_has_sensitive_span(&fetch(
             "https://example.org/search?q=jane.doe%40example.org"
         )));
         assert!(request_has_sensitive_span(&fetch(
             "https://example.org/p?name=Patient%3A+Jane+Doe"
+        )));
+        // URL path segments are also scanned for personal data.
+        assert!(request_has_sensitive_span(&fetch(
+            "https://example.org/users/jane.doe@example.org"
+        )));
+        assert!(request_has_sensitive_span(&fetch(
+            "https://example.org/users/jane.doe%40example.org"
+        )));
+        assert!(request_has_sensitive_span(&fetch(
+            "https://example.org/records/123-45-6789"
+        )));
+        assert!(request_has_sensitive_span(&fetch(
+            "https://example.org/records/MRN%3A004512"
+        )));
+        assert!(request_has_sensitive_span(&fetch(
+            "https://example.org/patient/Jane%20Doe"
         )));
         let search = BrowseRequest {
             project_id: OpaqueId::new("p"),

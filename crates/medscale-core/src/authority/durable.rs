@@ -21,16 +21,16 @@ impl BlobBackend for FsBlobStore {
     fn put_bytes(&self, bytes: &[u8]) -> Result<DigestSha256, AuthorityError> {
         Ok(self
             .put_blob(bytes)
-            .map_err(|e| AuthorityError::InvalidArgument {
-                message: e.to_string(),
+            .map_err(|_| AuthorityError::Unavailable {
+                message: "blob write failed".to_owned(),
             })?
             .digest)
     }
 
     fn get_bytes(&self, digest: &DigestSha256) -> Result<Vec<u8>, AuthorityError> {
         self.get_blob(digest)
-            .map_err(|e| AuthorityError::InvalidArgument {
-                message: e.to_string(),
+            .map_err(|_| AuthorityError::Unavailable {
+                message: "blob read failed".to_owned(),
             })
     }
 }
@@ -41,8 +41,8 @@ impl BlobBackend for EncryptedBlobBackend<'_> {
     fn put_bytes(&self, bytes: &[u8]) -> Result<DigestSha256, AuthorityError> {
         self.0
             .put_blob(bytes)
-            .map_err(|e| AuthorityError::InvalidArgument {
-                message: e.to_string(),
+            .map_err(|_| AuthorityError::Unavailable {
+                message: "sealed blob write failed".to_owned(),
             })
     }
 
@@ -54,13 +54,14 @@ impl BlobBackend for EncryptedBlobBackend<'_> {
             EncryptedVaultError::Sealed(SealedBlobError::DigestMismatch) => {
                 AuthorityError::DigestMismatch
             }
-            EncryptedVaultError::Sealed(SealedBlobError::NotFound | SealedBlobError::Crypto) => {
-                AuthorityError::Corrupt {
-                    message: e.to_string(),
-                }
-            }
+            EncryptedVaultError::Sealed(SealedBlobError::NotFound) => AuthorityError::Corrupt {
+                message: "sealed blob missing".to_owned(),
+            },
+            EncryptedVaultError::Sealed(SealedBlobError::Crypto) => AuthorityError::Corrupt {
+                message: "sealed blob failed authentication".to_owned(),
+            },
             _ => AuthorityError::Unavailable {
-                message: e.to_string(),
+                message: "sealed blob temporarily unavailable".to_owned(),
             },
         })
     }
@@ -79,9 +80,7 @@ mod blob_error_tests {
             EncryptedVault::create("v-109", &root, "passphrase-ok", "holder", None).unwrap();
         let backend = EncryptedBlobBackend(&vault);
         let digest = backend.put_bytes(b"synthetic").unwrap();
-        let path = root
-            .join("sealed_blobs")
-            .join(format!("{}.sealed", digest.to_hex()));
+        let path = vault.sealed_blob_path(&digest);
         std::fs::remove_file(&path).unwrap();
         std::fs::create_dir(&path).unwrap();
         assert!(matches!(
