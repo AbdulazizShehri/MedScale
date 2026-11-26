@@ -60,6 +60,16 @@ const AUDIT_CHAIN_DDL: &str = "CREATE TABLE IF NOT EXISTS audit_chain(
 );";
 const AUDIT_REMOVED: &str = "removed";
 
+/// Additive table for desktop helper records sealed inside encrypted vaults
+/// (pack directory mappings and active local ASR pack path), created lazily
+/// on first encrypted-vault helper access so synthetic workspaces stay untouched.
+const VAULT_HELPER_RECORDS_DDL: &str = "CREATE TABLE IF NOT EXISTS vault_helper_records(
+    key TEXT PRIMARY KEY,
+    value_json TEXT NOT NULL
+);";
+const ALLOWED_VAULT_HELPER_KEYS: [&str; 2] = ["desktop.pack_dirs", "desktop.asr_pack"];
+const MAX_VAULT_HELPER_BYTES: usize = 64 * 1024;
+
 /// What [`SqliteMetaStore::verify_audit_chain`] found.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct AuditChainReport {
@@ -1036,6 +1046,68 @@ impl SqliteMetaStore {
         Ok(())
     }
 
+    /// Reads an allowlisted desktop helper JSON record stored inside the
+    /// vault metadata database (`meta.sealed` for encrypted vaults).
+    pub fn get_vault_helper_record(&self, key: &str) -> Result<Option<String>, MetaError> {
+        if !ALLOWED_VAULT_HELPER_KEYS.contains(&key) {
+            return Err(MetaError::UnsupportedSchema(format!(
+                "unknown vault helper key: {key}"
+            )));
+        }
+        let table_exists: i64 = self.conn.query_row(
+            "SELECT count(*) FROM sqlite_master WHERE type = 'table' AND name = 'vault_helper_records'",
+            [],
+            |row| row.get(0),
+        )?;
+        if table_exists == 0 {
+            return Ok(None);
+        }
+        Ok(self
+            .conn
+            .query_row(
+                "SELECT value_json FROM vault_helper_records WHERE key = ?1",
+                params![key],
+                |row| row.get(0),
+            )
+            .optional()?)
+    }
+
+    /// Writes or clears an allowlisted desktop helper JSON record inside the
+    /// vault metadata database so no plaintext helper sidecar sits beside an
+    /// encrypted vault.
+    pub fn set_vault_helper_record(
+        &self,
+        key: &str,
+        value_json: Option<&str>,
+    ) -> Result<(), MetaError> {
+        if !ALLOWED_VAULT_HELPER_KEYS.contains(&key) {
+            return Err(MetaError::UnsupportedSchema(format!(
+                "unknown vault helper key: {key}"
+            )));
+        }
+        self.conn.execute_batch(VAULT_HELPER_RECORDS_DDL)?;
+        match value_json {
+            Some(value) => {
+                if value.len() > MAX_VAULT_HELPER_BYTES {
+                    return Err(MetaError::CorruptObjectBody(
+                        "vault helper record exceeds maximum size".to_owned(),
+                    ));
+                }
+                self.conn.execute(
+                    "INSERT OR REPLACE INTO vault_helper_records(key, value_json) VALUES (?1, ?2)",
+                    params![key, value],
+                )?;
+            }
+            None => {
+                self.conn.execute(
+                    "DELETE FROM vault_helper_records WHERE key = ?1",
+                    params![key],
+                )?;
+            }
+        }
+        Ok(())
+    }
+
     /// B4: recomputes the audit chain and compares it with the audit records
     /// stored now. A record edited, added or removed without its chain entry,
     /// or an entry edited, removed or reordered, is reported. The chain lives
@@ -1248,4 +1320,68 @@ fn verify_sqlcipher_readable(conn: &Connection) -> Result<(), MetaError> {
     // Wrong SQLCipher keys typically fail here with "file is not a database".
     let _: i64 = conn.query_row("SELECT count(*) FROM sqlite_master", [], |row| row.get(0))?;
     Ok(())
+}
+
+#[cfg(test)]
+mod vault_helper_record_tests {
+    use super::*;
+
+    #[test]
+    fn vault_helper_records_round_trip_and_enforce_allowlist_and_bounds() {
+        let dir =
+            std::env::temp_dir().join(format!("medscale-meta-helper-test-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&dir);
+        std::fs::create_dir_all(&dir).unwrap();
+        let db = dir.join("meta.sqlite3");
+        let store = SqliteMetaStore::open(&db).unwrap();
+
+        assert_eq!(
+            store.get_vault_helper_record("desktop.pack_dirs").unwrap(),
+            None
+        );
+        assert!(store.get_vault_helper_record("arbitrary.key").is_err());
+        assert!(
+            store
+                .set_vault_helper_record("arbitrary.key", Some("{}"))
+                .is_err()
+        );
+        let oversized = "a".repeat(MAX_VAULT_HELPER_BYTES + 1);
+        assert!(
+            store
+                .set_vault_helper_record("desktop.pack_dirs", Some(&oversized))
+                .is_err()
+        );
+
+        store
+            .set_vault_helper_record("desktop.pack_dirs", Some(r#"{"p1":"C:/packs/p1"}"#))
+            .unwrap();
+        store
+            .set_vault_helper_record("desktop.asr_pack", Some(r#"{"dir":"C:/packs/asr"}"#))
+            .unwrap();
+        assert_eq!(
+            store
+                .get_vault_helper_record("desktop.pack_dirs")
+                .unwrap()
+                .as_deref(),
+            Some(r#"{"p1":"C:/packs/p1"}"#)
+        );
+        assert_eq!(
+            store
+                .get_vault_helper_record("desktop.asr_pack")
+                .unwrap()
+                .as_deref(),
+            Some(r#"{"dir":"C:/packs/asr"}"#)
+        );
+
+        store
+            .set_vault_helper_record("desktop.asr_pack", None)
+            .unwrap();
+        assert_eq!(
+            store.get_vault_helper_record("desktop.asr_pack").unwrap(),
+            None
+        );
+
+        drop(store);
+        let _ = std::fs::remove_dir_all(&dir);
+    }
 }

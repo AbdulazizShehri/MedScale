@@ -335,6 +335,39 @@ impl CliSession {
         }
     }
 
+    /// Reads an allowlisted desktop helper JSON record stored inside the open
+    /// vault (`meta.sealed` for encrypted vaults).
+    pub fn vault_helper_record_get(&mut self, key: &str) -> Result<Option<String>, AuthorityError> {
+        match self.dispatch(
+            Capability::ReadObject,
+            RequestBody::VaultHelperRecordGet {
+                key: key.to_owned(),
+            },
+        )? {
+            ResponseBody::VaultHelperRecord { value_json } => Ok(value_json),
+            _ => Err(Self::unexpected("vault helper record")),
+        }
+    }
+
+    /// Stores or clears an allowlisted desktop helper JSON record inside the
+    /// open vault (`meta.sealed` for encrypted vaults).
+    pub fn vault_helper_record_set(
+        &mut self,
+        key: &str,
+        value_json: Option<String>,
+    ) -> Result<(), AuthorityError> {
+        match self.dispatch(
+            Capability::PacksInstallLocal,
+            RequestBody::VaultHelperRecordSet {
+                key: key.to_owned(),
+                value_json,
+            },
+        )? {
+            ResponseBody::VaultHelperRecord { .. } => Ok(()),
+            _ => Err(Self::unexpected("vault helper record")),
+        }
+    }
+
     /// B3: rewraps the open encrypted vault's key under a new passphrase.
     pub fn change_vault_passphrase(
         &mut self,

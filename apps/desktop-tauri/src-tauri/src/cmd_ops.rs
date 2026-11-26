@@ -286,14 +286,9 @@ fn pack_dir(state: &mut State, pack_id: &str) -> CmdResult<String> {
     if fixture_id.as_str() == pack_id {
         return Ok(fixture_dir);
     }
-    let root = state.workspace()?.vault_root.clone();
     let data_dir = state.data_dir()?.to_path_buf();
-    let dir = remembered_pack_dir(
-        host::load_pack_dirs(&root),
-        pack_id,
-        &data_dir,
-        host::EXTERNAL_PACKS_ALLOWED,
-    )?;
+    let dirs = host::load_pack_dirs_for(state.workspace()?);
+    let dir = remembered_pack_dir(dirs, pack_id, &data_dir, host::EXTERNAL_PACKS_ALLOWED)?;
     // Core's Pack registry is per session: admit the remembered folder again
     // (idempotent; Core re-verifies it) so runs resume after a restart.
     state.session()?.packs_install_local(&dir)?;
@@ -306,8 +301,7 @@ fn pack_dir(state: &mut State, pack_id: &str) -> CmdResult<String> {
 pub fn medagent_models(host: tauri::State<'_, Host>) -> CmdResult<Value> {
     let mut state = lock(&host)?;
     let (fixture_id, _) = workspace_pack(&mut state)?;
-    let root = state.workspace()?.vault_root.clone();
-    let dirs = host::load_pack_dirs(&root);
+    let dirs = host::load_pack_dirs_for(state.workspace()?);
     let data_dir = state.data_dir()?.to_path_buf();
     let packs = state.session()?.packs_list()?;
     Ok(json!(
@@ -361,10 +355,10 @@ pub fn medagent_admit_pack(host: tauri::State<'_, Host>, path: String) -> CmdRes
             format!("Denied: Pack not admitted ({:?})", result.reason),
         ));
     };
-    let root = state.workspace()?.vault_root.clone();
-    let mut dirs = host::load_pack_dirs(&root);
+    let ws = state.workspace()?;
+    let mut dirs = host::load_pack_dirs_for(ws);
     dirs.insert(pack_id.as_str().to_owned(), path);
-    host::save_pack_dirs(&root, &dirs)?;
+    host::save_pack_dirs_for(ws, &dirs)?;
     Ok(json!({ "id": pack_id.as_str(), "admitted": true }))
 }
 
@@ -1127,11 +1121,11 @@ pub fn audio_source_remove_confirmed(
 #[tauri::command(async)]
 pub fn audio_asr_status(host: tauri::State<'_, Host>) -> CmdResult<Value> {
     let mut state = lock(&host)?;
-    let root = state.workspace()?.vault_root.clone();
     let routes = state.session()?.audio_routes()?;
+    let asr_pack_dir = host::load_asr_pack_for(state.workspace()?);
     Ok(json!({
         "routes": routes,
-        "asr_pack_dir": host::load_asr_pack(&root),
+        "asr_pack_dir": asr_pack_dir,
     }))
 }
 
@@ -1213,8 +1207,7 @@ pub fn audio_admit_asr_pack(host: tauri::State<'_, Host>, path: String) -> CmdRe
         ));
     };
     session.use_local_asr_pack(&path)?;
-    let root = state.workspace()?.vault_root.clone();
-    host::save_asr_pack(&root, &path)?;
+    host::save_asr_pack_for(state.workspace()?, Some(&path))?;
     Ok(json!({ "id": pack_id.as_str(), "installed": true }))
 }
 

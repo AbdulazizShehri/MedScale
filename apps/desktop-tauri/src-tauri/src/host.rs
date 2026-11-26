@@ -1399,6 +1399,9 @@ fn pack_dirs_path(vault_root: &Path) -> PathBuf {
     vault_root.with_file_name(name)
 }
 
+const HELPER_KEY_PACK_DIRS: &str = "desktop.pack_dirs";
+const HELPER_KEY_ASR_PACK: &str = "desktop.asr_pack";
+
 /// Local folders of Packs this desktop admitted into a vault, by Pack id.
 /// Core re-verifies the folder against the admitted manifest on every run.
 pub fn load_pack_dirs(vault_root: &Path) -> std::collections::BTreeMap<String, String> {
@@ -1416,6 +1419,52 @@ pub fn save_pack_dirs(
         .map_err(|_| CmdError::new("internal", "Internal: pack folders"))?;
     write_atomic(&pack_dirs_path(vault_root), &bytes)
         .map_err(|_| CmdError::unavailable("Unavailable: pack folders not writable"))
+}
+
+/// Workspace-aware pack directory lookup. Encrypted vaults seal this record
+/// inside `meta.sealed` (migrating and deleting any legacy plaintext sidecar).
+pub fn load_pack_dirs_for(ws: &mut Workspace) -> std::collections::BTreeMap<String, String> {
+    if ws.kind != VaultKind::Encrypted {
+        return load_pack_dirs(&ws.vault_root);
+    }
+    if let Ok(Some(json)) = ws.session.vault_helper_record_get(HELPER_KEY_PACK_DIRS)
+        && let Ok(dirs) = serde_json::from_str::<std::collections::BTreeMap<String, String>>(&json)
+    {
+        let _ = std::fs::remove_file(pack_dirs_path(&ws.vault_root));
+        return dirs;
+    }
+    let legacy_path = pack_dirs_path(&ws.vault_root);
+    if legacy_path.is_file() {
+        let legacy = load_pack_dirs(&ws.vault_root);
+        if let Ok(json) = serde_json::to_string(&legacy)
+            && ws
+                .session
+                .vault_helper_record_set(HELPER_KEY_PACK_DIRS, Some(json))
+                .is_ok()
+        {
+            let _ = std::fs::remove_file(&legacy_path);
+        }
+        return legacy;
+    }
+    std::collections::BTreeMap::new()
+}
+
+/// Workspace-aware pack directory persistence. Encrypted vaults seal this
+/// record inside `meta.sealed` with no plaintext sidecar beside the vault.
+pub fn save_pack_dirs_for(
+    ws: &mut Workspace,
+    dirs: &std::collections::BTreeMap<String, String>,
+) -> CmdResult<()> {
+    if ws.kind != VaultKind::Encrypted {
+        return save_pack_dirs(&ws.vault_root, dirs);
+    }
+    let json = serde_json::to_string(dirs)
+        .map_err(|_| CmdError::new("internal", "Internal: pack folders"))?;
+    ws.session
+        .vault_helper_record_set(HELPER_KEY_PACK_DIRS, Some(json))
+        .map_err(|_| CmdError::unavailable("Unavailable: pack folders not writable"))?;
+    let _ = std::fs::remove_file(pack_dirs_path(&ws.vault_root));
+    Ok(())
 }
 
 fn asr_pack_path(vault_root: &Path) -> PathBuf {
@@ -1446,6 +1495,62 @@ pub fn clear_asr_pack(vault_root: &Path) {
     let _ = std::fs::remove_file(asr_pack_path(vault_root));
 }
 
+/// Workspace-aware active ASR pack lookup. Encrypted vaults seal this record
+/// inside `meta.sealed` (migrating and deleting any legacy plaintext sidecar).
+pub fn load_asr_pack_for(ws: &mut Workspace) -> Option<String> {
+    if ws.kind != VaultKind::Encrypted {
+        return load_asr_pack(&ws.vault_root);
+    }
+    if let Ok(Some(json)) = ws.session.vault_helper_record_get(HELPER_KEY_ASR_PACK)
+        && let Ok(v) = serde_json::from_str::<serde_json::Value>(&json)
+        && let Some(dir) = v["dir"].as_str()
+    {
+        let _ = std::fs::remove_file(asr_pack_path(&ws.vault_root));
+        return Some(dir.to_owned());
+    }
+    let legacy_path = asr_pack_path(&ws.vault_root);
+    if legacy_path.is_file() {
+        let legacy = load_asr_pack(&ws.vault_root);
+        if let Some(ref dir) = legacy
+            && let Ok(json) = serde_json::to_string(&serde_json::json!({ "dir": dir }))
+            && ws
+                .session
+                .vault_helper_record_set(HELPER_KEY_ASR_PACK, Some(json))
+                .is_ok()
+        {
+            let _ = std::fs::remove_file(&legacy_path);
+        }
+        return legacy;
+    }
+    None
+}
+
+/// Workspace-aware active ASR pack persistence. Encrypted vaults seal this
+/// record inside `meta.sealed` with no plaintext sidecar beside the vault.
+pub fn save_asr_pack_for(ws: &mut Workspace, dir: Option<&str>) -> CmdResult<()> {
+    if ws.kind != VaultKind::Encrypted {
+        return match dir {
+            Some(d) => save_asr_pack(&ws.vault_root, d),
+            None => {
+                clear_asr_pack(&ws.vault_root);
+                Ok(())
+            }
+        };
+    }
+    let payload = match dir {
+        Some(d) => Some(
+            serde_json::to_string(&serde_json::json!({ "dir": d }))
+                .map_err(|_| CmdError::new("internal", "Internal: audio pack record"))?,
+        ),
+        None => None,
+    };
+    ws.session
+        .vault_helper_record_set(HELPER_KEY_ASR_PACK, payload)
+        .map_err(|_| CmdError::unavailable("Unavailable: audio pack record not writable"))?;
+    clear_asr_pack(&ws.vault_root);
+    Ok(())
+}
+
 /// Whether this build admits a Pack from any folder. Test builds only: a Pack
 /// signature doesn't prove who made it, so a packaged build uses only the
 /// models it downloaded and verified against pinned digests.
@@ -1471,7 +1576,7 @@ pub fn pack_dir_allowed(dir: &Path, data_dir: &Path, allow_external: bool) -> bo
 /// per session, so the folder is admitted again first (Core re-verifies the
 /// manifest, digests and signature); a failure leaves the route unavailable.
 fn restore_asr(workspace: &mut Workspace, data_dir: &Path) {
-    if let Some(dir) = load_asr_pack(&workspace.vault_root)
+    if let Some(dir) = load_asr_pack_for(workspace)
         && is_local_absolute(Path::new(&dir))
         && pack_dir_allowed(Path::new(&dir), data_dir, EXTERNAL_PACKS_ALLOWED)
         && crate::audio_model_manager::pinned_pack_verified(
@@ -5122,6 +5227,70 @@ mod tests {
                 }
             )
         );
+    }
+
+    #[test]
+    fn encrypted_vault_seals_pack_and_asr_helpers_with_no_plaintext_sidecar() {
+        let data_dir = std::env::temp_dir().join(format!(
+            "medscale-sealed-helpers-test-{}",
+            std::process::id()
+        ));
+        let _ = std::fs::remove_dir_all(&data_dir);
+        std::fs::create_dir_all(&data_dir).unwrap();
+        let passphrase = "sealed helpers passphrase";
+
+        let mut state = State {
+            data_dir: Some(data_dir.clone()),
+            ..State::default()
+        };
+        let _codes = create_encrypted(&mut state, passphrase).expect("create encrypted vault");
+        let vault_root = state.workspace().unwrap().vault_root.clone();
+
+        // Save pack_dirs and asr_pack inside the encrypted vault.
+        let mut dirs = std::collections::BTreeMap::new();
+        dirs.insert("pack.alpha".to_owned(), "C:/models/alpha".to_owned());
+        save_pack_dirs_for(state.workspace().unwrap(), &dirs).expect("save pack dirs");
+        save_asr_pack_for(state.workspace().unwrap(), Some("C:/models/whisper"))
+            .expect("save asr pack");
+
+        // Zero plaintext sidecar files may exist beside the encrypted vault.
+        assert!(!pack_dirs_path(&vault_root).exists());
+        assert!(!asr_pack_path(&vault_root).exists());
+
+        // Lock (seal) and unlock to prove both records survive inside meta.sealed.
+        if let Some(ws) = state.workspace.as_mut() {
+            ws.close().expect("seal vault");
+        }
+        state.workspace = None;
+        unlock_encrypted(&mut state, passphrase).expect("reopen encrypted vault");
+        assert_eq!(load_pack_dirs_for(state.workspace().unwrap()), dirs);
+        assert_eq!(
+            load_asr_pack_for(state.workspace().unwrap()).as_deref(),
+            Some("C:/models/whisper")
+        );
+        assert!(!pack_dirs_path(&vault_root).exists());
+        assert!(!asr_pack_path(&vault_root).exists());
+
+        // Clearing asr_pack removes it from meta.sealed too.
+        save_asr_pack_for(state.workspace().unwrap(), None).expect("clear asr pack");
+        assert_eq!(load_asr_pack_for(state.workspace().unwrap()), None);
+
+        // Legacy plaintext sidecar is migrated inside meta.sealed and removed.
+        save_asr_pack(&vault_root, "C:/models/legacy-whisper").expect("write legacy sidecar");
+        assert!(asr_pack_path(&vault_root).is_file());
+        assert_eq!(
+            load_asr_pack_for(state.workspace().unwrap()).as_deref(),
+            Some("C:/models/legacy-whisper")
+        );
+        assert!(
+            !asr_pack_path(&vault_root).exists(),
+            "legacy plaintext sidecar must be deleted after migration"
+        );
+
+        if let Some(ws) = state.workspace.as_mut() {
+            let _ = ws.close();
+        }
+        let _ = std::fs::remove_dir_all(&data_dir);
     }
 
     #[test]

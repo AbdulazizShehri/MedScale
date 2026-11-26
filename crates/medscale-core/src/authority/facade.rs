@@ -1700,6 +1700,57 @@ impl CoreFacade {
                     entries: subject_roster(&store),
                 })
             }
+            RequestBody::VaultHelperRecordGet { key } => {
+                self.require_lease(&req.vault_id)?;
+                let vault_guard = self.vault();
+                let enc_guard = self.encrypted();
+                let meta = if let Some(enc) = enc_guard.as_ref() {
+                    &enc.meta
+                } else if let Some(vault) = vault_guard.as_ref() {
+                    &vault.meta
+                } else {
+                    return Err(AuthorityError::VaultRequired);
+                };
+                let value_json = meta.get_vault_helper_record(&key).map_err(|e| match e {
+                    medscale_storage::MetaError::UnsupportedSchema(msg) => {
+                        AuthorityError::InvalidArgument { message: msg }
+                    }
+                    _ => AuthorityError::Internal {
+                        message: "could not read vault helper record".to_owned(),
+                    },
+                })?;
+                Ok(ResponseBody::VaultHelperRecord { value_json })
+            }
+            RequestBody::VaultHelperRecordSet { key, value_json } => {
+                self.require_lease(&req.vault_id)?;
+                if let Some(ref json) = value_json {
+                    serde_json::from_str::<serde_json::Value>(json).map_err(|_| {
+                        AuthorityError::InvalidArgument {
+                            message: "vault helper record must be valid JSON".to_owned(),
+                        }
+                    })?;
+                }
+                let vault_guard = self.vault();
+                let enc_guard = self.encrypted();
+                let meta = if let Some(enc) = enc_guard.as_ref() {
+                    &enc.meta
+                } else if let Some(vault) = vault_guard.as_ref() {
+                    &vault.meta
+                } else {
+                    return Err(AuthorityError::VaultRequired);
+                };
+                meta.set_vault_helper_record(&key, value_json.as_deref())
+                    .map_err(|e| match e {
+                        medscale_storage::MetaError::UnsupportedSchema(msg)
+                        | medscale_storage::MetaError::CorruptObjectBody(msg) => {
+                            AuthorityError::InvalidArgument { message: msg }
+                        }
+                        _ => AuthorityError::Internal {
+                            message: "could not store vault helper record".to_owned(),
+                        },
+                    })?;
+                Ok(ResponseBody::VaultHelperRecord { value_json })
+            }
             RequestBody::GetTimeline { subject_ref } => {
                 self.require_lease(&req.vault_id)?;
                 let store = self.store();
@@ -6071,7 +6122,9 @@ fn capability_matches(cap: &Capability, body: &RequestBody) -> bool {
             )
             | (
                 Capability::ReadObject,
-                RequestBody::ReadObject { .. } | RequestBody::ListSubjectRoster
+                RequestBody::ReadObject { .. }
+                    | RequestBody::ListSubjectRoster
+                    | RequestBody::VaultHelperRecordGet { .. }
             )
             | (
                 Capability::OpenSyntheticVault,
@@ -6142,7 +6195,7 @@ fn capability_matches(cap: &Capability, body: &RequestBody) -> bool {
             )
             | (
                 Capability::PacksInstallLocal,
-                RequestBody::PacksInstallLocal { .. }
+                RequestBody::PacksInstallLocal { .. } | RequestBody::VaultHelperRecordSet { .. }
             )
             | (Capability::PacksList, RequestBody::PacksList)
             | (Capability::PacksPromote, RequestBody::PacksPromote { .. })
