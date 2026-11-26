@@ -1406,7 +1406,7 @@ pub fn save_pack_dirs(
 /// Workspace-aware pack directory lookup. Encrypted vaults seal this record
 /// inside `meta.sealed` (migrating and deleting any legacy plaintext sidecar).
 pub fn load_pack_dirs_for(ws: &mut Workspace) -> std::collections::BTreeMap<String, String> {
-    if !ws.encrypted {
+    if ws.kind != VaultKind::Encrypted {
         return load_pack_dirs(&ws.vault_root);
     }
     if let Ok(Some(json)) = ws.session.vault_helper_record_get(HELPER_KEY_PACK_DIRS)
@@ -1437,7 +1437,7 @@ pub fn save_pack_dirs_for(
     ws: &mut Workspace,
     dirs: &std::collections::BTreeMap<String, String>,
 ) -> CmdResult<()> {
-    if !ws.encrypted {
+    if ws.kind != VaultKind::Encrypted {
         return save_pack_dirs(&ws.vault_root, dirs);
     }
     let json = serde_json::to_string(dirs)
@@ -1480,7 +1480,7 @@ pub fn clear_asr_pack(vault_root: &Path) {
 /// Workspace-aware active ASR pack lookup. Encrypted vaults seal this record
 /// inside `meta.sealed` (migrating and deleting any legacy plaintext sidecar).
 pub fn load_asr_pack_for(ws: &mut Workspace) -> Option<String> {
-    if !ws.encrypted {
+    if ws.kind != VaultKind::Encrypted {
         return load_asr_pack(&ws.vault_root);
     }
     if let Ok(Some(json)) = ws.session.vault_helper_record_get(HELPER_KEY_ASR_PACK)
@@ -1510,7 +1510,7 @@ pub fn load_asr_pack_for(ws: &mut Workspace) -> Option<String> {
 /// Workspace-aware active ASR pack persistence. Encrypted vaults seal this
 /// record inside `meta.sealed` with no plaintext sidecar beside the vault.
 pub fn save_asr_pack_for(ws: &mut Workspace, dir: Option<&str>) -> CmdResult<()> {
-    if !ws.encrypted {
+    if ws.kind != VaultKind::Encrypted {
         return match dir {
             Some(d) => save_asr_pack(&ws.vault_root, d),
             None => {
@@ -5244,7 +5244,7 @@ mod tests {
             ws.close().expect("seal vault");
         }
         state.workspace = None;
-        open_encrypted(&mut state, passphrase).expect("reopen encrypted vault");
+        unlock_encrypted(&mut state, passphrase).expect("reopen encrypted vault");
         assert_eq!(load_pack_dirs_for(state.workspace().unwrap()), dirs);
         assert_eq!(
             load_asr_pack_for(state.workspace().unwrap()).as_deref(),
