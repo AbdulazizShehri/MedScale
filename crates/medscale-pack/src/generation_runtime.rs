@@ -244,42 +244,47 @@ pub(crate) fn prepare_generator_from_bytes(
         .map_err(|_| GenerationRuntimeError::Tokenizer)?;
     // Architecture and config are checked before any weight is parsed.
     let parse = |e: serde_json::Error| GenerationRuntimeError::InvalidConfig(e.to_string());
-    let decoder = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
-        let vb =
-            VarBuilder::from_buffered_safetensors(weights, DType::F32, &device).map_err(prep)?;
-        match model_type.as_str() {
-            "qwen2" => {
-                let cfg: qwen2::Config = serde_json::from_value(config.clone()).map_err(parse)?;
-                Ok(Decoder::Qwen2(Box::new(
-                    qwen2::ModelForCausalLM::new(&cfg, vb).map_err(prep)?,
-                )))
+    let decoder = std::panic::catch_unwind(std::panic::AssertUnwindSafe(
+        || -> Result<Decoder, GenerationRuntimeError> {
+            let vb = VarBuilder::from_buffered_safetensors(weights, DType::F32, &device)
+                .map_err(prep)?;
+            match model_type.as_str() {
+                "qwen2" => {
+                    let cfg: qwen2::Config =
+                        serde_json::from_value(config.clone()).map_err(parse)?;
+                    Ok(Decoder::Qwen2(Box::new(
+                        qwen2::ModelForCausalLM::new(&cfg, vb).map_err(prep)?,
+                    )))
+                }
+                "llama" => {
+                    let raw: llama::LlamaConfig =
+                        serde_json::from_value(config.clone()).map_err(parse)?;
+                    let cfg = raw.into_config(false);
+                    check_llama_layers(&vb, &cfg)?;
+                    let model = llama::Llama::load(vb, &cfg).map_err(prep)?;
+                    // The cache precomputes rotary tables for every position; only
+                    // the runtime's context bound is ever used.
+                    let mut cache_cfg = cfg.clone();
+                    cache_cfg.max_position_embeddings =
+                        cfg.max_position_embeddings.min(MAX_CONTEXT);
+                    let fresh =
+                        llama::Cache::new(true, DType::F32, &cache_cfg, &device).map_err(prep)?;
+                    Ok(Decoder::Llama {
+                        model: Box::new(model),
+                        cache: Box::new(fresh.clone()),
+                        fresh: Box::new(fresh),
+                    })
+                }
+                _ => {
+                    let cfg: mistral::Config =
+                        serde_json::from_value(config.clone()).map_err(parse)?;
+                    Ok(Decoder::Mistral(Box::new(
+                        mistral::Model::new(&cfg, vb).map_err(prep)?,
+                    )))
+                }
             }
-            "llama" => {
-                let raw: llama::LlamaConfig =
-                    serde_json::from_value(config.clone()).map_err(parse)?;
-                let cfg = raw.into_config(false);
-                check_llama_layers(&vb, &cfg)?;
-                let model = llama::Llama::load(vb, &cfg).map_err(prep)?;
-                // The cache precomputes rotary tables for every position; only
-                // the runtime's context bound is ever used.
-                let mut cache_cfg = cfg.clone();
-                cache_cfg.max_position_embeddings = cfg.max_position_embeddings.min(MAX_CONTEXT);
-                let fresh =
-                    llama::Cache::new(true, DType::F32, &cache_cfg, &device).map_err(prep)?;
-                Ok(Decoder::Llama {
-                    model: Box::new(model),
-                    cache: Box::new(fresh.clone()),
-                    fresh: Box::new(fresh),
-                })
-            }
-            _ => {
-                let cfg: mistral::Config = serde_json::from_value(config.clone()).map_err(parse)?;
-                Ok(Decoder::Mistral(Box::new(
-                    mistral::Model::new(&cfg, vb).map_err(prep)?,
-                )))
-            }
-        }
-    }))
+        },
+    ))
     .map_err(|_| GenerationRuntimeError::Prepare("model preparation panicked".into()))??;
     Ok(PreparedTextGenerator {
         content_digest,
