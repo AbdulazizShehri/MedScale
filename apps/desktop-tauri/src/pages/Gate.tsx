@@ -218,6 +218,8 @@ export function Access({ onBack, onRecoveryCodes }: { onBack: () => void; onReco
       window.clearInterval(timer);
     };
   }, [codes, onRecoveryCodes, refreshWorkspace]);
+  // Clear secrets from React state if this screen unmounts.
+  useEffect(() => () => { setPass(""); setConfirm(""); setCodes(null); }, []);
   // Unlocking is a short, familiar task: the explanation waits behind a disclosure.
   const compact = exists && mode === "unlock" && !codes;
 
@@ -234,12 +236,18 @@ export function Access({ onBack, onRecoveryCodes }: { onBack: () => void; onReco
         const notice = vaultOpenNotice(r.data);
         if (notice) toast(notice);
         await refreshWorkspace();
-      } else setError(r.error);
+      } else {
+        // Keep `pass` only when Spec 109 offers the immediate move-aside confirmation.
+        if (r.error.reason !== "work_file_check_unavailable") setPass("");
+        setError(r.error);
+      }
     } else {
       // Held from before the call: leaving now would drop codes that are shown only once.
       onRecoveryCodes(true);
       const r = await run<{ recovery_codes: string[] }>("create", "workspace_create_encrypted", { passphrase: pass });
-      if (r.ok) { setPass(""); setConfirm(""); setCodes(r.data.recovery_codes); } else {
+      setPass("");
+      setConfirm("");
+      if (r.ok) { setCodes(r.data.recovery_codes); } else {
         setError(r.error);
         // A conflict means another create got there first, so these codes never existed.
         setCreateFailed(r.error.kind !== "conflict");
@@ -256,8 +264,8 @@ export function Access({ onBack, onRecoveryCodes }: { onBack: () => void; onReco
     setError(null);
     const r = await run<unknown>("unlock", "workspace_unlock_moving_session_aside", useCode ? { code: pass } : { passphrase: pass });
     setMoveAside(false);
-    if (!r.ok) { setError(r.error); return; }
     setPass("");
+    if (!r.ok) { setError(r.error); return; }
     const notice = vaultOpenNotice(r.data);
     if (notice) toast(notice);
     await refreshWorkspace();

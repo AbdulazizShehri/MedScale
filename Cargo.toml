@@ -88,6 +88,13 @@ unsafe_code = "deny"
 all = { level = "deny", priority = -1 }
 pedantic = { level = "allow", priority = -1 }
 
+# Keep Argon2id full-strength (64 MiB) fast in debug/test runs without lowering KDF parameters.
+[profile.dev.package.argon2]
+opt-level = 3
+
+[profile.dev.package.blake2]
+opt-level = 3
+
 # Security backport (RUSTSEC-2026-0367/0368/0369): candle-core 0.9.1 exactly
 # as published, with only its ZIP dependency moved to 9.0.3 and the ZIP 9 API
 # changes from upstream huggingface/candle#4041. Remove when a candle release

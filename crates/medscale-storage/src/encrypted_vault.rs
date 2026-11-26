@@ -204,7 +204,9 @@ impl EncryptedVault {
         let header = Self::load_header(&root)?;
         let dek = KeyProvider::unlock_passphrase(&header, passphrase)
             .map_err(|_| EncryptedVaultError::MissingKeyMaterial)?;
-        Self::finish_open(root, header, dek, holder_id, LeftoverPolicy::Classify)
+        let mut vault = Self::finish_open(root, header, dek, holder_id, LeftoverPolicy::Classify)?;
+        vault.upgrade_kdf_if_needed(passphrase)?;
+        Ok(vault)
     }
 
     pub fn open_with_recovery(
@@ -247,7 +249,25 @@ impl EncryptedVault {
             (None, None) => return Err(EncryptedVaultError::MissingKeyMaterial),
         }
         .map_err(|_| EncryptedVaultError::MissingKeyMaterial)?;
-        Self::finish_open(root, header, dek, holder_id, LeftoverPolicy::MoveAside)
+        let mut vault = Self::finish_open(root, header, dek, holder_id, LeftoverPolicy::MoveAside)?;
+        if recovery_code.is_none()
+            && let Some(passphrase) = passphrase
+        {
+            vault.upgrade_kdf_if_needed(passphrase)?;
+        }
+        Ok(vault)
+    }
+
+    /// Rewraps a legacy weaker Argon2id header (e.g. 19 MiB) to the current
+    /// default profile (64 MiB) once the passphrase and seal are verified.
+    fn upgrade_kdf_if_needed(&mut self, passphrase: &str) -> Result<(), EncryptedVaultError> {
+        if let Some(upgraded) =
+            KeyProvider::rewrap_passphrase_if_needed(&self.header, &self.dek, passphrase)
+                .map_err(|_| EncryptedVaultError::Crypto)?
+        {
+            self.write_header(upgraded)?;
+        }
+        Ok(())
     }
 
     fn finish_open(
@@ -2701,6 +2721,43 @@ mod crash_tests {
         assert!(vault.meta.get_next_seq().is_err());
         vault.meta.set_next_seq(1).expect("repair");
         vault.close().expect("close");
+        fs::remove_dir_all(&root).expect("cleanup");
+    }
+
+    #[test]
+    fn legacy_19_mib_vault_rewraps_header_to_64_mib_on_passphrase_unlock() {
+        let root = sealed_with_one_source("legacy-kdf-upgrade");
+        let header = EncryptedVault::load_header(&root).expect("header");
+        let dek = KeyProvider::unlock_passphrase(&header, PASS).expect("dek");
+        let legacy_header =
+            KeyProvider::wrap_legacy_19mib_for_upgrade_test(&header, &dek, PASS).expect("legacy");
+        let legacy_salt = legacy_header.salt.clone();
+        assert_eq!(legacy_header.profile.argon2_m_kib, 19_456);
+        let on_disk = OnDiskHeader {
+            keys: legacy_header,
+        };
+        fs::write(
+            root.join(HEADER_FILE),
+            serde_json::to_vec_pretty(&on_disk).expect("json"),
+        )
+        .expect("write legacy header");
+
+        // Opening with passphrase transparently upgrades the on-disk header to 64 MiB.
+        let vault = EncryptedVault::open_with_passphrase(&root, PASS, HOLDER).expect("open");
+        assert_eq!(
+            vault.header.profile.argon2_m_kib,
+            medscale_keys::ARGON2_M_KIB
+        );
+        assert_eq!(vault.header.profile.argon2_t, medscale_keys::ARGON2_T);
+        assert_ne!(vault.header.salt, legacy_salt);
+        let reloaded = EncryptedVault::load_header(&root).expect("reloaded header");
+        assert_eq!(reloaded.profile.argon2_m_kib, 65_536);
+        assert_eq!(reloaded.profile.argon2_t, 3);
+        vault.close().expect("close");
+
+        // Reopening with the upgraded 64 MiB header succeeds cleanly.
+        let reopened = EncryptedVault::open_with_passphrase(&root, PASS, HOLDER).expect("reopen");
+        reopened.close().expect("close");
         fs::remove_dir_all(&root).expect("cleanup");
     }
 }

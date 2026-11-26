@@ -49,6 +49,12 @@ unsafe_code = "deny"
 all = { level = "deny", priority = -1 }
 pedantic = { level = "allow", priority = -1 }
 
+[profile.dev.package.argon2]
+opt-level = 3
+
+[profile.dev.package.blake2]
+opt-level = 3
+
 # The repository's pinned candle-core 0.9.1 backport to zip 9.0.3
 # (vendor/candle-core-0.9.1/MEDSCALE_PATCH.md). This crate is its own
 # workspace, so the root patch must be repeated here.
