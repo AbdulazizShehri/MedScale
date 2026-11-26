@@ -76,45 +76,7 @@ jobs:
           MEDSCALE_CI_WEBVIEW_BASELINE: "1"
         run: |
           $driver = Join-Path $env:EDGEWEBDRIVER 'msedgedriver.exe'
-          $driverVerOut = (& $driver --version) | Out-String
-          Write-Host "Preinstalled Edge WebDriver: $driverVerOut"
-          $wv2Ver = (Get-ItemProperty -Path 'HKLM:\SOFTWARE\WOW6432Node\Microsoft\EdgeUpdate\Clients\{F3017226-FE2A-4295-8BDF-00C3A9A7E4C5}' -ErrorAction SilentlyContinue).pv
-          if (-not $wv2Ver) {
-            $wv2Ver = (Get-ItemProperty -Path 'HKCU:\SOFTWARE\Microsoft\EdgeUpdate\Clients\{F3017226-FE2A-4295-8BDF-00C3A9A7E4C5}' -ErrorAction SilentlyContinue).pv
-          }
-          Write-Host "Installed WebView2 Runtime: $wv2Ver"
-          if ($wv2Ver -and $driverVerOut -match '(\d+)\.\d+\.\d+\.\d+') {
-            $driverMajor = $Matches[1]
-            if ($wv2Ver -match '^(\d+)\.') {
-              $wv2Major = $Matches[1]
-            } else {
-              $wv2Major = $driverMajor
-            }
-            if ($driverMajor -ne $wv2Major) {
-              Write-Host "Version skew detected (driver major $driverMajor != WebView2 major $wv2Major); fetching matching msedgedriver for $wv2Ver"
-              $matchDir = Join-Path $env:RUNNER_TEMP "msedgedriver-$wv2Ver"
-              New-Item -ItemType Directory -Force -Path $matchDir | Out-Null
-              $zipPath = Join-Path $matchDir 'edgedriver.zip'
-              $downloaded = $false
-              foreach ($candidate in @($wv2Ver)) {
-                try {
-                  Invoke-WebRequest -Uri "https://msedgedriver.microsoft.com/$candidate/edgedriver_win64.zip" -OutFile $zipPath -UseBasicParsing
-                  $downloaded = $true
-                  break
-                } catch {
-                  Write-Host "Exact version $candidate unavailable: $($_.Exception.Message)"
-                }
-              }
-              if (-not $downloaded) {
-                $latest = (Invoke-WebRequest -Uri "https://msedgedriver.microsoft.com/LATEST_RELEASE_${wv2Major}_WINDOWS" -UseBasicParsing).Content.Trim()
-                Write-Host "Falling back to LATEST_RELEASE_${wv2Major}_WINDOWS: $latest"
-                Invoke-WebRequest -Uri "https://msedgedriver.microsoft.com/$latest/edgedriver_win64.zip" -OutFile $zipPath -UseBasicParsing
-              }
-              Expand-Archive -Path $zipPath -DestinationPath $matchDir -Force
-              $driver = Join-Path $matchDir 'msedgedriver.exe'
-              & $driver --version
-            }
-          }
+          & $driver --version
           $wd = Start-Process -FilePath $driver -ArgumentList @('--port=9515') -PassThru -NoNewWindow
           Start-Sleep -Seconds 3
           try {

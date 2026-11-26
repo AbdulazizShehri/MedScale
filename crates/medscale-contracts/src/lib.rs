@@ -38,6 +38,7 @@ pub mod os_sandbox;
 pub mod packs;
 pub mod presentation;
 pub mod privacy_gate;
+pub mod process_hardening;
 pub mod project_graph;
 pub mod r_workspace;
 pub mod research_packs;

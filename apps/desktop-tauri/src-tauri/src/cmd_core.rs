@@ -105,7 +105,8 @@ pub fn ui_prefs_set(host: tauri::State<'_, Host>, theme: String, density: String
 
 #[tauri::command(async)]
 pub fn workspace_status(host: tauri::State<'_, Host>) -> CmdResult<Value> {
-    let state = lock(&host)?;
+    let mut state = lock(&host)?;
+    state.enforce_idle_lock();
     let report = doctor(&state);
     Ok(json!({
         "open": state.workspace.is_some(),
@@ -161,30 +162,36 @@ pub fn workspace_delete_set_aside_synthetic(host: tauri::State<'_, Host>) -> Cmd
 #[tauri::command(async)]
 pub fn workspace_create_encrypted(
     host: tauri::State<'_, Host>,
-    passphrase: String,
+    mut passphrase: String,
 ) -> CmdResult<Value> {
     let mut state = lock(&host)?;
     state.workspace = None;
-    let codes = host::create_encrypted(&mut state, &passphrase)?;
+    let res = host::create_encrypted(&mut state, &passphrase);
+    medscale_core::zeroize_string(&mut passphrase);
+    let codes = res?;
     Ok(json!({ "workspace": vault_label(&state), "recovery_codes": codes }))
 }
 
 #[tauri::command(async)]
-pub fn workspace_unlock(host: tauri::State<'_, Host>, passphrase: String) -> CmdResult<Value> {
+pub fn workspace_unlock(host: tauri::State<'_, Host>, mut passphrase: String) -> CmdResult<Value> {
     let mut state = lock(&host)?;
     state.workspace = None;
-    let outcome = host::unlock_encrypted(&mut state, &passphrase)?;
+    let res = host::unlock_encrypted(&mut state, &passphrase);
+    medscale_core::zeroize_string(&mut passphrase);
+    let outcome = res?;
     Ok(label_with_outcome(&state, outcome))
 }
 
 #[tauri::command(async)]
 pub fn workspace_unlock_with_recovery_code(
     host: tauri::State<'_, Host>,
-    code: String,
+    mut code: String,
 ) -> CmdResult<Value> {
     let mut state = lock(&host)?;
     state.workspace = None;
-    let outcome = host::unlock_encrypted_with_recovery_code(&mut state, &code)?;
+    let res = host::unlock_encrypted_with_recovery_code(&mut state, &code);
+    medscale_core::zeroize_string(&mut code);
+    let outcome = res?;
     Ok(label_with_outcome(&state, outcome))
 }
 
@@ -193,16 +200,23 @@ pub fn workspace_unlock_with_recovery_code(
 #[tauri::command(async)]
 pub fn workspace_unlock_moving_session_aside(
     host: tauri::State<'_, Host>,
-    passphrase: Option<String>,
-    code: Option<String>,
+    mut passphrase: Option<String>,
+    mut code: Option<String>,
 ) -> CmdResult<Value> {
     let mut state = lock(&host)?;
     state.workspace = None;
-    let outcome = host::unlock_encrypted_moving_session_aside(
+    let res = host::unlock_encrypted_moving_session_aside(
         &mut state,
         passphrase.as_deref(),
         code.as_deref(),
-    )?;
+    );
+    if let Some(ref mut p) = passphrase {
+        medscale_core::zeroize_string(p);
+    }
+    if let Some(ref mut c) = code {
+        medscale_core::zeroize_string(c);
+    }
+    let outcome = res?;
     Ok(label_with_outcome(&state, outcome))
 }
 
@@ -289,26 +303,36 @@ fn encrypted_keys(state: &mut State) -> CmdResult<&mut CliSession> {
 #[tauri::command(async)]
 pub fn vault_change_passphrase(
     host: tauri::State<'_, Host>,
-    current: String,
-    new_passphrase: String,
+    mut current: String,
+    mut new_passphrase: String,
 ) -> CmdResult<()> {
-    host::validate_passphrase(&new_passphrase)?;
+    let valid = host::validate_passphrase(&new_passphrase);
+    if let Err(err) = valid {
+        medscale_core::zeroize_string(&mut current);
+        medscale_core::zeroize_string(&mut new_passphrase);
+        return Err(err);
+    }
     let mut state = lock(&host)?;
-    encrypted_keys(&mut state)?
+    let res = encrypted_keys(&mut state)?
         .change_vault_passphrase(&current, &new_passphrase)
-        .map_err(rekey_err)
+        .map_err(rekey_err);
+    medscale_core::zeroize_string(&mut current);
+    medscale_core::zeroize_string(&mut new_passphrase);
+    res
 }
 
 /// B3: replaces every recovery code; the new ones are returned once.
 #[tauri::command(async)]
 pub fn vault_replace_recovery_codes(
     host: tauri::State<'_, Host>,
-    current: String,
+    mut current: String,
 ) -> CmdResult<Value> {
     let mut state = lock(&host)?;
-    let codes = encrypted_keys(&mut state)?
+    let res = encrypted_keys(&mut state)?
         .replace_recovery_codes(&current)
-        .map_err(rekey_err)?;
+        .map_err(rekey_err);
+    medscale_core::zeroize_string(&mut current);
+    let codes = res?;
     Ok(json!({ "recovery_codes": codes }))
 }
 

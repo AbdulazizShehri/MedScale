@@ -35,6 +35,7 @@ pub use ipc::{
     HostIpcClient, HostIpcError, HostIpcServer, MAX_FRAME_BYTES, endpoint_for_vault_root,
 };
 pub use medscale_contracts::{MEDSCALE_VERSION, WorkspaceIdentity};
+pub use medscale_keys::zeroize_string;
 pub use process::SessionEnforcement;
 pub use vault_guard::{VaultWriterGuard, VaultWriterGuardError};
 pub use workflow::{JourneyConfig, run_minimum_lovable_journey};

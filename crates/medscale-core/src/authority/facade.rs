@@ -1814,10 +1814,11 @@ impl CoreFacade {
             }
             RequestBody::CreateEncryptedVault {
                 vault_root,
-                passphrase,
+                mut passphrase,
             } => {
                 self.require_lease(&req.vault_id)?;
                 if self.vault().is_some() {
+                    medscale_keys::zeroize_string(&mut passphrase);
                     return Err(AuthorityError::InvalidArgument {
                         message: "synthetic vault already open; close before creating encrypted"
                             .to_owned(),
@@ -1825,22 +1826,27 @@ impl CoreFacade {
                 }
                 let mut slot = self.encrypted();
                 if slot.is_some() {
+                    medscale_keys::zeroize_string(&mut passphrase);
                     return Err(AuthorityError::InvalidArgument {
                         message: "encrypted vault already open".to_owned(),
                     });
                 }
-                let holder = self
-                    .leases
-                    .holder(&req.vault_id)
-                    .ok_or(AuthorityError::LeaseRequired)?;
-                let (vault, codes) = EncryptedVault::create(
+                let holder = match self.leases.holder(&req.vault_id) {
+                    Some(h) => h,
+                    None => {
+                        medscale_keys::zeroize_string(&mut passphrase);
+                        return Err(AuthorityError::LeaseRequired);
+                    }
+                };
+                let created = EncryptedVault::create(
                     req.vault_id.as_str(),
                     std::path::Path::new(&vault_root),
                     &passphrase,
                     holder.as_str(),
                     None,
-                )
-                .map_err(enc_err)?;
+                );
+                medscale_keys::zeroize_string(&mut passphrase);
+                let (vault, codes) = created.map_err(enc_err)?;
                 // Spec 035: empty authority snapshot for new encrypted vault.
                 {
                     let store = self.store();
@@ -1849,19 +1855,31 @@ impl CoreFacade {
                 *slot = Some(vault);
                 Ok(ResponseBody::EncryptedVaultReady {
                     vault_root,
-                    recovery_codes: Some(codes.codes),
+                    recovery_codes: Some(codes.codes.clone()),
                     open_outcome: None,
                     older_copy: None,
                 })
             }
             RequestBody::OpenEncryptedVault {
                 vault_root,
-                passphrase,
-                recovery_code,
+                mut passphrase,
+                mut recovery_code,
                 discard_leftover,
             } => {
-                self.require_lease(&req.vault_id)?;
+                let clear_secrets = |pw: &mut Option<String>, rc: &mut Option<String>| {
+                    if let Some(s) = pw.as_mut() {
+                        medscale_keys::zeroize_string(s);
+                    }
+                    if let Some(s) = rc.as_mut() {
+                        medscale_keys::zeroize_string(s);
+                    }
+                };
+                if let Err(err) = self.require_lease(&req.vault_id) {
+                    clear_secrets(&mut passphrase, &mut recovery_code);
+                    return Err(err);
+                }
                 if self.vault().is_some() {
+                    clear_secrets(&mut passphrase, &mut recovery_code);
                     return Err(AuthorityError::InvalidArgument {
                         message: "synthetic vault already open; close before opening encrypted"
                             .to_owned(),
@@ -1869,30 +1887,36 @@ impl CoreFacade {
                 }
                 let mut slot = self.encrypted();
                 if slot.is_some() {
+                    clear_secrets(&mut passphrase, &mut recovery_code);
                     return Err(AuthorityError::InvalidArgument {
                         message: "encrypted vault already open".to_owned(),
                     });
                 }
-                let holder = self
-                    .leases
-                    .holder(&req.vault_id)
-                    .ok_or(AuthorityError::LeaseRequired)?;
+                let holder = match self.leases.holder(&req.vault_id) {
+                    Some(h) => h,
+                    None => {
+                        clear_secrets(&mut passphrase, &mut recovery_code);
+                        return Err(AuthorityError::LeaseRequired);
+                    }
+                };
                 let path = std::path::Path::new(&vault_root);
-                let vault = if discard_leftover {
+                let opened = if discard_leftover {
                     EncryptedVault::open_moving_leftover_aside(
                         path,
                         passphrase.as_deref(),
                         recovery_code.as_deref(),
                         holder.as_str(),
                     )
-                } else if let Some(code) = recovery_code {
-                    EncryptedVault::open_with_recovery(path, &code, holder.as_str())
-                } else if let Some(pw) = passphrase {
-                    EncryptedVault::open_with_passphrase(path, &pw, holder.as_str())
+                } else if let Some(ref code) = recovery_code {
+                    EncryptedVault::open_with_recovery(path, code, holder.as_str())
+                } else if let Some(ref pw) = passphrase {
+                    EncryptedVault::open_with_passphrase(path, pw, holder.as_str())
                 } else {
+                    clear_secrets(&mut passphrase, &mut recovery_code);
                     return Err(AuthorityError::MissingKeyMaterial);
-                }
-                .map_err(enc_err)?;
+                };
+                clear_secrets(&mut passphrase, &mut recovery_code);
+                let vault = opened.map_err(enc_err)?;
                 let (mut vault, adopted) = self.load_opened_vault(vault)?;
                 let notified = vault.notice_pending();
                 let older_copy = vault.older_copy().map(|(found, seen)| {
@@ -1977,15 +2001,24 @@ impl CoreFacade {
                 })
             }
             RequestBody::ChangeVaultPassphrase {
-                current,
-                new_passphrase,
+                mut current,
+                mut new_passphrase,
             } => {
-                self.require_lease(&req.vault_id)?;
+                if let Err(err) = self.require_lease(&req.vault_id) {
+                    medscale_keys::zeroize_string(&mut current);
+                    medscale_keys::zeroize_string(&mut new_passphrase);
+                    return Err(err);
+                }
                 let mut enc = self.encrypted();
-                let vault = enc.as_mut().ok_or(AuthorityError::VaultRequired)?;
-                vault
-                    .change_passphrase(&current, &new_passphrase)
-                    .map_err(enc_err)?;
+                let res = match enc.as_mut() {
+                    Some(vault) => vault
+                        .change_passphrase(&current, &new_passphrase)
+                        .map_err(enc_err),
+                    None => Err(AuthorityError::VaultRequired),
+                };
+                medscale_keys::zeroize_string(&mut current);
+                medscale_keys::zeroize_string(&mut new_passphrase);
+                res?;
                 Ok(ResponseBody::VaultPassphraseChanged)
             }
             RequestBody::VerifyAuditChain => {
@@ -2005,11 +2038,18 @@ impl CoreFacade {
                     problems: report.problems,
                 })
             }
-            RequestBody::ReplaceRecoveryCodes { current } => {
-                self.require_lease(&req.vault_id)?;
+            RequestBody::ReplaceRecoveryCodes { mut current } => {
+                if let Err(err) = self.require_lease(&req.vault_id) {
+                    medscale_keys::zeroize_string(&mut current);
+                    return Err(err);
+                }
                 let mut enc = self.encrypted();
-                let vault = enc.as_mut().ok_or(AuthorityError::VaultRequired)?;
-                let codes = vault.replace_recovery_codes(&current).map_err(enc_err)?;
+                let res = match enc.as_mut() {
+                    Some(vault) => vault.replace_recovery_codes(&current).map_err(enc_err),
+                    None => Err(AuthorityError::VaultRequired),
+                };
+                medscale_keys::zeroize_string(&mut current);
+                let codes = res?;
                 Ok(ResponseBody::RecoveryCodesReplaced {
                     recovery_codes: codes.codes.clone(),
                 })

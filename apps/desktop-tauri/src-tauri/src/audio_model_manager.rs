@@ -1011,6 +1011,81 @@ pub fn cancel(host: &Host) -> CmdResult<Value> {
     Ok(json!({"cancel_requested": true}))
 }
 
+/// Removes only the app-owned cache directory for one allowlisted Whisper model
+/// (Issue #459: recover from a damaged or incomplete saved model without manual
+/// file deletion). Refuses unknown IDs, symlinks, and active downloads.
+pub fn remove_saved_model(host: &Host, model_id: &str) -> CmdResult<Value> {
+    let entry = model(model_id)?;
+    let mut manager = host
+        .model_download
+        .lock()
+        .map_err(|_| CmdError::unavailable("Unavailable: model download state"))?;
+    if manager.active {
+        return Err(CmdError::new(
+            "conflict",
+            "Conflict: wait for or cancel the active model download first",
+        ));
+    }
+    let data_dir = {
+        let state = host
+            .state
+            .lock()
+            .map_err(|_| CmdError::new("internal", "Internal: host state lock poisoned"))?;
+        state.data_dir()?.to_path_buf()
+    };
+    let target = remove_saved_model_dir(entry, &data_dir)?;
+    if let Ok(mut state) = host.state.lock()
+        && let Some(ws) = state.workspace.as_mut()
+        && crate::host::load_asr_pack_for(ws)
+            .is_some_and(|saved| Path::new(&saved) == target.as_path())
+    {
+        let _ = crate::host::save_asr_pack_for(ws, None);
+    }
+    if manager.status.model_id.as_deref() == Some(entry.id)
+        || manager
+            .status
+            .pack_dir
+            .as_deref()
+            .is_some_and(|p| Path::new(p) == target.as_path())
+    {
+        manager.status = DownloadStatus::default();
+    }
+    Ok(json!({ "model_id": entry.id, "removed": true }))
+}
+
+fn remove_saved_model_dir(entry: Model, data_dir: &Path) -> CmdResult<std::path::PathBuf> {
+    let target = entry.directory(data_dir);
+    let meta = match fs::symlink_metadata(&target) {
+        Ok(m) => m,
+        Err(e) if e.kind() == std::io::ErrorKind::NotFound => {
+            return Err(CmdError::new(
+                "missing",
+                "Missing: no saved model folder exists for this model",
+            ));
+        }
+        Err(_) => {
+            return Err(CmdError::unavailable(
+                "Unavailable: could not inspect the saved model folder",
+            ));
+        }
+    };
+    if meta.file_type().is_symlink() {
+        return Err(CmdError::new(
+            "denied",
+            "Denied: refusing to remove a symbolic link inside audio-models",
+        ));
+    }
+    if !meta.is_dir() {
+        return Err(CmdError::invalid(
+            "Invalid: saved model entry is not a directory",
+        ));
+    }
+    fs::remove_dir_all(&target).map_err(|_| {
+        CmdError::unavailable("Unavailable: could not remove the saved model folder")
+    })?;
+    Ok(target)
+}
+
 #[cfg(test)]
 mod acquisition_tests {
     use super::*;
@@ -1251,5 +1326,50 @@ mod real_hub_qualification {
         let status = coordinator.lock().unwrap();
         assert_eq!(status.status.state, "verifying");
         assert!(status.status.bytes_downloaded > 0);
+    }
+
+    #[test]
+    fn remove_saved_model_clears_damaged_cache_and_leaves_siblings_intact() {
+        let root = std::env::temp_dir().join(format!(
+            "medscale-remove-saved-model-{}",
+            std::process::id()
+        ));
+        let _ = fs::remove_dir_all(&root);
+        let damaged = root.join("audio-models").join("whisper-tiny-en");
+        let sibling = root.join("audio-models").join("whisper-base-en");
+        fs::create_dir_all(&damaged).unwrap();
+        fs::create_dir_all(&sibling).unwrap();
+        fs::write(damaged.join("model.safetensors"), b"corrupt-bytes").unwrap();
+        fs::write(sibling.join("pack.manifest.json"), b"{}").unwrap();
+
+        let host = Host::default();
+        host.state.lock().unwrap().data_dir = Some(root.clone());
+
+        assert_eq!(
+            remove_saved_model(&host, "../../escape").unwrap_err().kind,
+            "invalid"
+        );
+        assert_eq!(
+            remove_saved_model(&host, "whisper-small-multilingual")
+                .unwrap_err()
+                .kind,
+            "missing"
+        );
+
+        let removed = remove_saved_model(&host, "whisper-tiny-en").unwrap();
+        assert_eq!(removed["removed"], true);
+        assert_eq!(removed["model_id"], "whisper-tiny-en");
+        assert!(!damaged.exists());
+        assert!(sibling.join("pack.manifest.json").is_file());
+
+        // Catalog now reports cache_entry_exists = false so a fresh download is allowed.
+        let entries = catalog(&root);
+        let tiny = entries
+            .iter()
+            .find(|e| e["id"] == "whisper-tiny-en")
+            .unwrap();
+        assert_eq!(tiny["cache_entry_exists"], false);
+
+        fs::remove_dir_all(&root).unwrap();
     }
 }
