@@ -746,6 +746,7 @@ const EXIT_JSON_ERROR: u8 = 3;
 const CLI_STACK_SIZE: usize = 8 << 20;
 
 fn main() -> ExitCode {
+    let _ = medscale_contracts::process_hardening::disable_crash_dumps();
     std::thread::Builder::new()
         .name("medscale-main".to_owned())
         .stack_size(CLI_STACK_SIZE)

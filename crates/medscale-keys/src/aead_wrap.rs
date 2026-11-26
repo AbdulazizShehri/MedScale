@@ -77,3 +77,8 @@ pub fn generate_key32() -> [u8; 32] {
 pub fn zeroize_key(key: &mut [u8]) {
     key.zeroize();
 }
+
+/// Zeroize helper for owned secret strings (passphrases, recovery codes).
+pub fn zeroize_string(secret: &mut String) {
+    secret.zeroize();
+}
