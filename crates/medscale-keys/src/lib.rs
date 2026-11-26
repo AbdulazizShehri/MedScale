@@ -7,7 +7,7 @@ mod pack_trust;
 mod provider;
 mod recovery;
 
-pub use aead_wrap::{WrappedBlob, generate_key32, seal, unseal, zeroize_key};
+pub use aead_wrap::{WrappedBlob, generate_key32, seal, unseal, zeroize_key, zeroize_string};
 pub use device_key::{
     DeviceKeyError, device_public_key, generate_device_key, sign_device_payload,
     verify_device_signature,
@@ -22,7 +22,8 @@ pub use pack_trust::{
     synthetic_verifying_key_hex, verify_pack_signature,
 };
 pub use provider::{
-    ARGON2_M_KIB, ARGON2_P, ARGON2_T, ENCRYPTION_PROFILE_V1, EncryptionProfile, KeyError,
+    ARGON2_M_KIB, ARGON2_MAX_M_KIB, ARGON2_MAX_P, ARGON2_MAX_T, ARGON2_MIN_M_KIB, ARGON2_MIN_P,
+    ARGON2_MIN_T, ARGON2_P, ARGON2_T, ENCRYPTION_PROFILE_V1, EncryptionProfile, KeyError,
     KeyProvider, RECOVERY_CODE_COUNT, UnlockMethod, VaultDek, VaultKeyHeader,
 };
 pub use recovery::{RecoveryCodeSet, generate_recovery_codes};

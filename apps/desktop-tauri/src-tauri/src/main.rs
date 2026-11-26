@@ -142,6 +142,7 @@ fn presentation_builder<R: tauri::Runtime>(builder: tauri::Builder<R>) -> tauri:
             cmd_ops::audio_model_download_status,
             cmd_ops::audio_model_download_cancel,
             cmd_ops::audio_model_activate_existing,
+            cmd_ops::audio_model_remove,
             cmd_ops::audio_admit_asr_pack,
             cmd_ops::audio_import_wav,
             cmd_ops::audio_transcribe,
@@ -152,6 +153,7 @@ fn presentation_builder<R: tauri::Runtime>(builder: tauri::Builder<R>) -> tauri:
 }
 
 fn main() {
+    let _ = medscale_contracts::process_hardening::disable_crash_dumps();
     startup_failure::install_panic_hook();
     presentation_builder(tauri::Builder::default().plugin(tauri_plugin_dialog::init()))
         .setup(|app| {

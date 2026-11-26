@@ -283,16 +283,19 @@ function VaultKeys() {
   const [confirm, setConfirm] = useState("");
   const [codes, setCodes] = useState<string[]>([]);
   const mismatch = mode === "passphrase" && confirm.length > 0 && next !== confirm;
-  function reset() { setMode(null); setCurrent(""); setNext(""); setConfirm(""); }
+  function clearSecrets() { setCurrent(""); setNext(""); setConfirm(""); }
+  function reset() { setMode(null); clearSecrets(); }
   async function submit(e: FormEvent) {
     e.preventDefault();
     if (mode === "passphrase") {
       if (next !== confirm) return;
       const r = await run<null>("rekey", "vault_change_passphrase", { current, newPassphrase: next });
-      if (outcome(r, "Passphrase changed · use the new one next time")) reset();
+      clearSecrets();
+      if (outcome(r, "Passphrase changed · use the new one next time")) setMode(null);
     } else if (mode === "codes") {
       const r = await run<{ recovery_codes: string[] }>("rekey", "vault_replace_recovery_codes", { current });
-      if (r.ok) { reset(); setCodes(r.data.recovery_codes); } else outcome(r, "");
+      clearSecrets();
+      if (r.ok) { setMode(null); setCodes(r.data.recovery_codes); } else outcome(r, "");
     }
   }
   if (codes.length) {
