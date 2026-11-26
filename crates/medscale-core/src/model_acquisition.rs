@@ -167,13 +167,56 @@ impl AcquisitionError {
     }
 }
 
+/// Ensures `dest_dir` is safe to publish a snapshot into: either it does not
+/// exist yet, is an empty directory, or already holds a MedScale-acquired
+/// `metadata.json`. Refuses arbitrary non-empty folders so `acquire` can never
+/// wipe user data (for example `--out ~/Documents`).
+fn validate_destination(dest_dir: &Path) -> Result<(), AcquisitionError> {
+    let meta = match std::fs::symlink_metadata(dest_dir) {
+        Ok(m) => m,
+        Err(e) if e.kind() == std::io::ErrorKind::NotFound => return Ok(()),
+        Err(e) => return Err(io(&e)),
+    };
+    if meta.file_type().is_symlink() || !meta.is_dir() {
+        return Err(AcquisitionError::Io(
+            "refusing to overwrite a non-directory or symbolic link destination".to_owned(),
+        ));
+    }
+    if dest_dir.join("metadata.json").is_file() {
+        return Ok(());
+    }
+    let mut entries = std::fs::read_dir(dest_dir).map_err(|e| io(&e))?;
+    if entries.next().is_some() {
+        return Err(AcquisitionError::Io(
+            "refusing to overwrite an existing non-empty directory that is not a MedScale snapshot"
+                .to_owned(),
+        ));
+    }
+    Ok(())
+}
+
 /// Opens (or creates) staging for `repo_id@revision`, discarding staging that
-/// belongs to any other commit.
+/// belongs to any other commit. Refuses to delete an existing directory that
+/// does not carry MedScale's own staging marker.
 fn open_staging(staging: &Path, repo_id: &str, revision: &str) -> Result<(), AcquisitionError> {
     let marker = format!("{repo_id}@{revision}\n");
-    let current = std::fs::read_to_string(staging.join(STAGING_MARKER)).ok();
-    if current.as_deref() != Some(marker.as_str()) {
-        let _ = std::fs::remove_dir_all(staging);
+    if let Ok(meta) = std::fs::symlink_metadata(staging) {
+        if meta.file_type().is_symlink() || !meta.is_dir() {
+            return Err(AcquisitionError::Io(
+                "refusing to overwrite non-directory staging path".to_owned(),
+            ));
+        }
+        let marker_path = staging.join(STAGING_MARKER);
+        if !marker_path.is_file() {
+            return Err(AcquisitionError::Io(
+                "refusing to overwrite existing directory without a MedScale staging marker"
+                    .to_owned(),
+            ));
+        }
+        let current = std::fs::read_to_string(&marker_path).ok();
+        if current.as_deref() != Some(marker.as_str()) {
+            std::fs::remove_dir_all(staging).map_err(|e| io(&e))?;
+        }
     }
     std::fs::create_dir_all(staging).map_err(|e| io(&e))?;
     std::fs::write(staging.join(STAGING_MARKER), marker).map_err(|e| io(&e))
@@ -493,9 +536,16 @@ pub fn acquire_snapshot(
         });
     }
 
-    // 3. Download into staging (reusing verified files of an interrupted
-    //    acquisition of the same commit); verify each file; publish atomically.
+    // 3. Verify destination safety before downloading; download into staging
+    //    (reusing verified files of an interrupted acquisition of the same
+    //    commit); verify each file; publish atomically.
+    validate_destination(dest_dir)?;
     let staging = dest_dir.with_extension("partial");
+    if staging == dest_dir {
+        return Err(AcquisitionError::Io(
+            "destination path cannot end with .partial".to_owned(),
+        ));
+    }
     open_staging(&staging, &meta.id, &meta.sha)?;
     let result: Result<Vec<AcquiredFile>, AcquisitionError> = (|| {
         let mut acquired = Vec::new();
@@ -569,7 +619,10 @@ pub fn acquire_snapshot(
         }
     };
     let _ = std::fs::remove_file(staging.join(STAGING_MARKER));
-    let _ = std::fs::remove_dir_all(dest_dir);
+    validate_destination(dest_dir)?;
+    if dest_dir.exists() {
+        std::fs::remove_dir_all(dest_dir).map_err(|e| io(&e))?;
+    }
     std::fs::rename(&staging, dest_dir).map_err(|e| io(&e))?;
     let resumed_bytes = acquired
         .iter()
@@ -1306,5 +1359,36 @@ mod tests {
             acquire_snapshot(&t, &f.catalog, &other, &dest("unlisted")),
             Err(AcquisitionError::NotInCatalog(_))
         ));
+    }
+
+    #[test]
+    fn refuses_to_overwrite_non_empty_user_folder_or_unmarked_partial_dir() {
+        let f = fixture(false);
+        let t = transport(&f, &f.onnx, "cdn-lfs.huggingface.co");
+        let user_dir = dest("user-documents");
+        std::fs::create_dir_all(&user_dir).unwrap();
+        let personal_file = user_dir.join("notes.txt");
+        std::fs::write(&personal_file, b"important user notes").unwrap();
+
+        let err = acquire_snapshot(&t, &f.catalog, &consent(1_000_000), &user_dir).unwrap_err();
+        assert!(matches!(err, AcquisitionError::Io(_)), "{err}");
+        assert_eq!(
+            std::fs::read(&personal_file).unwrap(),
+            b"important user notes"
+        );
+        let _ = std::fs::remove_dir_all(&user_dir);
+
+        // Also refuse a pre-existing `.partial` folder that does not hold MedScale's staging marker.
+        let target = dest("unmarked-partial");
+        let staging = target.with_extension("partial");
+        let _ = std::fs::remove_dir_all(&staging);
+        std::fs::create_dir_all(&staging).unwrap();
+        let bystander = staging.join("keep.txt");
+        std::fs::write(&bystander, b"do not delete").unwrap();
+
+        let err = acquire_snapshot(&t, &f.catalog, &consent(1_000_000), &target).unwrap_err();
+        assert!(matches!(err, AcquisitionError::Io(_)), "{err}");
+        assert_eq!(std::fs::read(&bystander).unwrap(), b"do not delete");
+        let _ = std::fs::remove_dir_all(&staging);
     }
 }

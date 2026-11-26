@@ -247,48 +247,10 @@ impl DataSources<'_> {
     /// `LocalPath` source could name it and read authority state across
     /// every scope in the vault with no scoping applied.
     fn resolve_local_path(&self, locator_path: &str) -> Result<PathBuf, AuthorityError> {
-        const RESERVED_VAULT_PATHS: &[&str] = &[
-            "meta.sqlite3",
-            "meta.sqlite3-wal",
-            "meta.sqlite3-shm",
-            "meta.sqlite3-journal",
-            "meta.work.sqlite3",
-            "meta.work.sqlite3-wal",
-            "meta.work.sqlite3-shm",
-            "meta.work.sqlite3-journal",
-            "meta.work.sqlite3.tmp",
-            "meta.work.sqlite3.tmp-journal",
-            "meta.work.sqlite3.tmp.rekey",
-            "pre-recovery",
-            "discarded-session",
-            "meta.sealed",
-            "meta.sealed.tmp",
-            ".session.lock",
-            "writer.lock.sqlite3",
-            "blobs",
-            "sealed_blobs",
-        ];
+        if is_reserved_or_escaping_locator(locator_path) {
+            return Err(AuthorityError::PathOutsideClaim);
+        }
         let relative = Path::new(locator_path);
-        if relative.is_absolute()
-            || relative.components().any(|c| {
-                matches!(
-                    c,
-                    std::path::Component::ParentDir | std::path::Component::Prefix(_)
-                )
-            })
-        {
-            return Err(AuthorityError::PathOutsideClaim);
-        }
-        let first_component = match relative.components().next() {
-            Some(std::path::Component::Normal(name)) => name.to_str().unwrap_or(""),
-            _ => "",
-        };
-        if RESERVED_VAULT_PATHS
-            .iter()
-            .any(|reserved| first_component.eq_ignore_ascii_case(reserved))
-        {
-            return Err(AuthorityError::PathOutsideClaim);
-        }
         let root =
             self.backend
                 .vault_root()
@@ -1326,5 +1288,90 @@ impl DataSources<'_> {
             }
         }
         Ok((out, next_cursor))
+    }
+}
+
+fn is_reserved_or_escaping_locator(locator_path: &str) -> bool {
+    const RESERVED_VAULT_PATHS: &[&str] = &[
+        "vault_header.json",
+        "vault_header.json.tmp",
+        ".writer.lock",
+        "meta.sqlite3",
+        "meta.sqlite3-wal",
+        "meta.sqlite3-shm",
+        "meta.sqlite3-journal",
+        "meta.work.sqlite3",
+        "meta.work.sqlite3-wal",
+        "meta.work.sqlite3-shm",
+        "meta.work.sqlite3-journal",
+        "meta.work.sqlite3.tmp",
+        "meta.work.sqlite3.tmp-journal",
+        "meta.work.sqlite3.tmp.rekey",
+        "pre-recovery",
+        "discarded-session",
+        "meta.sealed",
+        "meta.sealed.tmp",
+        ".session.lock",
+        "writer.lock.sqlite3",
+        "blobs",
+        "sealed_blobs",
+    ];
+    let relative = Path::new(locator_path);
+    if relative.is_absolute()
+        || relative.components().any(|c| {
+            matches!(
+                c,
+                std::path::Component::ParentDir | std::path::Component::Prefix(_)
+            )
+        })
+    {
+        return true;
+    }
+    let first_component = relative
+        .components()
+        .find_map(|c| match c {
+            std::path::Component::Normal(name) => Some(name.to_str().unwrap_or("")),
+            _ => None,
+        })
+        .unwrap_or("");
+    let normalized_first = first_component.trim_end_matches(['.', ' ']);
+    normalized_first.is_empty()
+        || RESERVED_VAULT_PATHS
+            .iter()
+            .any(|reserved| normalized_first.eq_ignore_ascii_case(reserved))
+}
+
+#[cfg(test)]
+mod locator_guard_tests {
+    use super::is_reserved_or_escaping_locator;
+
+    #[test]
+    fn curdir_and_trailing_dot_cannot_bypass_reserved_vault_paths() {
+        for blocked in [
+            "meta.sqlite3",
+            "./meta.sqlite3",
+            "././meta.sqlite3",
+            "meta.sqlite3.",
+            "meta.sqlite3 ",
+            "./meta.sealed.",
+            "vault_header.json",
+            "./vault_header.json",
+            ".writer.lock",
+            "./sealed_blobs/abc.sealed",
+            "../outside.csv",
+            "",
+            ".",
+        ] {
+            assert!(
+                is_reserved_or_escaping_locator(blocked),
+                "expected reserved/escaping path to be blocked: {blocked:?}"
+            );
+        }
+        for allowed in ["exports/cohort.csv", "./datasets/labs.csv", "sample.sqlite"] {
+            assert!(
+                !is_reserved_or_escaping_locator(allowed),
+                "expected normal relative path to be allowed: {allowed:?}"
+            );
+        }
     }
 }

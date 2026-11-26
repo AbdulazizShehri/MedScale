@@ -1851,8 +1851,10 @@ fn open_external_readonly(db_path: &std::path::Path) -> Result<rusqlite::Connect
     }
     let conn =
         rusqlite::Connection::open_with_flags(db_path, rusqlite::OpenFlags::SQLITE_OPEN_READ_ONLY)?;
-    // Defense in depth: read-only open plus query-only pragma.
-    conn.execute_batch("PRAGMA query_only = ON;")?;
+    // Defense in depth: read-only open, SQLite defensive mode, query-only, and
+    // untrusted schemas disabled so crafted views/triggers cannot execute code.
+    conn.set_db_config(rusqlite::config::DbConfig::SQLITE_DBCONFIG_DEFENSIVE, true)?;
+    conn.execute_batch("PRAGMA query_only = ON; PRAGMA trusted_schema = OFF;")?;
     Ok(conn)
 }
 
