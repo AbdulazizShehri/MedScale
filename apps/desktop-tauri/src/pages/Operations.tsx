@@ -7,6 +7,7 @@ import { visibleRevisionDraft, type RevisionBoundDraft } from "../audio-draft";
 import { clock, transcriptPlainText } from "../transcript-text";
 import { call, useAction, useCommand } from "../lib/ipc";
 import { ProjectScope } from "../components/project";
+import { ConfirmPanel } from "../components/confirm";
 import { Authority, Empty, ErrorState, Glyph, KV, Ledger, Notice, PageHead, Section, Skeleton, Stamp, Status, glyphFor, useOutcome, useToast, type GlyphKind, LoadError } from "../components/ui";
 
 type WorkflowVm = {
@@ -198,6 +199,7 @@ function AudioBody({ projectId }: { projectId: string }) {
   const [chosenModel, setChosenModel] = useState("whisper-tiny-en");
   const [storageCheck, setStorageCheck] = useState<AudioModelPreflight | null>(null);
   const [downloadApproved, setDownloadApproved] = useState(false);
+  const [confirmRemoveModel, setConfirmRemoveModel] = useState(false);
   const [downloadStatus, setDownloadStatus] = useState<ModelDownloadStatus | null>(null);
   const activatedPack = useRef<string | null>(null);
   const [seg, setSeg] = useState<{ summary: string; lines: string[] } | null>(null);
@@ -277,6 +279,17 @@ function AudioBody({ projectId }: { projectId: string }) {
       await availableModels.reload();
     }
   }
+  async function removeSavedModel() {
+    const r = await run("remove-saved-model", "audio_model_remove", { modelId: chosenModel });
+    setConfirmRemoveModel(false);
+    if (outcome(r, "Saved model removed · you can download a fresh copy")) {
+      setStorageCheck(null);
+      setDownloadApproved(false);
+      activatedPack.current = null;
+      await availableModels.reload();
+      await asr.reload();
+    }
+  }
   async function cancelModelDownload() {
     const r = await run("cancel-model", "audio_model_download_cancel");
     if (outcome(r, "Cancellation requested · cleaning temporary files")) {
@@ -311,7 +324,11 @@ function AudioBody({ projectId }: { projectId: string }) {
     try {
       // Write-only Web Clipboard API on an explicit click; no clipboard read permission.
       await navigator.clipboard.writeText(transcriptPlainText(result.transcript, result.engine));
-      toast({ kind: "completed", title: "Transcript copied", detail: "Draft text only · not clinically verified." });
+      toast({
+        kind: "completed",
+        title: "Transcript copied to system clipboard",
+        detail: "Draft text only · not clinically verified. Other apps on this computer can read the clipboard until you clear it.",
+      });
     } catch {
       toast({ kind: "blocked", title: "Cannot copy transcript", detail: "Select the segment text and copy it manually." });
     }
@@ -429,7 +446,7 @@ function AudioBody({ projectId }: { projectId: string }) {
           </div>
         ))}
         {result.transcript && <div className="row-gap" style={{ gap: 8, marginTop: 12 }}>
-          <button type="button" className="btn btn-g" onClick={copyTranscript} disabled={!result.transcript.segments.length}>Copy transcript</button>
+          <button type="button" className="btn btn-g" onClick={copyTranscript} disabled={!result.transcript.segments.length} title="Copies draft transcript text to the system clipboard, which other apps can read">Copy transcript</button>
           <select aria-label="Pack for the draft note" value={notePack} onChange={(e) => setNotePack(e.target.value)}>{runnable.map((m) => <option key={m.id} value={m.id}>{m.id}</option>)}</select>
           <button type="button" className="btn btn-s" disabled={!notePack || !!pending} onClick={draftNote}>{pending === "draft" ? <Glyph kind="running" /> : null}Draft note from this revision</button>
           {!runnable.length && <span className="t-sm i3">Drafting needs a local Pack that can run.{externalPacks ? " Add one in MedAgent." : ""}</span>}
@@ -494,7 +511,7 @@ function AudioBody({ projectId }: { projectId: string }) {
           <div className="stack" style={{ gap: 8 }}>
             <label className="lbl" htmlFor="asr-model-choice">Available speech models</label>
             <select id="asr-model-choice" aria-label="Available speech models" value={chosenModel}
-              onChange={(e) => { setChosenModel(e.target.value); setStorageCheck(null); setDownloadApproved(false); }}
+              onChange={(e) => { setChosenModel(e.target.value); setStorageCheck(null); setDownloadApproved(false); setConfirmRemoveModel(false); }}
               disabled={availableModels.state.status !== "ready" || !!pending}>
               {(availableModels.state.status === "ready" ? availableModels.state.data : []).map((m) => (
                 <option key={m.id} value={m.id}>{modelOptionLabel(m.name, m.languages)}</option>
@@ -516,8 +533,8 @@ function AudioBody({ projectId }: { projectId: string }) {
             {selectedModel?.cache_entry_exists &&
               <p className="t-sm i2" role="status">
                 {selectedModel.pack_files_present
-                  ? "A saved model Pack is already on this device. Choose Activate saved model to verify it and enable local recognition without downloading again."
-                  : "An incomplete local model directory already exists. MedScale will not overwrite it. Inspect the app-owned audio-models folder before attempting another download."}
+                  ? "A saved model Pack is already on this device. Choose Activate saved model to verify it and enable local recognition without downloading again, or Remove saved model if it fails verification."
+                  : "An incomplete local model directory already exists. MedScale will not overwrite it. Choose Remove saved model to clear the incomplete folder before downloading again."}
               </p>}
             <label className="t-sm" style={{ display: "flex", gap: 8, alignItems: "flex-start", cursor: "pointer" }}>
               <input type="checkbox" aria-label="Approve Whisper model download" style={{ marginTop: 3, flex: "none" }}
@@ -531,9 +548,24 @@ function AudioBody({ projectId }: { projectId: string }) {
                   downloadStatus?.state === "verifying", selectedModel?.cache_entry_exists === true)}>Download, verify and install</button>
               <button type="button" className="btn btn-g" onClick={activateExistingModel}
                 disabled={!selectedModel?.pack_files_present || !!pending}>Activate saved model</button>
+              {selectedModel?.cache_entry_exists && (
+                <button type="button" className="btn btn-g" onClick={() => setConfirmRemoveModel(true)}
+                  disabled={!!pending || ["downloading", "verifying"].includes(downloadStatus?.state ?? "")}>Remove saved model…</button>
+              )}
               <button type="button" className="btn btn-g" onClick={cancelModelDownload}
                 disabled={!!pending || !["downloading", "verifying"].includes(downloadStatus?.state ?? "")}>Cancel download</button>
             </div>
+            {confirmRemoveModel && selectedModel?.cache_entry_exists && (
+              <ConfirmPanel
+                title={`Remove saved ${selectedModel.name} files?`}
+                confirmLabel="Remove saved model"
+                busy={pending === "remove-saved-model"}
+                onConfirm={() => void removeSavedModel()}
+                onCancel={() => setConfirmRemoveModel(false)}
+              >
+                Deletes only MedScale&apos;s cached copy of this model so you can reclaim disk space or download a verified replacement. Your recordings, transcripts and vaults are untouched.
+              </ConfirmPanel>
+            )}
             {downloadStatus?.state && downloadStatus.state !== "idle" && <div className="t-sm i2" role="status" aria-live="polite">
               Model download: {downloadStatus.state}.
               {" "}{formatStorage(downloadStatus.bytes_downloaded)} received

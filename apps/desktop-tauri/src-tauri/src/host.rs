@@ -177,11 +177,16 @@ pub struct SeededSource {
     pub subject_ref: String,
 }
 
+/// Rust-side idle auto-lock limit for encrypted vaults (15 minutes, matching
+/// the frontend timer so an encrypted vault still seals if WebView JS pauses).
+pub const ENCRYPTED_IDLE_LOCK_SECS: u64 = 15 * 60;
+
 pub struct Workspace {
     pub session: CliSession,
     pub kind: VaultKind,
     pub vault_root: PathBuf,
     pub seed: SeedManifest,
+    pub last_activity: std::time::Instant,
 }
 
 impl Workspace {
@@ -317,10 +322,35 @@ impl State {
             .ok_or_else(|| CmdError::unavailable("Unavailable: app data directory not resolved"))
     }
 
+    /// Seals and closes an open encrypted vault if it has been idle for at
+    /// least [`ENCRYPTED_IDLE_LOCK_SECS`]. Returns `true` if a lock occurred.
+    pub fn enforce_idle_lock(&mut self) -> bool {
+        let expired = self.workspace.as_ref().is_some_and(|ws| {
+            ws.kind == VaultKind::Encrypted
+                && ws.last_activity.elapsed()
+                    >= std::time::Duration::from_secs(ENCRYPTED_IDLE_LOCK_SECS)
+        });
+        if expired {
+            if let Some(mut ws) = self.workspace.take() {
+                let _ = ws.close();
+            }
+            return true;
+        }
+        false
+    }
+
     pub fn workspace(&mut self) -> CmdResult<&mut Workspace> {
-        self.workspace
+        if self.enforce_idle_lock() {
+            return Err(CmdError::unavailable(
+                "Unavailable: encrypted vault locked after 15 minutes of inactivity. Unlock to continue.",
+            ));
+        }
+        let ws = self
+            .workspace
             .as_mut()
-            .ok_or_else(|| CmdError::unavailable("Unavailable: no workspace is open"))
+            .ok_or_else(|| CmdError::unavailable("Unavailable: no workspace is open"))?;
+        ws.last_activity = std::time::Instant::now();
+        Ok(ws)
     }
 
     pub fn session(&mut self) -> CmdResult<&mut CliSession> {
@@ -1394,6 +1424,10 @@ pub fn save_asr_pack(vault_root: &Path, dir: &str) -> CmdResult<()> {
         .map_err(|_| CmdError::unavailable("Unavailable: audio pack record not writable"))
 }
 
+pub fn clear_asr_pack(vault_root: &Path) {
+    let _ = std::fs::remove_file(asr_pack_path(vault_root));
+}
+
 /// Whether this build admits a Pack from any folder. Test builds only: a Pack
 /// signature doesn't prove who made it, so a packaged build uses only the
 /// models it downloaded and verified against pinned digests.
@@ -1832,6 +1866,7 @@ pub fn open_synthetic(state: &mut State) -> CmdResult<bool> {
         kind: VaultKind::Synthetic,
         vault_root,
         seed,
+        last_activity: std::time::Instant::now(),
     };
     seed_synthetic(&mut workspace, &data_dir)?;
     crash_point("after_commit");
@@ -2666,6 +2701,7 @@ pub fn create_encrypted(state: &mut State, passphrase: &str) -> CmdResult<Vec<St
         kind: VaultKind::Encrypted,
         vault_root,
         seed: SeedManifest::default(),
+        last_activity: std::time::Instant::now(),
     });
     Ok(codes)
 }
@@ -2900,6 +2936,7 @@ fn open_encrypted_workspace(
         kind: VaultKind::Encrypted,
         vault_root,
         seed,
+        last_activity: std::time::Instant::now(),
     });
     Ok(outcome)
 }
@@ -5067,5 +5104,36 @@ mod tests {
                 }
             )
         );
+    }
+
+    #[test]
+    fn encrypted_vault_auto_locks_in_rust_after_idle_timeout() {
+        let data_dir = crash_scratch("rust-idle-lock");
+        let mut state = State {
+            data_dir: Some(data_dir.clone()),
+            ..State::default()
+        };
+        create_encrypted(&mut state, "idle-lock-test-passphrase").expect("create encrypted");
+        let vault_root = state.workspace.as_ref().unwrap().vault_root.clone();
+        assert!(vault_root.join("meta.work.sqlite3").is_file());
+
+        // Simulate 16 minutes of inactivity without any frontend timer firing.
+        state.workspace.as_mut().unwrap().last_activity = std::time::Instant::now()
+            - std::time::Duration::from_secs(ENCRYPTED_IDLE_LOCK_SECS + 60);
+
+        let err = state
+            .workspace()
+            .err()
+            .expect("must lock after idle timeout");
+        assert_eq!(err.kind, "unavailable");
+        assert!(err.message.contains("locked after 15 minutes"));
+        assert!(state.workspace.is_none());
+        assert!(
+            !vault_root.join("meta.work.sqlite3").exists(),
+            "vault work DB must be sealed and wiped on idle lock"
+        );
+        assert!(vault_root.join("meta.sealed").is_file());
+
+        std::fs::remove_dir_all(&data_dir).expect("cleanup");
     }
 }
