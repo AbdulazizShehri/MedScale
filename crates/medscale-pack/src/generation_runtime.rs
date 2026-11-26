@@ -203,6 +203,38 @@ pub(crate) fn prepare_generator_from_bytes(
         .ok_or_else(|| {
             GenerationRuntimeError::InvalidConfig("max_position_embeddings is missing".into())
         })?;
+    if !(1..=1_048_576).contains(&max_positions) {
+        return Err(GenerationRuntimeError::InvalidConfig(
+            "max_position_embeddings is out of bounds".into(),
+        ));
+    }
+    let check_dim = |key: &str, max: u64| -> Result<u64, GenerationRuntimeError> {
+        let value = config[key].as_u64().ok_or_else(|| {
+            GenerationRuntimeError::InvalidConfig(format!("{key} is missing or invalid"))
+        })?;
+        if value == 0 || value > max {
+            return Err(GenerationRuntimeError::InvalidConfig(format!(
+                "{key} is out of bounds"
+            )));
+        }
+        Ok(value)
+    };
+    let hidden_size = check_dim("hidden_size", 65_536)?;
+    let num_heads = check_dim("num_attention_heads", 512)?;
+    let _layers = check_dim("num_hidden_layers", 256)?;
+    let _vocab = check_dim("vocab_size", 524_288)?;
+    if let Some(kv_heads) = config.get("num_key_value_heads").and_then(|v| v.as_u64())
+        && (kv_heads == 0 || kv_heads > num_heads || num_heads % kv_heads != 0)
+    {
+        return Err(GenerationRuntimeError::InvalidConfig(
+            "num_key_value_heads is out of bounds".into(),
+        ));
+    }
+    if hidden_size % num_heads != 0 {
+        return Err(GenerationRuntimeError::InvalidConfig(
+            "hidden_size must be divisible by num_attention_heads".into(),
+        ));
+    }
     let eos = eos_ids(&config);
     let mut tokenizer =
         Tokenizer::from_bytes(tokenizer_bytes).map_err(|_| GenerationRuntimeError::Tokenizer)?;
@@ -212,35 +244,43 @@ pub(crate) fn prepare_generator_from_bytes(
         .map_err(|_| GenerationRuntimeError::Tokenizer)?;
     // Architecture and config are checked before any weight is parsed.
     let parse = |e: serde_json::Error| GenerationRuntimeError::InvalidConfig(e.to_string());
-    let vb = VarBuilder::from_buffered_safetensors(weights, DType::F32, &device).map_err(prep)?;
-    let decoder = match model_type.as_str() {
-        "qwen2" => {
-            let cfg: qwen2::Config = serde_json::from_value(config.clone()).map_err(parse)?;
-            Decoder::Qwen2(Box::new(
-                qwen2::ModelForCausalLM::new(&cfg, vb).map_err(prep)?,
-            ))
-        }
-        "llama" => {
-            let raw: llama::LlamaConfig = serde_json::from_value(config.clone()).map_err(parse)?;
-            let cfg = raw.into_config(false);
-            check_llama_layers(&vb, &cfg)?;
-            let model = llama::Llama::load(vb, &cfg).map_err(prep)?;
-            // The cache precomputes rotary tables for every position; only
-            // the runtime's context bound is ever used.
-            let mut cache_cfg = cfg.clone();
-            cache_cfg.max_position_embeddings = cfg.max_position_embeddings.min(MAX_CONTEXT);
-            let fresh = llama::Cache::new(true, DType::F32, &cache_cfg, &device).map_err(prep)?;
-            Decoder::Llama {
-                model: Box::new(model),
-                cache: Box::new(fresh.clone()),
-                fresh: Box::new(fresh),
+    let decoder = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+        let vb =
+            VarBuilder::from_buffered_safetensors(weights, DType::F32, &device).map_err(prep)?;
+        match model_type.as_str() {
+            "qwen2" => {
+                let cfg: qwen2::Config = serde_json::from_value(config.clone()).map_err(parse)?;
+                Ok(Decoder::Qwen2(Box::new(
+                    qwen2::ModelForCausalLM::new(&cfg, vb).map_err(prep)?,
+                )))
+            }
+            "llama" => {
+                let raw: llama::LlamaConfig =
+                    serde_json::from_value(config.clone()).map_err(parse)?;
+                let cfg = raw.into_config(false);
+                check_llama_layers(&vb, &cfg)?;
+                let model = llama::Llama::load(vb, &cfg).map_err(prep)?;
+                // The cache precomputes rotary tables for every position; only
+                // the runtime's context bound is ever used.
+                let mut cache_cfg = cfg.clone();
+                cache_cfg.max_position_embeddings = cfg.max_position_embeddings.min(MAX_CONTEXT);
+                let fresh =
+                    llama::Cache::new(true, DType::F32, &cache_cfg, &device).map_err(prep)?;
+                Ok(Decoder::Llama {
+                    model: Box::new(model),
+                    cache: Box::new(fresh.clone()),
+                    fresh: Box::new(fresh),
+                })
+            }
+            _ => {
+                let cfg: mistral::Config = serde_json::from_value(config.clone()).map_err(parse)?;
+                Ok(Decoder::Mistral(Box::new(
+                    mistral::Model::new(&cfg, vb).map_err(prep)?,
+                )))
             }
         }
-        _ => {
-            let cfg: mistral::Config = serde_json::from_value(config.clone()).map_err(parse)?;
-            Decoder::Mistral(Box::new(mistral::Model::new(&cfg, vb).map_err(prep)?))
-        }
-    };
+    }))
+    .map_err(|_| GenerationRuntimeError::Prepare("model preparation panicked".into()))??;
     Ok(PreparedTextGenerator {
         content_digest,
         provenance,

@@ -314,62 +314,75 @@ impl OnnxTokenClassifierRuntime {
             plan
         } else {
             let load_started = Instant::now();
-            let mut model_reader = Cursor::new(model_bytes);
-            let onnx = tract_onnx::onnx();
-            let mut proto = onnx
-                .proto_model_for_read(&mut model_reader)
-                .map_err(|e| OnnxRuntimeError::prepare("load", &e))?;
-            drop(model_reader);
-            // Load-time graph rewrites: fp16 exports are widened to fp32 in
-            // memory (see `fp16_widen`), and omitted optional `Pad` inputs are
-            // dropped (see `onnx_optional_inputs`).
-            if let Some(graph) = proto.graph.as_mut() {
-                crate::fp16_widen::widen_fp16(graph);
-                crate::onnx_optional_inputs::drop_omitted_pad_inputs(graph);
-            }
-            let mut model = onnx
-                .model_for_proto_model(&proto)
-                .map_err(|e| OnnxRuntimeError::prepare("load", &e))?;
-            drop(proto);
-            let input_outlets = model
-                .input_outlets()
-                .map_err(|e| OnnxRuntimeError::prepare("inputs", &e))?
-                .to_vec();
-            let input_names: Vec<String> = input_outlets
-                .iter()
-                .map(|outlet| {
-                    model
-                        .outlet_label(*outlet)
-                        .unwrap_or(&model.node(outlet.node).name)
-                        .to_owned()
-                })
-                .collect();
-            for (index, name) in input_names.iter().enumerate() {
-                if !matches!(
-                    name.as_str(),
-                    "input_ids" | "attention_mask" | "token_type_ids"
-                ) {
-                    return Err(OnnxRuntimeError::UnsupportedModelInput(name.clone()));
-                }
-                model
-                    .set_input_fact(
-                        index,
-                        InferenceFact::dt_shape(i64::datum_type(), tvec!(1, fixed_sequence_length)),
-                    )
-                    .map_err(|e| OnnxRuntimeError::prepare("input_fact", &e))?;
-            }
-            relax_symbolic_value_info(&mut model);
-            normalize_static_shape_ops(&mut model);
-            // Constant MatMuls are folded with optimized kernels during
-            // typing (DeBERTa-v2 relative-position projections; T103-15).
-            crate::hir_const_matmul::optimize_const_matmul_eval(&mut model);
-            stage_timings.load_ms = elapsed_ms(load_started);
-            let typed_started = Instant::now();
-            let decluttered = model
-                .into_typed()
-                .and_then(TypedModel::into_decluttered)
-                .map_err(|e| OnnxRuntimeError::prepare("optimize", &e))?;
-            stage_timings.typed_and_decluttered_ms = elapsed_ms(typed_started);
+            let (decluttered, input_names, load_ms, typed_ms) =
+                std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+                    let mut model_reader = Cursor::new(model_bytes);
+                    let onnx = tract_onnx::onnx();
+                    let mut proto = onnx
+                        .proto_model_for_read(&mut model_reader)
+                        .map_err(|e| OnnxRuntimeError::prepare("load", &e))?;
+                    drop(model_reader);
+                    // Load-time graph rewrites: fp16 exports are widened to fp32 in
+                    // memory (see `fp16_widen`), and omitted optional `Pad` inputs are
+                    // dropped (see `onnx_optional_inputs`).
+                    if let Some(graph) = proto.graph.as_mut() {
+                        crate::fp16_widen::widen_fp16(graph);
+                        crate::onnx_optional_inputs::drop_omitted_pad_inputs(graph);
+                    }
+                    let mut model = onnx
+                        .model_for_proto_model(&proto)
+                        .map_err(|e| OnnxRuntimeError::prepare("load", &e))?;
+                    drop(proto);
+                    let input_outlets = model
+                        .input_outlets()
+                        .map_err(|e| OnnxRuntimeError::prepare("inputs", &e))?
+                        .to_vec();
+                    let input_names: Vec<String> = input_outlets
+                        .iter()
+                        .map(|outlet| {
+                            model
+                                .outlet_label(*outlet)
+                                .unwrap_or(&model.node(outlet.node).name)
+                                .to_owned()
+                        })
+                        .collect();
+                    for (index, name) in input_names.iter().enumerate() {
+                        if !matches!(
+                            name.as_str(),
+                            "input_ids" | "attention_mask" | "token_type_ids"
+                        ) {
+                            return Err(OnnxRuntimeError::UnsupportedModelInput(name.clone()));
+                        }
+                        model
+                            .set_input_fact(
+                                index,
+                                InferenceFact::dt_shape(
+                                    i64::datum_type(),
+                                    tvec!(1, fixed_sequence_length),
+                                ),
+                            )
+                            .map_err(|e| OnnxRuntimeError::prepare("input_fact", &e))?;
+                    }
+                    relax_symbolic_value_info(&mut model);
+                    normalize_static_shape_ops(&mut model);
+                    // Constant MatMuls are folded with optimized kernels during
+                    // typing (DeBERTa-v2 relative-position projections; T103-15).
+                    crate::hir_const_matmul::optimize_const_matmul_eval(&mut model);
+                    let load_ms = elapsed_ms(load_started);
+                    let typed_started = Instant::now();
+                    let decluttered = model
+                        .into_typed()
+                        .and_then(TypedModel::into_decluttered)
+                        .map_err(|e| OnnxRuntimeError::prepare("optimize", &e))?;
+                    let typed_ms = elapsed_ms(typed_started);
+                    Ok((decluttered, input_names, load_ms, typed_ms))
+                }))
+                .map_err(|_| OnnxRuntimeError::Prepare {
+                    stage: "load",
+                    detail: "model preparation panicked".to_owned(),
+                })??;
+            stage_timings.load_ms = load_ms;
+            stage_timings.typed_and_decluttered_ms = typed_ms;
             (decluttered, input_names)
         };
         let outcome = match (&cache, hit) {
@@ -378,32 +391,42 @@ impl OnnxTokenClassifierRuntime {
             (None, false) => PlanCacheOutcome::NotCached,
         };
         let optimize_started = Instant::now();
-        let optimized = decluttered
-            .into_optimized()
-            .map_err(|e| OnnxRuntimeError::prepare("optimize", &e))?;
-        stage_timings.optimized_ms = elapsed_ms(optimize_started);
-        if optimized
-            .output_outlets()
-            .map_err(|_| OnnxRuntimeError::OutputShape)?
-            .len()
-            != 1
-        {
-            return Err(OnnxRuntimeError::OutputShape);
-        }
-        let output_fact = optimized
-            .output_fact(0)
-            .map_err(|_| OnnxRuntimeError::OutputShape)?;
-        let expected_output_shape = [1, fixed_sequence_length, labels.len()];
-        if output_fact.datum_type != f32::datum_type()
-            || output_fact.shape.as_concrete() != Some(expected_output_shape.as_slice())
-        {
-            return Err(OnnxRuntimeError::OutputShape);
-        }
-        let runnable_started = Instant::now();
-        let runnable = optimized
-            .into_runnable()
-            .map_err(|e| OnnxRuntimeError::prepare("runnable", &e))?;
-        stage_timings.runnable_ms = elapsed_ms(runnable_started);
+        let (runnable, optimized_ms, runnable_ms) =
+            std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+                let optimized = decluttered
+                    .into_optimized()
+                    .map_err(|e| OnnxRuntimeError::prepare("optimize", &e))?;
+                let optimized_ms = elapsed_ms(optimize_started);
+                if optimized
+                    .output_outlets()
+                    .map_err(|_| OnnxRuntimeError::OutputShape)?
+                    .len()
+                    != 1
+                {
+                    return Err(OnnxRuntimeError::OutputShape);
+                }
+                let output_fact = optimized
+                    .output_fact(0)
+                    .map_err(|_| OnnxRuntimeError::OutputShape)?;
+                let expected_output_shape = [1, fixed_sequence_length, labels.len()];
+                if output_fact.datum_type != f32::datum_type()
+                    || output_fact.shape.as_concrete() != Some(expected_output_shape.as_slice())
+                {
+                    return Err(OnnxRuntimeError::OutputShape);
+                }
+                let runnable_started = Instant::now();
+                let runnable = optimized
+                    .into_runnable()
+                    .map_err(|e| OnnxRuntimeError::prepare("runnable", &e))?;
+                let runnable_ms = elapsed_ms(runnable_started);
+                Ok((runnable, optimized_ms, runnable_ms))
+            }))
+            .map_err(|_| OnnxRuntimeError::Prepare {
+                stage: "optimize",
+                detail: "model optimization panicked".to_owned(),
+            })??;
+        stage_timings.optimized_ms = optimized_ms;
+        stage_timings.runnable_ms = runnable_ms;
 
         let prepared = PreparedOnnxTokenClassifier {
             content_digest: pack.content_digest.clone(),
