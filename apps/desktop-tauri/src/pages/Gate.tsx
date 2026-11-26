@@ -180,11 +180,17 @@ export function Access({ onBack, onRecoveryCodes }: { onBack: () => void; onReco
     };
     // The default context menu offers Refresh, which a key block can't stop.
     const noMenu = (e: MouseEvent) => e.preventDefault();
+    const warnUnload = (e: BeforeUnloadEvent) => {
+      e.preventDefault();
+      e.returnValue = "";
+    };
     window.addEventListener("keydown", block, true);
     window.addEventListener("contextmenu", noMenu, true);
+    window.addEventListener("beforeunload", warnUnload);
     return () => {
       window.removeEventListener("keydown", block, true);
       window.removeEventListener("contextmenu", noMenu, true);
+      window.removeEventListener("beforeunload", warnUnload);
     };
   }, [holdingCodes]);
   // The new vault is open while its codes are on screen, so this screen locks
@@ -329,13 +335,13 @@ export function Access({ onBack, onRecoveryCodes }: { onBack: () => void; onReco
             {codes ? (
               <div className="stack" style={{ width: 420, maxWidth: "100%", gap: 18 }}>
                 <h1 style={{ margin: 0, fontSize: 32, lineHeight: "36px", fontWeight: 600, letterSpacing: "-0.025em" }}>Save your recovery codes</h1>
-                <p className="t-body i2">Each code opens this vault if you lose your passphrase. They are shown once and are not stored anywhere MedScale can show them again, so closing MedScale now loses them. Keep them somewhere safe and separate.</p>
+                <p className="t-body i2">Each code opens this vault if you lose your passphrase. These codes are shown once and are not stored anywhere MedScale can display again. Keep them somewhere safe and separate—if you close this window before saving them, unlock with your passphrase and issue a fresh set in Settings.</p>
                 <div className="codes" aria-label="Recovery codes">{codes.length ? codes.map((c) => <span key={c}>{c}</span>) : <span className="i3">Core issued no recovery codes for this vault.</span>}</div>
                 <div className="row-gap" style={{ gap: 8 }}>
                   <button type="button" className="btn btn-s lg" onClick={() => void copyCodes()} disabled={!codes.length}>{copy === "copied" ? "Copied" : "Copy codes"}</button>
                   {copy === "failed" && <span className="t-sm i2" role="status">Couldn&apos;t copy. Select the codes and press Ctrl+C.</span>}
                 </div>
-                <p className="t-sm i3" style={{ margin: 0 }}>Copied codes can stay in Windows clipboard history, and they can&apos;t be changed later. Writing them down is safer.</p>
+                <p className="t-sm i3" style={{ margin: 0 }}>Copied codes can stay in Windows clipboard history; writing them down is safer. You can replace these codes anytime in Settings → Passphrase and recovery codes.</p>
                 <div><button type="button" className="btn btn-p lg" onClick={() => void refreshWorkspace().finally(() => onRecoveryCodes(false))}>I saved them · continue</button></div>
               </div>
             ) : (

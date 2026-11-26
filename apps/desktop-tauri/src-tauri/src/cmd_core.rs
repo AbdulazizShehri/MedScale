@@ -105,7 +105,8 @@ pub fn ui_prefs_set(host: tauri::State<'_, Host>, theme: String, density: String
 
 #[tauri::command(async)]
 pub fn workspace_status(host: tauri::State<'_, Host>) -> CmdResult<Value> {
-    let state = lock(&host)?;
+    let mut state = lock(&host)?;
+    state.enforce_idle_lock();
     let report = doctor(&state);
     Ok(json!({
         "open": state.workspace.is_some(),

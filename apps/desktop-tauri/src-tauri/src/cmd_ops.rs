@@ -1169,6 +1169,13 @@ pub fn audio_model_activate_existing(
     audio_admit_asr_pack(host, path)
 }
 
+/// Removes one allowlisted Whisper model's local cache folder so a damaged or
+/// incomplete download can be cleared and downloaded again from the UI (#459).
+#[tauri::command(async)]
+pub fn audio_model_remove(host: tauri::State<'_, Host>, model_id: String) -> CmdResult<Value> {
+    crate::audio_model_manager::remove_saved_model(&host, &model_id)
+}
+
 /// Admits an Audio Pack folder (Spec 106) and installs its Whisper engine
 /// behind the local ASR route. Core verifies the Pack; nothing is downloaded.
 #[tauri::command(async)]
@@ -1194,7 +1201,7 @@ pub fn audio_admit_asr_pack(host: tauri::State<'_, Host>, path: String) -> CmdRe
     ) {
         return Err(CmdError::new(
             "denied",
-            "Denied: this saved model doesn't match what MedScale pinned. Delete its folder inside audio-models, then download it again.",
+            "Denied: this saved model doesn't match what MedScale pinned. Choose Remove saved model, then download it again.",
         ));
     }
     let session = state.session()?;
