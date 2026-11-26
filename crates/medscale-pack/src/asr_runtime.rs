@@ -239,8 +239,12 @@ pub fn prepare_whisper_from_bytes(
         || config.encoder_attention_heads > 128
         || config.decoder_attention_heads == 0
         || config.decoder_attention_heads > 128
-        || config.d_model % config.encoder_attention_heads != 0
-        || config.d_model % config.decoder_attention_heads != 0
+        || !config
+            .d_model
+            .is_multiple_of(config.encoder_attention_heads)
+        || !config
+            .d_model
+            .is_multiple_of(config.decoder_attention_heads)
         || !(1..=64).contains(&config.encoder_layers)
         || !(1..=64).contains(&config.decoder_layers)
         || !(1..=16_384).contains(&config.max_source_positions)
