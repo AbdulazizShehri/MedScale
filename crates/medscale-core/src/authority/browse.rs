@@ -162,6 +162,64 @@ fn percent_decode_lossy(s: &str) -> String {
     String::from_utf8_lossy(&out).into_owned()
 }
 
+/// True when a `SensitiveSpanKind::Identifier` found in a URL path is an
+/// unlabelled public literature identifier (such as a bare PubMed PMID
+/// `/12345678/` or a PubMed Central article `/articles/PMC1234567/`), rather
+/// than a labelled record number or dashed national identifier.
+fn is_benign_url_path_identifier(
+    decoded: &str,
+    span: &medscale_contracts::privacy_gate::SensitiveSpan,
+) -> bool {
+    if span.kind != medscale_contracts::privacy_gate::SensitiveSpanKind::Identifier {
+        return false;
+    }
+    let Some(token) = decoded.get(span.start..span.end) else {
+        return false;
+    };
+    let is_pmid =
+        !token.is_empty() && token.len() <= 10 && token.bytes().all(|b| b.is_ascii_digit());
+    let is_pmc = token
+        .strip_prefix("PMC")
+        .is_some_and(|rest| !rest.is_empty() && rest.bytes().all(|b| b.is_ascii_digit()));
+    if !(is_pmid || is_pmc) {
+        return false;
+    }
+    // Must start on a path-segment boundary (whitespace after `/` -> ` `) and
+    // must not be preceded by an identifier or patient label segment.
+    let prefix = &decoded[..span.start];
+    if !prefix.is_empty() && !prefix.ends_with(' ') {
+        return false;
+    }
+    let prev = prefix
+        .split_whitespace()
+        .last()
+        .map(|w| w.trim_end_matches([':', '#', '.']).to_ascii_lowercase())
+        .unwrap_or_default();
+    !matches!(
+        prev.as_str(),
+        "mrn"
+            | "id"
+            | "patient"
+            | "patients"
+            | "patient_id"
+            | "patient-id"
+            | "record"
+            | "records"
+            | "nhs"
+            | "ssn"
+            | "dni"
+            | "nie"
+            | "nss"
+            | "nhc"
+            | "ipp"
+            | "insee"
+            | "iqama"
+            | "national_id"
+            | "national-id"
+            | "dob"
+    )
+}
+
 /// True when the outbound request text carries a sensitive span the Spec
 /// 079 recognizers can see (labelled names, emails, dates, identifiers...).
 /// Scanned: the URL path segments, the URL query string, and the free-text
@@ -183,7 +241,9 @@ pub fn request_has_sensitive_span(request: &BrowseRequest) -> bool {
     });
     let path_sensitive = url_path.is_some_and(|path| {
         let decoded = percent_decode_lossy(path).replace('/', " ");
-        !pattern_recognize(&decoded).is_empty()
+        pattern_recognize(&decoded)
+            .iter()
+            .any(|span| !is_benign_url_path_identifier(&decoded, span))
     });
     path_sensitive
         || [url_query, request.query.as_deref()]
@@ -729,6 +789,12 @@ mod tests {
         )));
         assert!(request_has_sensitive_span(&fetch(
             "https://example.org/records/MRN%3A004512"
+        )));
+        assert!(request_has_sensitive_span(&fetch(
+            "https://example.org/mrn/12345678"
+        )));
+        assert!(request_has_sensitive_span(&fetch(
+            "https://example.org/patient/12345678"
         )));
         assert!(request_has_sensitive_span(&fetch(
             "https://example.org/patient/Jane%20Doe"
