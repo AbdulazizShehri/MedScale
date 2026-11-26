@@ -127,7 +127,8 @@ jobs:
         # No screenshot of human recordings or transcripts is retained.
         shell: pwsh
         run: |
-          $driver = Join-Path $env:EDGEWEBDRIVER 'msedgedriver.exe'
+          $driver = & pwsh -NoProfile -File scripts/e2e/resolve-edge-webdriver.ps1
+          if ($LASTEXITCODE -ne 0 -or -not $driver) { throw "could not resolve matching msedgedriver" }
           $wd = Start-Process -FilePath $driver -ArgumentList @('--port=9515') -PassThru -NoNewWindow
           Start-Sleep -Seconds 3
           try {

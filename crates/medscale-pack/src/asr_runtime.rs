@@ -233,6 +233,27 @@ pub fn prepare_whisper_from_bytes(
             "vocab_size is out of range".to_owned(),
         ));
     }
+    if config.d_model == 0
+        || config.d_model > 8_192
+        || config.encoder_attention_heads == 0
+        || config.encoder_attention_heads > 128
+        || config.decoder_attention_heads == 0
+        || config.decoder_attention_heads > 128
+        || !config
+            .d_model
+            .is_multiple_of(config.encoder_attention_heads)
+        || !config
+            .d_model
+            .is_multiple_of(config.decoder_attention_heads)
+        || !(1..=64).contains(&config.encoder_layers)
+        || !(1..=64).contains(&config.decoder_layers)
+        || !(1..=16_384).contains(&config.max_source_positions)
+        || !(1..=16_384).contains(&config.max_target_positions)
+    {
+        return Err(AsrRuntimeError::InvalidConfig(
+            "whisper architecture dimensions are out of bounds".to_owned(),
+        ));
+    }
     let multilingual = config.vocab_size >= 51865;
     if multilingual {
         // Fail closed if a purported multilingual checkpoint cannot prompt en.
@@ -252,9 +273,12 @@ pub fn prepare_whisper_from_bytes(
         suppress,
     };
     let device = Device::Cpu;
-    let vb =
-        VarBuilder::from_buffered_safetensors(weights, whisper::DTYPE, &device).map_err(prep)?;
-    let model = Whisper::load(&vb, config.clone()).map_err(prep)?;
+    let model = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+        let vb = VarBuilder::from_buffered_safetensors(weights, whisper::DTYPE, &device)
+            .map_err(prep)?;
+        Whisper::load(&vb, config.clone()).map_err(prep)
+    }))
+    .map_err(|_| AsrRuntimeError::Prepare("whisper preparation panicked".to_owned()))??;
     Ok(PreparedWhisperAsr {
         content_digest,
         provenance,
