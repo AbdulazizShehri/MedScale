@@ -81,5 +81,19 @@ Earlier in the same effort: #474–#483 (OpenMed-derived clinical checks in Core
 ## 6. How this was verified
 
 - Every merged PR passed its full CI on its exact head (Rust on Windows, macOS and Linux, Clippy with warnings as errors, cargo-deny, the Tauri preview and packaging qualification, desktop E2E). It was merged by pinned squash merge.
-- Local checks were limited to formatting, the crates that build on the founder's PC (`medscale-contracts`, `medscale-clinical`) and cargo-deny on the Linux desktop graph. The rest builds only in CI, because of vendored OpenSSL and SQLCipher.
-- No installer was run on the founder's PC, and no real patient data was used anywhere.
+- Local checks on Windows verified Rust workspace crates (`medscale-contracts`, `medscale-keys`, `medscale-clinical`, `medscale-fhir`, `medscale-network`, `medscale-pack`, `medscale-storage`, `medscale-core`, `medscale-cli` unit and binary tests), desktop frontend tests (`apps/desktop-tauri`, 85/85), website tests (`web/`, 26/26, proof check, release gate), repository hygiene, and dependency direction.
+- No installer was published, no release tag was created, and no real patient data was used anywhere.
+
+## 7. Engineering hardening update (2026-11-12 to 2026-11-26)
+
+Following the `0.1.0-beta.1` candidate built at `6d0279e`, additional engineering PRs were merged into `main` after passing full exact-head CI:
+
+- `#511`–`#525`: `0.1.0-beta.1` candidate report, passphrase change & recovery-code replacement (B3), rollback generation counter & hash-chained audit (B4), FHIR exact decimal preservation / Bundle splitting / streaming / exact citations / public HL7 example coverage (B2), legal drafts for counsel review (B6, not in effect), encrypted-vault-only FHIR import (B1), and per-installer package manifest / website manifest generation (`#525`, re-assembled in run `43693295275`).
+- `#526`: 64 MiB Argon2id default with strict KDF bounds and transparent legacy 19 MiB → 64 MiB rewrap, comprehensive secret zeroization, cross-platform crash-dump hardening, dependency updates (`url 2.5.9` / `RUSTSEC-2026-0592`, `cookie 0.18.3` / `RUSTSEC-2026-0594`), and `docs/handoff/ANTIGRAVITY_RECOVERY.md`.
+- `#527`: keyed HMAC-SHA256 sealed-blob filenames (`k1_<hmac>.sealed` with legacy fallback), Browse URL path PII/PHI scanning (keeping unlabelled PubMed/PMC IDs allowed), and fixed path-free storage error messages.
+- `#528`: in-app confirmed **Remove saved model…** recovery (closes `#459`), Rust-side 15-minute encrypted-vault idle auto-lock, recovery-code screen `beforeunload` warning (`#457`), and transcript clipboard disclosure.
+- `#529`: safe model acquisition destination/staging guards, defensive read-only external SQLite (`SQLITE_DBCONFIG_DEFENSIVE` + `trusted_schema = OFF` + `query_only = ON`), Windows/CurDir reserved vault path bypass fixes, and model config bounds + `catch_unwind` panic isolation in `medscale-pack`.
+- `#530`: `scripts/e2e/resolve-edge-webdriver.ps1` matching Edge WebDriver major version to installed WebView2 Runtime on Windows E2E runners.
+- `#531`: sealed desktop pack/ASR helper records inside `meta.sealed` (`vault_helper_records`) with legacy plaintext sidecar migration/removal and hard WebView2 residue assertions in `scripts/e2e/installed-journey.mjs`.
+
+See [MEDSCALE_FINAL_ENGINEERING_STATUS.md](../handoff/MEDSCALE_FINAL_ENGINEERING_STATUS.md) for the complete engineering handoff, exact commits, artifact inventory, and founder-only publication steps.

@@ -1,6 +1,6 @@
 # MedScale Beta: known issues
 
-This list comes from the "Still open" and limitations sections of the [release packet](RELEASE_PACKET.md) for candidate `main@f01323c` (version 0.1.0, proposed tag `v0.1.0-beta.1`). When the packet changes, update this file to match.
+This list reflects the `0.1.0-beta.1` release candidate ([RELEASE_CANDIDATE_0.1.0-beta.1.md](../release/RELEASE_CANDIDATE_0.1.0-beta.1.md), built from `main@6d0279e` and re-assembled in run `43693295275`) together with engineering fixes merged on `main` through 2026-11-26.
 
 `RELEASE_READY=false`, `REAL_PHI_AUTHORIZATION=NOT_AUTHORIZED`, `TAURI_WEBVIEW_PRIVACY_QUALIFICATION=OPEN`. Nothing has been published, signed or notarized. Passing the Beta checks is not clinical validation or a full privacy assurance. Real patient data is not authorized.
 
@@ -8,32 +8,30 @@ Found something not on this list? [Open an issue](https://github.com/AbdulazizSh
 
 ## Platforms
 
-- **Windows x64:** the installer is unsigned. What SmartScreen shows a person who downloads it through a browser has not been measured.
-- **macOS Apple silicon:** not ready. The app is only ad-hoc signed, with no Developer ID and no notarization, so Gatekeeper blocks a downloaded copy. VoiceOver has not been run, and the full journey has not been run on the DMG. The signing and notarization workflow exists but has never run.
-- **Linux desktop:** Engineering build only: an unsigned x86_64 `.deb` (and an unqualified `.rpm`) built on Ubuntu 22.04 in CI, installed, launched under Xvfb and removed on a disposable runner. No user-journey E2E on Linux yet, and no AppImage.
-- **Not tested:** power loss, a wide range of real desktop hardware, and Intel Macs.
+- **Windows x64:** the installer and portable zip are unsigned. SmartScreen warns (More info → Run anyway) and Windows 11 Smart App Control blocks unsigned executables.
+- **macOS (Apple Silicon and Intel):** DMGs are ad-hoc signed only, with no Developer ID and no notarization, so Gatekeeper requires System Settings → Privacy & Security → Open Anyway once. VoiceOver has not been run, and the full interactive journey has only run on test builds (not the installed DMG). The signing/notarization workflow exists but has never run.
+- **Linux desktop (x64 and arm64):** unsigned `.deb` and AppImage built on Ubuntu 22.04 in CI, verified for install, launch, reinstall-keeping-data, and removal on disposable runners; arm64 requires ARMv8.2-A with FP16.
+- **Not tested:** sudden power loss on real hardware, broad end-user desktop hardware diversity, and upgrades between two different released versions.
 
 ## Build and release
 
-- The builds are not reproducible. Nobody has rebuilt the same bytes independently.
-- The candidate build artifacts expire on 2026-12-07. After that, the release must be rebuilt and requalified.
+- The builds are not reproducible. Nobody has rebuilt byte-for-byte identical installers independently.
+- No automatic updates: users install a newer version over the old one (back up the vault first).
+- The staged re-assembled `0.1.0-beta.1` candidate artifact (`run 43693295275`) expires on **2027-02-13**. It was built at `6d0279e` before subsequent `main` hardening PRs (`#512`–`#531`); rebuilding a fresh candidate from current `main` will include those fixes.
 
 ## App behaviour
 
-- **Recovery codes can be lost.** If the window closes while the recovery codes are on screen, they are lost. Fixing this needs codes that can be issued again, which is a design change.
-- **A saved model that fails its pin check must be removed by hand.** There is no remove control yet.
-- **The InPrivate label shows only on the first launch.** This is not explained yet. Scans with a working positive control found nothing on disk. The privacy gate stays open.
-- **Updating between versions is only partly tested.** Upgrading from the engineering preview passes, but both builds have the same version number, so it is not a true version upgrade.
-- **Model digests** for all 5 models are unchanged since they last passed 15/15 at `80c937a`. They have not been re-checked against fresh upstream downloads.
+- **Updating between versions is only partly tested.** Reinstall-keeping-data passes, but no earlier public release exists yet to test cross-version upgrades.
+- **Model digests** for all 5 allowlisted Whisper models are unchanged since passing 15/15 digest/signature verification. They are verified against pinned digests on every download and activation, and damaged caches can now be cleared from the UI (**Remove saved model…**, `#528`, closing `#459`).
+- **Recovery codes (`#457`):** shown-once recovery codes now trigger a window-close warning while visible (`#528`) and can be replaced at any time from Settings or the CLI (`medscale vault replace-recovery-codes`, `#512`) using the current passphrase.
+- **WebView2 InPrivate privacy gate (`#460`):** four consecutive Windows installed-journey runs since 2026-11-07 (including `0.1.0-beta.1` RC run `43247164670`) reported `INPRIVATE true` on all five launches, `PREF_ON_DISK first=0 second=0`, and `WEBVIEW_RESIDUE {"scanned":149,"hits":0,"unreadable":0}` after a passing positive control, and `installed-journey.mjs` now fails if any residue is found (`#531`). `TAURI_WEBVIEW_PRIVACY_QUALIFICATION` stays `OPEN` pending independent human security review.
 
 ## Security
 
-No human security review has been done. The reviews so far were AI reviews. These risks from those reviews are still open:
+No independent human security review or legal review has been done yet. The reviews so far were AI-assisted reviews. Engineering items resolved on `main` include B1–B5, 64 MiB Argon2id with legacy rewrap (`#526`), secret zeroization (`#526`), cross-platform crash-dump hardening (`#526`), keyed sealed-blob filenames and fixed path-free errors (`#527`), Browse URL path PII scanning (`#527`), Rust-side idle auto-lock (`#528`), safe model destination/config/SQLite hardening (`#529`), and sealed desktop pack/ASR helpers (`#531`). Residual architectural limits that remain open:
 
-- Pack signing has no real trust root, so packaged builds rely on pinned digests.
-- There is no protection against rolling a vault back to an older copy.
-- The passphrase is not wiped from memory everywhere.
-- Audit rows can be lost if the app crashes.
-- The sample workspace is not encrypted.
-- Key derivation is modest.
-- Sealing a large vault needs about 3.6 times the data size.
+- Pack signing has no external publisher trust root yet, so packaged builds enforce pinned SHA-256 digests on allowlisted Whisper models and refuse arbitrary external Packs.
+- Local rollback detection (B4) uses a device-local generation record beside the vault; an attacker with full filesystem access who also deletes that record defeats it.
+- The bundled sample workspace is intentionally unencrypted and refuses all user FHIR imports (B1, `#524`).
+- Sealing a large vault requires temporary disk headroom (approximately 3.6× the active database size during atomic re-seal).
+- Real patient data (`REAL_PHI_AUTHORIZATION=NOT_AUTHORIZED`) and clinical use remain unauthorized pending independent security review, legal/regulatory review (B6 drafts in `docs/legal/drafts`), and written founder authorization.
