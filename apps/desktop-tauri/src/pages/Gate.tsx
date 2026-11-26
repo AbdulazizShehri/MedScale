@@ -238,7 +238,7 @@ export function Access({ onBack, onRecoveryCodes }: { onBack: () => void; onReco
         await refreshWorkspace();
       } else {
         // Keep `pass` only when Spec 109 offers the immediate move-aside confirmation.
-        if (r.error.reason !== "work_file_check_unavailable") setPass("");
+        if (r.error.reason !== "work_session_check_failed") setPass("");
         setError(r.error);
       }
     } else {
