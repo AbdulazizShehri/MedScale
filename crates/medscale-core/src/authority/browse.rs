@@ -240,10 +240,19 @@ pub fn request_has_sensitive_span(request: &BrowseRequest) -> bool {
             .map(|(_, q)| q.split('#').next().unwrap_or(""))
     });
     let path_sensitive = url_path.is_some_and(|path| {
-        let decoded = percent_decode_lossy(path).replace('/', " ");
-        pattern_recognize(&decoded)
+        let base = percent_decode_lossy(path)
+            .replace(':', ": ")
+            .replace('_', " ");
+        // Check both space-separated segments and colon-delimited `key: value`
+        // pairs so REST paths like `/patient/Jane%20Doe` match labelled
+        // recognizers just as `Patient: Jane Doe` does in prose or queries.
+        [base.replace('/', " "), base.replace('/', ": ")]
             .iter()
-            .any(|span| !is_benign_url_path_identifier(&decoded, span))
+            .any(|decoded| {
+                pattern_recognize(decoded)
+                    .iter()
+                    .any(|span| !is_benign_url_path_identifier(decoded, span))
+            })
     });
     path_sensitive
         || [url_query, request.query.as_deref()]
