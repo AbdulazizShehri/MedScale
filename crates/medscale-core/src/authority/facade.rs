@@ -6791,26 +6791,40 @@ fn enc_err(err: medscale_storage::EncryptedVaultError) -> AuthorityError {
             medscale_storage::MetaError::UnsupportedSchema(message),
         ) => AuthorityError::UnsupportedSchema { message },
         // A full disk or a locked file is transient, not bad input (Spec 109 I3).
-        err @ (medscale_storage::EncryptedVaultError::Io(_)
+        // Fixed messages prevent local OS paths or usernames from leaking to callers.
+        medscale_storage::EncryptedVaultError::Io(_)
         | medscale_storage::EncryptedVaultError::Meta(
             medscale_storage::MetaError::Sqlite(_) | medscale_storage::MetaError::Io(_),
         )
-        | medscale_storage::EncryptedVaultError::Sealed(
-            medscale_storage::SealedBlobError::Io(_),
-        )) => AuthorityError::Unavailable {
-            message: err.to_string(),
-        },
-        err @ (medscale_storage::EncryptedVaultError::WorkFileCheckUnavailable(_)
-        | medscale_storage::EncryptedVaultError::WorkFileBlocked(_)) => {
+        | medscale_storage::EncryptedVaultError::Sealed(medscale_storage::SealedBlobError::Io(_)) => {
             AuthorityError::Unavailable {
-                message: err.to_string(),
+                message: "vault storage is temporarily unavailable".to_owned(),
             }
         }
+        medscale_storage::EncryptedVaultError::WorkFileCheckUnavailable(_) => {
+            AuthorityError::Unavailable {
+                message: "the interrupted session could not be checked".to_owned(),
+            }
+        }
+        medscale_storage::EncryptedVaultError::WorkFileBlocked(_) => AuthorityError::Unavailable {
+            message: "the interrupted session could not be moved aside".to_owned(),
+        },
         medscale_storage::EncryptedVaultError::SealedMetaUnreadable => AuthorityError::Corrupt {
             message: "sealed vault metadata is unreadable; nothing was changed".to_owned(),
         },
-        other => AuthorityError::InvalidArgument {
-            message: other.to_string(),
+        medscale_storage::EncryptedVaultError::Invalid(message) => {
+            AuthorityError::InvalidArgument { message }
+        }
+        medscale_storage::EncryptedVaultError::Crypto
+        | medscale_storage::EncryptedVaultError::Sealed(
+            medscale_storage::SealedBlobError::Crypto
+            | medscale_storage::SealedBlobError::DigestMismatch
+            | medscale_storage::SealedBlobError::NotFound,
+        ) => AuthorityError::Corrupt {
+            message: "vault cryptographic check failed".to_owned(),
+        },
+        _ => AuthorityError::InvalidArgument {
+            message: "vault request could not be completed".to_owned(),
         },
     }
 }

@@ -241,9 +241,34 @@ fn only_a_real_absence_reads_as_a_missing_blob() {
     let root = temp_root("blob-errors");
     let (vault, _) = EncryptedVault::create("v-109", &root, PASS, "holder-a", None).unwrap();
     let digest = vault.put_blob(b"synthetic bytes").unwrap();
-    let path = root
-        .join("sealed_blobs")
-        .join(format!("{}.sealed", digest.to_hex()));
+    let blobs_dir = root.join("sealed_blobs");
+    assert!(
+        !blobs_dir
+            .join(format!("{}.sealed", digest.to_hex()))
+            .exists(),
+        "new sealed blobs use keyed filenames, not raw content digests"
+    );
+    let single_blob_path = || {
+        let mut entries: Vec<_> = fs::read_dir(&blobs_dir)
+            .unwrap()
+            .filter_map(Result::ok)
+            .map(|e| e.path())
+            .filter(|p| {
+                p.file_name()
+                    .and_then(|n| n.to_str())
+                    .is_some_and(|n| n.ends_with(".sealed"))
+            })
+            .collect();
+        assert_eq!(entries.len(), 1, "expected exactly one sealed blob file");
+        let path = entries.pop().unwrap();
+        assert!(
+            path.file_name()
+                .and_then(|n| n.to_str())
+                .is_some_and(|n| n.starts_with("k1_"))
+        );
+        path
+    };
+    let path = single_blob_path();
 
     // A directory at the path fails the read without the file being absent,
     // the shape of an antivirus lock: transient, not lost.
@@ -260,10 +285,8 @@ fn only_a_real_absence_reads_as_a_missing_blob() {
     ));
 
     // A blob that exists is not rewritten, so re-putting costs no fsync.
-    let digest = vault.put_blob(b"synthetic bytes").unwrap();
-    let path = root
-        .join("sealed_blobs")
-        .join(format!("{}.sealed", digest.to_hex()));
+    let _digest = vault.put_blob(b"synthetic bytes").unwrap();
+    let path = single_blob_path();
     let modified = fs::metadata(&path).unwrap().modified().unwrap();
     std::thread::sleep(std::time::Duration::from_millis(20));
     vault.put_blob(b"synthetic bytes").unwrap();
