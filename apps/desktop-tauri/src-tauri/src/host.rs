@@ -5098,9 +5098,21 @@ mod tests {
             let err = CmdError::from(AuthorityError::InvalidArgument {
                 message: raw.to_owned(),
             });
-            assert!(!err.message.contains("alice"), "leaked username: {}", err.message);
-            assert!(!err.message.contains("os error"), "leaked os error: {}", err.message);
-            assert!(!err.message.contains("meta.sealed"), "leaked filename: {}", err.message);
+            assert!(
+                !err.message.contains("alice"),
+                "leaked username: {}",
+                err.message
+            );
+            assert!(
+                !err.message.contains("os error"),
+                "leaked os error: {}",
+                err.message
+            );
+            assert!(
+                !err.message.contains("meta.sealed"),
+                "leaked filename: {}",
+                err.message
+            );
             assert_eq!(
                 err.message,
                 "Invalid: the operation could not be completed on local storage"
