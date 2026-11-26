@@ -152,6 +152,7 @@ fn presentation_builder<R: tauri::Runtime>(builder: tauri::Builder<R>) -> tauri:
 }
 
 fn main() {
+    let _ = medscale_contracts::process_hardening::disable_crash_dumps();
     startup_failure::install_panic_hook();
     presentation_builder(tauri::Builder::default().plugin(tauri_plugin_dialog::init()))
         .setup(|app| {
