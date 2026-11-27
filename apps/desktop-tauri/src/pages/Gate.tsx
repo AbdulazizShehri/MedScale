@@ -5,6 +5,7 @@ import { isReturningToSample } from "../lib/first-launch";
 import { call, useAction, type CmdError } from "../lib/ipc";
 import { ACTIVITY_EVENTS, AUTO_LOCK_MINUTES, shouldAutoLock } from "../lib/auto-lock";
 import { Logo } from "../components/brand";
+import { MOD } from "../components/shell";
 import { Glyph, useToast } from "../components/ui";
 import { DELETE_SET_ASIDE_DIALOG, MOVE_SESSION_ASIDE_DIALOG, RECOVERED_SEED_NOTICE, SET_ASIDE_DIALOG, SET_ASIDE_EXISTS_NOTICE, recoveredInterruptedSeed, vaultOpenNotice, seedFailureGuidance, setAsideOffered } from "../lib/seed-failure";
 import { ConfirmPanel } from "../components/confirm";
@@ -31,10 +32,12 @@ function FailureAlert({ error, glyph = "failed", children }: { error: CmdError; 
   );
 }
 
-/** A height field rendered as dots. Decorative. */
+/** Deterministic mathematical height field rendered as fine topographic dots and
+ *  harmonic crest highlights (algorithmic-art informed, zero animation, purely
+ *  decorative on Welcome and hidden below 1000px). */
 function Topology() {
-  const dots = useMemo(() => {
-    const cols = 58, rows = 30;
+  const { dots, contours } = useMemo(() => {
+    const cols = 38, rows = 20;
     const z = (u: number, v: number) =>
       Math.exp(-(((u - 0.6) ** 2) / 0.022 + ((v - 0.42) ** 2) / 0.05)) +
       0.62 * Math.exp(-(((u - 0.28) ** 2) / 0.03 + ((v - 0.72) ** 2) / 0.035)) +
@@ -44,16 +47,41 @@ function Topology() {
       const d = 0.38 + 0.62 * v, h = z(u, v);
       return { x: 450 + (u - 0.5) * 1180 * d, y: 170 + v * 520 - h * 150 * d, d, h };
     };
-    const dots: Array<{ x: number; y: number; r: number; o: number }> = [];
-    for (let j = 0; j < rows; j++) for (let i = 0; i < cols; i++) {
-      const u = i / (cols - 1), v = j / (rows - 1), p = P(u, v);
-      dots.push({ x: p.x, y: p.y, r: 0.55 + 1.15 * p.d, o: Math.min(0.95, 0.12 + 0.55 * v + 0.35 * Math.min(1, p.h)) });
+    const pts: Array<{ x: number; y: number; r: number; o: number; crest: boolean }> = [];
+    const lines: string[] = [];
+    for (let j = 0; j < rows; j++) {
+      const seg: string[] = [];
+      for (let i = 0; i < cols; i++) {
+        const u = i / (cols - 1), v = j / (rows - 1), p = P(u, v);
+        const crest = p.h > 0.72;
+        pts.push({
+          x: p.x,
+          y: p.y,
+          r: 0.55 + 1.15 * p.d,
+          o: Math.min(0.95, 0.12 + 0.52 * v + 0.36 * Math.min(1, p.h)),
+          crest,
+        });
+        if (j % 5 === 2 && i % 2 === 0) seg.push(`${i === 0 ? "M" : "L"}${p.x.toFixed(1)} ${p.y.toFixed(1)}`);
+      }
+      if (seg.length > 2) lines.push(seg.join(" "));
     }
-    return dots;
+    return { dots: pts, contours: lines };
   }, []);
   return (
     <svg className="gate-topo" viewBox="0 0 900 760" preserveAspectRatio="xMidYMid slice" aria-hidden="true">
-      {dots.map((d, i) => <circle key={i} cx={d.x} cy={d.y} r={d.r} fill="currentColor" fillOpacity={d.o} />)}
+      {contours.map((d, i) => (
+        <path key={`c-${i}`} d={d} fill="none" stroke="currentColor" strokeOpacity={0.09} strokeWidth={0.75} />
+      ))}
+      {dots.map((d, i) => (
+        <circle
+          key={i}
+          cx={d.x}
+          cy={d.y}
+          r={d.r}
+          fill={d.crest ? "var(--accent)" : "currentColor"}
+          fillOpacity={d.crest ? Math.min(0.75, d.o) : d.o}
+        />
+      ))}
     </svg>
   );
 }
@@ -66,6 +94,8 @@ export function Welcome({ onContinue }: { onContinue: () => void }) {
   const toast = useToast();
   const [confirming, setConfirming] = useState<null | "set-aside" | "delete">(null);
   const returning = isReturningToSample(ws);
+  const openingSample = pending === "synthetic";
+
   async function openSynthetic() {
     const r = await run<unknown>("synthetic", "workspace_open_synthetic");
     if (!r.ok) { setError(r.error); return; }
@@ -104,11 +134,14 @@ export function Welcome({ onContinue }: { onContinue: () => void }) {
           <p className="gate-welcome-hint">Your workspace stays on this computer unless you choose to export it or connect something.</p>
           <div className="gate-welcome-actions">
             <button type="button" className="btn btn-p lg" onClick={openSynthetic} disabled={!!pending} autoFocus>
-              {pending ? <Glyph kind="running" /> : <span className="g g-synthetic" />}{pending ? "Opening sample workspace…" : "Try MedScale with sample data"}
+              {openingSample ? <Glyph kind="running" /> : <span className="g g-synthetic" />}
+              {openingSample ? "Opening sample workspace…" : "Try MedScale with sample data"}
             </button>
-            <button type="button" className="btn btn-s lg" onClick={onContinue} disabled={!!pending}>{ws?.encrypted_vault_exists ? "Unlock your encrypted workspace" : "Create an encrypted workspace"}</button>
+            <button type="button" className="btn btn-s lg" onClick={onContinue} disabled={!!pending}>
+              {ws?.encrypted_vault_exists ? "Unlock your encrypted workspace" : "Create an encrypted workspace"}
+            </button>
           </div>
-          {pending && <p className="t-sm i3">First open ingests the synthetic FHIR fixtures through Core. This takes a few seconds once.</p>}
+          {openingSample && <p className="t-sm i3" role="status">Preparing the two fictional sample subjects locally. This takes a few seconds on first open.</p>}
           {error && (
             <FailureAlert error={error}>
               {seedFailureGuidance(error.reason)?.category === "retry" && <button type="button" className="btn btn-s" onClick={openSynthetic} disabled={!!pending}>Try again</button>}
@@ -130,7 +163,7 @@ export function Welcome({ onContinue }: { onContinue: () => void }) {
               onConfirm={setAside} onCancel={() => setConfirming(null)}>{SET_ASIDE_DIALOG.body}</ConfirmPanel>
           )}
           {confirming === "delete" && (
-            <ConfirmPanel title={DELETE_SET_ASIDE_DIALOG.title} confirmLabel={DELETE_SET_ASIDE_DIALOG.confirm} busy={!!pending}
+            <ConfirmPanel title={DELETE_SET_ASIDE_DIALOG.title} confirmLabel={DELETE_SET_ASIDE_DIALOG.confirm} busy={!!pending} destructive
               onConfirm={deleteSetAside} onCancel={() => setConfirming(null)}>{DELETE_SET_ASIDE_DIALOG.body}</ConfirmPanel>
           )}
         </div>
@@ -163,7 +196,6 @@ export function Access({ onBack, onRecoveryCodes }: { onBack: () => void; onReco
   }, [exists, createFailed]);
   async function copyCodes() {
     try {
-      // Write-only Web Clipboard API on an explicit click.
       await navigator.clipboard.writeText((codes ?? []).join("\n"));
       setCopy("copied");
     } catch {
@@ -178,7 +210,6 @@ export function Access({ onBack, onRecoveryCodes }: { onBack: () => void; onReco
     const block = (e: KeyboardEvent) => {
       if (e.key === "F5" || ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "r")) e.preventDefault();
     };
-    // The default context menu offers Refresh, which a key block can't stop.
     const noMenu = (e: MouseEvent) => e.preventDefault();
     const warnUnload = (e: BeforeUnloadEvent) => {
       e.preventDefault();
@@ -194,8 +225,7 @@ export function Access({ onBack, onRecoveryCodes }: { onBack: () => void; onReco
     };
   }, [holdingCodes]);
   // The new vault is open while its codes are on screen, so this screen locks
-  // like the rest of the app: after the idle limit, or on Ctrl+Shift+L. The
-  // codes leave the screen first, because they open the vault for good.
+  // like the rest of the app: after the idle limit, or on Ctrl+Shift+L.
   useEffect(() => {
     if (!codes) return;
     let last = Date.now();
@@ -226,8 +256,9 @@ export function Access({ onBack, onRecoveryCodes }: { onBack: () => void; onReco
   }, [codes, onRecoveryCodes, refreshWorkspace]);
   // Clear secrets from React state if this screen unmounts.
   useEffect(() => () => { setPass(""); setConfirm(""); setCodes(null); }, []);
-  // Unlocking is a short, familiar task: the explanation waits behind a disclosure.
   const compact = exists && mode === "unlock" && !codes;
+
+  const confirmMismatch = mode === "create" && confirm.length > 0 && pass !== confirm;
 
   async function submit(e: FormEvent) {
     e.preventDefault();
@@ -243,22 +274,18 @@ export function Access({ onBack, onRecoveryCodes }: { onBack: () => void; onReco
         if (notice) toast(notice);
         await refreshWorkspace();
       } else {
-        // Keep `pass` only when Spec 109 offers the immediate move-aside confirmation.
         if (r.error.reason !== "work_session_check_failed") setPass("");
         setError(r.error);
       }
     } else {
-      // Held from before the call: leaving now would drop codes that are shown only once.
       onRecoveryCodes(true);
       const r = await run<{ recovery_codes: string[] }>("create", "workspace_create_encrypted", { passphrase: pass });
       setPass("");
       setConfirm("");
       if (r.ok) { setCodes(r.data.recovery_codes); } else {
         setError(r.error);
-        // A conflict means another create got there first, so these codes never existed.
         setCreateFailed(r.error.kind !== "conflict");
         onRecoveryCodes(false);
-        // Core can fail after the vault exists, and the screen has to show that.
         await refreshWorkspace();
       }
     }
@@ -304,12 +331,12 @@ export function Access({ onBack, onRecoveryCodes }: { onBack: () => void; onReco
 
   const vault = (
     <div>
-      <span className="lbl" style={{ display: "block", fontSize: 10.5, fontWeight: 600, letterSpacing: "0.12em", textTransform: "uppercase", color: "var(--ink-3)", marginBottom: 6 }}>Vault</span>
-      <div style={{ display: "flex", alignItems: "center", gap: 10, minHeight: 52, padding: "0 12px", border: "1px solid var(--line)", borderRadius: "var(--r-2)" }}>
+      <span className="lbl" style={{ display: "block", marginBottom: 6 }}>Vault location</span>
+      <div style={{ display: "flex", alignItems: "center", gap: 10, minHeight: 52, padding: "0 12px", border: "1px solid var(--line)", borderRadius: "var(--r-2)", background: "var(--bg-raised)" }}>
         <Glyph kind={exists ? "present" : "absent"} />
         <div style={{ display: "flex", flexDirection: "column", minWidth: 0 }}>
           <span className="mono" style={{ fontSize: 12.5 }}>desktop-encrypted</span>
-          <span style={{ fontSize: 11.5, color: "var(--ink-3)" }}>{exists ? "Found in this app's data folder" : "Not created yet"}</span>
+          <span className="t-sm i3">{exists ? "Stored locally in this app's data folder" : "Not created yet on this device"}</span>
         </div>
       </div>
     </div>
@@ -317,14 +344,18 @@ export function Access({ onBack, onRecoveryCodes }: { onBack: () => void; onReco
   const explain = (
     <div className="stack" style={{ gap: 0 }}>
       {[
-        ["present", "Decrypts on this device", "The vault key is derived from your passphrase. The passphrase and key are never sent anywhere."],
-        ["unavailable", "Does not identify you", "MedScale has no organizational sign-in. Anyone with the passphrase can open this vault."],
-        ["absent", "Recovery codes, not resets", "If you lose your passphrase, a recovery code issued at creation opens the vault. Without either, the vault cannot be opened. Once it is open, Settings can change the passphrase or replace the codes."],
-        [ws?.real_phi_authorized ? "available" : "limited", "Real PHI is not authorized", "Use synthetic or permitted fixtures until private-data authorization is granted."],
+        ["present", "Encrypted on this device", "The vault key is derived locally using Argon2id (64 MiB). Your passphrase and keys never leave this computer."],
+        ["unavailable", "No accounts or cloud sign-in", "MedScale has no remote account system. Anyone with the passphrase can unlock this local vault."],
+        ["absent", "Recovery codes, not password resets", "If you forget your passphrase, a recovery code issued at creation opens the vault. You can change your passphrase or replace codes anytime in Settings."],
+        [
+          ws?.real_phi_authorized ? "available" : "limited",
+          ws?.real_phi_authorized ? "Real patient data authorized" : "Real patient data is not authorized",
+          "Use synthetic or permitted test records until independent review and written real-data authorization are granted.",
+        ],
       ].map(([k, t, d]) => (
         <div key={t} style={{ display: "grid", gridTemplateColumns: "20px minmax(0,1fr)", gap: 12, padding: "12px 0", borderBottom: "1px solid var(--line-subtle)" }}>
           <span style={{ marginTop: 5 }}><Glyph kind={k as "present"} /></span>
-          <div><div style={{ fontSize: 13, fontWeight: 600 }}>{t}</div><div className="t-sm i2" style={{ lineHeight: "18px" }}>{d}</div></div>
+          <div><div style={{ fontSize: 13, fontWeight: 600 }}>{t}</div><div className="t-sm i2" style={{ lineHeight: "18px", marginTop: 2 }}>{d}</div></div>
         </div>
       ))}
     </div>
@@ -341,28 +372,33 @@ export function Access({ onBack, onRecoveryCodes }: { onBack: () => void; onReco
           )}
           <div style={{ flex: 1, display: "flex", alignItems: "center", padding: "32px 0" }}>
             {codes ? (
-              <div className="stack" style={{ width: 420, maxWidth: "100%", gap: 18 }}>
-                <h1 style={{ margin: 0, fontSize: 32, lineHeight: "36px", fontWeight: 600, letterSpacing: "-0.025em" }}>Save your recovery codes</h1>
+              <div className="stack" style={{ width: 440, maxWidth: "100%", gap: 18 }}>
+                <h1 className="t-h1" style={{ fontSize: 30, lineHeight: "36px", letterSpacing: "-0.025em" }}>Save your recovery codes</h1>
                 <p className="t-body i2">Each code opens this vault if you lose your passphrase. These codes are shown once and are not stored anywhere MedScale can display again. Keep them somewhere safe and separate—if you close this window before saving them, unlock with your passphrase and issue a fresh set in Settings.</p>
-                <div className="codes" aria-label="Recovery codes">{codes.length ? codes.map((c) => <span key={c}>{c}</span>) : <span className="i3">Core issued no recovery codes for this vault.</span>}</div>
+                <div className="codes" aria-label="Recovery codes">{codes.length ? codes.map((c) => <span key={c}>{c}</span>) : <span className="i3">No recovery codes were issued for this vault.</span>}</div>
                 <div className="row-gap" style={{ gap: 8 }}>
                   <button type="button" className="btn btn-s lg" onClick={() => void copyCodes()} disabled={!codes.length}>{copy === "copied" ? "Copied" : "Copy codes"}</button>
-                  {copy === "failed" && <span className="t-sm i2" role="status">Couldn&apos;t copy. Select the codes and press Ctrl+C.</span>}
+                  {copy === "failed" && <span className="t-sm i2" role="status">Couldn&apos;t copy. Select the codes and press {MOD}+C.</span>}
                 </div>
-                <p className="t-sm i3" style={{ margin: 0 }}>Copied codes can stay in Windows clipboard history; writing them down is safer. You can replace these codes anytime in Settings → Passphrase and recovery codes.</p>
+                <p className="t-sm i3" style={{ margin: 0 }}>Copied codes can stay in OS clipboard history; writing them down is safer. You can replace these codes anytime in Settings → Passphrase and recovery codes.</p>
                 <div><button type="button" className="btn btn-p lg" onClick={() => void refreshWorkspace().finally(() => onRecoveryCodes(false))}>I saved them · continue</button></div>
               </div>
             ) : (
-              <form onSubmit={submit} className="stack" style={{ width: 420, maxWidth: "100%", gap: 22 }}>
-                <div className="stack" style={{ gap: 8 }}>
-                  <h1 style={{ margin: 0, fontSize: 32, lineHeight: "36px", fontWeight: 600, letterSpacing: "-0.025em" }}>{mode === "unlock" ? "Unlock workspace" : "Create encrypted vault"}</h1>
+              <form onSubmit={submit} className="stack" style={{ width: 420, maxWidth: "100%", gap: 20 }}>
+                <div className="stack" style={{ gap: 6 }}>
+                  <h1 className="t-h1" style={{ fontSize: 30, lineHeight: "36px", letterSpacing: "-0.025em" }}>{mode === "unlock" ? "Unlock workspace" : "Create encrypted vault"}</h1>
                   <p className="t-body i2">{compact ? "Enter your passphrase to open this workspace on this device." : "Your passphrase decrypts this vault on this device. It is not an account and it is never sent anywhere."}</p>
                 </div>
                 {!compact && vault}
                 <div>
-                  <label className="lbl" htmlFor="pp">{useCode ? "Recovery code" : "Passphrase"}</label>
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", marginBottom: 6 }}>
+                    <label className="lbl" htmlFor="pp" style={{ marginBottom: 0 }}>{useCode ? "Recovery code" : "Passphrase"}</label>
+                    {!useCode && mode === "create" && (
+                      <span className={`mono t-mono-sm ${pass.length >= 8 ? "i2" : "i3"}`}>{pass.length}/8 min</span>
+                    )}
+                  </div>
                   <div className="field-row">
-                    <input id="pp" type={show ? "text" : "password"} value={pass} onChange={(e) => setPass(e.target.value)} autoComplete={useCode ? "off" : mode === "unlock" ? "current-password" : "new-password"} aria-invalid={error?.kind === "invalid" || error?.kind === "denied"} style={{ flex: 1, height: 36 }} autoFocus />
+                    <input id="pp" type={show ? "text" : "password"} value={pass} onChange={(e) => setPass(e.target.value)} autoComplete={useCode ? "off" : mode === "unlock" ? "current-password" : "new-password"} aria-invalid={error?.kind === "invalid" || error?.kind === "denied"} style={{ flex: 1 }} autoFocus />
                     <button type="button" className="btn btn-g" onClick={() => setShow((s) => !s)}>{show ? "Hide" : "Show"}</button>
                   </div>
                   <span className="t-sm i3" style={{ display: "block", marginTop: 6 }}>{useCode ? "A code from when this vault was created. It opens the vault and stays valid until you replace the codes in Settings." : "8–256 characters. MedScale can't recover it, so keep it somewhere safe."}</span>
@@ -371,7 +407,8 @@ export function Access({ onBack, onRecoveryCodes }: { onBack: () => void; onReco
                 {mode === "create" && (
                   <div>
                     <label className="lbl" htmlFor="pp2">Confirm passphrase</label>
-                    <input id="pp2" type={show ? "text" : "password"} value={confirm} onChange={(e) => setConfirm(e.target.value)} autoComplete="new-password" style={{ width: "100%", height: 36 }} />
+                    <input id="pp2" type={show ? "text" : "password"} value={confirm} onChange={(e) => setConfirm(e.target.value)} autoComplete="new-password" aria-invalid={confirmMismatch} style={{ width: "100%" }} />
+                    {confirmMismatch && <span className="t-sm" style={{ display: "block", marginTop: 5, color: "var(--sem-danger)" }} role="alert">Passphrases do not match yet.</span>}
                   </div>
                 )}
                 {error && <FailureAlert error={error} glyph={error.kind === "denied" ? "denied" : "failed"} />}
@@ -390,9 +427,9 @@ export function Access({ onBack, onRecoveryCodes }: { onBack: () => void; onReco
                 )}
                 <div className="row-gap" style={{ gap: 14 }}>
                   <button type="submit" className="btn btn-p lg" disabled={!!pending || (useCode ? !pass.trim() : pass.length < 8)}>{pending === "unlock" || pending === "create" ? <><Glyph kind="running" />Working…</> : mode === "unlock" ? "Unlock workspace" : "Create vault"}</button>
-                  {exists && !compact
-                    ? <button type="button" className="link t-sm" onClick={() => { setMode(mode === "unlock" ? "create" : "unlock"); setError(null); }} disabled={mode === "unlock"} title={mode === "unlock" ? "A vault already exists at the default location" : undefined}>{mode === "unlock" ? "One vault per device in this build" : "Unlock existing vault"}</button>
-                    : null}
+                  {exists && !compact && mode === "create" && (
+                    <button type="button" className="link t-sm" onClick={() => { setMode("unlock"); setError(null); }}>Unlock existing vault</button>
+                  )}
                 </div>
                 {!restoreFrom && <div><button type="button" className="link t-sm" onClick={() => void chooseBackup()} disabled={!!pending}>Restore from a backup…</button></div>}
                 {compact ? (
@@ -400,7 +437,7 @@ export function Access({ onBack, onRecoveryCodes }: { onBack: () => void; onReco
                     <button type="button" className="link t-sm access-sample" onClick={onBack} disabled={!!pending}>Explore sample data instead</button>
                     <details className="access-details">
                       <summary>How unlocking works</summary>
-                      <div className="stack" style={{ gap: 16, marginTop: 12 }}>{vault}{explain}<p className="t-sm i3">This build keeps one vault per device.</p></div>
+                      <div className="stack" style={{ gap: 16, marginTop: 12 }}>{vault}{explain}<p className="t-sm i3">This build keeps one encrypted vault per device.</p></div>
                     </details>
                   </>
                 ) : (
@@ -408,7 +445,7 @@ export function Access({ onBack, onRecoveryCodes }: { onBack: () => void; onReco
                     <div style={{ display: "flex", alignItems: "center", gap: 12 }}><span style={{ flex: 1, height: 1, background: "var(--line)" }} /><span className="t-sm i3">or</span><span style={{ flex: 1, height: 1, background: "var(--line)" }} /></div>
                     <button type="button" className="btn btn-s lg" style={{ justifyContent: "flex-start" }} onClick={synthetic} disabled={!!pending}>
                       {pending === "synthetic" ? <Glyph kind="running" /> : <span className="g g-synthetic" />}Open synthetic workspace
-                      <span style={{ marginLeft: "auto", fontSize: 11.5, color: "var(--ink-3)", fontWeight: 400 }}>fixtures only · no passphrase</span>
+                      <span style={{ marginLeft: "auto", fontSize: 11.5, color: "var(--ink-3)", fontWeight: 400 }}>sample data · no passphrase</span>
                     </button>
                   </>
                 )}
@@ -419,7 +456,7 @@ export function Access({ onBack, onRecoveryCodes }: { onBack: () => void; onReco
         </section>
         {!compact && (
           <aside>
-            <div className="sec" style={{ margin: 0 }}><span className="sec-n">01</span><span className="sec-t">What unlocking does</span><span className="sec-rule" /></div>
+            <div className="sec" style={{ margin: 0 }}><span className="sec-t">What unlocking does</span><span className="sec-rule" /></div>
             {explain}
           </aside>
         )}

@@ -1,7 +1,7 @@
 import { Fragment, useEffect, type ReactNode } from "react";
 import { useApp } from "../lib/app";
 import { useCommand } from "../lib/ipc";
-import { Empty, ErrorState, Skeleton } from "./ui";
+import { Empty, ErrorState, PageHead, Skeleton } from "./ui";
 
 export type ProjectRow = { id: string; name: string; status: string; revision: number; experiments: number; refs: number; edges: number };
 
@@ -16,7 +16,9 @@ export function ProjectScope({ title, sub, actions, children }: {
   const { project, setProject, navigate } = useApp();
   const { state, reload } = useCommand<ProjectRow[]>("projects_list");
 
-  const rows = state.status === "ready" ? state.data.filter((p) => p.status !== "archived") : [];
+  const allRows = state.status === "ready" ? state.data : [];
+  const rows = allRows.filter((p) => p.status !== "archived");
+  const archivedCount = allRows.length - rows.length;
   const current = rows.find((p) => p.id === project) ?? null;
 
   useEffect(() => {
@@ -25,11 +27,7 @@ export function ProjectScope({ title, sub, actions, children }: {
 
   return (
     <div className="pane">
-      <div className="page-head">
-        <div className="grow">
-          <h1 className="t-h1">{title}</h1>
-          {sub && <p className="ph-sub">{sub}</p>}
-        </div>
+      <PageHead title={title} sub={sub}>
         {rows.length > 0 && (
           <label className="picker">
             <span className="t-label">Project</span>
@@ -39,12 +37,18 @@ export function ProjectScope({ title, sub, actions, children }: {
           </label>
         )}
         {current && actions?.(current.id)}
-      </div>
-      {state.status === "loading" && <Skeleton rows={3} />}
+      </PageHead>
+      {state.status === "loading" && <Skeleton rows={4} />}
       {state.status === "error" && <ErrorState error={state.error} onRetry={reload} />}
       {state.status === "ready" && !rows.length && (
-        <Empty icon="projects" title="No project yet" action={<button type="button" className="btn btn-p" onClick={() => navigate("Projects")}>Create a project</button>}>
-          {title} works inside a project, so Core can pin what it reads and writes. Create one first.
+        <Empty
+          icon="projects"
+          title={archivedCount > 0 ? "No active project" : "No project yet"}
+          action={<button type="button" className="btn btn-p" onClick={() => navigate("Projects")}>Create a project</button>}
+        >
+          {archivedCount > 0
+            ? `All ${archivedCount} existing ${archivedCount === 1 ? "project is" : "projects are"} archived. Create a new project to use ${title}.`
+            : `${title} organizes its sources, runs, and outputs inside a project so everything stays traceable. Create one to get started.`}
         </Empty>
       )}
       {/* Keep all project-local form, transcript, draft and pending-action state

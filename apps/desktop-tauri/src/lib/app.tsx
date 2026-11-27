@@ -46,6 +46,12 @@ export type AppCtx = {
   setDensity: (d: Density) => void;
   lock: () => Promise<void>;
   openPalette: () => void;
+  sidebarCollapsed: boolean;
+  toggleSidebar: () => void;
+  inspectorOpen: boolean;
+  setInspectorOpen: (open: boolean) => void;
+  hasInspector: boolean;
+  setHasInspector: (has: boolean) => void;
 };
 
 export const App = createContext<AppCtx | null>(null);

@@ -7,7 +7,7 @@ import { App as AppContext, readPref, writePref, type AppCtx, type Density, type
 import { isRouteId, routes, type RouteId } from "./routes";
 import { Header, Palette, Sidebar } from "./components/shell";
 import { Mark } from "./components/brand";
-import { ErrorState, ToastHost } from "./components/ui";
+import { ErrorState, Glyph, ToastHost } from "./components/ui";
 import { Access, Welcome } from "./pages/Gate";
 import { Home } from "./pages/Home";
 import { PatientDetail, Patients } from "./pages/Patients";
@@ -77,11 +77,14 @@ export function App() {
   const [gate, setGate] = useState<GateRequest>(hash.get("gate") === "access" ? "access" : "auto");
   const [recoveryCodesShown, setRecoveryCodesShown] = useState(false);
   const [nav, setNav] = useState<Nav>(startNav);
-  // Project selection belongs only to the currently unlocked workspace. Never persist its ID in WebView storage.
+  // Project selection and panel layout belong only to in-memory React state, never WebView storage.
   const [project, setProjectState] = useState<string | null>(null);
   const [theme, setThemeState] = useState<Theme>(initialTheme);
   const [density, setDensityState] = useState<Density>(parseDensity(hash.get("density")) ?? parseDensity(readPref("density")) ?? "standard");
   const [palette, setPalette] = useState(false);
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+  const [inspectorOpen, setInspectorOpen] = useState(false);
+  const [hasInspector, setHasInspector] = useState(false);
   const [lockError, setLockError] = useState<CmdError | null>(null);
   const [locking, setLocking] = useState(false);
 
@@ -122,9 +125,15 @@ export function App() {
   const setTheme = useCallback((t: Theme) => { setThemeState(t); writePref("theme", t); savePrefs(t, density); }, [density, savePrefs]);
   const setDensity = useCallback((d: Density) => { setDensityState(d); writePref("density", d); savePrefs(theme, d); }, [theme, savePrefs]);
   const setProject = useCallback((id: string | null) => { setProjectState(id); }, []);
-  const navigate = useCallback((route: RouteId, subject?: string) => { setNav({ route, subject }); setPalette(false); }, []);
+  const toggleSidebar = useCallback(() => { setSidebarCollapsed((c) => !c); }, []);
+  const navigate = useCallback((route: RouteId, subject?: string) => {
+    setNav({ route, subject });
+    setPalette(false);
+    setInspectorOpen(false);
+  }, []);
   const vaultClosed = useCallback(async () => {
     setProjectState(null);
+    setInspectorOpen(false);
     setGate("access");
     setNav({ route: "Home" });
     await refreshWorkspace();
@@ -173,29 +182,43 @@ export function App() {
     if (entered && routeKey) document.getElementById("main")?.focus();
   }, [routeKey, ws?.open, nav.route]);
 
+  const route = routes.find((r) => r.id === nav.route) ?? routes[0];
+  const view = gateView({ runtimeError: !!wsError, status: ws, routeNeedsWorkspace: route.scope !== "none", request: gate, recoveryCodesShown });
+  const inShell = view === "workspace";
+
   useEffect(() => {
     function onKey(e: KeyboardEvent) {
       if (recoveryCodesShown) return;
       const mod = e.ctrlKey || e.metaKey;
-      if (mod && e.key.toLowerCase() === "k") { e.preventDefault(); setPalette((p) => !p); }
+      const target = e.target instanceof HTMLElement ? e.target : null;
+      const typing = !!target && (target.tagName === "INPUT" || target.tagName === "TEXTAREA" || target.tagName === "SELECT" || target.isContentEditable);
+      if (mod && e.key.toLowerCase() === "k" && inShell) { e.preventDefault(); setPalette((p) => !p); }
+      else if (mod && e.key.toLowerCase() === "b" && inShell) { e.preventDefault(); setSidebarCollapsed((c) => !c); }
       else if (mod && e.shiftKey && e.key.toLowerCase() === "l" && ws?.open) { e.preventDefault(); void lock(); }
       else if (mod && e.key === ",") { e.preventDefault(); setNav({ route: "Settings" }); }
+      else if (e.altKey && e.key === "ArrowLeft" && nav.route === "Patients" && nav.subject) { e.preventDefault(); setNav({ route: "Patients" }); }
+      else if (e.key === "/" && !mod && !e.altKey && !typing && inShell && !palette) {
+        const search = document.querySelector<HTMLInputElement>('[data-page-search="true"]');
+        if (search) { e.preventDefault(); search.focus(); search.select(); }
+      } else if (e.key === "Escape" && inspectorOpen) {
+        e.preventDefault();
+        setInspectorOpen(false);
+      }
     }
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [lock, ws?.open, recoveryCodesShown]);
+  }, [lock, ws?.open, recoveryCodesShown, inShell, nav.route, nav.subject, palette, inspectorOpen]);
 
   const ctx: AppCtx = useMemo(() => ({
     ws, refreshWorkspace, vaultClosed, nav, navigate, project, setProject, theme, setTheme, density, setDensity, lock,
     openPalette: () => setPalette(true),
-  }), [ws, refreshWorkspace, vaultClosed, nav, navigate, project, setProject, theme, setTheme, density, setDensity, lock]);
+    sidebarCollapsed, toggleSidebar, inspectorOpen, setInspectorOpen, hasInspector, setHasInspector,
+  }), [ws, refreshWorkspace, vaultClosed, nav, navigate, project, setProject, theme, setTheme, density, setDensity, lock, sidebarCollapsed, toggleSidebar, inspectorOpen, hasInspector]);
 
-  const route = routes.find((r) => r.id === nav.route) ?? routes[0];
   const crumbs: string[] = route.area === "Home" || route.area === "Utility" ? [route.label] : [route.area, route.label];
   if (nav.subject) crumbs.push(nav.subject);
 
   let body: ReactNode;
-  const view = gateView({ runtimeError: !!wsError, status: ws, routeNeedsWorkspace: route.scope !== "none", request: gate, recoveryCodesShown });
   if (view === "runtime-unavailable") {
     body = <div className="splash" role="alert"><div className="stack"><Mark height={38} className="mark" title="MedScale" /><p className="t-sm i2">Local runtime disconnected. {wsError}</p><p className="t-sm i3">Your workspace stays closed until the runtime responds. If this keeps happening, close MedScale and open it again.</p><button type="button" className="btn btn-s" onClick={() => void refreshWorkspace()}>Try again</button></div></div>;
   } else if (view === "loading") {
@@ -211,9 +234,9 @@ export function App() {
         <Sidebar />
         <div className="main">
           <Header crumbs={crumbs} />
-          {locking && <div className="t-sm i2" role="status" style={{ padding: "12px 24px 0" }}>Locking… A large vault can take a while. Keep MedScale open.</div>}
-          {lockError && <div style={{ padding: "12px 24px 0" }}><ErrorState error={{ ...lockError, message: `The workspace is still open: it could not be locked. ${lockError.message}` }} onRetry={() => void lock()} /></div>}
-          <main id="main" className="split" tabIndex={-1} aria-label={nav.route} style={{ outline: "none" }}>
+          {locking && <div className="lock-banner" role="status"><Glyph kind="running" /><span>Locking workspace… A large vault can take a moment. Keep MedScale open.</span></div>}
+          {lockError && <div style={{ padding: "12px var(--pad-page-x) 0" }}><ErrorState error={{ ...lockError, message: `The workspace is still open: it could not be locked. ${lockError.message}` }} onRetry={() => void lock()} /></div>}
+          <main id="main" className="split" tabIndex={-1} aria-label={route.label} style={{ outline: "none" }}>
             {(nav.route === "Patients" && nav.subject) ? <PatientDetail subject={nav.subject} /> : PAGES[nav.route]()}
           </main>
         </div>
@@ -226,7 +249,7 @@ export function App() {
       <ToastHost>
         <div className="ms" data-theme={theme} data-density={density} style={{ height: "100%" }}>
           {body}
-          {palette && ws?.open && <Palette onClose={() => setPalette(false)} />}
+          {palette && inShell && <Palette onClose={() => setPalette(false)} />}
         </div>
       </ToastHost>
     </AppContext.Provider>
