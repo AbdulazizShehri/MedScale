@@ -354,6 +354,7 @@ export function ResizableSplit({
   defaultWidth = 360,
   minWidth = 280,
   maxWidth = 520,
+  keepVisible = false,
 }: {
   pane: ReactNode;
   inspector: ReactNode;
@@ -361,6 +362,7 @@ export function ResizableSplit({
   defaultWidth?: number;
   minWidth?: number;
   maxWidth?: number;
+  keepVisible?: boolean;
 }) {
   const { inspectorOpen, setInspectorOpen, setHasInspector } = useApp();
   const [width, setWidth] = useState(defaultWidth);
@@ -370,15 +372,16 @@ export function ResizableSplit({
   const returnFocusRef = useRef<HTMLElement | null>(null);
 
   useEffect(() => {
+    if (keepVisible) return;
     setHasInspector(true);
     return () => {
       setHasInspector(false);
       setInspectorOpen(false);
     };
-  }, [setHasInspector, setInspectorOpen]);
+  }, [keepVisible, setHasInspector, setInspectorOpen]);
 
   useEffect(() => {
-    if (window.innerWidth > 1179) return;
+    if (keepVisible || window.innerWidth > 1179) return;
     if (inspectorOpen) {
       returnFocusRef.current = document.activeElement instanceof HTMLElement ? document.activeElement : null;
       drawerCloseRef.current?.focus();
@@ -386,7 +389,7 @@ export function ResizableSplit({
       returnFocusRef.current.focus();
       returnFocusRef.current = null;
     }
-  }, [inspectorOpen]);
+  }, [keepVisible, inspectorOpen]);
 
   function onPointerDown(e: ReactPointerEvent<HTMLDivElement>) {
     e.currentTarget.setPointerCapture(e.pointerId);
@@ -429,14 +432,16 @@ export function ResizableSplit({
         onDoubleClick={() => setWidth(defaultWidth)}
         onKeyDown={onResizerKey}
       />
-      <div className={`inspector-scrim ${inspectorOpen ? "drawer-open" : ""}`} onClick={() => setInspectorOpen(false)} aria-hidden="true" />
-      <aside className={`inspector drawer-managed ${inspectorOpen ? "drawer-open" : ""}`} aria-label={inspectorLabel} style={{ "--ins-w": `${width}px` } as CSSProperties}>
-        <div className="inspector-drawer-bar">
-          <span className="t-h3">{inspectorLabel}</span>
-          <button ref={drawerCloseRef} type="button" className="ibtn" aria-label={`Close ${inspectorLabel.toLowerCase()}`} onClick={() => setInspectorOpen(false)}>
-            <Icon name="close" size={14} />
-          </button>
-        </div>
+      {!keepVisible && <div className={`inspector-scrim ${inspectorOpen ? "drawer-open" : ""}`} onClick={() => setInspectorOpen(false)} aria-hidden="true" />}
+      <aside className={`inspector ${keepVisible ? "keep-visible" : `drawer-managed ${inspectorOpen ? "drawer-open" : ""}`}`} aria-label={inspectorLabel} style={{ "--ins-w": `${width}px` } as CSSProperties}>
+        {!keepVisible && (
+          <div className="inspector-drawer-bar">
+            <span className="t-h3">{inspectorLabel}</span>
+            <button ref={drawerCloseRef} type="button" className="ibtn" aria-label={`Close ${inspectorLabel.toLowerCase()}`} onClick={() => setInspectorOpen(false)}>
+              <Icon name="close" size={14} />
+            </button>
+          </div>
+        )}
         {inspector}
       </aside>
     </>

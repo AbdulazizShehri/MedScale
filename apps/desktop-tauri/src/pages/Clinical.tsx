@@ -523,5 +523,5 @@ export function Insights() {
     </div>
   );
 
-  return <ResizableSplit pane={pane} inspector={inspector} inspectorLabel="Conditions and evidence" />;
+  return <ResizableSplit pane={pane} inspector={inspector} inspectorLabel="Conditions and evidence" keepVisible />;
 }

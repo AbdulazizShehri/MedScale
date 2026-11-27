@@ -825,9 +825,14 @@ button.sb-group svg { flex: none; }
 @media (max-width: 1179px) { .split-resizer { display: none; } }
 
 /* Responsive inspector sizing: uses --ins-w so media queries cleanly clamp it */
-.inspector.drawer-managed { width: var(--ins-w, var(--inspector)); }
+.inspector.drawer-managed,
+.inspector.keep-visible { width: var(--ins-w, var(--inspector)); }
 @media (max-width: 1279px) {
-  .inspector.drawer-managed { width: min(var(--ins-w, 320px), 316px); }
+  .inspector.drawer-managed,
+  .inspector.keep-visible { width: min(var(--ins-w, 320px), 316px); }
+}
+@media (max-width: 1179px) {
+  .inspector.keep-visible { width: 292px; }
 }
 
 /* Below 1180px, any inspector can be opened cleanly as an overlay drawer */

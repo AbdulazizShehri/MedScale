@@ -185,7 +185,7 @@ export function Projects() {
     </form>
   );
 
-  return <ResizableSplit pane={pane} inspector={inspector} inspectorLabel="New project" />;
+  return <ResizableSplit pane={pane} inspector={inspector} inspectorLabel="New project" keepVisible />;
 }
 
 /* ───────────────────────────── Data ───────────────────────────── */
