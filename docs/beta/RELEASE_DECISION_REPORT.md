@@ -16,11 +16,11 @@
 ## 2. Platforms
 
 "Engineering GO" means the exact file is built, installed and tested in CI on disposable runners, as listed. It is not a release.
-Evidence for every row is release candidate `0.1.0-beta.1` from `main@6d0279e` ([run 43247164670](https://github.com/AbdulazizShehri/MedScale/actions/runs/43247164670)), with file names and SHA-256 values in [RELEASE_CANDIDATE_0.1.0-beta.1.md](../release/RELEASE_CANDIDATE_0.1.0-beta.1.md).
+Evidence for every row is refreshed release candidate `0.1.0-beta.1` from `main@80c67d2d` ([run 45916049004](https://github.com/AbdulazizShehri/MedScale/actions/runs/45916049004), artifact `15164819520`, superseding the earlier `6d0279e` candidate in run `43247164670`), with file names and SHA-256 values in [RELEASE_CANDIDATE_0.1.0-beta.1.md](../release/RELEASE_CANDIDATE_0.1.0-beta.1.md).
 
 | Platform | Engineering | Public release | Evidence in the candidate | Limitations shown to users |
 |---|---|---|---|---|
-| Windows x64 installer | **GO** | Awaiting founder approval | Full installed journey (20 steps): install with Mark of the Web, sample workspace, FHIR import, model download, real speech, encrypted vault, encrypted FHIR import, Research Canvas, uninstall keeping data, reinstall | Unsigned: SmartScreen warns; **Smart App Control blocks it** |
+| Windows x64 installer | **GO** | Awaiting founder approval | Full installed journey (25 steps, including `#531` hard zero-residue assertions): install with Mark of the Web, sample workspace, encrypted-only FHIR refusal (`#524`), model download/recovery, real speech, encrypted vault, encrypted FHIR import, Research Canvas, 0 WebView2 disk residue after positive control, uninstall keeping data, reinstall | Unsigned: SmartScreen warns; **Smart App Control blocks it** |
 | Windows x64 portable zip | **GO** | Awaiting founder approval | Extracted and opened | Same as the installer |
 | macOS Apple silicon DMG | **GO** | Awaiting founder approval | Real-DMG install, Gatekeeper record, launch, removal; desktop journeys on test builds | Ad-hoc signed, not notarized: Open Anyway once |
 | macOS Intel DMG | **GO** | Awaiting founder approval | Built on an Intel runner; real-DMG install, launch, removal | Same as Apple silicon |
@@ -28,7 +28,7 @@ Evidence for every row is release candidate `0.1.0-beta.1` from `main@6d0279e` (
 | Linux arm64 .deb and AppImage | **GO** | Awaiting founder approval | Same as x64, on an Arm runner | Needs ARMv8.2-A with FP16 |
 | CLI (5 targets) | **GO** | Awaiting founder approval | Binary tests and a clean-PATH run of each archive; the Intel macOS archive is smoke-run under Rosetta 2 only | Unsigned |
 
-All 19 files passed ClamAV (0 infected), checksum re-verification and carry GitHub build-provenance attestations. Upgrade between released versions is untested because there is no earlier release.
+All 34 candidate files (13 downloadable packages, root SBOM, 5 notices archives, and 15 per-installer package manifests/SBOMs/NOTICE companions) passed ClamAV 1.5.4 (0 infected), checksum re-verification (34/34 OK), and carry GitHub SLSA v1 build-provenance attestations ([attestation 72905331](https://github.com/AbdulazizShehri/MedScale/attestations/72905331)). Upgrade between released versions is untested because there is no earlier release.
 
 ## 3. What changed (PRs)
 
