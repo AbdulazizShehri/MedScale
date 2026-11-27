@@ -1,4 +1,5 @@
-import { createContext, useCallback, useContext, useState, type ReactNode } from "react";
+import { createContext, useCallback, useContext, useEffect, useRef, useState, type CSSProperties, type KeyboardEvent as ReactKeyboardEvent, type PointerEvent as ReactPointerEvent, type ReactNode } from "react";
+import { useApp } from "../lib/app";
 import type { CmdError } from "../lib/ipc";
 
 /* ───────────── Icons: solid geometric, 20-unit grid ───────────── */
@@ -34,6 +35,12 @@ const ICONS = {
   runtime: "M3 3H17V17H3Z M4.6 4.6V15.4H15.4V4.6Z M7 7H13V13H7Z",
   workspace: "M2 2h7v7H2z M11 2h7v7h-7z M2 11h7v7H2z M11 11h7v7h-7z",
   more: "M4 8.5h3v3H4z M8.5 8.5h3v3h-3z M13 8.5h3v3h-3z",
+  panelLeft: "M2.5 3.5H17.5V16.5H2.5ZM4 5V15H7V5ZM8.5 5V15H16V5Z",
+  panelRight: "M2.5 3.5H17.5V16.5H2.5ZM4 5V15H11.5V5ZM13 5V15H16V5Z",
+  copy: "M6.5 3H16.5V13.5H15V4.5H6.5ZM3.5 6H13.5V17H3.5ZM5 7.5V15.5H12V7.5Z",
+  check: "M4 10.6 8 14.6 16.4 6.2 15.2 5 8 12.2 5.2 9.4Z",
+  close: "M5.3 4.2 10 8.9 14.7 4.2 15.8 5.3 11.1 10 15.8 14.7 14.7 15.8 10 11.1 5.3 15.8 4.2 14.7 8.9 10 4.2 5.3Z",
+  arrowLeft: "M9.6 4.2 3.8 10 9.6 15.8 10.8 14.6 7 10.8H16.5V9.2H7L10.8 5.4Z",
 } as const;
 export type IconName = keyof typeof ICONS;
 
@@ -87,7 +94,7 @@ export function glyphFor(raw: string | null | undefined): GlyphKind {
   if (/(pending|queued|open\b|draft|candidate)/.test(v)) return "pending";
   if (/(completed|done|confirmed|accepted|succeeded|resolved)/.test(v)) return "completed";
   if (/(failed|corrupt|timed ?out|error)/.test(v)) return "failed";
-  if (/(denied|deny|blocked|quarantined|fail closed|default deny|not live)/.test(v)) return "blocked";
+  if (/(denied| deny |blocked|quarantined|fail closed|default deny|not live)/.test(v)) return "blocked";
   if (/^(allow|allowed|permitted)$/.test(v)) return "available";
   if (/(cancel|retired|archived|retracted|revoked|tombstoned)/.test(v)) return "cancelled";
   if (/(review|required|attention)/.test(v)) return "needs-review";
@@ -126,11 +133,13 @@ export function PageHead({ title, sub, children }: { title: string; sub?: ReactN
   );
 }
 
-/** "content_digest" reads as "Content digest". The raw key stays on hover, and labels
- * that aren't plain keys, such as "real PHI" or "Ctrl K", pass through unchanged. */
+/** "content_digest" reads as "Content digest", and acronyms like ID/URI/SQL stay uppercase.
+ * Labels that aren't plain keys, such as "real PHI" or "Ctrl K", pass through unchanged. */
 export function humanKey(key: string): string {
-  if (!/^[a-z][a-z0-9_ ]*$/.test(key)) return key;
-  const words = key.replace(/_/g, " ");
+  if (!/^[a-z][a-z0-9_ ]*$/i.test(key) || /^[A-Z]/.test(key)) return key;
+  const words = key
+    .replace(/_/g, " ")
+    .replace(/\b(id|uri|url|fhir|sql)\b/gi, (m) => m.toUpperCase());
   return words[0]!.toUpperCase() + words.slice(1);
 }
 
@@ -146,7 +155,7 @@ export function Ledger({ items }: { items: Array<{ k: string; v: ReactNode; mono
 
 export function KV({ rows, keyWidth = 140 }: { rows: Array<[string, ReactNode]>; keyWidth?: number }) {
   return (
-    <div className="kv" style={{ gridTemplateColumns: `${keyWidth}px minmax(0, 1fr)` }}>
+    <div className="kv" style={{ gridTemplateColumns: `minmax(0, ${keyWidth}px) minmax(0, 1fr)` }}>
       {rows.map(([k, v]) => [<div key={`${k}-k`} title={k}>{humanKey(k)}</div>, <div key={`${k}-v`} className="t-sm">{v}</div>])}
     </div>
   );
@@ -167,7 +176,15 @@ export function Authority({ children, label = "Authority" }: { children: ReactNo
 }
 
 export function Notice({ kind, title, children }: { kind: GlyphKind; title: string; children?: ReactNode }) {
-  return <div className="notice"><Glyph kind={kind} /><div><b>{title}</b> {children}</div></div>;
+  const tone =
+    kind === "failed" || kind === "blocked" || kind === "denied"
+      ? "notice-danger"
+      : kind === "needs-review" || kind === "conflict" || kind === "synthetic"
+        ? "notice-warn"
+        : kind === "available" || kind === "present"
+          ? "notice-info"
+          : "";
+  return <div className={`notice ${tone}`}><Glyph kind={kind} /><div><b>{title}</b> {children}</div></div>;
 }
 
 export function Empty({ icon, title, children, action }: { icon: IconName; title: string; children?: ReactNode; action?: ReactNode }) {
@@ -182,27 +199,286 @@ export function Empty({ icon, title, children, action }: { icon: IconName; title
   );
 }
 
+/* ───────────── Reusable Desktop Controls & Data Visualizations ───────────── */
+
+export function SearchField({
+  value,
+  onChange,
+  placeholder,
+  ariaLabel,
+  id,
+  className = "",
+}: {
+  value: string;
+  onChange: (next: string) => void;
+  placeholder: string;
+  ariaLabel: string;
+  id?: string;
+  className?: string;
+}) {
+  return (
+    <div className={`field search-field ${className}`}>
+      <Icon name="search" size={16} />
+      <input
+        id={id}
+        type="text"
+        value={value}
+        placeholder={placeholder}
+        aria-label={ariaLabel}
+        data-page-search="true"
+        onChange={(e) => onChange(e.target.value)}
+      />
+      {value && (
+        <button type="button" className="search-clear" aria-label={`Clear ${ariaLabel.toLowerCase()}`} onClick={() => onChange("")}>
+          <Icon name="close" size={13} />
+        </button>
+      )}
+    </div>
+  );
+}
+
+export function CopyButton({ text, label = "Copy", ariaLabel }: { text: string; label?: string; ariaLabel?: string }) {
+  const [status, setStatus] = useState<"idle" | "copied" | "failed">("idle");
+  const timer = useRef<number | null>(null);
+  useEffect(() => () => { if (timer.current) window.clearTimeout(timer.current); }, []);
+  async function copy() {
+    try {
+      await navigator.clipboard.writeText(text);
+      setStatus("copied");
+    } catch {
+      setStatus("failed");
+    }
+    if (timer.current) window.clearTimeout(timer.current);
+    timer.current = window.setTimeout(() => setStatus("idle"), 1800);
+  }
+  return (
+    <button type="button" className={`copy-btn ${status === "copied" ? "copied" : status === "failed" ? "failed" : ""}`} aria-label={ariaLabel ?? label} onClick={() => void copy()}>
+      <Icon name={status === "copied" ? "check" : status === "failed" ? "close" : "copy"} size={12} />
+      <span aria-live="polite">{status === "copied" ? "Copied" : status === "failed" ? "Copy failed" : label}</span>
+    </button>
+  );
+}
+
+export type SegmentItem = {
+  key: string;
+  label: string;
+  count: number;
+  tone: "present" | "attention" | "danger" | "neutral" | "muted" | "hatched";
+};
+
+/** Truthful proportional distribution bar strictly backed by real Core counts. */
+export function SegmentedBar({ title, meta, items, showLegend = true }: { title: string; meta?: string; items: SegmentItem[]; showLegend?: boolean }) {
+  const visible = items.filter((i) => i.count > 0);
+  const total = visible.reduce((sum, i) => sum + i.count, 0);
+  if (total === 0) return null;
+  return (
+    <div className="viz-frame" role="group" aria-label={title}>
+      <div className="viz-head">
+        <span className="viz-title">{title}</span>
+        {meta && <span className="viz-meta">{meta}</span>}
+      </div>
+      <div className="segbar-track" aria-hidden="true">
+        {visible.map((seg) => (
+          <span
+            key={seg.key}
+            className={`segbar-seg tone-${seg.tone}`}
+            style={{ flexGrow: seg.count }}
+            title={`${seg.label}: ${seg.count} of ${total}`}
+          />
+        ))}
+      </div>
+      {showLegend && (
+        <div className="segbar-legend">
+          {visible.map((seg) => (
+            <span key={seg.key} className="segbar-legend-item">
+              <span className={`segbar-dot segbar-seg tone-${seg.tone}`} aria-hidden="true" />
+              <span>{seg.label}</span>
+              <span className="mono t-mono-sm i3 tnum">{seg.count}</span>
+            </span>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+export function ProgressBar({ label, detail, ratio, tone = "default" }: { label: string; detail?: string; ratio: number; tone?: "default" | "warn" | "danger" }) {
+  const pct = Math.max(0, Math.min(100, Math.round(ratio * 100)));
+  return (
+    <div className="prog-wrap" role="progressbar" aria-label={label} aria-valuemin={0} aria-valuemax={100} aria-valuenow={pct} aria-valuetext={detail ?? `${pct}%`}>
+      <div className="prog-head">
+        <span className="t-sm i1" style={{ fontWeight: 500 }}>{label}</span>
+        <span className="mono t-mono-sm i3 tnum">{detail ?? `${pct}%`}</span>
+      </div>
+      <div className="prog-track">
+        <div className={`prog-fill ${tone === "default" ? "" : tone}`} style={{ width: `${pct}%` }} />
+      </div>
+    </div>
+  );
+}
+
+export function LifecycleStepper({ steps }: { steps: Array<{ label: string; state: "done" | "active" | "pending" | "failed" }> }) {
+  return (
+    <ol className="stepper" aria-label="Lifecycle progress" style={{ listStyle: "none", margin: "0 0 16px" }}>
+      {steps.map((s, i) => (
+        <li key={s.label} style={{ display: "inline-flex", alignItems: "center" }}>
+          {i > 0 && <span className={`step-sep ${s.state === "done" || s.state === "active" ? "done" : ""}`} aria-hidden="true" />}
+          <span className={`step-item ${s.state}`}>
+            <Glyph kind={s.state === "done" ? "completed" : s.state === "active" ? "running" : s.state === "failed" ? "failed" : "pending"} />
+            <span>{s.label}</span>
+          </span>
+        </li>
+      ))}
+    </ol>
+  );
+}
+
+export function Disclosure({ summary, children, defaultOpen = false }: { summary: string; children: ReactNode; defaultOpen?: boolean }) {
+  return (
+    <details className="tech-details" open={defaultOpen || undefined}>
+      <summary>
+        <svg width="10" height="10" viewBox="0 0 10 10" aria-hidden="true"><path d="M3 1v8l5-4Z" fill="currentColor" /></svg>
+        <span>{summary}</span>
+      </summary>
+      <div style={{ marginTop: 10 }}>{children}</div>
+    </details>
+  );
+}
+
+/** Resizable two-pane layout with pointer-captured drag divider and responsive drawer
+ *  so inspectors remain reachable at 1100x720 and narrower desktop windows. */
+export function ResizableSplit({
+  pane,
+  inspector,
+  inspectorLabel,
+  defaultWidth = 360,
+  minWidth = 280,
+  maxWidth = 520,
+}: {
+  pane: ReactNode;
+  inspector: ReactNode;
+  inspectorLabel: string;
+  defaultWidth?: number;
+  minWidth?: number;
+  maxWidth?: number;
+}) {
+  const { inspectorOpen, setInspectorOpen, setHasInspector } = useApp();
+  const [width, setWidth] = useState(defaultWidth);
+  const [dragging, setDragging] = useState(false);
+  const startRef = useRef<{ x: number; w: number } | null>(null);
+  const drawerCloseRef = useRef<HTMLButtonElement>(null);
+  const returnFocusRef = useRef<HTMLElement | null>(null);
+
+  useEffect(() => {
+    setHasInspector(true);
+    return () => {
+      setHasInspector(false);
+      setInspectorOpen(false);
+    };
+  }, [setHasInspector, setInspectorOpen]);
+
+  useEffect(() => {
+    if (window.innerWidth > 1179) return;
+    if (inspectorOpen) {
+      returnFocusRef.current = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+      drawerCloseRef.current?.focus();
+    } else if (returnFocusRef.current?.isConnected) {
+      returnFocusRef.current.focus();
+      returnFocusRef.current = null;
+    }
+  }, [inspectorOpen]);
+
+  function onPointerDown(e: ReactPointerEvent<HTMLDivElement>) {
+    e.currentTarget.setPointerCapture(e.pointerId);
+    startRef.current = { x: e.clientX, w: width };
+    setDragging(true);
+  }
+  function onPointerMove(e: ReactPointerEvent<HTMLDivElement>) {
+    if (!startRef.current) return;
+    const dx = startRef.current.x - e.clientX;
+    setWidth(Math.max(minWidth, Math.min(maxWidth, Math.round(startRef.current.w + dx))));
+  }
+  function onPointerUp(e: ReactPointerEvent<HTMLDivElement>) {
+    if (startRef.current) {
+      try { e.currentTarget.releasePointerCapture(e.pointerId); } catch { /* released */ }
+      startRef.current = null;
+      setDragging(false);
+    }
+  }
+  function onResizerKey(e: ReactKeyboardEvent<HTMLDivElement>) {
+    if (e.key === "ArrowLeft") { e.preventDefault(); setWidth((w) => Math.min(maxWidth, w + 24)); }
+    else if (e.key === "ArrowRight") { e.preventDefault(); setWidth((w) => Math.max(minWidth, w - 24)); }
+    else if (e.key === "Home") { e.preventDefault(); setWidth(defaultWidth); }
+  }
+
+  return (
+    <>
+      {pane}
+      <div
+        role="separator"
+        aria-orientation="vertical"
+        aria-label={`Resize ${inspectorLabel.toLowerCase()} panel`}
+        aria-valuemin={minWidth}
+        aria-valuemax={maxWidth}
+        aria-valuenow={width}
+        tabIndex={0}
+        className={`split-resizer ${dragging ? "dragging" : ""}`}
+        onPointerDown={onPointerDown}
+        onPointerMove={onPointerMove}
+        onPointerUp={onPointerUp}
+        onDoubleClick={() => setWidth(defaultWidth)}
+        onKeyDown={onResizerKey}
+      />
+      <div className={`inspector-scrim ${inspectorOpen ? "drawer-open" : ""}`} onClick={() => setInspectorOpen(false)} aria-hidden="true" />
+      <aside className={`inspector drawer-managed ${inspectorOpen ? "drawer-open" : ""}`} aria-label={inspectorLabel} style={{ "--ins-w": `${width}px` } as CSSProperties}>
+        <div className="inspector-drawer-bar">
+          <span className="t-h3">{inspectorLabel}</span>
+          <button ref={drawerCloseRef} type="button" className="ibtn" aria-label={`Close ${inspectorLabel.toLowerCase()}`} onClick={() => setInspectorOpen(false)}>
+            <Icon name="close" size={14} />
+          </button>
+        </div>
+        {inspector}
+      </aside>
+    </>
+  );
+}
+
 const ERROR_GLYPH: Record<CmdError["kind"], GlyphKind> = {
   unavailable: "unavailable", disconnected: "pending", denied: "denied", blocked: "blocked", missing: "absent",
   conflict: "conflict", stale: "partial", invalid: "absent", corrupt: "failed", unsupported: "unsupported",
   cancelled: "cancelled", internal: "failed",
 };
 
+const ERROR_TITLE: Record<CmdError["kind"], string> = {
+  unavailable: "Temporarily unavailable",
+  disconnected: "Runtime disconnected",
+  denied: "Action not permitted",
+  blocked: "Blocked by safety boundary",
+  missing: "Item not found",
+  conflict: "Version conflict",
+  stale: "Data changed on disk",
+  invalid: "Check your input",
+  corrupt: "Integrity check failed",
+  unsupported: "Not supported in this build",
+  cancelled: "Cancelled",
+  internal: "Unexpected error",
+};
+
 /** Explicit error state. The Core message is shown verbatim. */
-/** The failure of a secondary read, which would otherwise render as nothing. */
 export function LoadError({ cmd }: { cmd: { state: { status: string; error?: CmdError }; reload: () => void } }) {
   return cmd.state.status === "error" && cmd.state.error ? <ErrorState error={cmd.state.error} onRetry={cmd.reload} /> : null;
 }
 
 export function ErrorState({ error, onRetry }: { error: CmdError; onRetry?: () => void }) {
-  const retryable = error.kind === "unavailable" || error.kind === "disconnected" || error.kind === "stale" || error.kind === "conflict";
+  const label = error.kind === "stale" || error.kind === "conflict" ? "Reload" : "Retry";
+  const showAction = !!onRetry && error.kind !== "denied" && error.kind !== "blocked" && error.kind !== "unsupported";
   return (
     <div className="err" role="alert">
       <Glyph kind={ERROR_GLYPH[error.kind]} size={12} />
       <div className="stack" style={{ gap: 8 }}>
-        <div className="t-h3" style={{ textTransform: "capitalize" }}>{error.kind}</div>
+        <div className="t-h3">{ERROR_TITLE[error.kind] ?? error.kind}</div>
         <p className="t-sm i2">{error.message}</p>
-        {retryable && onRetry && <div><button type="button" className="btn btn-s" onClick={onRetry}>{error.kind === "stale" || error.kind === "conflict" ? "Reload" : "Retry"}</button></div>}
+        {showAction && <div><button type="button" className="btn btn-s" onClick={onRetry}>{label}</button></div>}
       </div>
     </div>
   );
@@ -228,18 +504,47 @@ export const useToast = () => useContext(ToastCtx);
 
 export function ToastHost({ children }: { children: ReactNode }) {
   const [toasts, setToasts] = useState<Toast[]>([]);
+  const timers = useRef<Map<number, number>>(new Map());
+
+  const dismiss = useCallback((id: number) => {
+    const t = timers.current.get(id);
+    if (t) { window.clearTimeout(t); timers.current.delete(id); }
+    setToasts((all) => all.filter((x) => x.id !== id));
+  }, []);
+
+  const schedule = useCallback((id: number, ms: number) => {
+    const prev = timers.current.get(id);
+    if (prev) window.clearTimeout(prev);
+    timers.current.set(id, window.setTimeout(() => dismiss(id), ms));
+  }, [dismiss]);
+
   const push = useCallback((t: Omit<Toast, "id">) => {
     const id = Date.now() + Math.random();
-    // At most two toasts at once so confirmations never bury primary controls.
-    setToasts((all) => [...all.slice(-1), { ...t, id }]);
-    window.setTimeout(() => setToasts((all) => all.filter((x) => x.id !== id)), 6000);
-  }, []);
+    // Retain up to three toasts so error notices are not immediately overwritten.
+    setToasts((all) => [...all.slice(-2), { ...t, id }]);
+    const duration = t.kind === "failed" || t.kind === "blocked" || t.kind === "denied" ? 9000 : 5500;
+    schedule(id, duration);
+  }, [schedule]);
+
+  useEffect(() => () => { timers.current.forEach((h) => window.clearTimeout(h)); }, []);
+
   return (
     <ToastCtx.Provider value={push}>
       {children}
       <div className="toasts" role="status" aria-live="polite">
         {toasts.map((t) => (
-          <div key={t.id} className="overlay toast anim"><Glyph kind={t.kind} /><div><b>{t.title}</b>{t.detail && <> {t.detail}</>}</div></div>
+          <div
+            key={t.id}
+            className="overlay toast anim"
+            onMouseEnter={() => { const h = timers.current.get(t.id); if (h) window.clearTimeout(h); }}
+            onMouseLeave={() => schedule(t.id, 3000)}
+          >
+            <Glyph kind={t.kind} />
+            <div className="toast-body"><b>{t.title}</b>{t.detail && <> {t.detail}</>}</div>
+            <button type="button" className="toast-x" aria-label="Dismiss notification" onClick={() => dismiss(t.id)}>
+              <Icon name="close" size={12} />
+            </button>
+          </div>
         ))}
       </div>
     </ToastCtx.Provider>

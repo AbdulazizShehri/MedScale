@@ -1,11 +1,21 @@
 import { useState } from "react";
+import { useApp } from "../lib/app";
 import { call, useCommand, type CmdError } from "../lib/ipc";
-import { Notice, PageHead, Section } from "../components/ui";
-import { useToast } from "../components/ui";
-import { SUPPORT_DATA_RULE } from "../support";
+import { CopyButton, Notice, PageHead, Section, useToast } from "../components/ui";
+import { SUPPORT_DATA_RULE, supportDiagnostics } from "../support";
 import { RELEASE_NOTES } from "../release-notes";
 
-type About = { version: string };
+type About = {
+  product: string;
+  version: string;
+  shell: string;
+  core: string;
+  local_only: boolean;
+  network_default_deny: boolean;
+  build_profile: string;
+  target: string;
+  release_ready: boolean;
+};
 type UpdateResult = { current: string; latest: string | null; newer: boolean | null };
 
 /** Opens one of the fixed Help pages. The app passes a name; Rust builds the address. */
@@ -16,7 +26,7 @@ async function open(target: string): Promise<CmdError | null> {
 function HelpButton({ target, label, primary }: { target: string; label: string; primary?: boolean }) {
   const toast = useToast();
   return (
-    <button type="button" className={primary ? "btn btn-p" : "btn btn-s"} onClick={async () => {
+    <button type="button" className={primary ? "btn btn-p btn-inline" : "btn btn-s"} onClick={async () => {
       const error = await open(target);
       toast(error
         ? { kind: "blocked", title: "Couldn't open your browser", detail: "Go to github.com/AbdulazizShehri/MedScale/issues to report it." }
@@ -26,9 +36,11 @@ function HelpButton({ target, label, primary }: { target: string; label: string;
 }
 
 export function Help() {
+  const { navigate } = useApp();
   const about = useCommand<About>("about_info");
   const [update, setUpdate] = useState<{ state: "idle" | "checking" } | { state: "done"; result: UpdateResult } | { state: "failed"; message: string }>({ state: "idle" });
   const version = about.state.status === "ready" ? about.state.data.version : "";
+  const diagnostics = about.state.status === "ready" ? supportDiagnostics(about.state.data) : "";
   const notes = RELEASE_NOTES[version] ?? [];
 
   async function checkForUpdates() {
@@ -42,11 +54,16 @@ export function Help() {
 
   return (
     <div className="pane">
-      <PageHead title="Help & Feedback" sub="Tell us what broke or what you need. Every report goes to MedScale's public GitHub, where fixes are tracked in the open." />
-      <div className="stack" style={{ gap: 24, maxWidth: 760 }}>
+      <PageHead title="Help & Feedback" sub="Tell us what broke or what you need. Every report goes to MedScale's public GitHub, where fixes are tracked in the open.">
+        <div className="row-gap" style={{ gap: 8 }}>
+          {diagnostics && <CopyButton text={diagnostics} label="Copy diagnostics" />}
+          <button type="button" className="btn btn-g" onClick={() => navigate("About")}>About MedScale</button>
+        </div>
+      </PageHead>
+      <div className="stack" style={{ gap: 24, maxWidth: 780 }}>
         <Section title="Report or request">
-          <p className="t-sm i2" style={{ margin: "0 0 12px" }}>Opens a short form in your browser, with your MedScale version and operating system filled in. You write the rest. Reports need a free GitHub account.</p>
-          <div className="row-gap" style={{ gap: 8, flexWrap: "wrap" }}>
+          <p className="t-sm i2" style={{ margin: "0 0 12px" }}>Opens a fixed GitHub template in your default browser with your MedScale version and operating system filled in. Nothing from your workspace is sent. Prefer copy-only reporting? Copy diagnostics above or in About.</p>
+          <div className="row-gap" style={{ gap: 8, flexWrap: "wrap", marginBottom: 12 }}>
             <HelpButton target="bug" label="Report a bug" primary />
             <HelpButton target="feature" label="Request a feature" />
             <HelpButton target="install" label="Installation or update problem" />
