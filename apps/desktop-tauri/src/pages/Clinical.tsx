@@ -69,7 +69,7 @@ export function Documents() {
           type="button"
           className="btn btn-s"
           aria-expanded={!!imp}
-          onClick={() => setImp(imp ? null : { path: "", subject: sampleWorkspace ? "synthetic-subject-ada" : "" })}
+          onClick={() => setImp(imp ? null : { path: "", subject: "synthetic-subject-ada" })}
         >
           Import synthetic FHIR
         </button>
@@ -172,7 +172,7 @@ export function Documents() {
           <Empty
             icon="documents"
             title="No sources in this vault"
-            action={!sampleWorkspace ? <button type="button" className="btn btn-p" onClick={() => setImp({ path: "", subject: "" })}>Import synthetic FHIR</button> : undefined}
+            action={!sampleWorkspace ? <button type="button" className="btn btn-p" onClick={() => setImp({ path: "", subject: "synthetic-subject-ada" })}>Import synthetic FHIR</button> : undefined}
           >
             {sampleWorkspace
               ? "Bundled synthetic FHIR sources load automatically when the sample workspace opens."
