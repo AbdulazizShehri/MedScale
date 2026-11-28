@@ -82,6 +82,7 @@ from medscale_clinical.mcp.upstream_endpoint_policy import (  # noqa: E402
 from medscale_clinical.multimodal.chatlog_jsonl import redact_chatlog_jsonl  # noqa: E402
 from medscale_clinical.multimodal.documents_html import extract_html  # noqa: E402
 from medscale_clinical.multimodal.documents_markdown import extract_markdown  # noqa: E402
+from medscale_clinical.multimodal.exceptions import MissingDependencyError  # noqa: E402
 from medscale_clinical.multimodal.ooxml_residual import inspect_ooxml  # noqa: E402
 from medscale_clinical.multimodal.pdf_geometry import read_pdf_geometry  # noqa: E402
 from medscale_clinical.multimodal.tabular_csv import redact_table  # noqa: E402
@@ -136,12 +137,23 @@ def _sample_ooxml_bytes() -> bytes:
     return buf.getvalue()
 
 
-def build_multimodal_dicom_vectors() -> dict[str, Any]:
+def build_multimodal_dicom_vectors(
+    require_optional_markdown: bool = False,
+) -> dict[str, Any]:
     html_sample = "<html><body><h1>Discharge Note</h1><p>Patient: Jane Example, DOB 1980-01-02.</p><script>alert(1)</script></body></html>"
     html_doc = extract_html(html_sample)
 
     md_sample = "# Follow-up\n\nSynthetic note for **Alex Rivera** with A1c 6.4%.\n"
-    md_doc = extract_markdown(md_sample)
+    try:
+        md_doc = extract_markdown(md_sample)
+        markdown_payload: dict[str, Any] = {"text": md_doc.text}
+    except MissingDependencyError:
+        if require_optional_markdown:
+            raise
+        markdown_payload = {
+            "text": None,
+            "optional_dependency_missing": "markdown-it-py",
+        }
 
     csv_sample = "patient_name,dob,mrn,glucose_mg_dl\nJane Example,1980-01-02,MRN-123456,118\n"
     csv_redacted = redact_table(csv_sample, date_shift_days=14, text_redactor=_synth_redact_str)
@@ -173,7 +185,7 @@ def build_multimodal_dicom_vectors() -> dict[str, Any]:
     return {
         "schema_version": 1,
         "html": {"text": html_doc.text},
-        "markdown": {"text": md_doc.text},
+        "markdown": markdown_payload,
         "csv": {
             "columns": [
                 {"name": c.name, "assigned_class": c.assigned_class, "action": c.action}

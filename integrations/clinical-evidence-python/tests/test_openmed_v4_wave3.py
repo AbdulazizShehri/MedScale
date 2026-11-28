@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import importlib.util
 import json
 import pathlib
 import sys
@@ -17,14 +18,27 @@ from generate_wave3_vectors import (  # noqa: E402
     build_interop_vectors,
     build_multimodal_dicom_vectors,
 )
+from medscale_clinical.multimodal.documents_markdown import extract_markdown  # noqa: E402
+from medscale_clinical.multimodal.exceptions import MissingDependencyError  # noqa: E402
 
 
 class Wave3OpenMedParityTest(unittest.TestCase):
     def test_multimodal_and_archive_safety_vectors(self) -> None:
-        vec = build_multimodal_dicom_vectors()
+        has_markdown_it = importlib.util.find_spec("markdown_it") is not None
+        vec = build_multimodal_dicom_vectors(require_optional_markdown=has_markdown_it)
         self.assertIn("Discharge Note", vec["html"]["text"])
         self.assertNotIn("alert(1)", vec["html"]["text"])
-        self.assertIn("Alex Rivera", vec["markdown"]["text"])
+        if has_markdown_it:
+            self.assertIn("Alex Rivera", vec["markdown"]["text"])
+        else:
+            self.assertEqual(vec["markdown"].get("optional_dependency_missing"), "markdown-it-py")
+            with self.assertRaises(MissingDependencyError):
+                extract_markdown("# Follow-up")
+            committed = json.loads(
+                (REPO_ROOT / "crates/medscale-pack/tests/vectors/wave3_multimodal_dicom_v4.json")
+                .read_text(encoding="utf-8")
+            )
+            self.assertIn("Alex Rivera", committed["markdown"]["text"])
         self.assertEqual(vec["archive_safety"]["decision"], "reject")
         self.assertIn("path_traversal", vec["archive_safety"]["reasons"])
         self.assertEqual(vec["pdf_geometry"]["status"], "readable")
