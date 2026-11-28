@@ -1,0 +1,182 @@
+{
+  "claim_conflicts_count": 2,
+  "discharge": {
+    "diagnosis_count": 1,
+    "medications": [
+      {
+        "dose": 500.0,
+        "medication": "Amoxicillin",
+        "route": "oral",
+        "unit": "mg"
+      }
+    ]
+  },
+  "dosing_check": [
+    {
+      "autonomous_decision": false,
+      "drug": "metformin",
+      "requires_clinician_review": true,
+      "status": "above_range"
+    }
+  ],
+  "experiencer": {
+    "assignments": [
+      {
+        "cue": "mother",
+        "experiencer": "family",
+        "text": "type 2 diabetes"
+      },
+      {
+        "cue": null,
+        "experiencer": "patient",
+        "text": "hypertension"
+      }
+    ],
+    "text": "Patient's mother has type 2 diabetes; patient has hypertension."
+  },
+  "med_reconciliation": [
+    {
+      "current_dose": "1000 mg",
+      "current_status": "changed",
+      "history_len": 2,
+      "ingredient": "metformin"
+    },
+    {
+      "current_dose": "10 mg",
+      "current_status": "continued",
+      "history_len": 1,
+      "ingredient": "lisinopril"
+    },
+    {
+      "current_dose": "81 mg",
+      "current_status": "stopped",
+      "history_len": 1,
+      "ingredient": "aspirin"
+    }
+  ],
+  "negation_scope": {
+    "scopes": [
+      {
+        "cue": "No",
+        "direction": "forward",
+        "governed": [
+          [
+            3,
+            13
+          ]
+        ],
+        "scope_end": 14,
+        "scope_start": 2
+      }
+    ],
+    "text": "No chest pain or hemoptysis, but has fever."
+  },
+  "nli": {
+    "margin": 0.86,
+    "outcome": "entailment",
+    "selected_probability": 0.91
+  },
+  "pathology": {
+    "diagnosis_text": "Tubular adenoma, negative for dysplasia. Margins negative.",
+    "specimen_count": 1
+  },
+  "radiology": {
+    "findings_text": "Lungs are clear without consolidation.",
+    "impression_text": "Normal chest radiograph.",
+    "recommendation_text": ""
+  },
+  "schema_version": 1,
+  "sdoh": {
+    "findings": [
+      {
+        "category": "employment",
+        "status": "unemployed",
+        "temporality": "recent",
+        "value": "unemployed"
+      },
+      {
+        "category": "living_status",
+        "status": "lives_alone",
+        "temporality": "recent",
+        "value": "lives_alone"
+      },
+      {
+        "category": "tobacco",
+        "status": "past",
+        "temporality": "historical",
+        "value": "smoker"
+      }
+    ],
+    "text": "Patient lives alone and is a former smoker; currently unemployed."
+  },
+  "sections": {
+    "detected": [
+      {
+        "end": 49,
+        "header": "CHIEF COMPLAINT",
+        "label": "chief_complaint",
+        "loinc_code": "8661-1",
+        "start": 0
+      },
+      {
+        "end": 91,
+        "header": "PAST MEDICAL HISTORY",
+        "label": "past_medical_history",
+        "loinc_code": "11348-0",
+        "start": 49
+      },
+      {
+        "end": 148,
+        "header": "MEDICATIONS",
+        "label": "medications",
+        "loinc_code": "10160-0",
+        "start": 91
+      }
+    ],
+    "note": "CHIEF COMPLAINT:\nCough and shortness of breath.\n\nPAST MEDICAL HISTORY:\nHistory of asthma.\n\nMEDICATIONS:\nAlbuterol 2 puffs inhaled q4h PRN wheezing.\n"
+  },
+  "sigs": [
+    {
+      "as_needed": false,
+      "condition": null,
+      "dose": 1.0,
+      "duration_days": 7,
+      "form": "tablet",
+      "frequency_per_day": 2.0,
+      "frequency_period": null,
+      "frequency_period_unit": null,
+      "missing": [],
+      "raw": "1 tab PO BID x7 days",
+      "route": "oral",
+      "unit": "tablet"
+    },
+    {
+      "as_needed": true,
+      "condition": "wheezing",
+      "dose": 2.0,
+      "duration_days": null,
+      "form": "puff",
+      "frequency_per_day": 6.0,
+      "frequency_period": 4,
+      "frequency_period_unit": "h",
+      "missing": [],
+      "raw": "Take 2 puffs inhaled q4h PRN wheezing",
+      "route": "inhaled",
+      "unit": "puff"
+    },
+    {
+      "as_needed": false,
+      "condition": null,
+      "dose": 500.0,
+      "duration_days": 5,
+      "form": null,
+      "frequency_per_day": 2.0,
+      "frequency_period": 12,
+      "frequency_period_unit": "h",
+      "missing": [],
+      "raw": "500 mg IV q12h x5 days",
+      "route": "intravenous",
+      "unit": "mg"
+    }
+  ]
+}

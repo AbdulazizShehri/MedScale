@@ -1,5 +1,7 @@
 //! Bounded UCUM subset — no silent conversion outside admitted table.
 
+pub mod ucum_v4;
+
 use medscale_contracts::presentation::{
     UCUM_SUBSET_DIGEST_HEX, UCUM_SUBSET_ID, UnitComparability, UnitSemanticResult,
 };

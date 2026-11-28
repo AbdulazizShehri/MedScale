@@ -12,6 +12,8 @@
 //! resolves them, reads source text, or reaches the network.
 
 pub mod canonical;
+pub mod clinical_nlp_v4;
 pub mod evidence_coverage;
 pub mod evidence_span_audit;
+pub mod privacy_v4;
 pub mod summary_empty_evidence;

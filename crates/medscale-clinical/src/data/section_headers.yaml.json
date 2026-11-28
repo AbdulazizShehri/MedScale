@@ -1,0 +1,112 @@
+{
+  "provenance": {
+    "license": "Apache-2.0 repository asset.",
+    "restricted_data": false,
+    "source": "OpenMed curated deterministic clinical section header lexicon.",
+    "synthetic": true,
+    "task": "OM-086"
+  },
+  "schema_version": 1,
+  "sections": {
+    "allergies": [
+      "Allergies",
+      "Drug Allergies",
+      "Allergy List",
+      "Known Allergies"
+    ],
+    "assessment": [
+      "Assessment"
+    ],
+    "assessment_and_plan": [
+      "Assessment/Plan",
+      "Assessment and Plan",
+      "A/P"
+    ],
+    "chief_complaint": [
+      "Chief Complaint",
+      "CC"
+    ],
+    "diagnosis": [
+      "Diagnosis",
+      "Final Diagnosis",
+      "Diagnosis Summary"
+    ],
+    "family_history": [
+      "Family History",
+      "Family Medical History",
+      "FH"
+    ],
+    "findings": [
+      "Findings",
+      "Observations"
+    ],
+    "grading": [
+      "Grading",
+      "Histologic Grade",
+      "Tumor Grade"
+    ],
+    "history": [
+      "History"
+    ],
+    "history_of_present_illness": [
+      "History of Present Illness",
+      "Present Illness",
+      "HPI"
+    ],
+    "impression": [
+      "Impression",
+      "Conclusion"
+    ],
+    "medications": [
+      "Medications",
+      "Current Medications",
+      "Home Medications",
+      "Medication List",
+      "Meds"
+    ],
+    "past_medical_history": [
+      "Past Medical History",
+      "Medical History",
+      "Past History",
+      "PMH"
+    ],
+    "plan": [
+      "Plan"
+    ],
+    "problem_list": [
+      "Problem List",
+      "Active Problems",
+      "Problems"
+    ],
+    "review_of_systems": [
+      "Review of Systems",
+      "ROS"
+    ],
+    "social_history": [
+      "Social History",
+      "Social Hx",
+      "Soc Hx",
+      "SH"
+    ],
+    "specimen": [
+      "Specimen",
+      "Specimens",
+      "Specimen Description"
+    ],
+    "staging": [
+      "Staging",
+      "Pathologic Stage",
+      "Tumor Stage"
+    ],
+    "synoptic": [
+      "Synoptic",
+      "Synoptic Report",
+      "Synoptic Checklist"
+    ],
+    "technique": [
+      "Technique",
+      "Protocol",
+      "Technical Factors"
+    ]
+  }
+}

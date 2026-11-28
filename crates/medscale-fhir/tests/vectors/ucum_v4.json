@@ -1,0 +1,252 @@
+{
+  "conversions": [
+    {
+      "canonical_magnitude": 5000.0,
+      "canonical_unit": "g",
+      "dimension": {
+        "mass": 1
+      },
+      "from_unit": "kg",
+      "magnitude": 5000.0,
+      "status": "ok",
+      "to_unit": "g",
+      "value": 5.0
+    },
+    {
+      "canonical_magnitude": null,
+      "canonical_unit": null,
+      "dimension": {},
+      "from_unit": "g",
+      "magnitude": null,
+      "status": "unknown",
+      "to_unit": "lb",
+      "value": 453.59237
+    },
+    {
+      "canonical_magnitude": 310.15,
+      "canonical_unit": "K",
+      "dimension": {
+        "temperature": 1
+      },
+      "from_unit": "[degF]",
+      "magnitude": 37.0,
+      "status": "ok",
+      "to_unit": "Cel",
+      "value": 98.6
+    },
+    {
+      "canonical_magnitude": 310.15,
+      "canonical_unit": "K",
+      "dimension": {
+        "temperature": 1
+      },
+      "from_unit": "Cel",
+      "magnitude": 98.59999999999998,
+      "status": "ok",
+      "to_unit": "[degF]",
+      "value": 37.0
+    },
+    {
+      "canonical_magnitude": 1.2,
+      "canonical_unit": "g/L",
+      "dimension": {
+        "mass": 1,
+        "volume": -1
+      },
+      "from_unit": "mg/dL",
+      "magnitude": 1.2,
+      "status": "ok",
+      "to_unit": "g/L",
+      "value": 120.0
+    },
+    {
+      "canonical_magnitude": 1.5,
+      "canonical_unit": "L",
+      "dimension": {
+        "volume": 1
+      },
+      "from_unit": "L",
+      "magnitude": 1500.0,
+      "status": "ok",
+      "to_unit": "mL",
+      "value": 1.5
+    },
+    {
+      "canonical_magnitude": 0.04,
+      "canonical_unit": "L/s",
+      "dimension": {
+        "time": -1,
+        "volume": 1
+      },
+      "from_unit": "L/min",
+      "magnitude": 40.0,
+      "status": "ok",
+      "to_unit": "mL/s",
+      "value": 2.4
+    },
+    {
+      "canonical_magnitude": null,
+      "canonical_unit": null,
+      "dimension": {},
+      "from_unit": "mg/dL",
+      "magnitude": null,
+      "status": "analyte_context_required",
+      "to_unit": "mmol/L",
+      "value": 180.0
+    },
+    {
+      "canonical_magnitude": null,
+      "canonical_unit": null,
+      "dimension": {},
+      "from_unit": "kg",
+      "magnitude": null,
+      "status": "incommensurable",
+      "to_unit": "Cel",
+      "value": 5.0
+    },
+    {
+      "canonical_magnitude": null,
+      "canonical_unit": null,
+      "dimension": {},
+      "from_unit": "kg",
+      "magnitude": null,
+      "status": "unknown",
+      "to_unit": "furlong",
+      "value": 5.0
+    }
+  ],
+  "parsed": [
+    {
+      "canonical_unit": "g",
+      "dimension": {
+        "mass": 1
+      },
+      "input": "kg",
+      "is_affine": false,
+      "offset": 0.0,
+      "scale": 1000.0,
+      "status": "ok"
+    },
+    {
+      "canonical_unit": "g/L",
+      "dimension": {
+        "mass": 1,
+        "volume": -1
+      },
+      "input": "mg/dL",
+      "is_affine": false,
+      "offset": 0.0,
+      "scale": 0.01,
+      "status": "ok"
+    },
+    {
+      "canonical_unit": "mol/L",
+      "dimension": {
+        "amount": 1,
+        "volume": -1
+      },
+      "input": "mmol/L",
+      "is_affine": false,
+      "offset": 0.0,
+      "scale": 0.001,
+      "status": "ok"
+    },
+    {
+      "canonical_unit": "K",
+      "dimension": {
+        "temperature": 1
+      },
+      "input": "Cel",
+      "is_affine": true,
+      "offset": 273.15,
+      "scale": 1.0,
+      "status": "ok"
+    },
+    {
+      "canonical_unit": "K",
+      "dimension": {
+        "temperature": 1
+      },
+      "input": "[degF]",
+      "is_affine": true,
+      "offset": 255.3722222222222,
+      "scale": 0.5555555555555556,
+      "status": "ok"
+    },
+    {
+      "canonical_unit": "L/s",
+      "dimension": {
+        "time": -1,
+        "volume": 1
+      },
+      "input": "mL/min",
+      "is_affine": false,
+      "offset": 0.0,
+      "scale": 1.6666666666666667e-05,
+      "status": "ok"
+    },
+    {
+      "canonical_unit": null,
+      "dimension": {},
+      "input": "mm[Hg]",
+      "is_affine": false,
+      "offset": 0.0,
+      "scale": null,
+      "status": "unknown"
+    },
+    {
+      "canonical_unit": "/time",
+      "dimension": {
+        "time": -1
+      },
+      "input": "/min",
+      "is_affine": false,
+      "offset": 0.0,
+      "scale": 0.016666666666666666,
+      "status": "ok"
+    },
+    {
+      "canonical_unit": null,
+      "dimension": {},
+      "input": "{beats}/min",
+      "is_affine": false,
+      "offset": 0.0,
+      "scale": null,
+      "status": "unknown"
+    },
+    {
+      "canonical_unit": "g/L",
+      "dimension": {
+        "mass": 1,
+        "volume": -1
+      },
+      "input": "g/L",
+      "is_affine": false,
+      "offset": 0.0,
+      "scale": 1.0,
+      "status": "ok"
+    },
+    {
+      "canonical_unit": "g",
+      "dimension": {
+        "mass": 1
+      },
+      "input": "mcg",
+      "is_affine": false,
+      "offset": 0.0,
+      "scale": 1e-06,
+      "status": "ok"
+    },
+    {
+      "canonical_unit": null,
+      "dimension": {},
+      "input": "furlong",
+      "is_affine": false,
+      "offset": 0.0,
+      "scale": null,
+      "status": "unknown"
+    }
+  ],
+  "schema_version": 1,
+  "source": "medscale_clinical.clinical.units"
+}

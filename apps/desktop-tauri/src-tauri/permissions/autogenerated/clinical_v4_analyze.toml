@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-clinical-v4-analyze"
+description = "Enables the clinical_v4_analyze command without any pre-configured scope."
+commands.allow = ["clinical_v4_analyze"]
+
+[[permission]]
+identifier = "deny-clinical-v4-analyze"
+description = "Denies the clinical_v4_analyze command without any pre-configured scope."
+commands.deny = ["clinical_v4_analyze"]

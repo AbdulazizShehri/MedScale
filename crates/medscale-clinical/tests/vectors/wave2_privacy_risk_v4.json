@@ -1,0 +1,772 @@
+{
+  "arabic_digit_norm": {
+    "eastern": "1098765439",
+    "extended": "2034567897"
+  },
+  "calendars": [
+    {
+      "calendar": "bikram_sambat",
+      "gregorian": [
+        2026,
+        11,
+        28
+      ],
+      "native": [
+        2083,
+        8,
+        12
+      ],
+      "ordinal": 739948,
+      "roundtrip_ordinal": 739948,
+      "shifted_plus14_native": [
+        2083,
+        8,
+        26
+      ],
+      "shifted_plus14_ordinal": 739962
+    },
+    {
+      "calendar": "bikram_sambat",
+      "gregorian": [
+        2024,
+        2,
+        29
+      ],
+      "native": [
+        2080,
+        11,
+        17
+      ],
+      "ordinal": 738945,
+      "roundtrip_ordinal": 738945,
+      "shifted_plus14_native": [
+        2080,
+        12,
+        1
+      ],
+      "shifted_plus14_ordinal": 738959
+    },
+    {
+      "calendar": "bikram_sambat",
+      "gregorian": [
+        2000,
+        1,
+        1
+      ],
+      "native": [
+        2056,
+        9,
+        17
+      ],
+      "ordinal": 730120,
+      "roundtrip_ordinal": 730120,
+      "shifted_plus14_native": [
+        2056,
+        10,
+        1
+      ],
+      "shifted_plus14_ordinal": 730134
+    },
+    {
+      "calendar": "bikram_sambat",
+      "gregorian": [
+        1995,
+        7,
+        14
+      ],
+      "native": [
+        2052,
+        3,
+        30
+      ],
+      "ordinal": 728488,
+      "roundtrip_ordinal": 728488,
+      "shifted_plus14_native": [
+        2052,
+        4,
+        12
+      ],
+      "shifted_plus14_ordinal": 728502
+    },
+    {
+      "calendar": "ethiopian",
+      "gregorian": [
+        2026,
+        11,
+        28
+      ],
+      "native": [
+        2019,
+        3,
+        19
+      ],
+      "ordinal": 739948,
+      "roundtrip_ordinal": 739948,
+      "shifted_plus14_native": [
+        2019,
+        4,
+        3
+      ],
+      "shifted_plus14_ordinal": 739962
+    },
+    {
+      "calendar": "ethiopian",
+      "gregorian": [
+        2024,
+        2,
+        29
+      ],
+      "native": [
+        2016,
+        6,
+        21
+      ],
+      "ordinal": 738945,
+      "roundtrip_ordinal": 738945,
+      "shifted_plus14_native": [
+        2016,
+        7,
+        5
+      ],
+      "shifted_plus14_ordinal": 738959
+    },
+    {
+      "calendar": "ethiopian",
+      "gregorian": [
+        2000,
+        1,
+        1
+      ],
+      "native": [
+        1992,
+        4,
+        22
+      ],
+      "ordinal": 730120,
+      "roundtrip_ordinal": 730120,
+      "shifted_plus14_native": [
+        1992,
+        5,
+        6
+      ],
+      "shifted_plus14_ordinal": 730134
+    },
+    {
+      "calendar": "ethiopian",
+      "gregorian": [
+        1995,
+        7,
+        14
+      ],
+      "native": [
+        1987,
+        11,
+        7
+      ],
+      "ordinal": 728488,
+      "roundtrip_ordinal": 728488,
+      "shifted_plus14_native": [
+        1987,
+        11,
+        21
+      ],
+      "shifted_plus14_ordinal": 728502
+    },
+    {
+      "calendar": "gregorian",
+      "gregorian": [
+        2026,
+        11,
+        28
+      ],
+      "native": [
+        2026,
+        11,
+        28
+      ],
+      "ordinal": 739948,
+      "roundtrip_ordinal": 739948,
+      "shifted_plus14_native": [
+        2026,
+        12,
+        12
+      ],
+      "shifted_plus14_ordinal": 739962
+    },
+    {
+      "calendar": "gregorian",
+      "gregorian": [
+        2024,
+        2,
+        29
+      ],
+      "native": [
+        2024,
+        2,
+        29
+      ],
+      "ordinal": 738945,
+      "roundtrip_ordinal": 738945,
+      "shifted_plus14_native": [
+        2024,
+        3,
+        14
+      ],
+      "shifted_plus14_ordinal": 738959
+    },
+    {
+      "calendar": "gregorian",
+      "gregorian": [
+        2000,
+        1,
+        1
+      ],
+      "native": [
+        2000,
+        1,
+        1
+      ],
+      "ordinal": 730120,
+      "roundtrip_ordinal": 730120,
+      "shifted_plus14_native": [
+        2000,
+        1,
+        15
+      ],
+      "shifted_plus14_ordinal": 730134
+    },
+    {
+      "calendar": "gregorian",
+      "gregorian": [
+        1995,
+        7,
+        14
+      ],
+      "native": [
+        1995,
+        7,
+        14
+      ],
+      "ordinal": 728488,
+      "roundtrip_ordinal": 728488,
+      "shifted_plus14_native": [
+        1995,
+        7,
+        28
+      ],
+      "shifted_plus14_ordinal": 728502
+    },
+    {
+      "calendar": "hijri",
+      "gregorian": [
+        2026,
+        11,
+        28
+      ],
+      "native": [
+        1448,
+        6,
+        18
+      ],
+      "ordinal": 739948,
+      "roundtrip_ordinal": 739948,
+      "shifted_plus14_native": [
+        1448,
+        7,
+        3
+      ],
+      "shifted_plus14_ordinal": 739962
+    },
+    {
+      "calendar": "hijri",
+      "gregorian": [
+        2024,
+        2,
+        29
+      ],
+      "native": [
+        1445,
+        8,
+        19
+      ],
+      "ordinal": 738945,
+      "roundtrip_ordinal": 738945,
+      "shifted_plus14_native": [
+        1445,
+        9,
+        4
+      ],
+      "shifted_plus14_ordinal": 738959
+    },
+    {
+      "calendar": "hijri",
+      "gregorian": [
+        2000,
+        1,
+        1
+      ],
+      "native": [
+        1420,
+        9,
+        24
+      ],
+      "ordinal": 730120,
+      "roundtrip_ordinal": 730120,
+      "shifted_plus14_native": [
+        1420,
+        10,
+        8
+      ],
+      "shifted_plus14_ordinal": 730134
+    },
+    {
+      "calendar": "hijri",
+      "gregorian": [
+        1995,
+        7,
+        14
+      ],
+      "native": [
+        1416,
+        2,
+        16
+      ],
+      "ordinal": 728488,
+      "roundtrip_ordinal": 728488,
+      "shifted_plus14_native": [
+        1416,
+        3,
+        1
+      ],
+      "shifted_plus14_ordinal": 728502
+    },
+    {
+      "calendar": "solar_hijri",
+      "gregorian": [
+        2026,
+        11,
+        28
+      ],
+      "native": [
+        1405,
+        9,
+        7
+      ],
+      "ordinal": 739948,
+      "roundtrip_ordinal": 739948,
+      "shifted_plus14_native": [
+        1405,
+        9,
+        21
+      ],
+      "shifted_plus14_ordinal": 739962
+    },
+    {
+      "calendar": "solar_hijri",
+      "gregorian": [
+        2024,
+        2,
+        29
+      ],
+      "native": [
+        1402,
+        12,
+        10
+      ],
+      "ordinal": 738945,
+      "roundtrip_ordinal": 738945,
+      "shifted_plus14_native": [
+        1402,
+        12,
+        24
+      ],
+      "shifted_plus14_ordinal": 738959
+    },
+    {
+      "calendar": "solar_hijri",
+      "gregorian": [
+        2000,
+        1,
+        1
+      ],
+      "native": [
+        1378,
+        10,
+        11
+      ],
+      "ordinal": 730120,
+      "roundtrip_ordinal": 730120,
+      "shifted_plus14_native": [
+        1378,
+        10,
+        25
+      ],
+      "shifted_plus14_ordinal": 730134
+    },
+    {
+      "calendar": "solar_hijri",
+      "gregorian": [
+        1995,
+        7,
+        14
+      ],
+      "native": [
+        1374,
+        4,
+        23
+      ],
+      "ordinal": 728488,
+      "roundtrip_ordinal": 728488,
+      "shifted_plus14_native": [
+        1374,
+        5,
+        6
+      ],
+      "shifted_plus14_ordinal": 728502
+    },
+    {
+      "calendar": "thai_buddhist",
+      "gregorian": [
+        2026,
+        11,
+        28
+      ],
+      "native": [
+        2569,
+        11,
+        28
+      ],
+      "ordinal": 739948,
+      "roundtrip_ordinal": 739948,
+      "shifted_plus14_native": [
+        2569,
+        12,
+        12
+      ],
+      "shifted_plus14_ordinal": 739962
+    },
+    {
+      "calendar": "thai_buddhist",
+      "gregorian": [
+        2024,
+        2,
+        29
+      ],
+      "native": [
+        2567,
+        2,
+        29
+      ],
+      "ordinal": 738945,
+      "roundtrip_ordinal": 738945,
+      "shifted_plus14_native": [
+        2567,
+        3,
+        14
+      ],
+      "shifted_plus14_ordinal": 738959
+    },
+    {
+      "calendar": "thai_buddhist",
+      "gregorian": [
+        2000,
+        1,
+        1
+      ],
+      "native": [
+        2543,
+        1,
+        1
+      ],
+      "ordinal": 730120,
+      "roundtrip_ordinal": 730120,
+      "shifted_plus14_native": [
+        2543,
+        1,
+        15
+      ],
+      "shifted_plus14_ordinal": 730134
+    },
+    {
+      "calendar": "thai_buddhist",
+      "gregorian": [
+        1995,
+        7,
+        14
+      ],
+      "native": [
+        2538,
+        7,
+        14
+      ],
+      "ordinal": 728488,
+      "roundtrip_ordinal": 728488,
+      "shifted_plus14_native": [
+        2538,
+        7,
+        28
+      ],
+      "shifted_plus14_ordinal": 728502
+    }
+  ],
+  "clinical_protect": {
+    "checked_count": 3,
+    "retained": [
+      {
+        "end": 44,
+        "label": "PERSON",
+        "start": 36,
+        "text": "Jane Roe"
+      }
+    ],
+    "suppressed_count": 2,
+    "text": "Parkinson disease evaluated for Dr. Jane Roe while taking metformin 500 mg."
+  },
+  "core_policies": {
+    "africa_malabo_baseline": {
+      "default_action": "mask",
+      "posture": "malabo_article_14_conservative_baseline",
+      "safety_sweep_mandatory": true,
+      "strict_no_leak": true
+    },
+    "australia_privacy_act": {
+      "default_action": "replace",
+      "posture": "australia_privacy_act_app_deidentification",
+      "safety_sweep_mandatory": true,
+      "strict_no_leak": false
+    },
+    "canada_pipeda": {
+      "default_action": "replace",
+      "posture": "gdpr_pseudonymization",
+      "safety_sweep_mandatory": true,
+      "strict_no_leak": false
+    },
+    "china_pipl": {
+      "default_action": "replace",
+      "posture": "china_pipl_sensitive_personal_information",
+      "safety_sweep_mandatory": true,
+      "strict_no_leak": false
+    },
+    "clinical_minimal_redaction": {
+      "default_action": "mask",
+      "posture": "clinical_minimal_redaction",
+      "safety_sweep_mandatory": false,
+      "strict_no_leak": false
+    },
+    "clinical_preserve": {
+      "default_action": "mask",
+      "posture": "clinical_preserve",
+      "safety_sweep_mandatory": true,
+      "strict_no_leak": false
+    },
+    "eg_pdpl": {
+      "default_action": "mask",
+      "posture": "egypt_pdpl_licensing_first_no_leak",
+      "safety_sweep_mandatory": true,
+      "strict_no_leak": true
+    },
+    "gdpr_art9_health": {
+      "default_action": "replace",
+      "posture": "gdpr_article9_special_category_health",
+      "safety_sweep_mandatory": true,
+      "strict_no_leak": false
+    },
+    "gdpr_pseudonymization": {
+      "default_action": "replace",
+      "posture": "gdpr_pseudonymization",
+      "safety_sweep_mandatory": true,
+      "strict_no_leak": false
+    },
+    "hipaa_expert_review_assist": {
+      "default_action": "redact",
+      "posture": "hipaa_expert_review_assist",
+      "safety_sweep_mandatory": false,
+      "strict_no_leak": false
+    },
+    "hipaa_safe_harbor": {
+      "default_action": "mask",
+      "posture": "hipaa_safe_harbor_deidentification",
+      "safety_sweep_mandatory": true,
+      "strict_no_leak": false
+    },
+    "india_dpdp_act": {
+      "default_action": "replace",
+      "posture": "india_dpdp_act_deidentification",
+      "safety_sweep_mandatory": true,
+      "strict_no_leak": false
+    },
+    "india_health_id": {
+      "default_action": "mask",
+      "posture": "india_health_identifier_no_leak",
+      "safety_sweep_mandatory": true,
+      "strict_no_leak": true
+    },
+    "ke_dpa": {
+      "default_action": "mask",
+      "posture": "kenya_dpa_sensitive_health_local_first",
+      "safety_sweep_mandatory": true,
+      "strict_no_leak": true
+    },
+    "ma_law_09_08": {
+      "default_action": "mask",
+      "posture": "morocco_law_09_08_authorization_first_no_leak",
+      "safety_sweep_mandatory": true,
+      "strict_no_leak": true
+    },
+    "ng_ndpa": {
+      "default_action": "replace",
+      "posture": "ng_ndpa_deidentification",
+      "safety_sweep_mandatory": true,
+      "strict_no_leak": true
+    },
+    "research_limited_dataset": {
+      "default_action": "mask",
+      "posture": "research_limited_dataset",
+      "safety_sweep_mandatory": true,
+      "strict_no_leak": false
+    },
+    "strict_no_leak": {
+      "default_action": "mask",
+      "posture": "maximum_recall_no_leak",
+      "safety_sweep_mandatory": true,
+      "strict_no_leak": true
+    },
+    "uk_ico_anonymisation": {
+      "default_action": "replace",
+      "posture": "uk_ico_anonymisation",
+      "safety_sweep_mandatory": true,
+      "strict_no_leak": false
+    },
+    "za_popia": {
+      "default_action": "replace",
+      "posture": "za_popia_anonymisation",
+      "safety_sweep_mandatory": true,
+      "strict_no_leak": true
+    }
+  },
+  "date_shifts": [
+    {
+      "kind": "hmac",
+      "max_days": 365,
+      "offset": -162,
+      "patient_key": "synthetic-patient-001",
+      "secret": "medscale-synthetic-secret-k1"
+    },
+    {
+      "kind": "hmac",
+      "max_days": 180,
+      "offset": 62,
+      "patient_key": "synthetic-patient-002",
+      "secret": "medscale-synthetic-secret-k1"
+    },
+    {
+      "kind": "seed",
+      "max_days": 90,
+      "offset": -48,
+      "seed": 42
+    }
+  ],
+  "kanon_summary": {
+    "k": 2,
+    "l": {
+      "dx": 1
+    },
+    "record_count": 4,
+    "t_closeness": {
+      "dx": 0.5
+    }
+  },
+  "policy_files": [
+    "africa_malabo_baseline",
+    "australia_privacy_act",
+    "canada_pipeda",
+    "china_pipl",
+    "clinical_minimal_redaction",
+    "clinical_preserve",
+    "eg_pdpl",
+    "fhir_hipaa_safe_harbor",
+    "fhir_research_limited_dataset",
+    "gdpr_art9_health",
+    "gdpr_pseudonymization",
+    "hipaa_expert_review_assist",
+    "hipaa_safe_harbor",
+    "india_dpdp_act",
+    "india_health_id",
+    "ke_dpa",
+    "ma_law_09_08",
+    "ng_ndpa",
+    "omop_hipaa_safe_harbor",
+    "omop_research_limited_dataset",
+    "research_limited_dataset",
+    "strict_no_leak",
+    "uk_ico_anonymisation",
+    "za_popia"
+  ],
+  "reid_summary": {
+    "k_min": 1,
+    "leakage_rate": 0.0,
+    "reid_rate": 0.0,
+    "singleton_count": 1
+  },
+  "rtl": [
+    {
+      "base_direction": "rtl",
+      "isolated": true,
+      "rendered_text": "\u0627\u0644\u0645\u0631\u064a\u0636 \u2068[NAME]\u2069 \u0645\u0635\u0627\u0628 \u0628\u0627\u0644\u0633\u0643\u0631\u064a",
+      "spans": [
+        {
+          "end": 13,
+          "start": 7
+        }
+      ],
+      "stripped": "\u0627\u0644\u0645\u0631\u064a\u0636 [NAME] \u0645\u0635\u0627\u0628 \u0628\u0627\u0644\u0633\u0643\u0631\u064a",
+      "text": "\u0627\u0644\u0645\u0631\u064a\u0636 [NAME] \u0645\u0635\u0627\u0628 \u0628\u0627\u0644\u0633\u0643\u0631\u064a",
+      "wrapped_count": 1
+    },
+    {
+      "base_direction": "ltr",
+      "isolated": false,
+      "rendered_text": "Patient [NAME] evaluated cleanly.",
+      "spans": [
+        {
+          "end": 14,
+          "start": 8
+        }
+      ],
+      "stripped": "Patient [NAME] evaluated cleanly.",
+      "text": "Patient [NAME] evaluated cleanly.",
+      "wrapped_count": 0
+    }
+  ],
+  "safety_sweep": {
+    "hits": [
+      {
+        "end": 20,
+        "label": "ssn",
+        "start": 9,
+        "text": "123-45-6789"
+      },
+      {
+        "end": 45,
+        "label": "email",
+        "start": 30,
+        "text": "ada@example.org"
+      },
+      {
+        "end": 61,
+        "label": "medical_record_number",
+        "start": 50,
+        "text": "MRN: 987654"
+      }
+    ],
+    "text": "Call SSN 123-45-6789 or email ada@example.org for MRN: 987654."
+  },
+  "schema_version": 1,
+  "validator_smoke": {
+    "luhn_invalid": false,
+    "luhn_valid": false,
+    "npi_valid": true,
+    "ssn_invalid_666": false,
+    "ssn_valid": true
+  }
+}

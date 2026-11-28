@@ -5272,6 +5272,36 @@ impl CoreFacade {
                     diff: Box::new(diff),
                 })
             }
+            RequestBody::PrivacyV4Presets { request } => {
+                let response = super::openmed_wave2::handle_presets(&request)?;
+                Ok(ResponseBody::PrivacyV4Presets {
+                    response: Box::new(response),
+                })
+            }
+            RequestBody::PrivacyV4Deidentify { request } => {
+                let response = super::openmed_wave2::handle_deidentify(&request)?;
+                Ok(ResponseBody::PrivacyV4Deidentify {
+                    response: Box::new(response),
+                })
+            }
+            RequestBody::PrivacyV4Risk { request } => {
+                let response = super::openmed_wave2::handle_risk(&request)?;
+                Ok(ResponseBody::PrivacyV4Risk {
+                    response: Box::new(response),
+                })
+            }
+            RequestBody::ClinicalV4Analyze { request } => {
+                let response = super::openmed_wave2::handle_clinical_analyze(&request)?;
+                Ok(ResponseBody::ClinicalV4Analyze {
+                    response: Box::new(response),
+                })
+            }
+            RequestBody::UnitsV4Convert { request } => {
+                let response = super::openmed_wave2::handle_units_convert(&request)?;
+                Ok(ResponseBody::UnitsV4Convert {
+                    response: Box::new(response),
+                })
+            }
             RequestBody::PackCatalog => Ok(ResponseBody::PackCatalog {
                 packs: super::data_sources::DataSources::pack_catalog(),
             }),
@@ -7237,6 +7267,9 @@ fn capability_matches(cap: &Capability, body: &RequestBody) -> bool {
                     | RequestBody::PrivacyReceiptList { .. }
                     | RequestBody::PrivacyReidentificationAuditList { .. }
                     | RequestBody::PrivacyEgressDecisionList { .. }
+                    | RequestBody::PrivacyV4Presets { .. }
+                    | RequestBody::PrivacyV4Deidentify { .. }
+                    | RequestBody::PrivacyV4Risk { .. }
             )
             | (
                 Capability::PrivacyProfileCreate,
@@ -7444,6 +7477,10 @@ fn capability_matches(cap: &Capability, body: &RequestBody) -> bool {
                     | RequestBody::ModelCatalogCard { .. }
                     | RequestBody::ModelCatalogPreflight { .. }
                     | RequestBody::ModelCatalogManifestDiff { .. }
+            )
+            | (
+                Capability::ClinicalV4Read,
+                RequestBody::ClinicalV4Analyze { .. } | RequestBody::UnitsV4Convert { .. }
             )
             | (
                 Capability::PackRead,

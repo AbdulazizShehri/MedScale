@@ -143,8 +143,202 @@ function PrivacyBody({ projectId }: { projectId: string }) {
       <Section title="Transform receipts" count={v.receipts.length}>
         {v.receipts.length ? v.receipts.map((r) => <div key={r.id} className="lr" style={{ gridTemplateColumns: "minmax(0,1fr) 120px minmax(0,1fr)" }}><span className="mono t-mono-sm trunc">{r.id}</span><Status kind={glyphFor(r.status)}>{r.status}</Status><span className="t-sm i3 trunc">{r.residual}</span></div>) : <p className="t-sm i3">No pseudonymization receipts.</p>}
       </Section>
+      <PrivacyStudio />
       <Authority>Nothing leaves by default. A yes covers one item at one boundary, and is not a standing permission.</Authority>
     </>
+  );
+}
+
+type PrivacyPresetSummary = {
+  name: string;
+  schema_version: number;
+  posture: string;
+  default_action: string;
+  strict_no_leak: boolean;
+  safety_sweep_mandatory: boolean;
+  receipt?: string;
+  sha256: string;
+};
+type PrivacyPresetsResult = { presets: PrivacyPresetSummary[] };
+type DeidentifyResult = {
+  redacted_text: string;
+  policy_name: string;
+  policy_sha256: string;
+  base_direction: string;
+  rtl_isolated: boolean;
+  detected_spans: Array<{ label: string; start: number; end: number; text: string; source: string }>;
+  suppressed_clinical_terms: number;
+  sweep_added_spans: number;
+  shifted_dates: Array<{ original: string; shifted: string; calendar: string; offset_days: number }>;
+  receipt: { receipt_sha256: string; total_redacted_spans: number };
+  receipt_verified: boolean;
+};
+type RiskResult = {
+  record_count: number;
+  k_min: number;
+  class_count: number;
+  singleton_count: number;
+  l_diversity: Record<string, number>;
+  t_closeness: Record<string, number>;
+  prosecutor_risk: number;
+  journalist_risk: number;
+  marketer_risk: number;
+};
+
+function PrivacyStudio() {
+  const { state: presetsState } = useCommand<PrivacyPresetsResult>("privacy_v4_presets", {});
+  const [note, setNote] = useState("المريض أحمد حضر بتاريخ 2026-11-28، Diabetes mellitus، SSN 123-45-6789.");
+  const [policyName, setPolicyName] = useState("saudi_pdpl");
+  const [calendar, setCalendar] = useState("gregorian");
+  const [shiftDays, setShiftDays] = useState("14");
+  const [rtlIsolate, setRtlIsolate] = useState(true);
+  const [clinicalProtect, setClinicalProtect] = useState(true);
+  const [safetySweep, setSafetySweep] = useState(true);
+  const [deidBusy, setDeidBusy] = useState(false);
+  const [deidErr, setDeidErr] = useState<CmdError | null>(null);
+  const [deid, setDeid] = useState<DeidentifyResult | null>(null);
+
+  const [riskJson, setRiskJson] = useState(
+    '[{"age":"30-39","zip":"100**","dx":"asthma"},{"age":"30-39","zip":"100**","dx":"diabetes"},{"age":"40-49","zip":"200**","dx":"asthma"}]',
+  );
+  const [quasiCsv, setQuasiCsv] = useState("age,zip");
+  const [sensCsv, setSensCsv] = useState("dx");
+  const [riskBusy, setRiskBusy] = useState(false);
+  const [riskErr, setRiskErr] = useState<CmdError | null>(null);
+  const [risk, setRisk] = useState<RiskResult | null>(null);
+
+  const presets = presetsState.status === "ready" ? presetsState.data.presets : [];
+
+  async function runDeidentify(e: FormEvent) {
+    e.preventDefault();
+    if (!note.trim() || deidBusy) return;
+    setDeidBusy(true);
+    setDeidErr(null);
+    const parsedShift = shiftDays.trim() ? Number.parseInt(shiftDays.trim(), 10) : undefined;
+    try {
+      const res = await call<DeidentifyResult>("privacy_v4_deidentify", {
+        text: note,
+        policyName,
+        calendar,
+        dateShiftDays: Number.isFinite(parsedShift) ? parsedShift : null,
+        rtlIsolate,
+        clinicalProtect,
+        safetySweep,
+      });
+      setDeid(res);
+    } catch (err) {
+      setDeidErr(err as CmdError);
+    } finally {
+      setDeidBusy(false);
+    }
+  }
+
+  async function runRisk() {
+    if (riskBusy) return;
+    setRiskBusy(true);
+    setRiskErr(null);
+    try {
+      const records = JSON.parse(riskJson) as Array<Record<string, unknown>>;
+      const quasiIdentifiers = quasiCsv.split(",").map((s) => s.trim()).filter(Boolean);
+      const sensitiveAttributes = sensCsv.split(",").map((s) => s.trim()).filter(Boolean);
+      const res = await call<RiskResult>("privacy_v4_risk", {
+        records,
+        quasiIdentifiers,
+        sensitiveAttributes,
+      });
+      setRisk(res);
+    } catch (err) {
+      setRiskErr((err as CmdError).kind ? (err as CmdError) : { kind: "invalid", message: "Invalid JSON table or parameters" });
+    } finally {
+      setRiskBusy(false);
+    }
+  }
+
+  return (
+    <Section title="De-identification & risk studio" count={presets.length ? `${presets.length} presets` : undefined}>
+      <div className="stack" style={{ gap: 14 }}>
+        <form onSubmit={runDeidentify} className="viz-frame stack" style={{ gap: 10 }}>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(170px, 1fr))", gap: 10 }}>
+            <div>
+              <label className="lbl" htmlFor="p4-policy">Policy preset</label>
+              <select id="p4-policy" value={policyName} onChange={(e) => setPolicyName(e.target.value)} style={{ width: "100%" }}>
+                {(presets.length ? presets : [{ name: "saudi_pdpl" }, { name: "hipaa_safe_harbor" }, { name: "gdpr_art9_health" }, { name: "strict_no_leak" }]).map((p) => (
+                  <option key={p.name} value={p.name}>{p.name}</option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <label className="lbl" htmlFor="p4-cal">Calendar</label>
+              <select id="p4-cal" value={calendar} onChange={(e) => setCalendar(e.target.value)} style={{ width: "100%" }}>
+                <option value="gregorian">gregorian</option>
+                <option value="hijri">hijri (umm al-qura)</option>
+                <option value="solar_hijri">solar_hijri</option>
+                <option value="bikram_sambat">bikram_sambat</option>
+              </select>
+            </div>
+            <div>
+              <label className="lbl" htmlFor="p4-shift">Date shift (days)</label>
+              <input id="p4-shift" value={shiftDays} maxLength={8} onChange={(e) => setShiftDays(e.target.value)} style={{ width: "100%" }} />
+            </div>
+          </div>
+          <div>
+            <label className="lbl" htmlFor="p4-note">Synthetic input text</label>
+            <input id="p4-note" value={note} maxLength={4000} onChange={(e) => setNote(e.target.value)} style={{ width: "100%" }} />
+          </div>
+          <div className="row-gap" style={{ gap: 14, flexWrap: "wrap", alignItems: "center" }}>
+            <label className="t-sm row-gap" style={{ gap: 6 }}><input type="checkbox" checked={rtlIsolate} onChange={(e) => setRtlIsolate(e.target.checked)} />RTL FSI/PDI isolation</label>
+            <label className="t-sm row-gap" style={{ gap: 6 }}><input type="checkbox" checked={clinicalProtect} onChange={(e) => setClinicalProtect(e.target.checked)} />Clinical-protect filter</label>
+            <label className="t-sm row-gap" style={{ gap: 6 }}><input type="checkbox" checked={safetySweep} onChange={(e) => setSafetySweep(e.target.checked)} />Residual safety sweep</label>
+            <button type="submit" className="btn btn-s" disabled={deidBusy}>{deidBusy ? <><Glyph kind="running" />De-identifying</> : "De-identify text"}</button>
+          </div>
+          {deidErr && <ErrorState error={deidErr} />}
+          {deid && (
+            <div className="stack" style={{ gap: 8, paddingTop: 6, borderTop: "1px solid var(--line-subtle)" }}>
+              <div className="row-gap" style={{ gap: 8, flexWrap: "wrap" }}>
+                <Status kind={deid.receipt_verified ? "present" : "failed"} weight="strong">{deid.receipt_verified ? "Receipt verified" : "Receipt invalid"}</Status>
+                <Status kind="available" weight="weak">dir={deid.base_direction}{deid.rtl_isolated ? " · isolated" : ""}</Status>
+                <span className="mono t-mono-sm i2">clinical suppressed: {deid.suppressed_clinical_terms} · sweep catches: {deid.sweep_added_spans} · redacted: {deid.receipt.total_redacted_spans}</span>
+              </div>
+              <p className="t-sm i1" dir="auto" style={{ padding: "8px 10px", background: "var(--bg-surface)", borderRadius: "var(--r-2)", border: "1px solid var(--line-subtle)", overflowWrap: "anywhere" }}>{deid.redacted_text}</p>
+              <KV keyWidth={128} rows={[
+                ["policy_sha256", <span className="mono-break t-mono-sm">{deid.policy_sha256}</span>],
+                ["receipt_sha256", <span className="mono-break t-mono-sm">{deid.receipt.receipt_sha256}</span>],
+              ]} />
+            </div>
+          )}
+        </form>
+
+        <div className="viz-frame stack" style={{ gap: 10 }}>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(170px, 1fr))", gap: 10 }}>
+            <div>
+              <label className="lbl" htmlFor="p4-qi">Quasi-identifiers (CSV)</label>
+              <input id="p4-qi" value={quasiCsv} maxLength={256} onChange={(e) => setQuasiCsv(e.target.value)} style={{ width: "100%" }} />
+            </div>
+            <div>
+              <label className="lbl" htmlFor="p4-sens">Sensitive attributes (CSV)</label>
+              <input id="p4-sens" value={sensCsv} maxLength={256} onChange={(e) => setSensCsv(e.target.value)} style={{ width: "100%" }} />
+            </div>
+          </div>
+          <div>
+            <label className="lbl" htmlFor="p4-tbl">Synthetic cohort table (JSON array)</label>
+            <input id="p4-tbl" value={riskJson} maxLength={8000} onChange={(e) => setRiskJson(e.target.value)} style={{ width: "100%" }} />
+          </div>
+          <div className="row-gap" style={{ gap: 10 }}>
+            <button type="button" className="btn btn-s" onClick={() => void runRisk()} disabled={riskBusy}>{riskBusy ? <><Glyph kind="running" />Computing</> : "Compute risk"}</button>
+          </div>
+          {riskErr && <ErrorState error={riskErr} />}
+          {risk && (
+            <Ledger items={[
+              { k: "records", v: risk.record_count, mono: true },
+              { k: "k_min", v: risk.k_min, mono: true },
+              { k: "singletons", v: risk.singleton_count, mono: true },
+              { k: "prosecutor_risk", v: risk.prosecutor_risk.toFixed(3), mono: true },
+              { k: "marketer_risk", v: risk.marketer_risk.toFixed(3), mono: true },
+            ]} />
+          )}
+        </div>
+      </div>
+    </Section>
   );
 }
 

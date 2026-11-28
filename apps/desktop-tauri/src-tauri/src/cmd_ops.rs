@@ -1618,6 +1618,183 @@ pub fn audio_segment(
     Ok(json!({ "summary": summary, "lines": lines }))
 }
 
+// ─────────────── Wave 2 privacy, clinical NLP & UCUM v4 ───────────────
+
+#[tauri::command(async)]
+pub fn privacy_v4_presets(
+    host: tauri::State<'_, Host>,
+    filter: Option<String>,
+) -> CmdResult<Value> {
+    let filter = filter
+        .filter(|v| !v.trim().is_empty())
+        .map(|v| host::bounded_text(&v, 120))
+        .transpose()?;
+    let mut state = lock(&host)?;
+    let res = state.wave2()?.privacy_v4_presets(
+        medscale_contracts::openmed_wave2::PrivacyV4PresetsRequest { filter },
+    )?;
+    Ok(json!(res))
+}
+
+#[tauri::command(async)]
+#[allow(clippy::too_many_arguments)]
+pub fn privacy_v4_deidentify(
+    host: tauri::State<'_, Host>,
+    text: String,
+    policy_name: Option<String>,
+    calendar: Option<String>,
+    date_shift_days: Option<i64>,
+    rtl_isolate: Option<bool>,
+    clinical_protect: Option<bool>,
+    safety_sweep: Option<bool>,
+) -> CmdResult<Value> {
+    let text = host::bounded_text(&text, 64 * 1024)?;
+    let policy_name = policy_name
+        .filter(|s| !s.trim().is_empty())
+        .map(|s| host::bounded_text(&s, 64))
+        .transpose()?;
+    let calendar = calendar
+        .filter(|s| !s.trim().is_empty())
+        .map(|s| host::bounded_text(&s, 32))
+        .transpose()?;
+    let mut state = lock(&host)?;
+    let res = state.wave2()?.privacy_v4_deidentify(
+        medscale_contracts::openmed_wave2::PrivacyV4DeidentifyRequest {
+            text,
+            policy_name,
+            calendar,
+            date_shift_days,
+            patient_key: None,
+            shift_secret: None,
+            max_shift_days: None,
+            rtl_isolate: rtl_isolate.unwrap_or(true),
+            clinical_protect: clinical_protect.unwrap_or(true),
+            safety_sweep: safety_sweep.unwrap_or(true),
+        },
+    )?;
+    Ok(json!(res))
+}
+
+#[tauri::command(async)]
+pub fn privacy_v4_risk(
+    host: tauri::State<'_, Host>,
+    records: Vec<std::collections::BTreeMap<String, Value>>,
+    quasi_identifiers: Vec<String>,
+    sensitive_attributes: Option<Vec<String>>,
+) -> CmdResult<Value> {
+    if records.len() > 10_000 || quasi_identifiers.len() > 32 {
+        return Err(CmdError::invalid("Invalid: risk table bounds exceeded"));
+    }
+    let quasi_identifiers = quasi_identifiers
+        .into_iter()
+        .map(|q| host::bounded_text(&q, 64))
+        .collect::<CmdResult<Vec<_>>>()?;
+    let sensitive_attributes = sensitive_attributes
+        .unwrap_or_default()
+        .into_iter()
+        .map(|s| host::bounded_text(&s, 64))
+        .collect::<CmdResult<Vec<_>>>()?;
+    let mut state = lock(&host)?;
+    let res = state.wave2()?.privacy_v4_risk(
+        medscale_contracts::openmed_wave2::PrivacyV4RiskRequest {
+            records,
+            quasi_identifiers,
+            sensitive_attributes,
+        },
+    )?;
+    Ok(json!(res))
+}
+
+#[tauri::command(async)]
+#[allow(clippy::too_many_arguments)]
+pub fn clinical_v4_analyze(
+    host: tauri::State<'_, Host>,
+    text: String,
+    specialty: Option<String>,
+    sig_lines: Option<Vec<String>>,
+    med_mentions: Option<Value>,
+    dose_checks: Option<Value>,
+    dose_ranges: Option<Value>,
+    nli_scores: Option<(f64, f64, f64)>,
+    claims: Option<Value>,
+) -> CmdResult<Value> {
+    let text = host::bounded_text(&text, 64 * 1024)?;
+    let specialty = specialty
+        .filter(|s| !s.trim().is_empty())
+        .map(|s| host::bounded_text(&s, 32))
+        .transpose()?;
+    let sig_lines = sig_lines
+        .unwrap_or_default()
+        .into_iter()
+        .map(|l| host::bounded_text(&l, 512))
+        .collect::<CmdResult<Vec<_>>>()?;
+    let med_mentions = med_mentions
+        .map(serde_json::from_value)
+        .transpose()
+        .map_err(|_| CmdError::invalid("Invalid: malformed med_mentions"))?
+        .unwrap_or_default();
+    let dose_checks = dose_checks
+        .map(serde_json::from_value)
+        .transpose()
+        .map_err(|_| CmdError::invalid("Invalid: malformed dose_checks"))?
+        .unwrap_or_default();
+    let dose_ranges = dose_ranges
+        .map(serde_json::from_value)
+        .transpose()
+        .map_err(|_| CmdError::invalid("Invalid: malformed dose_ranges"))?
+        .unwrap_or_default();
+    let claims = claims
+        .map(serde_json::from_value)
+        .transpose()
+        .map_err(|_| CmdError::invalid("Invalid: malformed claims"))?
+        .unwrap_or_default();
+    let mut state = lock(&host)?;
+    let res = state.wave2()?.clinical_v4_analyze(
+        medscale_contracts::openmed_wave2::ClinicalV4AnalyzeRequest {
+            text,
+            specialty,
+            sig_lines,
+            med_mentions,
+            dose_checks,
+            dose_ranges,
+            nli_scores,
+            claims,
+        },
+    )?;
+    Ok(json!(res))
+}
+
+#[tauri::command(async)]
+pub fn units_v4_convert(
+    host: tauri::State<'_, Host>,
+    value: Option<f64>,
+    from_unit: String,
+    to_unit: Option<String>,
+    analyte: Option<String>,
+    molar_mass_g_per_mol: Option<f64>,
+) -> CmdResult<Value> {
+    let from_unit = host::bounded_text(&from_unit, 128)?;
+    let to_unit = to_unit
+        .filter(|s| !s.trim().is_empty())
+        .map(|s| host::bounded_text(&s, 128))
+        .transpose()?;
+    let analyte = analyte
+        .filter(|s| !s.trim().is_empty())
+        .map(|s| host::bounded_text(&s, 64))
+        .transpose()?;
+    let mut state = lock(&host)?;
+    let res = state.wave2()?.units_v4_convert(
+        medscale_contracts::openmed_wave2::UnitsV4ConvertRequest {
+            value,
+            from_unit,
+            to_unit,
+            analyte,
+            molar_mass_g_per_mol,
+        },
+    )?;
+    Ok(json!(res))
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

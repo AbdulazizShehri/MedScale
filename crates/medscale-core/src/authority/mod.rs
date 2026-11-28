@@ -24,6 +24,7 @@ mod knowledge;
 mod medagent;
 mod model_fleet;
 mod model_fleet_compare;
+mod openmed_wave2;
 mod presentation;
 mod privacy_gate;
 mod privacy_recognizers;
@@ -49,6 +50,7 @@ pub use document_ops::{document_worker_policy, mime_decision, voice_worker_polic
 pub use extensions::{generate_publisher_key, sign_extension_pack, valid_public_key};
 pub use facade::CoreFacade;
 pub use handles::assert_no_secret_handles;
+pub use openmed_wave2::shift_calendar_date_v4;
 pub use safe_harbor::{
     CategoryOutcome, RESTRICTED_ZIP3, SAFE_HARBOR_ENGINE_VERSION, SAFE_HARBOR_MAX_INPUT_BYTES,
     SAFE_HARBOR_METHOD, SAFE_HARBOR_REPORT_SCHEMA_VERSION, SafeHarborCategory, SafeHarborError,

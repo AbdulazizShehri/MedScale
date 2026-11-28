@@ -25,6 +25,7 @@ pub use authority::{
     CoreFacade, DEFAULT_CORPUS_ID, DEFAULT_CORPUS_VERSION, SCALE_CORPUS_DOC_COUNT_10K,
     SCALE_CORPUS_ID, SCALE_CORPUS_VERSION_10K, admit_corpus_bytes, admit_corpus_dir,
     build_synthetic_lexical_scale_corpus, default_synthetic_corpus, scale_synthetic_corpus_10k,
+    shift_calendar_date_v4,
 };
 pub use cli_session::CliSession;
 pub use doctor::{

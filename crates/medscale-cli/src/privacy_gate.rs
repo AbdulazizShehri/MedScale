@@ -439,6 +439,66 @@ pub enum PrivacyCmd {
         #[arg(long)]
         json: bool,
     },
+    /// List the 25 de-identification policy presets (international & `saudi_pdpl`).
+    Presets {
+        #[arg(long)]
+        filter: Option<String>,
+        #[arg(long)]
+        json: bool,
+    },
+    /// De-identify synthetic text with policy presets, calendar shift, RTL isolation, clinical-protect & receipt.
+    DeidentifyText {
+        #[arg(long)]
+        text: String,
+        #[arg(long, default_value = "hipaa_safe_harbor")]
+        policy: String,
+        #[arg(long, default_value = "gregorian")]
+        calendar: String,
+        #[arg(long)]
+        date_shift_days: Option<i64>,
+        #[arg(long)]
+        patient_key: Option<String>,
+        #[arg(long)]
+        shift_secret: Option<String>,
+        #[arg(long)]
+        max_shift_days: Option<i64>,
+        #[arg(long)]
+        rtl_isolate: bool,
+        #[arg(long, default_value_t = true)]
+        clinical_protect: bool,
+        #[arg(long, default_value_t = true)]
+        safety_sweep: bool,
+        #[arg(long)]
+        json: bool,
+    },
+    /// Compute k-anonymity, l-diversity, t-closeness and prosecutor/journalist/marketer risk over a JSON array file.
+    RiskAnalyze {
+        #[arg(long)]
+        file: PathBuf,
+        #[arg(long, required = true)]
+        quasi: Vec<String>,
+        #[arg(long)]
+        sensitive: Vec<String>,
+        #[arg(long)]
+        json: bool,
+    },
+    /// Deterministic calendar date shift across Gregorian, Hijri (Umm al-Qura), Solar Hijri, and Bikram Sambat.
+    ShiftDate {
+        #[arg(long)]
+        date: String,
+        #[arg(long, default_value = "gregorian")]
+        calendar: String,
+        #[arg(long)]
+        days: Option<i64>,
+        #[arg(long)]
+        patient_key: Option<String>,
+        #[arg(long)]
+        shift_secret: Option<String>,
+        #[arg(long)]
+        max_shift_days: Option<i64>,
+        #[arg(long)]
+        json: bool,
+    },
 }
 
 #[allow(clippy::too_many_lines)]
@@ -756,6 +816,134 @@ pub fn run_privacy(cmd: PrivacyCmd) -> anyhow::Result<()> {
             for d in &decisions {
                 print_decision(d, false)?;
             }
+            Ok(())
+        }
+        PrivacyCmd::Presets { filter, json } => {
+            let mut session =
+                medscale_core::CliSession::connect_wave2_studio("ephemeral-privacy-v4")
+                    .map_err(|err| privacy_fail(&err, json))?;
+            let resp = session
+                .privacy_v4_presets(medscale_contracts::openmed_wave2::PrivacyV4PresetsRequest {
+                    filter,
+                })
+                .map_err(|err| privacy_fail(&err, json))?;
+            if json {
+                return print_json_or_debug(&resp, true);
+            }
+            for p in &resp.presets {
+                println!(
+                    "{}\t{}\tdefault={}\tstrict={}\t{}",
+                    p.name, p.posture, p.default_action, p.strict_no_leak, p.sha256
+                );
+            }
+            Ok(())
+        }
+        PrivacyCmd::DeidentifyText {
+            text,
+            policy,
+            calendar,
+            date_shift_days,
+            patient_key,
+            shift_secret,
+            max_shift_days,
+            rtl_isolate,
+            clinical_protect,
+            safety_sweep,
+            json,
+        } => {
+            let mut session =
+                medscale_core::CliSession::connect_wave2_studio("ephemeral-privacy-v4")
+                    .map_err(|err| privacy_fail(&err, json))?;
+            let resp = session
+                .privacy_v4_deidentify(
+                    medscale_contracts::openmed_wave2::PrivacyV4DeidentifyRequest {
+                        text,
+                        policy_name: Some(policy),
+                        calendar: Some(calendar),
+                        date_shift_days,
+                        patient_key,
+                        shift_secret,
+                        max_shift_days,
+                        rtl_isolate,
+                        clinical_protect,
+                        safety_sweep,
+                    },
+                )
+                .map_err(|err| privacy_fail(&err, json))?;
+            if json {
+                return print_json_or_debug(&resp, true);
+            }
+            println!("{}", resp.redacted_text);
+            println!(
+                "policy={} suppressed_clinical={} sweep_added={} verified={} receipt={}",
+                resp.policy_name,
+                resp.suppressed_clinical_terms,
+                resp.sweep_added_spans,
+                resp.receipt_verified,
+                resp.receipt.receipt_sha256
+            );
+            Ok(())
+        }
+        PrivacyCmd::RiskAnalyze {
+            file,
+            quasi,
+            sensitive,
+            json,
+        } => {
+            let raw = std::fs::read_to_string(&file)
+                .map_err(|e| invalid(format!("cannot read risk table file: {}", e.kind()), json))?;
+            let records: Vec<std::collections::BTreeMap<String, serde_json::Value>> =
+                serde_json::from_str(&raw)
+                    .map_err(|e| invalid(format!("invalid JSON array: {e}"), json))?;
+            let mut session =
+                medscale_core::CliSession::connect_wave2_studio("ephemeral-privacy-v4")
+                    .map_err(|err| privacy_fail(&err, json))?;
+            let resp = session
+                .privacy_v4_risk(medscale_contracts::openmed_wave2::PrivacyV4RiskRequest {
+                    records,
+                    quasi_identifiers: quasi,
+                    sensitive_attributes: sensitive,
+                })
+                .map_err(|err| privacy_fail(&err, json))?;
+            if json {
+                return print_json_or_debug(&resp, true);
+            }
+            println!(
+                "records={} k_min={} classes={} singletons={} prosecutor_risk={:.4} marketer_risk={:.4}",
+                resp.record_count,
+                resp.k_min,
+                resp.class_count,
+                resp.singleton_count,
+                resp.prosecutor_risk,
+                resp.marketer_risk
+            );
+            Ok(())
+        }
+        PrivacyCmd::ShiftDate {
+            date,
+            calendar,
+            days,
+            patient_key,
+            shift_secret,
+            max_shift_days,
+            json,
+        } => {
+            let dto = medscale_core::shift_calendar_date_v4(
+                &calendar,
+                &date,
+                days,
+                patient_key.as_deref(),
+                shift_secret.as_deref(),
+                max_shift_days,
+            )
+            .map_err(|err| privacy_fail(&err, json))?;
+            if json {
+                return print_json_or_debug(&dto, true);
+            }
+            println!(
+                "{} -> {} (calendar={}, offset={})",
+                dto.original, dto.shifted, dto.calendar, dto.offset_days
+            );
             Ok(())
         }
     }

@@ -49,7 +49,23 @@ pub fn fhir_identity() -> RecognizerIdentity {
 fn is_delimiter(c: char) -> bool {
     matches!(
         c,
-        '"' | '\'' | '<' | '>' | '(' | ')' | '[' | ']' | '{' | '}' | ',' | ';' | '\n' | '\r' | '\t'
+        '"' | '\''
+            | '<'
+            | '>'
+            | '('
+            | ')'
+            | '['
+            | ']'
+            | '{'
+            | '}'
+            | ','
+            | ';'
+            | '\u{060C}'
+            | '\u{061B}'
+            | '\u{061F}'
+            | '\n'
+            | '\r'
+            | '\t'
     )
 }
 
@@ -77,7 +93,9 @@ fn span(kind: SensitiveSpanKind, start: usize, end: usize) -> SensitiveSpan {
 fn trim_trailing_punct(text: &str, start: usize, mut end: usize) -> usize {
     while end > start {
         match prev_char(text, end) {
-            Some(c @ ('.' | ':' | '!' | '?')) => end -= c.len_utf8(),
+            Some(c @ ('.' | ':' | '!' | '?' | '\u{060C}' | '\u{061B}' | '\u{061F}')) => {
+                end -= c.len_utf8()
+            }
             _ => break,
         }
     }
@@ -723,6 +741,25 @@ const LABELLED_CHECKSUMS: &[(&str, Validator)] = &[
     ("إقامة", validate_saudi_national_id),
     ("الإقامة", validate_saudi_national_id),
     ("المدني", validate_saudi_national_id),
+    (
+        "aadhaar",
+        medscale_pack::identifier_validators::validate_aadhaar,
+    ),
+    ("dea", medscale_pack::identifier_validators::validate_dea),
+    (
+        "abha",
+        medscale_pack::identifier_validators::validate_abha_number,
+    ),
+    (
+        "ohip",
+        medscale_pack::identifier_validators::validate_ontario_health_card,
+    ),
+    ("phn", medscale_pack::identifier_validators::validate_bc_phn),
+    ("pan", medscale_pack::identifier_validators::validate_pan),
+    (
+        "gstin",
+        medscale_pack::identifier_validators::validate_gstin,
+    ),
 ];
 
 /// Saudi national ID (citizens, first digit 1) or Iqama (residents, first
@@ -730,32 +767,7 @@ const LABELLED_CHECKSUMS: &[(&str, Validator)] = &[
 /// Eastern Arabic-Indic digits count, and spaces or dashes between groups
 /// are allowed. Ten-digit numbers are too common to flag without a label.
 fn validate_saudi_national_id(candidate: &str) -> bool {
-    let mut digits = Vec::with_capacity(10);
-    for c in candidate.chars() {
-        match c {
-            '0'..='9' => digits.push(u32::from(c) - u32::from('0')),
-            '\u{0660}'..='\u{0669}' => digits.push(u32::from(c) - 0x0660),
-            '\u{06F0}'..='\u{06F9}' => digits.push(u32::from(c) - 0x06F0),
-            ' ' | '-' => {}
-            _ => return false,
-        }
-    }
-    if digits.len() != 10 || !matches!(digits[0], 1 | 2) {
-        return false;
-    }
-    let sum: u32 = digits
-        .iter()
-        .enumerate()
-        .map(|(i, &d)| {
-            if i % 2 == 0 {
-                let doubled = d * 2;
-                doubled / 10 + doubled % 10
-            } else {
-                d
-            }
-        })
-        .sum();
-    sum.is_multiple_of(10)
+    medscale_pack::identifier_validators::validate_saudi_id(candidate)
 }
 
 /// `NNN NNN NNNN`, the printed grouping of a UK NHS number.

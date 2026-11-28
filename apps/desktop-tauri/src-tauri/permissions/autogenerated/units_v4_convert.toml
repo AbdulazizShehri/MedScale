@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-units-v4-convert"
+description = "Enables the units_v4_convert command without any pre-configured scope."
+commands.allow = ["units_v4_convert"]
+
+[[permission]]
+identifier = "deny-units-v4-convert"
+description = "Denies the units_v4_convert command without any pre-configured scope."
+commands.deny = ["units_v4_convert"]

@@ -182,6 +182,7 @@ export function Documents() {
         <Section title="Document understanding">
           <Notice kind="unsupported" title="Not admitted.">{state.data.document_understanding}</Notice>
         </Section>
+        <ClinicalUnitWorkbench />
       </>}
     </div>
   );
@@ -216,6 +217,172 @@ export function Documents() {
   );
 
   return <ResizableSplit pane={pane} inspector={inspector} inspectorLabel="Selected source" />;
+}
+
+type ClinicalAnalysisVm = {
+  disclaimer: string;
+  shac_notice: string;
+  sections: Array<{ label: string; header: string; loinc_code: string | null }>;
+  context_assertions: Array<{ text: string; negation: string; temporality: string; certainty: string; experiencer: string }>;
+  parsed_sigs: Array<{ raw: string; dose: number | null; unit: string | null; route: string | null; frequency_per_day: number | null; as_needed: boolean }>;
+  sdoh: Array<{ category: string; value: string; status: string }>;
+  specialty_result: Record<string, unknown> | null;
+  claim_conflict_count: number;
+};
+
+type UnitsConvertVm = {
+  parsed: { input: string; status: string; normalized_unit: string | null; canonical_unit: string | null; reason: string };
+  conversion: { status: string; magnitude: number | null; to_unit: string; analyte: string | null; reason: string; advisory: string } | null;
+};
+
+function ClinicalUnitWorkbench() {
+  const [note, setNote] = useState(
+    "Assessment:\nDenies chest pain.\nMedications:\nMetformin 500 mg tablet by mouth twice daily for 30 days\nSocial History:\nUnemployed.",
+  );
+  const [specialty, setSpecialty] = useState("");
+  const [clinBusy, setClinBusy] = useState(false);
+  const [clinErr, setClinErr] = useState<CmdError | null>(null);
+  const [clin, setClin] = useState<ClinicalAnalysisVm | null>(null);
+
+  const [uVal, setUVal] = useState("90");
+  const [uFrom, setUFrom] = useState("mg/dL");
+  const [uTo, setUTo] = useState("mmol/L");
+  const [uAnalyte, setUAnalyte] = useState("glucose");
+  const [uBusy, setUBusy] = useState(false);
+  const [uErr, setUErr] = useState<CmdError | null>(null);
+  const [unitRes, setUnitRes] = useState<UnitsConvertVm | null>(null);
+
+  async function analyzeNote(e: FormEvent) {
+    e.preventDefault();
+    if (!note.trim() || clinBusy) return;
+    setClinBusy(true);
+    setClinErr(null);
+    try {
+      const res = await call<ClinicalAnalysisVm>("clinical_v4_analyze", {
+        text: note,
+        specialty: specialty || null,
+      });
+      setClin(res);
+    } catch (err) {
+      setClinErr(err as CmdError);
+    } finally {
+      setClinBusy(false);
+    }
+  }
+
+  async function convertUnit(e: FormEvent) {
+    e.preventDefault();
+    if (!uFrom.trim() || uBusy) return;
+    setUBusy(true);
+    setUErr(null);
+    const valNum = Number.parseFloat(uVal);
+    try {
+      const res = await call<UnitsConvertVm>("units_v4_convert", {
+        value: Number.isFinite(valNum) ? valNum : 1,
+        fromUnit: uFrom,
+        toUnit: uTo.trim() || null,
+        analyte: uAnalyte.trim() || null,
+      });
+      setUnitRes(res);
+    } catch (err) {
+      setUErr(err as CmdError);
+    } finally {
+      setUBusy(false);
+    }
+  }
+
+  return (
+    <Section title="Clinical note & unit workbench">
+      <div className="stack" style={{ gap: 14 }}>
+        <form onSubmit={analyzeNote} className="viz-frame stack" style={{ gap: 10 }}>
+          <div style={{ display: "grid", gridTemplateColumns: "minmax(0, 1fr) 180px", gap: 10 }}>
+            <div>
+              <label className="lbl" htmlFor="cn-note">Synthetic clinical note (LOINC sections, ConText, Sig & SDOH)</label>
+              <input id="cn-note" value={note} maxLength={4000} onChange={(e) => setNote(e.target.value)} style={{ width: "100%" }} />
+            </div>
+            <div>
+              <label className="lbl" htmlFor="cn-spec">Specialty profile</label>
+              <select id="cn-spec" value={specialty} onChange={(e) => setSpecialty(e.target.value)} style={{ width: "100%" }}>
+                <option value="">general</option>
+                <option value="radiology">radiology</option>
+                <option value="pathology">pathology</option>
+                <option value="discharge">discharge</option>
+              </select>
+            </div>
+          </div>
+          <div className="row-gap" style={{ gap: 10 }}>
+            <button type="submit" className="btn btn-s" disabled={clinBusy}>{clinBusy ? <><Glyph kind="running" />Analyzing</> : "Analyze note"}</button>
+          </div>
+          {clinErr && <ErrorState error={clinErr} />}
+          {clin && (
+            <div className="stack" style={{ gap: 8, paddingTop: 6, borderTop: "1px solid var(--line-subtle)" }}>
+              <Ledger items={[
+                { k: "sections", v: clin.sections.length, mono: true },
+                { k: "assertions", v: clin.context_assertions.length, mono: true },
+                { k: "parsed_sigs", v: clin.parsed_sigs.length, mono: true },
+                { k: "sdoh", v: clin.sdoh.length, mono: true },
+              ]} />
+              {clin.context_assertions.slice(0, 5).map((a, i) => (
+                <div key={i} className="lr" style={{ gridTemplateColumns: "minmax(0, 1fr) 100px 100px 100px" }}>
+                  <span className="t-sm trunc">{a.text}</span>
+                  <Status kind={a.negation === "negated" ? "cancelled" : "present"} weight="weak">{a.negation}</Status>
+                  <span className="mono t-mono-sm i2">{a.temporality}</span>
+                  <span className="mono t-mono-sm i2">{a.experiencer}</span>
+                </div>
+              ))}
+              {clin.parsed_sigs.map((s, i) => (
+                <div key={i} className="lr" style={{ gridTemplateColumns: "minmax(0, 1fr) 180px" }}>
+                  <span className="t-sm trunc">{s.raw}</span>
+                  <span className="mono t-mono-sm i2">{s.dose ?? "?"} {s.unit ?? ""} · {s.route ?? "unspecified"} · {s.frequency_per_day ?? "?"}/d</span>
+                </div>
+              ))}
+              <p className="t-sm i3">{clin.disclaimer}</p>
+            </div>
+          )}
+        </form>
+
+        <form onSubmit={convertUnit} className="viz-frame stack" style={{ gap: 10 }}>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(130px, 1fr))", gap: 10 }}>
+            <div>
+              <label className="lbl" htmlFor="uc-val">Value</label>
+              <input id="uc-val" value={uVal} maxLength={32} onChange={(e) => setUVal(e.target.value)} style={{ width: "100%" }} />
+            </div>
+            <div>
+              <label className="lbl" htmlFor="uc-from">From UCUM</label>
+              <input id="uc-from" value={uFrom} maxLength={64} onChange={(e) => setUFrom(e.target.value)} style={{ width: "100%" }} />
+            </div>
+            <div>
+              <label className="lbl" htmlFor="uc-to">To UCUM</label>
+              <input id="uc-to" value={uTo} maxLength={64} onChange={(e) => setUTo(e.target.value)} style={{ width: "100%" }} />
+            </div>
+            <div>
+              <label className="lbl" htmlFor="uc-an">Analyte (optional)</label>
+              <input id="uc-an" value={uAnalyte} maxLength={64} onChange={(e) => setUAnalyte(e.target.value)} style={{ width: "100%" }} />
+            </div>
+          </div>
+          <div className="row-gap" style={{ gap: 10 }}>
+            <button type="submit" className="btn btn-s" disabled={uBusy}>{uBusy ? <><Glyph kind="running" />Converting</> : "Convert unit"}</button>
+          </div>
+          {uErr && <ErrorState error={uErr} />}
+          {unitRes && (
+            <div className="stack" style={{ gap: 6, paddingTop: 6, borderTop: "1px solid var(--line-subtle)" }}>
+              <div className="row-gap" style={{ gap: 10, flexWrap: "wrap" }}>
+                <Status kind={unitRes.conversion?.status === "ok" || unitRes.parsed.status === "ok" ? "present" : "needs-review"} weight="strong">
+                  {unitRes.conversion?.status ?? unitRes.parsed.status}
+                </Status>
+                <span className="mono t-mono-sm">
+                  {unitRes.conversion?.magnitude !== null && unitRes.conversion?.magnitude !== undefined
+                    ? `${unitRes.conversion.magnitude.toFixed(4)} ${unitRes.conversion.to_unit}`
+                    : `${unitRes.parsed.normalized_unit ?? unitRes.parsed.input} (${unitRes.parsed.canonical_unit ?? "unknown"})`}
+                </span>
+              </div>
+              <p className="t-sm i3">{unitRes.conversion?.reason ?? unitRes.parsed.reason}</p>
+            </div>
+          )}
+        </form>
+      </div>
+    </Section>
+  );
 }
 
 /* ───────────────────────────── Evidence ───────────────────────────── */

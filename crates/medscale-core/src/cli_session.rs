@@ -50,6 +50,17 @@ impl CliSession {
         )
     }
 
+    /// Least-privilege session for Wave 2 OpenMed v4 privacy presets, table risk,
+    /// clinical NLP, and compositional UCUM endpoints on Desktop before a vault opens.
+    pub fn connect_wave2_studio(vault_id: &str) -> Result<Self, AuthorityError> {
+        Self::connect_with_grants(
+            vault_id,
+            "medscale-wave2-studio",
+            "wave2-studio-holder",
+            vec![Capability::PrivacyRead, Capability::ClinicalV4Read],
+        )
+    }
+
     fn connect_with_grants(
         vault_id: &str,
         client_id: &str,
@@ -771,6 +782,93 @@ impl CliSession {
             return Err(Self::unexpected("model catalog manifest diff"));
         };
         Ok(*diff)
+    }
+
+    /// List the 25 privacy policy presets (24 OpenMed v4 + `saudi_pdpl`).
+    pub fn privacy_v4_presets(
+        &mut self,
+        request: medscale_contracts::openmed_wave2::PrivacyV4PresetsRequest,
+    ) -> Result<medscale_contracts::openmed_wave2::PrivacyV4PresetsResponse, AuthorityError> {
+        let resp = self.dispatch(
+            Capability::PrivacyRead,
+            RequestBody::PrivacyV4Presets {
+                request: Box::new(request),
+            },
+        )?;
+        let ResponseBody::PrivacyV4Presets { response } = resp else {
+            return Err(Self::unexpected("privacy v4 presets"));
+        };
+        Ok(*response)
+    }
+
+    /// De-identify synthetic text with policy presets, calendar date shift, RTL isolation,
+    /// clinical-protect, safety-sweep, and tamper-evident compliance receipt.
+    pub fn privacy_v4_deidentify(
+        &mut self,
+        request: medscale_contracts::openmed_wave2::PrivacyV4DeidentifyRequest,
+    ) -> Result<medscale_contracts::openmed_wave2::PrivacyV4DeidentifyResponse, AuthorityError>
+    {
+        let resp = self.dispatch(
+            Capability::PrivacyRead,
+            RequestBody::PrivacyV4Deidentify {
+                request: Box::new(request),
+            },
+        )?;
+        let ResponseBody::PrivacyV4Deidentify { response } = resp else {
+            return Err(Self::unexpected("privacy v4 deidentify"));
+        };
+        Ok(*response)
+    }
+
+    /// Compute k-anonymity, l-diversity, t-closeness & prosecutor/journalist/marketer risk.
+    pub fn privacy_v4_risk(
+        &mut self,
+        request: medscale_contracts::openmed_wave2::PrivacyV4RiskRequest,
+    ) -> Result<medscale_contracts::openmed_wave2::PrivacyV4RiskResponse, AuthorityError> {
+        let resp = self.dispatch(
+            Capability::PrivacyRead,
+            RequestBody::PrivacyV4Risk {
+                request: Box::new(request),
+            },
+        )?;
+        let ResponseBody::PrivacyV4Risk { response } = resp else {
+            return Err(Self::unexpected("privacy v4 risk"));
+        };
+        Ok(*response)
+    }
+
+    /// Deterministic Wave 2 clinical NLP, ConText, Sig, med-rec, guarded dosing, SDOH & NLI.
+    pub fn clinical_v4_analyze(
+        &mut self,
+        request: medscale_contracts::openmed_wave2::ClinicalV4AnalyzeRequest,
+    ) -> Result<medscale_contracts::openmed_wave2::ClinicalV4AnalyzeResponse, AuthorityError> {
+        let resp = self.dispatch(
+            Capability::ClinicalV4Read,
+            RequestBody::ClinicalV4Analyze {
+                request: Box::new(request),
+            },
+        )?;
+        let ResponseBody::ClinicalV4Analyze { response } = resp else {
+            return Err(Self::unexpected("clinical v4 analyze"));
+        };
+        Ok(*response)
+    }
+
+    /// Compositional UCUM v4 parse, normalization & explicit analyte-aware conversion.
+    pub fn units_v4_convert(
+        &mut self,
+        request: medscale_contracts::openmed_wave2::UnitsV4ConvertRequest,
+    ) -> Result<medscale_contracts::openmed_wave2::UnitsV4ConvertResponse, AuthorityError> {
+        let resp = self.dispatch(
+            Capability::ClinicalV4Read,
+            RequestBody::UnitsV4Convert {
+                request: Box::new(request),
+            },
+        )?;
+        let ResponseBody::UnitsV4Convert { response } = resp else {
+            return Err(Self::unexpected("units v4 convert"));
+        };
+        Ok(*response)
     }
 
     /// Read the durable external-action outbox through the same authority facade as Desktop.
