@@ -281,7 +281,9 @@ pub fn models_evaluate_batch(
 ) -> CmdResult<Value> {
     let pack_id = host::bounded_id(&pack_id)?.to_owned();
     if inputs.is_empty() || inputs.len() > 32 {
-        return Err(CmdError::invalid("Invalid: provide 1 to 32 synthetic inputs"));
+        return Err(CmdError::invalid(
+            "Invalid: provide 1 to 32 synthetic inputs",
+        ));
     }
     let bounded_inputs = inputs
         .into_iter()
