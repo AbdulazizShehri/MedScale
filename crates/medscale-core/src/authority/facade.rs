@@ -46,6 +46,12 @@ pub struct CoreFacade {
     /// Spec 104: prepared candle safetensors models, with the same budget.
     prepared_candle_models:
         Mutex<medscale_pack::ResidencyPool<Arc<medscale_pack::PreparedCandleTokenClassifier>>>,
+    /// Wave 1: prepared candle sequence classifiers (NLI / triage), same budget.
+    prepared_candle_seq_models:
+        Mutex<medscale_pack::ResidencyPool<Arc<medscale_pack::PreparedCandleSequenceClassifier>>>,
+    /// Wave 1: prepared ONNX sequence classifiers, same budget.
+    prepared_onnx_seq_models:
+        Mutex<medscale_pack::ResidencyPool<Arc<medscale_pack::PreparedOnnxSequenceClassifier>>>,
     /// Spec 104: prepared GLiNER zero-shot models, with the same budget.
     prepared_gliner_models:
         Mutex<medscale_pack::ResidencyPool<Arc<medscale_pack::PreparedGlinerSpanModel>>>,
@@ -129,6 +135,12 @@ impl CoreFacade {
                 PREPARED_MODEL_BUDGET_BYTES,
             )),
             prepared_candle_models: Mutex::new(medscale_pack::ResidencyPool::new(
+                PREPARED_MODEL_BUDGET_BYTES,
+            )),
+            prepared_candle_seq_models: Mutex::new(medscale_pack::ResidencyPool::new(
+                PREPARED_MODEL_BUDGET_BYTES,
+            )),
+            prepared_onnx_seq_models: Mutex::new(medscale_pack::ResidencyPool::new(
                 PREPARED_MODEL_BUDGET_BYTES,
             )),
             prepared_gliner_models: Mutex::new(medscale_pack::ResidencyPool::new(
@@ -647,6 +659,14 @@ impl CoreFacade {
                 resident_rows(&self.prepared_candle_models()),
             ),
             (
+                "candle_sequence_classifier",
+                resident_rows(&self.prepared_candle_seq_models()),
+            ),
+            (
+                "tract_onnx_sequence_classifier",
+                resident_rows(&self.prepared_onnx_seq_models()),
+            ),
+            (
                 "candle_gliner",
                 resident_rows(&self.prepared_gliner_models()),
             ),
@@ -709,6 +729,28 @@ impl CoreFacade {
             .unwrap_or_else(std::sync::PoisonError::into_inner)
     }
 
+    fn prepared_candle_seq_models(
+        &self,
+    ) -> std::sync::MutexGuard<
+        '_,
+        medscale_pack::ResidencyPool<Arc<medscale_pack::PreparedCandleSequenceClassifier>>,
+    > {
+        self.prepared_candle_seq_models
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner)
+    }
+
+    fn prepared_onnx_seq_models(
+        &self,
+    ) -> std::sync::MutexGuard<
+        '_,
+        medscale_pack::ResidencyPool<Arc<medscale_pack::PreparedOnnxSequenceClassifier>>,
+    > {
+        self.prepared_onnx_seq_models
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner)
+    }
+
     fn prepared_gliner_models(
         &self,
     ) -> std::sync::MutexGuard<
@@ -729,6 +771,559 @@ impl CoreFacade {
         self.prepared_generators
             .lock()
             .unwrap_or_else(std::sync::PoisonError::into_inner)
+    }
+
+    fn resident_artifact_bytes(
+        path: &std::path::Path,
+        manifest: &medscale_contracts::packs::PackManifestV0,
+        kind: medscale_contracts::packs::PackArtifactKind,
+    ) -> u64 {
+        manifest
+            .artifacts
+            .iter()
+            .filter(|a| a.kind == kind)
+            .filter_map(|a| std::fs::metadata(path.join(&a.relative_path)).ok())
+            .map(|m| m.len())
+            .sum::<u64>()
+            .max(1)
+    }
+
+    fn record_pack_eval_audit(
+        &self,
+        realm_id: medscale_contracts::objects::RealmId,
+        authority_scope_id: medscale_contracts::objects::AuthorityScopeId,
+        action: &str,
+        pack_id: &OpaqueId,
+        detail: serde_json::Value,
+    ) -> OpaqueId {
+        let mut store = self.store();
+        let audit_id = store.alloc_id("audit");
+        store.insert(StoredObject::Audit(ActionAuditRecord {
+            header: ObjectHeader {
+                id: audit_id.clone(),
+                schema_version: AUTHORITY_SCHEMA_VERSION,
+                realm_id,
+                authority_scope_id,
+            },
+            kind: ActionAuditKind::Audit,
+            actor: OpaqueId::new("pack-runtime"),
+            action: action.to_owned(),
+            target_refs: vec![pack_id.clone()],
+            effect_state: None,
+            payload_digest: None,
+            detail: Some(detail),
+        }));
+        audit_id
+    }
+
+    fn prepare_candle_seq_cached(
+        &self,
+        path: &std::path::Path,
+        manifest: &medscale_contracts::packs::PackManifestV0,
+    ) -> Result<(Arc<medscale_pack::PreparedCandleSequenceClassifier>, bool), AuthorityError> {
+        let key = manifest.content_digest.to_hex();
+        if let Some(cached) = self.prepared_candle_seq_models().get(&key).cloned() {
+            return Ok((cached, true));
+        }
+        let candidate = Arc::new(
+            medscale_pack::prepare_candle_sequence_classifier(path, manifest).map_err(|err| {
+                AuthorityError::InvalidArgument {
+                    message: format!("pack runtime preparation failed: {err}"),
+                }
+            })?,
+        );
+        let resident_bytes = Self::resident_artifact_bytes(
+            path,
+            manifest,
+            medscale_contracts::packs::PackArtifactKind::SafetensorsModel,
+        );
+        let mut cache = self.prepared_candle_seq_models();
+        if let Some(existing) = cache.get(&key).cloned() {
+            Ok((existing, true))
+        } else {
+            let _ = cache.load(&key, resident_bytes, Arc::clone(&candidate));
+            Ok((candidate, false))
+        }
+    }
+
+    fn prepare_onnx_seq_cached(
+        &self,
+        path: &std::path::Path,
+        manifest: &medscale_contracts::packs::PackManifestV0,
+        max_tokens: usize,
+    ) -> Result<(Arc<medscale_pack::PreparedOnnxSequenceClassifier>, bool), AuthorityError> {
+        let runtime =
+            medscale_pack::OnnxSequenceClassifierRuntime::new(max_tokens).map_err(|err| {
+                AuthorityError::InvalidArgument {
+                    message: format!("pack runtime configuration denied: {err}"),
+                }
+            })?;
+        let key = manifest.content_digest.to_hex();
+        if let Some(prepared) = self.prepared_onnx_seq_models().get(&key).cloned() {
+            if usize::try_from(prepared.provenance().fixed_sequence_length).unwrap_or(usize::MAX)
+                > max_tokens
+            {
+                return Err(AuthorityError::InvalidArgument {
+                    message: "pack runtime token ceiling is below the prepared model requirement"
+                        .to_owned(),
+                });
+            }
+            return Ok((prepared, true));
+        }
+        let candidate = Arc::new(runtime.prepare(path, manifest).map_err(|err| {
+            AuthorityError::InvalidArgument {
+                message: format!("pack runtime preparation failed: {err}"),
+            }
+        })?);
+        let resident_bytes = Self::resident_artifact_bytes(
+            path,
+            manifest,
+            medscale_contracts::packs::PackArtifactKind::OnnxModel,
+        );
+        let mut cache = self.prepared_onnx_seq_models();
+        if let Some(existing) = cache.get(&key).cloned() {
+            Ok((existing, true))
+        } else {
+            let _ = cache.load(&key, resident_bytes, Arc::clone(&candidate));
+            Ok((candidate, false))
+        }
+    }
+
+    fn evaluate_candle_seq_pack(
+        &self,
+        path: &std::path::Path,
+        manifest: &medscale_contracts::packs::PackManifestV0,
+        input: &str,
+        realm_id: medscale_contracts::objects::RealmId,
+        authority_scope_id: medscale_contracts::objects::AuthorityScopeId,
+    ) -> Result<ResponseBody, AuthorityError> {
+        let (prepared, prepared_cache_hit) = self.prepare_candle_seq_cached(path, manifest)?;
+        let output = prepared.run(&manifest.pack_id, input).map_err(|err| {
+            AuthorityError::InvalidArgument {
+                message: format!("pack runtime evaluation failed: {err}"),
+            }
+        })?;
+        let audit_id = self.record_pack_eval_audit(
+            realm_id,
+            authority_scope_id,
+            "packs.evaluate_local",
+            &manifest.pack_id,
+            serde_json::json!({
+                "runtime": medscale_pack::CANDLE_SEQUENCE_CLASSIFIER_RUNTIME_ID,
+                "input_bytes": input.len(),
+                "evidence_only": true,
+                "synthetic_only": true,
+                "prepared_cache_hit": prepared_cache_hit,
+            }),
+        );
+        Ok(ResponseBody::PackEvaluation {
+            result: medscale_contracts::packs::PackEvaluationResult {
+                pack_id: output.pack_id,
+                content_digest: manifest.content_digest.clone(),
+                runtime_id: medscale_pack::CANDLE_SEQUENCE_CLASSIFIER_RUNTIME_ID.to_owned(),
+                prepared_cache_hit,
+                evidence_only: output.evidence_only,
+                proposal_payload: output.proposal_payload,
+                provenance: prepared.provenance().clone(),
+                audit_id,
+            },
+        })
+    }
+
+    fn evaluate_onnx_seq_pack(
+        &self,
+        path: &std::path::Path,
+        manifest: &medscale_contracts::packs::PackManifestV0,
+        input: &str,
+        max_tokens: usize,
+        realm_id: medscale_contracts::objects::RealmId,
+        authority_scope_id: medscale_contracts::objects::AuthorityScopeId,
+    ) -> Result<ResponseBody, AuthorityError> {
+        let (prepared, prepared_cache_hit) =
+            self.prepare_onnx_seq_cached(path, manifest, max_tokens)?;
+        let evaluation = prepared.run(&manifest.pack_id, input).map_err(|err| {
+            AuthorityError::InvalidArgument {
+                message: format!("pack runtime evaluation failed: {err}"),
+            }
+        })?;
+        let audit_id = self.record_pack_eval_audit(
+            realm_id,
+            authority_scope_id,
+            "packs.evaluate_local",
+            &manifest.pack_id,
+            serde_json::json!({
+                "runtime": medscale_pack::ONNX_SEQUENCE_CLASSIFIER_RUNTIME_ID,
+                "input_bytes": input.len(),
+                "evidence_only": true,
+                "synthetic_only": true,
+                "prepared_cache_hit": prepared_cache_hit,
+            }),
+        );
+        Ok(ResponseBody::PackEvaluation {
+            result: medscale_contracts::packs::PackEvaluationResult {
+                pack_id: evaluation.output.pack_id,
+                content_digest: manifest.content_digest.clone(),
+                runtime_id: medscale_pack::ONNX_SEQUENCE_CLASSIFIER_RUNTIME_ID.to_owned(),
+                prepared_cache_hit,
+                evidence_only: evaluation.output.evidence_only,
+                proposal_payload: evaluation.output.proposal_payload,
+                provenance: evaluation.provenance,
+                audit_id,
+            },
+        })
+    }
+
+    fn evaluate_pack_batch(
+        &self,
+        vault_id: &medscale_contracts::objects::VaultId,
+        realm_id: medscale_contracts::objects::RealmId,
+        authority_scope_id: medscale_contracts::objects::AuthorityScopeId,
+        request: medscale_contracts::packs::PackBatchEvaluationRequest,
+    ) -> Result<ResponseBody, AuthorityError> {
+        self.require_lease(vault_id)?;
+        if !request.synthetic_only {
+            return Err(AuthorityError::ExternalGateRequired {
+                gate: "REAL_PHI_MODEL_RUNTIME".to_owned(),
+            });
+        }
+        if request.inputs.is_empty() || request.inputs.len() > medscale_pack::MAX_BATCH_ITEMS {
+            return Err(AuthorityError::InvalidArgument {
+                message: format!(
+                    "batch inputs must contain between 1 and {} items",
+                    medscale_pack::MAX_BATCH_ITEMS
+                ),
+            });
+        }
+        let path = std::path::Path::new(&request.local_path);
+        let manifest =
+            medscale_pack::admit_pack_dir(path).map_err(|err| AuthorityError::InvalidArgument {
+                message: format!("pack evaluation admission failed: {err}"),
+            })?;
+        if manifest.pack_id != request.pack_id {
+            return Err(AuthorityError::DigestMismatch);
+        }
+        let stored = self
+            .packs()
+            .get(&request.pack_id)
+            .ok_or(AuthorityError::NotFound)?;
+        if stored.content_digest != manifest.content_digest
+            || stored.pack_epoch != manifest.pack_epoch
+            || stored.version != manifest.version
+        {
+            return Err(AuthorityError::DigestMismatch);
+        }
+        let max_tokens =
+            usize::try_from(request.max_tokens).map_err(|_| AuthorityError::InvalidArgument {
+                message: "max_tokens is not representable".to_owned(),
+            })?;
+        let cancel = std::sync::atomic::AtomicBool::new(false);
+        let has_req = |id: &str| manifest.runtime_requirements.split(';').any(|r| r == id);
+        let candle = medscale_pack::pack_runtime_kind(&manifest)
+            == Some(medscale_pack::PackRuntimeKind::CandleSafetensors);
+
+        let (runtime_id, prepared_cache_hit, provenance, batch_items) = if candle
+            && has_req(medscale_pack::CANDLE_SEQUENCE_CLASSIFIER_RUNTIME_ID)
+        {
+            if request.decoding.is_some() || request.zero_shot_labels.is_some() {
+                return Err(AuthorityError::InvalidArgument {
+                    message:
+                        "sequence classifiers do not accept token decoding or zero-shot labels"
+                            .to_owned(),
+                });
+            }
+            let (prepared, hit) = self.prepare_candle_seq_cached(path, &manifest)?;
+            let items = prepared
+                .run_batch_cancellable(&manifest.pack_id, &request.inputs, &cancel)
+                .map_err(|err| AuthorityError::InvalidArgument {
+                    message: format!("pack batch evaluation failed: {err}"),
+                })?;
+            (
+                medscale_pack::CANDLE_SEQUENCE_CLASSIFIER_RUNTIME_ID.to_owned(),
+                hit,
+                prepared.provenance().clone(),
+                items,
+            )
+        } else if !candle && has_req(medscale_pack::ONNX_SEQUENCE_CLASSIFIER_RUNTIME_ID) {
+            if request.decoding.is_some() || request.zero_shot_labels.is_some() {
+                return Err(AuthorityError::InvalidArgument {
+                    message:
+                        "sequence classifiers do not accept token decoding or zero-shot labels"
+                            .to_owned(),
+                });
+            }
+            let (prepared, hit) = self.prepare_onnx_seq_cached(path, &manifest, max_tokens)?;
+            let items = prepared
+                .run_batch_cancellable(&manifest.pack_id, &request.inputs, &cancel)
+                .map_err(|err| AuthorityError::InvalidArgument {
+                    message: format!("pack batch evaluation failed: {err}"),
+                })?;
+            (
+                medscale_pack::ONNX_SEQUENCE_CLASSIFIER_RUNTIME_ID.to_owned(),
+                hit,
+                prepared.provenance().clone(),
+                items,
+            )
+        } else if candle {
+            let resident_key = manifest.content_digest.to_hex();
+            let resident_gliner = self.prepared_gliner_models().get(&resident_key).is_some();
+            let resident_candle = self.prepared_candle_models().get(&resident_key).is_some();
+            let zero_shot = resident_gliner
+                || (!resident_candle
+                    && medscale_pack::pack_is_gliner_span(path, &manifest).map_err(|err| {
+                        AuthorityError::InvalidArgument {
+                            message: format!("pack runtime preparation failed: {err}"),
+                        }
+                    })?);
+            if zero_shot {
+                if request.decoding.is_some() {
+                    return Err(AuthorityError::InvalidArgument {
+                        message: "decoding applies only to token-classification Packs".to_owned(),
+                    });
+                }
+                let labels = request.zero_shot_labels.as_ref().ok_or_else(|| {
+                    AuthorityError::InvalidArgument {
+                        message: "zero-shot Pack requires zero_shot_labels".to_owned(),
+                    }
+                })?;
+                let key = manifest.content_digest.to_hex();
+                let cached = self.prepared_gliner_models().get(&key).cloned();
+                let (prepared, hit) = if let Some(p) = cached {
+                    (p, true)
+                } else {
+                    let candidate = Arc::new(
+                        medscale_pack::prepare_gliner_span_model(path, &manifest).map_err(
+                            |err| AuthorityError::InvalidArgument {
+                                message: format!("pack runtime preparation failed: {err}"),
+                            },
+                        )?,
+                    );
+                    let resident_bytes = Self::resident_artifact_bytes(
+                        path,
+                        &manifest,
+                        medscale_contracts::packs::PackArtifactKind::SafetensorsModel,
+                    );
+                    let mut cache = self.prepared_gliner_models();
+                    if let Some(existing) = cache.get(&key).cloned() {
+                        (existing, true)
+                    } else {
+                        let _ = cache.load(&key, resident_bytes, Arc::clone(&candidate));
+                        (candidate, false)
+                    }
+                };
+                let label_refs: Vec<&str> = labels.iter().map(String::as_str).collect();
+                let items = medscale_pack::evaluate_texts_ordered_cancellable(
+                    &request.inputs,
+                    &cancel,
+                    AuthorityError::InvalidArgument {
+                        message: "pack batch evaluation cancelled".to_owned(),
+                    },
+                    |text| {
+                        prepared
+                            .run(
+                                &manifest.pack_id,
+                                text,
+                                &label_refs,
+                                medscale_pack::GLINER_DEFAULT_THRESHOLD,
+                            )
+                            .map(|o| o.proposal_payload)
+                            .map_err(|err| AuthorityError::InvalidArgument {
+                                message: format!("pack runtime evaluation failed: {err}"),
+                            })
+                    },
+                )
+                .map_err(|err| match err {
+                    Ok(e) => e,
+                    Err(e) => AuthorityError::InvalidArgument {
+                        message: e.to_string(),
+                    },
+                })?;
+                (
+                    medscale_pack::GLINER_ZERO_SHOT_RUNTIME_ID.to_owned(),
+                    hit,
+                    prepared.provenance().clone(),
+                    items,
+                )
+            } else {
+                if request.zero_shot_labels.is_some() {
+                    return Err(AuthorityError::InvalidArgument {
+                        message: "zero_shot_labels apply only to zero-shot Packs".to_owned(),
+                    });
+                }
+                let key = manifest.content_digest.to_hex();
+                let cached = self.prepared_candle_models().get(&key).cloned();
+                let (prepared, hit) = if let Some(p) = cached {
+                    (p, true)
+                } else {
+                    let candidate = Arc::new(
+                        medscale_pack::prepare_candle_token_classifier(path, &manifest).map_err(
+                            |err| AuthorityError::InvalidArgument {
+                                message: format!("pack runtime preparation failed: {err}"),
+                            },
+                        )?,
+                    );
+                    let resident_bytes = Self::resident_artifact_bytes(
+                        path,
+                        &manifest,
+                        medscale_contracts::packs::PackArtifactKind::SafetensorsModel,
+                    );
+                    let mut cache = self.prepared_candle_models();
+                    if let Some(existing) = cache.get(&key).cloned() {
+                        (existing, true)
+                    } else {
+                        let _ = cache.load(&key, resident_bytes, Arc::clone(&candidate));
+                        (candidate, false)
+                    }
+                };
+                let (aggregation, pii_semantic_merge) =
+                    decoding_options(request.decoding.unwrap_or_default(), prepared.provenance());
+                let items = prepared
+                    .run_batch_cancellable(
+                        &manifest.pack_id,
+                        &request.inputs,
+                        medscale_pack::CandleRunOptions {
+                            aggregation,
+                            pii_semantic_merge,
+                            ..medscale_pack::CandleRunOptions::default()
+                        },
+                        &cancel,
+                    )
+                    .map_err(|err| AuthorityError::InvalidArgument {
+                        message: format!("pack batch evaluation failed: {err}"),
+                    })?;
+                (
+                    medscale_pack::CANDLE_TOKEN_CLASSIFIER_RUNTIME_ID.to_owned(),
+                    hit,
+                    prepared.provenance().clone(),
+                    items,
+                )
+            }
+        } else {
+            if request.zero_shot_labels.is_some() {
+                return Err(AuthorityError::InvalidArgument {
+                    message: "zero_shot_labels apply only to zero-shot Packs".to_owned(),
+                });
+            }
+            let runtime =
+                medscale_pack::OnnxTokenClassifierRuntime::new(max_tokens).map_err(|err| {
+                    AuthorityError::InvalidArgument {
+                        message: format!("pack runtime configuration denied: {err}"),
+                    }
+                })?;
+            let key = manifest.content_digest.to_hex();
+            let cached = self
+                .prepared_models()
+                .get(&key)
+                .filter(|p| p.matches_runtime_contract(&manifest))
+                .cloned();
+            let (prepared, hit) = if let Some(p) = cached {
+                if p.fixed_sequence_length() > max_tokens {
+                    return Err(AuthorityError::InvalidArgument {
+                        message:
+                            "pack runtime token ceiling is below the prepared model requirement"
+                                .to_owned(),
+                    });
+                }
+                (p, true)
+            } else {
+                let candidate = Arc::new(runtime.prepare(path, &manifest).map_err(|err| {
+                    AuthorityError::InvalidArgument {
+                        message: format!("pack runtime preparation failed: {err}"),
+                    }
+                })?);
+                let resident_bytes = Self::resident_artifact_bytes(
+                    path,
+                    &manifest,
+                    medscale_contracts::packs::PackArtifactKind::OnnxModel,
+                );
+                let mut cache = self.prepared_models();
+                if let Some(existing) = cache
+                    .get(&key)
+                    .filter(|p| p.matches_runtime_contract(&manifest))
+                    .cloned()
+                {
+                    (existing, true)
+                } else {
+                    let _ = cache.load(&key, resident_bytes, Arc::clone(&candidate));
+                    (candidate, false)
+                }
+            };
+            let items = medscale_pack::evaluate_texts_ordered_cancellable(
+                &request.inputs,
+                &cancel,
+                AuthorityError::InvalidArgument {
+                    message: "pack batch evaluation cancelled".to_owned(),
+                },
+                |text| {
+                    let ev = match request.decoding {
+                        None => prepared.run(&manifest.pack_id, text),
+                        Some(decoding) => {
+                            let (aggregation, pii_semantic_merge) =
+                                decoding_options(decoding, prepared.provenance());
+                            prepared.run_document(
+                                &manifest.pack_id,
+                                text,
+                                medscale_pack::DocumentRunOptions {
+                                    aggregation,
+                                    pii_semantic_merge,
+                                    ..medscale_pack::DocumentRunOptions::default()
+                                },
+                            )
+                        }
+                    }
+                    .map_err(|err| AuthorityError::InvalidArgument {
+                        message: format!("pack runtime evaluation failed: {err}"),
+                    })?;
+                    Ok(ev.output.proposal_payload)
+                },
+            )
+            .map_err(|err| match err {
+                Ok(e) => e,
+                Err(e) => AuthorityError::InvalidArgument {
+                    message: e.to_string(),
+                },
+            })?;
+            (
+                medscale_pack::ONNX_TOKEN_CLASSIFIER_RUNTIME_ID.to_owned(),
+                hit,
+                prepared.provenance().clone(),
+                items,
+            )
+        };
+
+        let item_count = batch_items.len();
+        let items = batch_items
+            .into_iter()
+            .map(|item| {
+                serde_json::to_value(item).map_err(|err| AuthorityError::InvalidArgument {
+                    message: format!("failed to serialize batch item: {err}"),
+                })
+            })
+            .collect::<Result<Vec<_>, _>>()?;
+        let audit_id = self.record_pack_eval_audit(
+            realm_id,
+            authority_scope_id,
+            "packs.evaluate_batch",
+            &manifest.pack_id,
+            serde_json::json!({
+                "runtime": runtime_id,
+                "item_count": item_count,
+                "evidence_only": true,
+                "synthetic_only": true,
+                "prepared_cache_hit": prepared_cache_hit,
+            }),
+        );
+        Ok(ResponseBody::PackBatchEvaluation {
+            result: medscale_contracts::packs::PackBatchEvaluationResult {
+                pack_id: manifest.pack_id,
+                content_digest: manifest.content_digest,
+                runtime_id,
+                prepared_cache_hit,
+                evidence_only: true,
+                items,
+                provenance,
+                audit_id,
+            },
+        })
     }
 
     /// Spec 104: `PacksEvaluateLocal` for a Pack that declares the candle
@@ -2327,6 +2922,14 @@ impl CoreFacade {
                     unloaded.extend(unload_from(&mut candle, target.as_deref()));
                 }
                 {
+                    let mut candle_seq = self.prepared_candle_seq_models();
+                    unloaded.extend(unload_from(&mut candle_seq, target.as_deref()));
+                }
+                {
+                    let mut onnx_seq = self.prepared_onnx_seq_models();
+                    unloaded.extend(unload_from(&mut onnx_seq, target.as_deref()));
+                }
+                {
                     let mut gliner = self.prepared_gliner_models();
                     unloaded.extend(unload_from(&mut gliner, target.as_deref()));
                 }
@@ -2437,11 +3040,50 @@ impl CoreFacade {
                     (false, None) => {}
                 }
                 if candle {
+                    if manifest
+                        .runtime_requirements
+                        .split(';')
+                        .any(|r| r == medscale_pack::CANDLE_SEQUENCE_CLASSIFIER_RUNTIME_ID)
+                    {
+                        if request.decoding.is_some() {
+                            return Err(AuthorityError::InvalidArgument {
+                                message: "decoding applies only to token-classification Packs"
+                                    .to_owned(),
+                            });
+                        }
+                        return self.evaluate_candle_seq_pack(
+                            path,
+                            &manifest,
+                            &request.input,
+                            req.realm_id,
+                            req.authority_scope_id,
+                        );
+                    }
                     return self.evaluate_candle_pack(
                         path,
                         &manifest,
                         &request.input,
                         request.decoding,
+                        req.realm_id,
+                        req.authority_scope_id,
+                    );
+                }
+                if manifest
+                    .runtime_requirements
+                    .split(';')
+                    .any(|r| r == medscale_pack::ONNX_SEQUENCE_CLASSIFIER_RUNTIME_ID)
+                {
+                    if request.decoding.is_some() {
+                        return Err(AuthorityError::InvalidArgument {
+                            message: "decoding applies only to token-classification Packs"
+                                .to_owned(),
+                        });
+                    }
+                    return self.evaluate_onnx_seq_pack(
+                        path,
+                        &manifest,
+                        &request.input,
+                        max_tokens,
                         req.realm_id,
                         req.authority_scope_id,
                     );
@@ -2558,6 +3200,12 @@ impl CoreFacade {
                     },
                 })
             }
+            RequestBody::PacksEvaluateBatch { request } => self.evaluate_pack_batch(
+                &req.vault_id,
+                req.realm_id,
+                req.authority_scope_id,
+                request,
+            ),
             RequestBody::DocumentIntake { request } => {
                 self.require_lease(&req.vault_id)?;
                 let mut store = self.store();
@@ -4583,6 +5231,47 @@ impl CoreFacade {
                     page: Box::new(page),
                 })
             }
+            RequestBody::ModelCatalogRecommend { request } => {
+                let recommendations =
+                    crate::model_catalog::catalog_recommend(&request).map_err(|e| {
+                        AuthorityError::InvalidArgument {
+                            message: e.to_string(),
+                        }
+                    })?;
+                Ok(ResponseBody::ModelCatalogRecommendations {
+                    recommendations: Box::new(recommendations),
+                })
+            }
+            RequestBody::ModelCatalogCard { request } => {
+                let card = crate::model_catalog::catalog_model_card(&request).map_err(|e| {
+                    AuthorityError::InvalidArgument {
+                        message: e.to_string(),
+                    }
+                })?;
+                Ok(ResponseBody::ModelCatalogCard {
+                    card: Box::new(card),
+                })
+            }
+            RequestBody::ModelCatalogPreflight { request } => {
+                let preflight = crate::model_catalog::catalog_preflight(&request).map_err(|e| {
+                    AuthorityError::InvalidArgument {
+                        message: e.to_string(),
+                    }
+                })?;
+                Ok(ResponseBody::ModelCatalogPreflight {
+                    preflight: Box::new(preflight),
+                })
+            }
+            RequestBody::ModelCatalogManifestDiff { request } => {
+                let diff = crate::model_catalog::catalog_manifest_diff(&request).map_err(|e| {
+                    AuthorityError::InvalidArgument {
+                        message: e.to_string(),
+                    }
+                })?;
+                Ok(ResponseBody::ModelCatalogManifestDiff {
+                    diff: Box::new(diff),
+                })
+            }
             RequestBody::PackCatalog => Ok(ResponseBody::PackCatalog {
                 packs: super::data_sources::DataSources::pack_catalog(),
             }),
@@ -6202,6 +6891,7 @@ fn capability_matches(cap: &Capability, body: &RequestBody) -> bool {
             | (
                 Capability::PacksEvaluateLocal,
                 RequestBody::PacksEvaluateLocal { .. }
+                    | RequestBody::PacksEvaluateBatch { .. }
                     | RequestBody::PacksGenerateLocal { .. }
                     | RequestBody::PacksUnloadLocal { .. },
             )
@@ -6750,6 +7440,10 @@ fn capability_matches(cap: &Capability, body: &RequestBody) -> bool {
             | (
                 Capability::ModelCatalogRead,
                 RequestBody::ModelCatalogQuery { .. }
+                    | RequestBody::ModelCatalogRecommend { .. }
+                    | RequestBody::ModelCatalogCard { .. }
+                    | RequestBody::ModelCatalogPreflight { .. }
+                    | RequestBody::ModelCatalogManifestDiff { .. }
             )
             | (
                 Capability::PackRead,

@@ -87,6 +87,8 @@ pub enum AsrRuntimeError {
     InvalidLanguage,
     #[error("selected language is not supported by this Whisper checkpoint: {0}")]
     UnsupportedLanguage(String),
+    #[error("audio transcription was cancelled")]
+    Cancelled,
 }
 
 fn prep(e: impl fmt::Display) -> AsrRuntimeError {
@@ -362,8 +364,25 @@ impl PreparedWhisperAsr {
         samples: &[f32],
         language: &str,
     ) -> Result<String, AsrRuntimeError> {
+        self.transcribe_with_language_cancellable(
+            samples,
+            language,
+            &std::sync::atomic::AtomicBool::new(false),
+        )
+    }
+
+    /// [`Self::transcribe_with_language`] checking `cancel` between Mel windows.
+    pub fn transcribe_with_language_cancellable(
+        &self,
+        samples: &[f32],
+        language: &str,
+        cancel: &std::sync::atomic::AtomicBool,
+    ) -> Result<String, AsrRuntimeError> {
         if samples.is_empty() || samples.len() > MAX_ASR_SAMPLES {
             return Err(AsrRuntimeError::InputBound);
+        }
+        if cancel.load(std::sync::atomic::Ordering::Relaxed) {
+            return Err(AsrRuntimeError::Cancelled);
         }
         let language_id = self.language_token(language)?;
         let n_mels = self.config.num_mel_bins;
@@ -376,6 +395,9 @@ impl PreparedWhisperAsr {
         let mut text = String::new();
         let mut seek = 0;
         while seek < content_frames {
+            if cancel.load(std::sync::atomic::Ordering::Relaxed) {
+                return Err(AsrRuntimeError::Cancelled);
+            }
             let size = whisper::N_FRAMES.min(n_frames - seek);
             let window = mel.narrow(2, seek, size).map_err(exec)?;
             let window = if size < whisper::N_FRAMES {

@@ -636,6 +636,65 @@ enum PacksCmd {
         #[arg(long)]
         out: PathBuf,
     },
+    /// Recommend catalog models for a hardware device tier (`phone`, `laptop`,
+    /// `workstation`, or `server`). Read-only; uses bundled MedScale catalog
+    /// when `--snapshot` is omitted.
+    Recommend {
+        #[arg(long)]
+        snapshot: Option<PathBuf>,
+        #[arg(long)]
+        commit: Option<String>,
+        #[arg(long)]
+        repository: Option<String>,
+        /// Target tier: phone | laptop | workstation | server.
+        #[arg(long)]
+        tier: String,
+        #[arg(long)]
+        task: Option<String>,
+        #[arg(long)]
+        language: Option<String>,
+        #[arg(long, default_value_t = 20)]
+        limit: usize,
+    },
+    /// Render a MedScale Model Card for a source repository ID (`owner/name`).
+    Card {
+        #[arg(long)]
+        snapshot: Option<PathBuf>,
+        #[arg(long)]
+        commit: Option<String>,
+        #[arg(long)]
+        repository: Option<String>,
+        #[arg(long)]
+        repo_id: String,
+        #[arg(long)]
+        json: bool,
+    },
+    /// Structural diff across two JSONL catalog snapshots (`tier`, `param_count`,
+    /// `formats`, `license`, `benchmark`).
+    ManifestDiff {
+        #[arg(long)]
+        old_snapshot: PathBuf,
+        #[arg(long)]
+        new_snapshot: PathBuf,
+    },
+    /// Evaluate an ordered batch of synthetic inputs against a verified local Pack.
+    EvaluateBatch {
+        #[arg(long)]
+        vault_id: String,
+        #[arg(long)]
+        pack_id: String,
+        path: PathBuf,
+        #[arg(long = "input")]
+        inputs: Vec<String>,
+        #[arg(long, default_value_t = 512)]
+        max_tokens: u32,
+        #[arg(long)]
+        decoding: Option<String>,
+        #[arg(long = "label")]
+        labels: Vec<String>,
+        #[arg(long)]
+        synthetic_only: bool,
+    },
 }
 
 #[derive(Debug, Subcommand)]
@@ -1673,6 +1732,100 @@ fn run() -> Result<()> {
                     &out,
                 )?;
                 println!("{}", serde_json::to_string_pretty(&report)?);
+                Ok(())
+            }
+            PacksCmd::Recommend {
+                snapshot,
+                commit,
+                repository,
+                tier,
+                task,
+                language,
+                limit,
+            } => {
+                let req = medscale_contracts::model_catalog::ModelCatalogRecommendRequest {
+                    snapshot_path: snapshot.map(|p| p.display().to_string()),
+                    repository,
+                    commit,
+                    device_tier: tier,
+                    task,
+                    language,
+                    limit,
+                };
+                let resp = medscale_core::model_catalog::catalog_recommend(&req)?;
+                println!("{}", serde_json::to_string_pretty(&resp)?);
+                Ok(())
+            }
+            PacksCmd::Card {
+                snapshot,
+                commit,
+                repository,
+                repo_id,
+                json,
+            } => {
+                let req = medscale_contracts::model_catalog::ModelCatalogCardRequest {
+                    snapshot_path: snapshot.map(|p| p.display().to_string()),
+                    repository,
+                    commit,
+                    repo_id,
+                };
+                let card = medscale_core::model_catalog::catalog_model_card(&req)?;
+                if json {
+                    println!("{}", serde_json::to_string_pretty(&card)?);
+                } else {
+                    println!("{}", card.markdown);
+                }
+                Ok(())
+            }
+            PacksCmd::ManifestDiff {
+                old_snapshot,
+                new_snapshot,
+            } => {
+                let req = medscale_contracts::model_catalog::ModelCatalogManifestDiffRequest {
+                    old_snapshot_path: old_snapshot.display().to_string(),
+                    new_snapshot_path: new_snapshot.display().to_string(),
+                };
+                let diff = medscale_core::model_catalog::catalog_manifest_diff(&req)?;
+                println!("{}", serde_json::to_string_pretty(&diff)?);
+                Ok(())
+            }
+            PacksCmd::EvaluateBatch {
+                vault_id,
+                pack_id,
+                path,
+                inputs,
+                max_tokens,
+                decoding,
+                labels,
+                synthetic_only,
+            } => {
+                let decoding = decoding
+                    .filter(|d| !d.trim().is_empty())
+                    .map(|d| {
+                        serde_json::from_value::<medscale_contracts::packs::EntityDecoding>(
+                            serde_json::Value::String(d),
+                        )
+                    })
+                    .transpose()?;
+                let mut session = CliSession::connect(&vault_id).map_err(auth)?;
+                let installed = session
+                    .packs_install_local(&path.display().to_string())
+                    .map_err(auth)?;
+                if !installed.admitted {
+                    bail!("pack admission denied: {:?}", installed.reason);
+                }
+                let result = session
+                    .packs_evaluate_batch(medscale_contracts::packs::PackBatchEvaluationRequest {
+                        pack_id: medscale_contracts::objects::OpaqueId::new(&pack_id),
+                        local_path: path.display().to_string(),
+                        inputs,
+                        max_tokens,
+                        decoding,
+                        zero_shot_labels: (!labels.is_empty()).then_some(labels),
+                        synthetic_only,
+                    })
+                    .map_err(auth)?;
+                println!("{}", serde_json::to_string_pretty(&result)?);
                 Ok(())
             }
         },

@@ -95,6 +95,10 @@ opt-level = 3
 [profile.dev.package.blake2]
 opt-level = 3
 
+# Strip debug symbols in workspace test/dev builds to shrink target/ artifacts and cut MSVC link time.
+[profile.test]
+debug = 0
+
 # Security backport (RUSTSEC-2026-0367/0368/0369): candle-core 0.9.1 exactly
 # as published, with only its ZIP dependency moved to 9.0.3 and the ZIP 9 API
 # changes from upstream huggingface/candle#4041. Remove when a candle release

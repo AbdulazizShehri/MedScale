@@ -59,8 +59,8 @@ use crate::network::{EgressAllowlistEntry, NetworkBrokerRequest, NetworkBrokerRe
 use crate::objects::{AmendmentKind, DigestSha256, EffectState, MedicalTime, OpaqueId, VaultId};
 use crate::online_packs::OnlinePackAcquireRequest;
 use crate::packs::{
-    PackAdmitResult, PackEvaluationRequest, PackEvaluationResult, PackGenerationRequest,
-    PackManifestV0, PackPromotionState,
+    PackAdmitResult, PackBatchEvaluationRequest, PackBatchEvaluationResult, PackEvaluationRequest,
+    PackEvaluationResult, PackGenerationRequest, PackManifestV0, PackPromotionState,
 };
 use crate::presentation::{DrillDownResult, SubjectBriefV1, SubjectCoverageV1, SubjectTimelineV1};
 use crate::privacy_gate::{
@@ -758,6 +758,9 @@ pub enum RequestBody {
     },
     PacksEvaluateLocal {
         request: PackEvaluationRequest,
+    },
+    PacksEvaluateBatch {
+        request: PackBatchEvaluationRequest,
     },
     /// Spec 105: bounded local text generation (evidence-only proposal).
     PacksGenerateLocal {
@@ -1792,6 +1795,18 @@ pub enum RequestBody {
     ModelCatalogQuery {
         query: Box<crate::model_catalog::ModelCatalogQueryRequest>,
     },
+    ModelCatalogRecommend {
+        request: Box<crate::model_catalog::ModelCatalogRecommendRequest>,
+    },
+    ModelCatalogCard {
+        request: Box<crate::model_catalog::ModelCatalogCardRequest>,
+    },
+    ModelCatalogPreflight {
+        request: Box<crate::model_catalog::ModelCatalogPreflightRequest>,
+    },
+    ModelCatalogManifestDiff {
+        request: Box<crate::model_catalog::ModelCatalogManifestDiffRequest>,
+    },
 }
 
 impl RequestBody {
@@ -1989,6 +2004,9 @@ pub enum ResponseBody {
     },
     PackEvaluation {
         result: PackEvaluationResult,
+    },
+    PackBatchEvaluation {
+        result: PackBatchEvaluationResult,
     },
     PackResidency {
         view: Box<crate::packs::PackResidencyView>,
@@ -2577,6 +2595,18 @@ pub enum ResponseBody {
     // Spec 103: one page of the local model catalog.
     ModelCatalogPage {
         page: Box<crate::model_catalog::ModelCatalogPage>,
+    },
+    ModelCatalogRecommendations {
+        recommendations: Box<crate::model_catalog::ModelCatalogRecommendResponse>,
+    },
+    ModelCatalogCard {
+        card: Box<crate::model_catalog::ModelCatalogCardResponse>,
+    },
+    ModelCatalogPreflight {
+        preflight: Box<crate::model_catalog::ModelCatalogPreflightResponse>,
+    },
+    ModelCatalogManifestDiff {
+        diff: Box<crate::model_catalog::ModelCatalogManifestDiffResponse>,
     },
 }
 

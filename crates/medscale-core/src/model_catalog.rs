@@ -8,8 +8,10 @@ use std::collections::BTreeMap;
 use std::path::Path;
 
 use medscale_pack::{
-    CatalogFilter, CatalogRow, CatalogSource, CatalogStatus, DeviceFit, HfRepoMetadata,
-    RuntimeExpectation, TokenClassifierSnapshot, build_token_classifier_pack, runtime_expectation,
+    CatalogFilter, CatalogRow, CatalogSource, CatalogStatus, DeviceFit, DeviceTier,
+    EcosystemV4Error, HfRepoMetadata, RuntimeExpectation, TokenClassifierSnapshot,
+    build_token_classifier_pack, diff_catalog_manifests, preflight_model_resources,
+    recommend_catalog_models, render_medscale_model_card, runtime_expectation,
 };
 use serde::Serialize;
 
@@ -61,6 +63,8 @@ pub struct CatalogRowView {
 pub enum ModelCatalogError {
     #[error(transparent)]
     Catalog(#[from] CatalogError),
+    #[error(transparent)]
+    Ecosystem(#[from] EcosystemV4Error),
     #[error(transparent)]
     Snapshot(#[from] SnapshotError),
     #[error("unknown {field}: {value}")]
@@ -415,4 +419,154 @@ mod tests {
         let _ = std::fs::remove_dir_all(dir);
         let _ = std::fs::remove_file(path);
     }
+}
+
+#[derive(Debug, serde::Deserialize)]
+struct BundledSourceJson {
+    repository: String,
+    commit: String,
+}
+
+fn bundled_source_ids() -> Result<BundledSourceJson, ModelCatalogError> {
+    const SRC: &str = include_str!("../../../third_party/medscale-model-catalog-v3/source.json");
+    serde_json::from_str(SRC).map_err(|e| ModelCatalogError::Io(e.to_string()))
+}
+
+fn load_or_bundled(
+    snapshot_path: Option<&str>,
+    repository: Option<&str>,
+    commit: Option<&str>,
+) -> Result<ModelCatalog, ModelCatalogError> {
+    const BUNDLED_JSONL: &[u8] =
+        include_bytes!("../../../third_party/medscale-model-catalog-v3/models.jsonl");
+    let bundled = bundled_source_ids()?;
+    let repo = repository.unwrap_or(&bundled.repository);
+    let rev = commit.unwrap_or(&bundled.commit);
+    match snapshot_path {
+        Some(path) => load(Path::new(path), repo, rev),
+        None => Ok(ModelCatalog::import(repo, rev, BUNDLED_JSONL)?),
+    }
+}
+
+/// Wave 1 (OpenMed v4.0.0): hardware-tier recommendation query across local or bundled catalog.
+pub fn catalog_recommend(
+    request: &medscale_contracts::model_catalog::ModelCatalogRecommendRequest,
+) -> Result<medscale_contracts::model_catalog::ModelCatalogRecommendResponse, ModelCatalogError> {
+    let tier = DeviceTier::parse(&request.device_tier)?;
+    let catalog = load_or_bundled(
+        request.snapshot_path.as_deref(),
+        request.repository.as_deref(),
+        request.commit.as_deref(),
+    )?;
+    let matches = recommend_catalog_models(
+        &catalog,
+        tier,
+        request.task.as_deref(),
+        request.language.as_deref(),
+    );
+    let total_matches = matches.len();
+    let limit = if request.limit == 0 {
+        50
+    } else {
+        request.limit.min(200)
+    };
+    let mut items = Vec::with_capacity(limit.min(total_matches));
+    for row in matches.into_iter().take(limit) {
+        let view = CatalogRowView {
+            runtime_expectation: runtime_expectation(row),
+            row: row.clone(),
+        };
+        items.push(serde_json::to_value(view).map_err(|e| ModelCatalogError::Io(e.to_string()))?);
+    }
+    Ok(
+        medscale_contracts::model_catalog::ModelCatalogRecommendResponse {
+            device_tier: tier.as_str().to_owned(),
+            total_matches,
+            items,
+        },
+    )
+}
+
+/// Wave 1 (OpenMed v4.0.0): renders a MedScale Model Card for a catalog repository.
+pub fn catalog_model_card(
+    request: &medscale_contracts::model_catalog::ModelCatalogCardRequest,
+) -> Result<medscale_contracts::model_catalog::ModelCatalogCardResponse, ModelCatalogError> {
+    let catalog = load_or_bundled(
+        request.snapshot_path.as_deref(),
+        request.repository.as_deref(),
+        request.commit.as_deref(),
+    )?;
+    let row = catalog
+        .get(&request.repo_id)
+        .ok_or_else(|| ModelCatalogError::NotInCatalog(request.repo_id.clone()))?;
+    let markdown = render_medscale_model_card(row);
+    let view = CatalogRowView {
+        runtime_expectation: runtime_expectation(row),
+        row: row.clone(),
+    };
+    let row_json = serde_json::to_value(view).map_err(|e| ModelCatalogError::Io(e.to_string()))?;
+    Ok(
+        medscale_contracts::model_catalog::ModelCatalogCardResponse {
+            medscale_id: row.medscale_id.clone(),
+            repo_id: row.repo_id.clone(),
+            markdown,
+            row: row_json,
+        },
+    )
+}
+
+/// Wave 1 (OpenMed v4.0.0): evaluates RAM & disk preflight fit against a catalog model.
+pub fn catalog_preflight(
+    request: &medscale_contracts::model_catalog::ModelCatalogPreflightRequest,
+) -> Result<medscale_contracts::model_catalog::ModelCatalogPreflightResponse, ModelCatalogError> {
+    let tier = DeviceTier::parse(&request.device_tier)?;
+    let catalog = load_or_bundled(
+        request.snapshot_path.as_deref(),
+        request.repository.as_deref(),
+        request.commit.as_deref(),
+    )?;
+    let row = catalog
+        .get(&request.repo_id)
+        .ok_or_else(|| ModelCatalogError::NotInCatalog(request.repo_id.clone()))?;
+    let assessment =
+        preflight_model_resources(row, tier, request.available_ram_mb, request.free_disk_mb);
+    Ok(
+        medscale_contracts::model_catalog::ModelCatalogPreflightResponse {
+            repo_id: assessment.repo_id,
+            medscale_id: assessment.medscale_id,
+            device_tier: tier.as_str().to_owned(),
+            fits_ram: assessment.fits_ram,
+            fits_disk: assessment.fits_disk,
+            required_ram_mb: assessment.required_ram_mb,
+            required_disk_mb: assessment.required_disk_mb,
+            available_ram_mb: assessment.available_ram_mb,
+            free_disk_mb: assessment.free_disk_mb,
+            bucketed_ram_bytes: assessment.bucketed_ram_bytes,
+            recommended_tier: assessment.recommended_tier,
+        },
+    )
+}
+
+/// Wave 1 (OpenMed v4.0.0): computes structural manifest diff across two snapshots.
+pub fn catalog_manifest_diff(
+    request: &medscale_contracts::model_catalog::ModelCatalogManifestDiffRequest,
+) -> Result<medscale_contracts::model_catalog::ModelCatalogManifestDiffResponse, ModelCatalogError>
+{
+    let old_bytes = std::fs::read(&request.old_snapshot_path)
+        .map_err(|e| ModelCatalogError::Io(e.to_string()))?;
+    let new_bytes = std::fs::read(&request.new_snapshot_path)
+        .map_err(|e| ModelCatalogError::Io(e.to_string()))?;
+    let diff = diff_catalog_manifests(&old_bytes, &new_bytes)?;
+    let changed = diff
+        .changed
+        .into_iter()
+        .map(|entry| serde_json::to_value(entry).map_err(|e| ModelCatalogError::Io(e.to_string())))
+        .collect::<Result<Vec<_>, _>>()?;
+    Ok(
+        medscale_contracts::model_catalog::ModelCatalogManifestDiffResponse {
+            added: diff.added,
+            removed: diff.removed,
+            changed,
+        },
+    )
 }

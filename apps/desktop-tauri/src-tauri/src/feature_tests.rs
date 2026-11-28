@@ -1507,6 +1507,30 @@ fn medagent_workbench_agent_context_evidence_and_resume() {
         "invalid"
     );
 
+    // Wave 1 (OpenMed v4.0.0): hardware-tier recommend, Model Card, preflight, and batch eval.
+    let rec = h.ok(
+        "models_recommend",
+        json!({ "deviceTier": "phone", "task": "token-classification", "limit": 10 }),
+    );
+    assert_eq!(rec["device_tier"], "phone");
+    let rec_repo = rec["items"][0]["repo_id"].as_str().unwrap().to_owned();
+    let card = h.ok("models_card", json!({ "repoId": rec_repo }));
+    assert!(card["markdown"].as_str().unwrap().contains(&rec_repo));
+    let pre = h.ok(
+        "models_preflight",
+        json!({ "repoId": rec_repo, "deviceTier": "phone" }),
+    );
+    assert_eq!(pre["repo_id"], rec_repo);
+    let batch = h.ok(
+        "models_evaluate_batch",
+        json!({
+            "packId": fixture_id,
+            "inputs": ["alice visited clinic today", "bob called clinic"]
+        }),
+    );
+    assert_eq!(batch["evidence_only"], true);
+    assert_eq!(batch["items"].as_array().unwrap().len(), 2);
+
     // Model Fleet: a lane on a chosen agent (and Pack) and sources executes
     // on that agent's Pack.
     let lane_agent = h.ok(

@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "medscale-clinical-evidence"
-version = "0.2.0"
+version = "0.4.0"
 description = "Local clinical evidence audit primitives for MedScale"
 requires-python = ">=3.11"
 dependencies = []
@@ -16,6 +16,10 @@ test = ["pytest>=8", "pytest-subtests>=0.13"]
 
 [tool.setuptools.packages.find]
 where = ["src"]
+namespaces = true
+
+[tool.setuptools.package-data]
+"*" = ["*.json", "*.yaml", "*.txt", "*.md"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

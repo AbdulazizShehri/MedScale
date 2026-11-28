@@ -1,0 +1,52 @@
+{
+  "determinants": {
+    "alcohol": {
+      "triggers": [
+        "alcohol",
+        "alcohol use",
+        "ETOH",
+        "drinks",
+        "drinking",
+        "drinks alcohol"
+      ]
+    },
+    "drug": {
+      "triggers": [
+        "IVDU",
+        "illicit drug",
+        "illicit drugs",
+        "recreational drug",
+        "recreational drugs",
+        "drug use",
+        "cocaine",
+        "heroin",
+        "methamphetamine"
+      ]
+    },
+    "tobacco": {
+      "triggers": [
+        "tobacco",
+        "tobacco use",
+        "smoker",
+        "smoking",
+        "cigarette",
+        "cigarettes",
+        "pack-year",
+        "pack-years",
+        "vaping",
+        "vapes"
+      ]
+    }
+  },
+  "languages": [
+    "en"
+  ],
+  "provenance": {
+    "license": "Apache-2.0 repository asset",
+    "restricted_data": false,
+    "source": "OpenMed-maintained synthetic/public substance-use cue set",
+    "synthetic": true,
+    "task": "OM-142"
+  },
+  "schema_version": 1
+}

@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-models-card"
+description = "Enables the models_card command without any pre-configured scope."
+commands.allow = ["models_card"]
+
+[[permission]]
+identifier = "deny-models-card"
+description = "Denies the models_card command without any pre-configured scope."
+commands.deny = ["models_card"]

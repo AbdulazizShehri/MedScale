@@ -1,0 +1,272 @@
+{
+  "calibration_constants": {
+    "extension": "org.medscale.decision_calibration",
+    "methods": [
+      "deterministic_margin",
+      "isotonic_regression",
+      "platt_scaling",
+      "temperature_scaling"
+    ],
+    "ppm_scale": 1000000,
+    "reason_codes": [
+      "calibration_bundle_unverified",
+      "calibration_extension_missing",
+      "calibration_malformed",
+      "calibration_version_unsupported",
+      "calibration_digest_mismatch",
+      "calibration_model_mismatch",
+      "calibration_runtime_mismatch",
+      "calibration_scope_mismatch",
+      "calibration_evidence_mismatch",
+      "calibration_profile_missing",
+      "calibration_runtime_unbound",
+      "calibration_schema_incompatible",
+      "calibration_pin_mismatch",
+      "calibration_request_invalid"
+    ]
+  },
+  "device_capability_buckets": {
+    "cases": [
+      {
+        "bucket_bytes": 0,
+        "input_bytes": 0
+      },
+      {
+        "bucket_bytes": 0,
+        "input_bytes": 1
+      },
+      {
+        "bucket_bytes": 536870912,
+        "input_bytes": 536870912
+      },
+      {
+        "bucket_bytes": 536870912,
+        "input_bytes": 536870913
+      },
+      {
+        "bucket_bytes": 4294967296,
+        "input_bytes": 4294967296
+      },
+      {
+        "bucket_bytes": 1099511627776,
+        "input_bytes": 1099511627776
+      },
+      {
+        "bucket_bytes": 1099511627776,
+        "input_bytes": 4398046511104
+      }
+    ],
+    "max_budget_bytes": 1099511627776,
+    "min_budget_bytes": 16777216
+  },
+  "jcs_vectors": [
+    {
+      "canonical_utf8": "{\"a\":1,\"b\":2,\"nested\":{\"m\":[3,1,2],\"z\":true}}",
+      "content_id": "sha256:ab0b0a398603c3fba511119ed49d515fbe9a4263fe25ef04ee187594d6f0ffe7",
+      "input": {
+        "a": 1,
+        "b": 2,
+        "nested": {
+          "m": [
+            3,
+            1,
+            2
+          ],
+          "z": true
+        }
+      }
+    },
+    {
+      "canonical_utf8": "{\"empty\":{},\"unicode\":\"مرحبا\",\"zero\":0}",
+      "content_id": "sha256:1793e2e604599546baf3b3a6276c79113142a7fa2d731faacf1d36c60596f48b",
+      "input": {
+        "empty": {},
+        "unicode": "مرحبا",
+        "zero": 0
+      }
+    }
+  ],
+  "manifest_diff": {
+    "added": [
+      "OpenMed/Synthetic-Added-Tiny"
+    ],
+    "changed_repos": [
+      "OpenMed/Synthetic-Laptop-PII"
+    ],
+    "removed": [
+      "OpenMed/Synthetic-Phone-NER"
+    ]
+  },
+  "manifest_rows": [
+    {
+      "architecture": "bert",
+      "arxiv": "2501.00001",
+      "base_model": "synthetic-base",
+      "benchmark": {
+        "f1": 0.89,
+        "recall": 0.91
+      },
+      "canonical_labels": [
+        "DISEASE",
+        "DRUG"
+      ],
+      "disk_mb": 120.0,
+      "download_mb": 110.0,
+      "download_sizes": {
+        "onnx": 110.0
+      },
+      "family": "NER",
+      "formats": [
+        "onnx",
+        "pytorch"
+      ],
+      "languages": [
+        "en",
+        "ar"
+      ],
+      "latency_ms": {
+        "laptop": 12.0,
+        "phone": 42.0
+      },
+      "license": "apache-2.0",
+      "param_count": 33000000,
+      "peak_ram_mb": {
+        "laptop": 1800.0,
+        "phone": 1800.0
+      },
+      "recommended_tier": "phone",
+      "released": "2026-01-01",
+      "repo_id": "OpenMed/Synthetic-Phone-NER",
+      "reproducibility_hash": "0000000000000000000000000000000000000000000000000000000000000000",
+      "script_coverage": {
+        "Arabic": 0.98,
+        "Latin": 0.99
+      },
+      "task": "token-classification",
+      "tier": "Tiny"
+    },
+    {
+      "architecture": "deberta-v2",
+      "arxiv": "2501.00002",
+      "base_model": "synthetic-deberta",
+      "benchmark": {
+        "f1": 0.94,
+        "recall": 0.96
+      },
+      "canonical_labels": [
+        "NAME",
+        "ID_NUM"
+      ],
+      "disk_mb": 420.0,
+      "download_mb": 390.0,
+      "family": "PII",
+      "formats": [
+        "onnx"
+      ],
+      "languages": [
+        "en"
+      ],
+      "license": "apache-2.0",
+      "param_count": 110000000,
+      "peak_ram_mb": 7500.0,
+      "recommended_tier": "laptop",
+      "released": "2026-02-01",
+      "repo_id": "OpenMed/Synthetic-Laptop-PII",
+      "reproducibility_hash": "1111111111111111111111111111111111111111111111111111111111111111",
+      "script_coverage": {
+        "Arabic": 0.95,
+        "Bengali": 0.9,
+        "CJK": 0.9,
+        "Cyrillic": 0.9,
+        "Devanagari": 0.9,
+        "Greek": 0.9,
+        "Hangul": 0.9,
+        "Hebrew": 0.9,
+        "Japanese": 0.9,
+        "Latin": 1.0,
+        "Thai": 0.9
+      },
+      "task": "token-classification",
+      "tier": "Base"
+    },
+    {
+      "architecture": "roberta",
+      "arxiv": "2501.00003",
+      "base_model": "synthetic-roberta",
+      "benchmark": {
+        "f1": 0.87
+      },
+      "canonical_labels": [
+        "PROBLEM"
+      ],
+      "family": "NER",
+      "formats": [
+        "onnx"
+      ],
+      "languages": [
+        "en"
+      ],
+      "license": "mit",
+      "param_count": 66000000,
+      "released": "2026-03-01",
+      "repo_id": "OpenMed/Synthetic-Unenriched-Fallback",
+      "reproducibility_hash": "2222222222222222222222222222222222222222222222222222222222222222",
+      "task": "token-classification",
+      "tier": "Small"
+    },
+    {
+      "architecture": "modernbert",
+      "arxiv": "2501.00004",
+      "base_model": "synthetic-xl",
+      "benchmark": {
+        "f1": 0.98
+      },
+      "canonical_labels": [
+        "PROCEDURE"
+      ],
+      "family": "NER",
+      "formats": [
+        "pytorch"
+      ],
+      "languages": [
+        "en"
+      ],
+      "license": "apache-2.0",
+      "param_count": 1500000000,
+      "peak_ram_mb": 82000.0,
+      "recommended_tier": "server",
+      "released": "2026-04-01",
+      "repo_id": "OpenMed/Synthetic-Server-Large",
+      "reproducibility_hash": "3333333333333333333333333333333333333333333333333333333333333333",
+      "task": "token-classification",
+      "tier": "XLarge"
+    }
+  ],
+  "model_card_sample": {
+    "rendered": "---\nlicense: apache-2.0\npipeline_tag: token-classification\nlibrary_name: openmed\ntags:\n- openmed\n- medical-nlp\n---\n\n<!-- Generated from models.jsonl. Do not edit this file directly. -->\n\n# Synthetic-Phone-NER\n\nThis model card is rendered from the MedScale model manifest. Update `models.jsonl` and rerun the publish step instead of editing this file directly.\n\n## MedScale in Python on CPU\n\n```python\nfrom openmed import OnnxModel\nmodel = OnnxModel.from_pretrained(\"OpenMed/Synthetic-Phone-NER\")\nentities = model(\"Patient Alice Nguyen was seen in cardiology.\")\n```\n\n## MedScale in Web\n\n```bash\nnpm install openmed @huggingface/transformers onnxruntime-web\n```\n\n```typescript\nimport { loadOnnxModel } from \"openmed\";\nconst model = await loadOnnxModel(\"OpenMed/Synthetic-Phone-NER\");\nconst entities = await model(\"Patient Alice Nguyen was seen in cardiology.\");\n```\n\n## OpenMedKit for Android\n\n```kotlin\nval model = OpenMedKit.fromDirectory(modelDirectory)\nval entities = model.analyzeText(\"Patient Alice Nguyen was seen in cardiology.\")\n```\n\n## Manifest Summary\n\n| Field | Value |\n|---|---|\n| Repository | `OpenMed/Synthetic-Phone-NER` |\n| Family | NER |\n| Task | token-classification |\n| Languages | en, ar |\n| Tier | Tiny |\n| Parameters | 33M (33,000,000) |\n| Architecture | bert |\n| Base model | synthetic-base |\n| Formats | onnx, pytorch |\n| License | apache-2.0 |\n| arXiv | [arXiv:2501.00001](https://arxiv.org/abs/2501.00001) |\n| Reproducibility hash | `0000000000000000000000000000000000000000000000000000000000000000` |\n| Released | 2026-01-01 |\n\n## Benchmark\n\n| Dataset | Micro F1 | Recall |\n|---|---:|---:|\n| Not reported | Not reported | 0.9100 |\n\n## Download Size by Format\n\n| Format | Download size |\n|---|---:|\n| Safetensors | Not published |\n| MLX | Not published |\n| Core ML | Not published |\n| ONNX | 110.000 MB |\n\n## License\n\nDeclared license: `apache-2.0`.\n\n## Canonical Labels\n\n`DISEASE`, `DRUG`\n\n## Artifact Format\n\n| Field | Value |\n|---|---|\n| Runtime artifacts | onnx |\n| Quantization | Not specified |\n",
+    "repo_id": "OpenMed/Synthetic-Phone-NER"
+  },
+  "recommendations_by_tier": {
+    "laptop": [
+      "OpenMed/Synthetic-Phone-NER",
+      "OpenMed/Synthetic-Laptop-PII",
+      "OpenMed/Synthetic-Unenriched-Fallback"
+    ],
+    "phone": [
+      "OpenMed/Synthetic-Phone-NER",
+      "OpenMed/Synthetic-Unenriched-Fallback"
+    ],
+    "server": [
+      "OpenMed/Synthetic-Laptop-PII",
+      "OpenMed/Synthetic-Server-Large",
+      "OpenMed/Synthetic-Phone-NER",
+      "OpenMed/Synthetic-Unenriched-Fallback"
+    ],
+    "workstation": [
+      "OpenMed/Synthetic-Laptop-PII",
+      "OpenMed/Synthetic-Phone-NER",
+      "OpenMed/Synthetic-Unenriched-Fallback"
+    ]
+  },
+  "schema_version": 1
+}

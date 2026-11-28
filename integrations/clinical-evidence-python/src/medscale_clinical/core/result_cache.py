@@ -1,0 +1,149 @@
+# SPDX-License-Identifier: Apache-2.0
+# Modified from maziyarpanahi/openmed@5b79cae5 (openmed/core/result_cache.py): renamed package/symbols to medscale_clinical / MedScale.
+"""
+In-process result cache for MedScale calls.
+
+This cache is opt-in (not included by default), and only saves data to memory. A customized implementation of LRU Cache is used.
+It never writes keys or results to disk due to PII/PHI sensitivity.
+"""
+
+import hashlib
+import json
+from collections import OrderedDict
+from threading import RLock
+
+RESULT_CACHE = None
+_CACHE_LOCK = RLock()
+_MODEL_GENERATION = 0
+
+
+class ResultCache:
+    def __init__(self, max_entries):
+        self.max_entries = max_entries
+        self.cache = OrderedDict()
+        self._lock = RLock()
+
+    def __len__(self):
+        with self._lock:
+            return len(self.cache)
+
+    def get(self, key):
+        with self._lock:
+            if key in self.cache:
+                self.cache.move_to_end(key)
+                return self.cache[key]
+            return None
+
+    def clear(self):
+        with self._lock:
+            self.cache.clear()
+
+    def set(self, key, result):
+        if self.max_entries <= 0:
+            return None
+
+        with self._lock:
+            if key in self.cache:
+                self.cache.move_to_end(key)
+            self.cache[key] = result
+            if len(self.cache) > self.max_entries:
+                self.cache.popitem(last=False)
+
+
+def get_result_cache(max_entries=128):
+    """Return the shared cache selected for this call's requested capacity."""
+    global RESULT_CACHE
+
+    with _CACHE_LOCK:
+        if RESULT_CACHE is None or max_entries != RESULT_CACHE.max_entries:
+            RESULT_CACHE = ResultCache(max_entries)
+        # Evaluate the return value before another caller can replace the global
+        # cache with one configured for a different capacity.
+        return RESULT_CACHE
+
+
+def current_model_generation():
+    """Return the counter that changes whenever served model weights may change."""
+    with _CACHE_LOCK:
+        return _MODEL_GENERATION
+
+
+def notify_model_generation_change():
+    """Invalidate cached results after a model activation, promotion or rollback.
+
+    A model can keep its name while its weights change. Bumping the generation
+    makes every later cache key differ from keys built before the change, and the
+    shared cache is cleared as a second guard.
+
+    Returns:
+        The new model generation.
+    """
+    global _MODEL_GENERATION
+
+    with _CACHE_LOCK:
+        _MODEL_GENERATION += 1
+        if RESULT_CACHE is not None:
+            RESULT_CACHE.clear()
+        return _MODEL_GENERATION
+
+
+def _resolve_model_revision(params):
+    revision = params.get("revision")
+    if revision is None:
+        pipeline_kwargs = params.get("pipeline_kwargs")
+        if isinstance(pipeline_kwargs, dict):
+            revision = pipeline_kwargs.get("revision")
+    return revision
+
+
+def freeze_value(value):
+    if isinstance(value, dict):
+        return (
+            "__dict__",
+            tuple(sorted((str(k), freeze_value(v)) for k, v in value.items())),
+        )
+
+    elif isinstance(value, list):
+        return ("__list__", tuple(freeze_value(v) for v in value))
+
+    elif isinstance(value, tuple):
+        return ("__tuple__", tuple(freeze_value(v) for v in value))
+
+    elif isinstance(value, set):
+        return ("__set__", tuple(sorted(repr(freeze_value(v)) for v in value)))
+
+    elif isinstance(value, (str, int, float, bool, type(None))):
+        return value
+
+    return ("__repr__", repr(value))
+
+
+def make_cache_key(inquiry_type, params):
+    normalized = dict(params)
+    normalized["text"] = normalized.get(
+        "validated_text", normalized.get("text", "")
+    ).strip()
+    normalized["model_name"] = normalized.get(
+        "validated_model",
+        normalized.get("model_name", normalized.get("model_id", "")),
+    )
+    normalized.pop("model_id", None)
+    normalized["model_revision"] = _resolve_model_revision(normalized)
+    normalized["model_generation"] = current_model_generation()
+
+    for name in (
+        "config",
+        "loader",
+        "sentence_segmenter",
+        "cache_results",
+        "max_cache_entries",
+        "selected_model",
+        "validated_text",
+        "validated_model",
+    ):
+        normalized.pop(name, None)
+
+    payload = json.dumps(
+        freeze_value(normalized), sort_keys=True, separators=(",", ":")
+    )
+    return f"{inquiry_type}:{hashlib.sha256(payload.encode('utf-8')).hexdigest()}"

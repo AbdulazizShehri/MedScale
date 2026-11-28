@@ -11909,7 +11909,10 @@ pub fn runtime_expectation(row: &CatalogRow) -> RuntimeExpectation {
 }
 
 fn expectation_without_size(row: &CatalogRow) -> RuntimeExpectation {
-    if row.task != "token-classification" {
+    if row.task != "token-classification"
+        && row.task != "text-classification"
+        && row.task != "sequence-classification"
+    {
         return RuntimeExpectation::UnsupportedTask {
             task: row.task.clone(),
         };
