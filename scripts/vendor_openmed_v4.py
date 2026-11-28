@@ -162,6 +162,42 @@ CURATED_ROOT_MODULES = [
     "openmed.core.calendar_tables",
     "openmed.core.calendars",
     "openmed.core.safety_sweep",
+    "openmed.processing.legacy_encoding",
+    "openmed.processing.zh_normalize",
+    "openmed.processing.zh_pinyin",
+    "openmed.processing.morphology",
+    "openmed.processing.transliteration",
+    "openmed.processing.sentences",
+    "openmed.core.calendar_dates",
+    "openmed.core.calendar_month_dates",
+    "openmed.core.anonymizer.digit_systems",
+    "openmed.core.anonymizer.providers.registry_ids",
+    "openmed.core.redaction_strength",
+    "openmed.core.explain",
+    "openmed.core.results",
+    "openmed.clinical.summary_card",
+    "openmed.clinical.timeline",
+    "openmed.clinical.review_packet",
+    "openmed.clinical.nli_assertion_pairs",
+    "openmed.clinical.nli_experiencer_pairs",
+    "openmed.clinical.nli_temporal_pairs",
+    "openmed.clinical.summarize",
+    "openmed.clinical.extractive_selection",
+    "openmed.clinical.summary_claim_segments",
+    "openmed.clinical.summary_input",
+    "openmed.clinical.summary_temporal_order",
+    "openmed.clinical.grounding.calibration",
+    "openmed.eval.attacks.reid",
+    "openmed.eval.citation_support_metrics",
+    "openmed.eval.error_analysis",
+    "openmed.eval.section_recall",
+    "openmed.eval.summary_coverage",
+    "openmed.eval.summary_gate",
+    "openmed.eval.summary_unsupported_claims",
+    "openmed.eval.surrogate_quality",
+    "openmed.interop.fhir_screening",
+    "openmed.multimodal.metadata_scrub",
+    "openmed.agent.permissions.access_events",
     "openmed.core.arbitration",
     "openmed.core.review_workflow",
     "openmed.risk.kanon",
@@ -559,6 +595,44 @@ def transform_python_source(src: str, rel_path: str) -> str:
         transformed,
         flags=re.MULTILINE,
     )
+    if rel_path == "openmed/clinical/status_vocab.py":
+        transformed = transformed.replace(
+            "def _parse_yaml_subset(text: str) -> dict[str, Any]:\n",
+            "def _parse_yaml_subset(text: str) -> dict[str, Any]:\n    import json\n    if text.lstrip().startswith(\"{\"):\n        return json.loads(text)\n",
+        )
+    if rel_path == "openmed/processing/sentences.py":
+        transformed = transformed.replace(
+            "        try:\n"
+            "            from pysbd import Segmenter  # type: ignore[import-not-found]\n"
+            "        except ImportError as exc:  # pragma: no cover - depends on optional dependency\n"
+            "            raise ImportError(\n"
+            "                \"pySBD is required for sentence detection. \"\n"
+            "                \"Install it with `pip install pysbd` or add the `pysbd` dependency.\"\n"
+            "            ) from exc\n\n"
+            "        segmenter = Segmenter(\n"
+            "            language=language,\n"
+            "            clean=clean,\n"
+            "            char_span=True,\n"
+            "        )",
+            "        try:\n"
+            "            from pysbd import Segmenter  # type: ignore[import-not-found]\n"
+            "            segmenter = Segmenter(\n"
+            "                language=language,\n"
+            "                clean=clean,\n"
+            "                char_span=True,\n"
+            "            )\n"
+            "        except ImportError:\n"
+            "            import re as _re\n"
+            "            from types import SimpleNamespace as _NS\n"
+            "            class _StdlibSegmenter:\n"
+            "                def segment(self, src: str):\n"
+            "                    return [\n"
+            "                        _NS(sent=m.group(0), start=m.start(), end=m.end())\n"
+            "                        for m in _re.finditer(r\"[^\\n.!?]+(?:[.!?]+(?=\\s|$)|$)|\\n+\", src)\n"
+            "                        if m.group(0).strip()\n"
+            "                    ]\n"
+            "            segmenter = _StdlibSegmenter()",
+        )
 
     lines = transformed.splitlines(keepends=True)
     while lines and lines[0].lstrip().startswith("# SPDX-"):

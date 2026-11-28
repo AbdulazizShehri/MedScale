@@ -34,6 +34,7 @@ pub mod model_fleet;
 pub mod network;
 pub mod objects;
 pub mod online_packs;
+pub mod openmed_wave2;
 pub mod os_sandbox;
 pub mod packs;
 pub mod presentation;

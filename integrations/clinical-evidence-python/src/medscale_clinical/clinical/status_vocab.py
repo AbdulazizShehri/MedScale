@@ -310,6 +310,9 @@ def _is_str_sequence(value: object) -> bool:
 
 
 def _parse_yaml_subset(text: str) -> dict[str, Any]:
+    import json
+    if text.lstrip().startswith("{"):
+        return json.loads(text)
     root: dict[str, Any] = {}
     stack: list[tuple[int, dict[str, Any]]] = [(-1, root)]
 

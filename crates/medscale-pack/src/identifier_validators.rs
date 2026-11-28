@@ -382,6 +382,223 @@ pub fn validate_australian_tfn(text: &str) -> bool {
     total.is_multiple_of(11)
 }
 
+const VERHOEFF_D: [[usize; 10]; 10] = [
+    [0, 1, 2, 3, 4, 5, 6, 7, 8, 9],
+    [1, 2, 3, 4, 0, 6, 7, 8, 9, 5],
+    [2, 3, 4, 0, 1, 7, 8, 9, 5, 6],
+    [3, 4, 0, 1, 2, 8, 9, 5, 6, 7],
+    [4, 0, 1, 2, 3, 9, 5, 6, 7, 8],
+    [5, 9, 8, 7, 6, 0, 4, 3, 2, 1],
+    [6, 5, 9, 8, 7, 1, 0, 4, 3, 2],
+    [7, 6, 5, 9, 8, 2, 1, 0, 4, 3],
+    [8, 7, 6, 5, 9, 3, 2, 1, 0, 4],
+    [9, 8, 7, 6, 5, 4, 3, 2, 1, 0],
+];
+
+const VERHOEFF_P: [[usize; 10]; 8] = [
+    [0, 1, 2, 3, 4, 5, 6, 7, 8, 9],
+    [1, 5, 7, 6, 2, 8, 3, 0, 9, 4],
+    [5, 8, 0, 3, 7, 9, 6, 1, 4, 2],
+    [8, 9, 1, 6, 0, 4, 3, 5, 2, 7],
+    [9, 4, 5, 3, 1, 2, 6, 8, 7, 0],
+    [4, 2, 8, 6, 5, 7, 3, 9, 0, 1],
+    [2, 7, 9, 3, 8, 0, 6, 4, 1, 5],
+    [7, 0, 4, 6, 9, 1, 3, 2, 5, 8],
+];
+
+/// Verhoeff dihedral-group checksum over a non-empty decimal digit string.
+#[must_use]
+pub fn validate_verhoeff(text: &str) -> bool {
+    let d = digits_only(text);
+    if d.is_empty() {
+        return false;
+    }
+    let mut c = 0usize;
+    for (i, &digit) in d.iter().rev().enumerate() {
+        c = VERHOEFF_D[c][VERHOEFF_P[i % 8][digit as usize]];
+    }
+    c == 0
+}
+
+/// Indian Aadhaar number: 12 digits, first digit in `2..=9`, valid Verhoeff checksum.
+#[must_use]
+pub fn validate_aadhaar(text: &str) -> bool {
+    let d = digits_only(text);
+    d.len() == 12 && d[0] >= 2 && validate_verhoeff(text)
+}
+
+/// Saudi National ID (leading 1) or Iqama (leading 2): 10 decimal/Arabic-Indic digits.
+#[must_use]
+pub fn validate_saudi_id(text: &str) -> bool {
+    let mut digits = Vec::with_capacity(10);
+    for c in text.chars() {
+        match c {
+            '0'..='9' => digits.push(u32::from(c) - u32::from('0')),
+            '\u{0660}'..='\u{0669}' => digits.push(u32::from(c) - 0x0660),
+            '\u{06F0}'..='\u{06F9}' => digits.push(u32::from(c) - 0x06F0),
+            ' ' | '-' => {}
+            _ => return false,
+        }
+    }
+    if digits.len() != 10 || !matches!(digits[0], 1 | 2) {
+        return false;
+    }
+    let sum: u32 = digits
+        .iter()
+        .enumerate()
+        .map(|(i, &d)| {
+            if i % 2 == 0 {
+                let doubled = d * 2;
+                doubled / 10 + doubled % 10
+            } else {
+                d
+            }
+        })
+        .sum();
+    sum.is_multiple_of(10)
+}
+
+/// US DEA registration number: 2 uppercase letters + 7 digits, DEA check digit.
+#[must_use]
+pub fn validate_dea(text: &str) -> bool {
+    let c = compact(text, true);
+    let b = c.as_bytes();
+    if b.len() != 9
+        || !matches!(b[0], b'A'..=b'H' | b'J'..=b'N' | b'P' | b'R'..=b'U' | b'X' | b'Z')
+        || !b[1].is_ascii_uppercase()
+        || !b[2..].iter().all(u8::is_ascii_digit)
+    {
+        return false;
+    }
+    let d: Vec<u32> = b[2..].iter().map(|&x| u32::from(x - b'0')).collect();
+    let sum = (d[0] + d[2] + d[4]) + 2 * (d[1] + d[3] + d[5]);
+    sum % 10 == d[6]
+}
+
+/// Structural Medical Record Number (6–16 ASCII alphanumerics containing at least 4 digits).
+#[must_use]
+pub fn validate_mrn(text: &str) -> bool {
+    let c = compact(text, true);
+    c.is_ascii()
+        && (6..=16).contains(&c.len())
+        && c.bytes().all(|b| b.is_ascii_alphanumeric())
+        && c.bytes().filter(u8::is_ascii_digit).count() >= 4
+}
+
+/// India ABHA number: 14 digits, optionally formatted `XX-XXXX-XXXX-XXXX`.
+#[must_use]
+pub fn validate_abha_number(text: &str) -> bool {
+    let c = compact(text, true);
+    c.len() == 14 && c.bytes().all(|b| b.is_ascii_digit())
+}
+
+/// Canadian Ontario Health Card (OHIP): 10 digits with standard Luhn check digit.
+#[must_use]
+pub fn validate_ontario_health_card(text: &str) -> bool {
+    let d = digits_only(text);
+    d.len() == 10 && luhn_check_digit(&d[..9]) == d[9]
+}
+
+/// Canadian British Columbia Personal Health Number: 10 digits starting with `9`, weighted mod 11.
+#[must_use]
+pub fn validate_bc_phn(text: &str) -> bool {
+    let d = digits_only(text);
+    if d.len() != 10 || d[0] != 9 {
+        return false;
+    }
+    const WEIGHTS: [u32; 8] = [2, 4, 8, 5, 10, 9, 7, 3];
+    let total: u32 = d[1..9]
+        .iter()
+        .zip(WEIGHTS.iter())
+        .map(|(&digit, &w)| digit * w)
+        .sum();
+    let check = 11 - (total % 11);
+    !matches!(check, 10 | 11) && check == d[9]
+}
+
+/// Indian PAN: `^[A-Z]{3}[ABCFGHLJPT][A-Z][0-9]{4}[A-Z]$`.
+#[must_use]
+pub fn validate_pan(text: &str) -> bool {
+    let c = compact(text, false);
+    let b = c.as_bytes();
+    b.len() == 10
+        && b[0..3].iter().all(u8::is_ascii_uppercase)
+        && matches!(
+            b[3],
+            b'A' | b'B' | b'C' | b'F' | b'G' | b'H' | b'L' | b'J' | b'P' | b'T'
+        )
+        && b[4].is_ascii_uppercase()
+        && b[5..9].iter().all(u8::is_ascii_digit)
+        && b[9].is_ascii_uppercase()
+}
+
+/// Indian GSTIN: 15 characters with Luhn-mod-36 check character.
+#[must_use]
+pub fn validate_gstin(text: &str) -> bool {
+    const CHARSET: &[u8] = b"0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ";
+    let c = compact(text, false);
+    let b = c.as_bytes();
+    if b.len() != 15 || !b[0..2].iter().all(u8::is_ascii_digit) {
+        return false;
+    }
+    let Some(pan_ok) = std::str::from_utf8(&b[2..12]).ok().map(validate_pan) else {
+        return false;
+    };
+    if !pan_ok || !b[12].is_ascii_alphanumeric() || b[13] != b'Z' {
+        return false;
+    }
+    let mut factor = 1u32;
+    let mut sum = 0u32;
+    for &ch in &b[..14] {
+        let Some(pos) = CHARSET.iter().position(|&x| x == ch) else {
+            return false;
+        };
+        let mut add = factor * (pos as u32);
+        factor = if factor == 2 { 1 } else { 2 };
+        add = (add / 36) + (add % 36);
+        sum += add;
+    }
+    let check_idx = ((36 - (sum % 36)) % 36) as usize;
+    CHARSET.get(check_idx) == Some(&b[14])
+}
+
+/// ISBN-10 or ISBN-13 checksum validator.
+#[must_use]
+pub fn validate_isbn(text: &str) -> bool {
+    let c = compact(text, true);
+    let b = c.as_bytes();
+    if b.len() == 10 {
+        let mut total = 0u32;
+        for (idx, &ch) in b.iter().enumerate() {
+            let weight = (10 - idx) as u32;
+            let val = if idx == 9 && ch == b'X' {
+                10
+            } else if ch.is_ascii_digit() {
+                u32::from(ch - b'0')
+            } else {
+                return false;
+            };
+            total += weight * val;
+        }
+        return total.is_multiple_of(11);
+    }
+    if b.len() == 13
+        && (b.starts_with(b"978") || b.starts_with(b"979"))
+        && b.iter().all(u8::is_ascii_digit)
+    {
+        let total: u32 = b
+            .iter()
+            .enumerate()
+            .map(|(i, &ch)| {
+                let d = u32::from(ch - b'0');
+                if i % 2 == 0 { d } else { d * 3 }
+            })
+            .sum();
+        return total.is_multiple_of(10);
+    }
+    false
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -554,5 +771,34 @@ mod tests {
     fn tables_match_the_reference_sizes() {
         assert_eq!(IBAN_LENGTHS.len(), 73);
         assert_eq!(BIC_COUNTRY_CODES.len(), 231);
+    }
+
+    #[test]
+    fn wave2_extended_validators_work_deterministically() {
+        assert!(validate_verhoeff("2363"));
+        assert!(!validate_verhoeff("2364"));
+        assert!(validate_aadhaar("234567890124"));
+        assert!(!validate_aadhaar("134567890124"));
+        assert!(validate_saudi_id("1098765439"));
+        assert!(validate_saudi_id(
+            "\u{0662}\u{0660}\u{0663}\u{0664}\u{0665}\u{0666}\u{0667}\u{0668}\u{0669}\u{0667}"
+        ));
+        assert!(!validate_saudi_id("3034567893"));
+        assert!(validate_dea("AB1234563"));
+        assert!(!validate_dea("AB1234564"));
+        assert!(validate_mrn("MRN-123456"));
+        assert!(!validate_mrn("MRN1"));
+        assert!(validate_abha_number("91-2345-6789-0123"));
+        assert!(validate_ontario_health_card("1234567897"));
+        assert!(!validate_ontario_health_card("1234567890"));
+        assert!(validate_bc_phn("9123456702"));
+        assert!(!validate_bc_phn("9123456703"));
+        assert!(validate_pan("ABCPE1234F"));
+        assert!(!validate_pan("AB1DE1234F"));
+        assert!(validate_gstin("27ABCPE1234F1ZB"));
+        assert!(!validate_gstin("27ABCPE1234F1Z1"));
+        assert!(validate_isbn("0-306-40615-2"));
+        assert!(validate_isbn("978-0-306-40615-7"));
+        assert!(!validate_isbn("978-0-306-40615-8"));
     }
 }

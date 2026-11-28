@@ -12,6 +12,10 @@ pub use extractors::{
 pub use lexical::{
     LexicalError, LexicalReport, extract_patient_identifiers, gate_fhir_json, parse_exact_decimals,
 };
+pub use units::ucum_v4::{
+    ParsedUcumUnit, UcumConversionResult, UcumV4Status, analyte_molar_mass_g_per_mol,
+    convert_analyte_concentration, normalize_ucum_v4, parse_ucum_v4,
+};
 pub use units::{ADMITTED_UCUM_CODES, compare_units, evaluate_unit, same_quantity, subset_pin};
 
 /// Maximum accepted ingest payload size (bytes): 8 MiB (B2). Each import is

@@ -231,6 +231,7 @@ pub struct State {
     pub data_dir: Option<PathBuf>,
     pub workspace: Option<Workspace>,
     pub packs: Option<CliSession>,
+    pub wave2: Option<CliSession>,
 }
 
 #[derive(Default)]
@@ -381,6 +382,16 @@ impl State {
             self.packs = Some(CliSession::connect_pack_operator("desktop-model-center")?);
         }
         Ok(self.packs.as_mut().expect("pack session just installed"))
+    }
+
+    /// Least-privilege Wave 2 privacy/clinical studio session (PrivacyRead + ClinicalV4Read).
+    pub fn wave2(&mut self) -> CmdResult<&mut CliSession> {
+        if self.wave2.is_none() {
+            self.wave2 = Some(CliSession::connect_wave2_studio(
+                "desktop-privacy-clinical",
+            )?);
+        }
+        Ok(self.wave2.as_mut().expect("wave2 session just installed"))
     }
 
     /// Writes a fixture pack into the app data directory and returns its path.

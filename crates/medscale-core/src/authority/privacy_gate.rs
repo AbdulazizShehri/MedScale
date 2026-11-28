@@ -557,59 +557,56 @@ impl PrivacyGate<'_> {
         if !admitted_ok {
             return (result(RecognizerStatus::Unavailable, 0), Vec::new());
         }
-        let Ok(runtime) = medscale_pack::OnnxTokenClassifierRuntime::new(512) else {
-            return (result(RecognizerStatus::Unavailable, 0), Vec::new());
-        };
-        let Ok(prepared) = runtime.prepare(path, &manifest) else {
-            return (result(RecognizerStatus::Unavailable, 0), Vec::new());
-        };
-        // Word windows sized well under the model's fixed sequence length.
-        let window = (prepared.fixed_sequence_length() / 4).max(1);
-        let mut spans = Vec::new();
-        for (chunk_start, chunk) in word_windows(text, window) {
-            let Ok(evaluation) = prepared.run(&manifest.pack_id, chunk) else {
-                return (result(RecognizerStatus::Failed, 0), Vec::new());
-            };
-            let predictions = evaluation
-                .output
-                .proposal_payload
-                .get("predictions")
-                .and_then(serde_json::Value::as_array)
-                .cloned()
-                .unwrap_or_default();
-            let lower = chunk.to_lowercase();
-            let mut cursor = 0;
-            for p in predictions {
-                let token = p
-                    .get("token")
-                    .and_then(serde_json::Value::as_str)
-                    .unwrap_or("");
-                let label = p
-                    .get("label")
-                    .and_then(serde_json::Value::as_str)
-                    .unwrap_or("");
-                let piece = token.trim_start_matches("##").to_lowercase();
-                if piece.is_empty() || token.starts_with('[') {
-                    continue;
-                }
-                let Some(found) = lower.get(cursor..).and_then(|rest| rest.find(&piece)) else {
-                    continue;
+        let payload = match medscale_pack::pack_runtime_kind(&manifest) {
+            Some(medscale_pack::PackRuntimeKind::TractOnnx) => {
+                let Ok(runtime) = medscale_pack::OnnxTokenClassifierRuntime::new(512) else {
+                    return (result(RecognizerStatus::Unavailable, 0), Vec::new());
                 };
-                let start = cursor + found;
-                let end = start + piece.len();
-                cursor = end;
-                if label == "O" || !chunk.is_char_boundary(start) || !chunk.is_char_boundary(end) {
-                    continue;
+                let Ok(prepared) = runtime.prepare(path, &manifest) else {
+                    return (result(RecognizerStatus::Unavailable, 0), Vec::new());
+                };
+                if text.trim().is_empty() {
+                    return (result(RecognizerStatus::Completed, 0), Vec::new());
                 }
-                spans.push(SensitiveSpan {
-                    kind: SensitiveSpanKind::ModelEntity,
-                    start: chunk_start + start,
-                    end: chunk_start + end,
-                    recognizer_id: MODEL_RECOGNIZER_ID.to_owned(),
-                });
+                let Ok(evaluation) = prepared.run_document(
+                    &manifest.pack_id,
+                    text,
+                    medscale_pack::DocumentRunOptions {
+                        aggregation: medscale_pack::EntityAggregation::WordFirst,
+                        pii_semantic_merge: true,
+                        pii_normalize_for_detection: true,
+                        ..medscale_pack::DocumentRunOptions::default()
+                    },
+                ) else {
+                    return (result(RecognizerStatus::Failed, 0), Vec::new());
+                };
+                evaluation.output.proposal_payload
             }
-        }
-        let spans = merge_adjacent(text, spans);
+            Some(medscale_pack::PackRuntimeKind::CandleSafetensors) => {
+                let Ok(prepared) = medscale_pack::prepare_candle_token_classifier(path, &manifest)
+                else {
+                    return (result(RecognizerStatus::Unavailable, 0), Vec::new());
+                };
+                if text.trim().is_empty() {
+                    return (result(RecognizerStatus::Completed, 0), Vec::new());
+                }
+                let Ok(output) = prepared.run_document(
+                    &manifest.pack_id,
+                    text,
+                    medscale_pack::CandleRunOptions {
+                        aggregation: medscale_pack::EntityAggregation::WordFirst,
+                        pii_semantic_merge: true,
+                        pii_normalize_for_detection: true,
+                        ..medscale_pack::CandleRunOptions::default()
+                    },
+                ) else {
+                    return (result(RecognizerStatus::Failed, 0), Vec::new());
+                };
+                output.proposal_payload
+            }
+            None => return (result(RecognizerStatus::Unavailable, 0), Vec::new()),
+        };
+        let spans = merge_adjacent(text, extract_model_spans(text, &payload));
         let count = u32::try_from(spans.len()).unwrap_or(u32::MAX);
         (result(RecognizerStatus::Completed, count), spans)
     }
@@ -1005,8 +1002,57 @@ impl PrivacyGate<'_> {
     }
 }
 
+/// Converts Unicode scalar entity offsets in `pii_merged_entities` (or fallback
+/// `entities`) into UTF-8 byte spans compatible with Spec 079 detectors.
+fn extract_model_spans(text: &str, payload: &serde_json::Value) -> Vec<SensitiveSpan> {
+    let Some(items) = payload
+        .get("pii_merged_entities")
+        .and_then(serde_json::Value::as_array)
+        .or_else(|| {
+            payload
+                .get("entities")
+                .and_then(serde_json::Value::as_array)
+        })
+    else {
+        return Vec::new();
+    };
+    let mut char_to_byte: Vec<usize> = text.char_indices().map(|(b, _)| b).collect();
+    char_to_byte.push(text.len());
+    let mut spans = Vec::with_capacity(items.len());
+    for item in items {
+        let Some(start_c) = item
+            .get("start")
+            .and_then(serde_json::Value::as_u64)
+            .and_then(|v| usize::try_from(v).ok())
+        else {
+            continue;
+        };
+        let Some(end_c) = item
+            .get("end")
+            .and_then(serde_json::Value::as_u64)
+            .and_then(|v| usize::try_from(v).ok())
+        else {
+            continue;
+        };
+        if start_c < end_c && end_c < char_to_byte.len() {
+            let start = char_to_byte[start_c];
+            let end = char_to_byte[end_c];
+            if text.is_char_boundary(start) && text.is_char_boundary(end) {
+                spans.push(SensitiveSpan {
+                    kind: SensitiveSpanKind::ModelEntity,
+                    start,
+                    end,
+                    recognizer_id: MODEL_RECOGNIZER_ID.to_owned(),
+                });
+            }
+        }
+    }
+    spans
+}
+
 /// Splits `text` into windows of at most `max_words` words; returns each
 /// window's byte offset and slice.
+#[cfg(test)]
 fn word_windows(text: &str, max_words: usize) -> Vec<(usize, &str)> {
     let mut out = Vec::new();
     let mut words = 0;

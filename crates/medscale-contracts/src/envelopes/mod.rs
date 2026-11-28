@@ -296,6 +296,8 @@ pub enum Capability {
     FederationRead,
     // Spec 103: local model catalog (read-only metadata; no network).
     ModelCatalogRead,
+    // OpenMed v4.0.0 Wave 2: clinical NLP & compositional UCUM (read-only, synthetic/bounded).
+    ClinicalV4Read,
 }
 
 impl Capability {
@@ -366,6 +368,7 @@ impl Capability {
                 | Self::AdapterRead
                 | Self::FederationRead
                 | Self::ModelCatalogRead
+                | Self::ClinicalV4Read
         )
     }
 
@@ -553,6 +556,7 @@ impl Capability {
             Self::FederationAdmin,
             Self::FederationRead,
             Self::ModelCatalogRead,
+            Self::ClinicalV4Read,
         ]
     }
 }
@@ -1807,6 +1811,22 @@ pub enum RequestBody {
     ModelCatalogManifestDiff {
         request: Box<crate::model_catalog::ModelCatalogManifestDiffRequest>,
     },
+    // OpenMed v4.0.0 Wave 2: privacy presets, calendar/RTL/risk, clinical NLP & UCUM v4.
+    PrivacyV4Presets {
+        request: Box<crate::openmed_wave2::PrivacyV4PresetsRequest>,
+    },
+    PrivacyV4Deidentify {
+        request: Box<crate::openmed_wave2::PrivacyV4DeidentifyRequest>,
+    },
+    PrivacyV4Risk {
+        request: Box<crate::openmed_wave2::PrivacyV4RiskRequest>,
+    },
+    ClinicalV4Analyze {
+        request: Box<crate::openmed_wave2::ClinicalV4AnalyzeRequest>,
+    },
+    UnitsV4Convert {
+        request: Box<crate::openmed_wave2::UnitsV4ConvertRequest>,
+    },
 }
 
 impl RequestBody {
@@ -2607,6 +2627,22 @@ pub enum ResponseBody {
     },
     ModelCatalogManifestDiff {
         diff: Box<crate::model_catalog::ModelCatalogManifestDiffResponse>,
+    },
+    // OpenMed v4.0.0 Wave 2 responses.
+    PrivacyV4Presets {
+        response: Box<crate::openmed_wave2::PrivacyV4PresetsResponse>,
+    },
+    PrivacyV4Deidentify {
+        response: Box<crate::openmed_wave2::PrivacyV4DeidentifyResponse>,
+    },
+    PrivacyV4Risk {
+        response: Box<crate::openmed_wave2::PrivacyV4RiskResponse>,
+    },
+    ClinicalV4Analyze {
+        response: Box<crate::openmed_wave2::ClinicalV4AnalyzeResponse>,
+    },
+    UnitsV4Convert {
+        response: Box<crate::openmed_wave2::UnitsV4ConvertResponse>,
     },
 }
 

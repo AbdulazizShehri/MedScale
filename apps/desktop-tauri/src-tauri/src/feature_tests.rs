@@ -2252,3 +2252,68 @@ fn an_interrupted_vault_creation_is_moved_aside_and_a_real_vault_never_is() {
     assert!(first.exists());
     let _ = std::fs::remove_dir_all(&base);
 }
+
+#[test]
+fn wave2_privacy_clinical_and_units_ipc_roundtrip() {
+    let h = Harness::new("wave2-ipc");
+
+    let presets = h.ok("privacy_v4_presets", json!({}));
+    assert_eq!(presets["presets"].as_array().unwrap().len(), 25);
+
+    let deid = h.ok(
+        "privacy_v4_deidentify",
+        json!({
+            "text": "المريض أحمد حضر بتاريخ 2026-11-28، Diabetes mellitus، SSN 123-45-6789.",
+            "policyName": "saudi_pdpl",
+            "calendar": "gregorian",
+            "dateShiftDays": 14,
+            "rtlIsolate": true,
+            "clinicalProtect": true,
+            "safetySweep": true
+        }),
+    );
+    assert_eq!(deid["receipt_verified"], true);
+    assert_eq!(deid["rtl_isolated"], true);
+    assert!(
+        deid["redacted_text"]
+            .as_str()
+            .unwrap()
+            .contains("2026-12-12")
+    );
+
+    let risk = h.ok(
+        "privacy_v4_risk",
+        json!({
+            "records": [
+                { "age": "30-39", "zip": "100**", "dx": "asthma" },
+                { "age": "30-39", "zip": "100**", "dx": "diabetes" },
+                { "age": "40-49", "zip": "200**", "dx": "asthma" }
+            ],
+            "quasiIdentifiers": ["age", "zip"],
+            "sensitiveAttributes": ["dx"]
+        }),
+    );
+    assert_eq!(risk["record_count"], 3);
+    assert_eq!(risk["k_min"], 1);
+
+    let clin = h.ok(
+        "clinical_v4_analyze",
+        json!({
+            "text": "Assessment:\nDenies chest pain.\nMedications:\nMetformin 500 mg tablet by mouth twice daily for 30 days"
+        }),
+    );
+    assert!(!clin["sections"].as_array().unwrap().is_empty());
+    assert_eq!(clin["parsed_sigs"].as_array().unwrap().len(), 1);
+    assert_eq!(clin["parsed_sigs"][0]["frequency_per_day"], 2.0);
+
+    let units = h.ok(
+        "units_v4_convert",
+        json!({
+            "value": 90.0,
+            "fromUnit": "mg/dL",
+            "toUnit": "mmol/L",
+            "analyte": "glucose"
+        }),
+    );
+    assert_eq!(units["conversion"]["status"], "ok");
+}

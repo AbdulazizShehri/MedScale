@@ -17,6 +17,7 @@ use serde::Serialize;
 mod analytics;
 mod audio;
 mod browse;
+mod clinical_v4;
 mod collaboration;
 mod compute;
 mod data_source;
@@ -272,6 +273,16 @@ enum Commands {
     Privacy {
         #[command(subcommand)]
         action: Box<privacy_gate::PrivacyCmd>,
+    },
+    /// Clinical NLP v4, structured Sig parsing, medication reconciliation & guarded dosing checks.
+    Clinical {
+        #[command(subcommand)]
+        action: Box<clinical_v4::ClinicalCmd>,
+    },
+    /// Compositional UCUM v4 unit parsing and analyte-aware clinical conversions.
+    Units {
+        #[command(subcommand)]
+        action: Box<clinical_v4::UnitsCmd>,
     },
     /// Data source fabric (Spec 075; governed sources through Core).
     /// Boxed: the locator/filter/transform DSL variants are large by value.
@@ -1954,6 +1965,8 @@ fn run() -> Result<()> {
         Commands::MedAgent { action } => medagent::run_medagent(*action),
         Commands::ModelFleet { action } => model_fleet::run_model_fleet(*action),
         Commands::Privacy { action } => privacy_gate::run_privacy(*action),
+        Commands::Clinical { action } => clinical_v4::run_clinical(*action),
+        Commands::Units { action } => clinical_v4::run_units(*action),
         Commands::Browse { action } => browse::run_browse(*action),
         Commands::Audio { action } => audio::run_audio(*action),
         Commands::Analytics { action } => analytics::run_analytics(*action),
