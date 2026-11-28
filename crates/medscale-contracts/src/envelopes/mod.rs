@@ -298,6 +298,9 @@ pub enum Capability {
     ModelCatalogRead,
     // OpenMed v4.0.0 Wave 2: clinical NLP & compositional UCUM (read-only, synthetic/bounded).
     ClinicalV4Read,
+    // OpenMed v4.0.0 Wave 3: healthcare interop, agent governance & DUA-guarded eval.
+    InteropV4Read,
+    EvalV4Read,
 }
 
 impl Capability {
@@ -369,6 +372,8 @@ impl Capability {
                 | Self::FederationRead
                 | Self::ModelCatalogRead
                 | Self::ClinicalV4Read
+                | Self::InteropV4Read
+                | Self::EvalV4Read
         )
     }
 
@@ -557,6 +562,8 @@ impl Capability {
             Self::FederationRead,
             Self::ModelCatalogRead,
             Self::ClinicalV4Read,
+            Self::InteropV4Read,
+            Self::EvalV4Read,
         ]
     }
 }
@@ -1827,6 +1834,25 @@ pub enum RequestBody {
     UnitsV4Convert {
         request: Box<crate::openmed_wave2::UnitsV4ConvertRequest>,
     },
+    // OpenMed v4.0.0 Wave 3: multimodal/DICOM, interop, agent kernel, MCP SSRF/consent, DUA eval.
+    MultimodalV4Process {
+        request: Box<crate::openmed_wave3::MultimodalV4ProcessRequest>,
+    },
+    DicomV4Deidentify {
+        request: Box<crate::openmed_wave3::DicomV4DeidentifyRequest>,
+    },
+    InteropV4Process {
+        request: Box<crate::openmed_wave3::InteropV4ProcessRequest>,
+    },
+    AgentV4Govern {
+        request: Box<crate::openmed_wave3::AgentV4GovernRequest>,
+    },
+    McpV4PolicyCheck {
+        request: Box<crate::openmed_wave3::McpV4PolicyCheckRequest>,
+    },
+    EvalV4Run {
+        request: Box<crate::openmed_wave3::EvalV4RunRequest>,
+    },
 }
 
 impl RequestBody {
@@ -2643,6 +2669,25 @@ pub enum ResponseBody {
     },
     UnitsV4Convert {
         response: Box<crate::openmed_wave2::UnitsV4ConvertResponse>,
+    },
+    // OpenMed v4.0.0 Wave 3 responses.
+    MultimodalV4Process {
+        response: Box<crate::openmed_wave3::MultimodalV4ProcessResponse>,
+    },
+    DicomV4Deidentify {
+        response: Box<crate::openmed_wave3::DicomV4DeidentifyResponse>,
+    },
+    InteropV4Process {
+        response: Box<crate::openmed_wave3::InteropV4ProcessResponse>,
+    },
+    AgentV4Govern {
+        response: Box<crate::openmed_wave3::AgentV4GovernResponse>,
+    },
+    McpV4PolicyCheck {
+        response: Box<crate::openmed_wave3::McpV4PolicyCheckResponse>,
+    },
+    EvalV4Run {
+        response: Box<crate::openmed_wave3::EvalV4RunResponse>,
     },
 }
 

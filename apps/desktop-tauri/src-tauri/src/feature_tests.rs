@@ -2317,3 +2317,185 @@ fn wave2_privacy_clinical_and_units_ipc_roundtrip() {
     );
     assert_eq!(units["conversion"]["status"], "ok");
 }
+
+#[test]
+fn wave3_multimodal_interop_agent_and_eval_ipc_roundtrip() {
+    let h = Harness::new("wave3-ipc");
+
+    // 1. Multimodal HTML scrub + GPL .msg refusal
+    let html = h.ok(
+        "multimodal_v4_process",
+        json!({
+            "request": {
+                "format": "html",
+                "text": "<html><body><p>SSN 123-45-6789</p><script>alert(1)</script></body></html>"
+            }
+        }),
+    );
+    assert_eq!(html["status"], "processed");
+    assert!(
+        !html["scrubbed_text"]
+            .as_str()
+            .unwrap()
+            .contains("123-45-6789")
+    );
+
+    let msg_err = h
+        .call(
+            "multimodal_v4_process",
+            json!({
+                "request": {
+                    "format": "msg",
+                    "text": "synthetic msg"
+                }
+            }),
+        )
+        .expect_err("msg must refuse");
+    assert_eq!(msg_err["kind"], "invalid");
+
+    // 2. Native Part 10 DICOM PS3.15 de-identification
+    let mut dcm = vec![0u8; 128];
+    dcm.extend_from_slice(b"DICM");
+    let push_short = |buf: &mut Vec<u8>, g: u16, e: u16, vr: &[u8; 2], mut val: Vec<u8>| {
+        if val.len() % 2 == 1 {
+            val.push(b' ');
+        }
+        buf.extend_from_slice(&g.to_le_bytes());
+        buf.extend_from_slice(&e.to_le_bytes());
+        buf.extend_from_slice(vr);
+        buf.extend_from_slice(&(val.len() as u16).to_le_bytes());
+        buf.extend_from_slice(&val);
+    };
+    push_short(
+        &mut dcm,
+        0x0002,
+        0x0010,
+        b"UI",
+        b"1.2.840.10008.1.2.1".to_vec(),
+    );
+    push_short(&mut dcm, 0x0008, 0x0018, b"UI", b"1.2.840.999.202".to_vec());
+    push_short(&mut dcm, 0x0010, 0x0010, b"PN", b"Example^Jane".to_vec());
+    push_short(&mut dcm, 0x0010, 0x0020, b"LO", b"MRN-554433".to_vec());
+    const TBL: &[u8; 64] = b"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
+    let mut dcm_b64 = String::with_capacity(dcm.len().div_ceil(3) * 4);
+    for chunk in dcm.chunks(3) {
+        let b0 = chunk[0] as usize;
+        let b1 = chunk.get(1).copied().unwrap_or(0) as usize;
+        let b2 = chunk.get(2).copied().unwrap_or(0) as usize;
+        dcm_b64.push(TBL[b0 >> 2] as char);
+        dcm_b64.push(TBL[((b0 & 0x03) << 4) | (b1 >> 4)] as char);
+        dcm_b64.push(if chunk.len() > 1 {
+            TBL[((b1 & 0x0F) << 2) | (b2 >> 6)] as char
+        } else {
+            '='
+        });
+        dcm_b64.push(if chunk.len() > 2 {
+            TBL[b2 & 0x3F] as char
+        } else {
+            '='
+        });
+    }
+    let dcm_res = h.ok(
+        "dicom_v4_deidentify",
+        json!({
+            "request": {
+                "base64_payload": dcm_b64,
+                "date_shift_days": 7
+            }
+        }),
+    );
+    assert_eq!(dcm_res["residual_clean"], true);
+    assert!(dcm_res["uids_remapped"].as_u64().unwrap() >= 1);
+
+    // 3. Interop SMART audit + GPL sdcmicro refusal
+    let smart = h.ok(
+        "interop_v4_process",
+        json!({
+            "request": {
+                "operation": "smart_audit",
+                "workflow_id": "patient_summary",
+                "required_scopes": ["patient/Patient.r"],
+                "declared_scopes": ["patient/Patient.r", "system/*.cruds"]
+            }
+        }),
+    );
+    assert_eq!(smart["status"], "excessive");
+
+    let bridge_err = h
+        .call(
+            "interop_v4_process",
+            json!({
+                "request": {
+                    "operation": "bridge_check",
+                    "bridge_name": "sdcmicro"
+                }
+            }),
+        )
+        .expect_err("sdcmicro GPL bridge must refuse");
+    assert_eq!(bridge_err["kind"], "invalid");
+
+    // 4. Agent governance: phase gate + injection guard + non-authorizing trial draft
+    let phase_denied = h.ok(
+        "agent_v4_govern",
+        json!({
+            "request": {
+                "operation": "check_phase",
+                "current_phase": "waiting_review",
+                "target_phase": "preflight",
+                "reviewed": false
+            }
+        }),
+    );
+    assert_eq!(phase_denied["allowed"], false);
+
+    let trial = h.ok(
+        "agent_v4_govern",
+        json!({
+            "request": {
+                "operation": "trial_eligibility_draft",
+                "trial_id": "NCT-SYNTH-IPC",
+                "criteria": [{ "criterion_id": "c1", "rule_state": "met", "model_state": "unmet" }]
+            }
+        }),
+    );
+    assert_eq!(trial["result"]["authorizes_enrollment"], false);
+
+    // 5. MCP SSRF metadata block + consent receipt
+    let ssrf = h.ok(
+        "mcp_v4_policy_check",
+        json!({
+            "request": {
+                "operation": "validate_endpoint",
+                "endpoint": "https://169.254.169.254/latest",
+                "resolved_ips": ["169.254.169.254"],
+                "allowed_origins": ["https://169.254.169.254"]
+            }
+        }),
+    );
+    assert_eq!(ssrf["allowed"], false);
+
+    // 6. Eval span F1 & restricted terminology quarantine
+    let spans = h.ok(
+        "eval_v4_run",
+        json!({
+            "request": {
+                "operation": "score_spans",
+                "gold_spans": [{ "start": 0, "end": 7, "label": "Drug" }],
+                "pred_spans": [{ "start": 0, "end": 7, "label": "Drug" }]
+            }
+        }),
+    );
+    assert_eq!(spans["passed"], true);
+    assert_eq!(spans["result"]["strict"]["f1"], 1.0);
+
+    let snomed = h.ok(
+        "eval_v4_run",
+        json!({
+            "request": {
+                "operation": "terminology_guard",
+                "terminology_name": "snomed_ct"
+            }
+        }),
+    );
+    assert_eq!(snomed["passed"], false);
+}

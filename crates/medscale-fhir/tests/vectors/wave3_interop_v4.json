@@ -1,0 +1,40 @@
+{
+  "cda": {
+    "is_cda": true,
+    "redacted": "<ClinicalDocument xmlns=\"urn:hl7-org:v3\"><recordTarget><patientRole><id root=\"2.16.840.1.113883.4.1\" extension=\"h2b17f6e4cce60bd7\" /><patient><name nullFlavor=\"UNK\" /><birthTime value=\"19800109\" /></patient></patientRole></recordTarget><component><structuredBody><component><section><text>Synthetic note for [PERSON]</text></section></component></structuredBody></component></ClinicalDocument>",
+    "removes_raw_name": true
+  },
+  "fhir_deidentify": {
+    "entry_count": 2,
+    "patient_note_redacted": true,
+    "resource_type": "Bundle"
+  },
+  "fhir_reference_integrity": {
+    "broken_finding_count": 1,
+    "broken_is_valid": false,
+    "valid_is_valid": true
+  },
+  "hl7v2": {
+    "redacted": "MSH|^~\\&|SEND|FAC|RECV|FAC|202611281200||ORU^R01|MSG001|P|2.5\rPID|1||[ID_NUM_HASH_c1013c217edc]^^^[ID_NUM_HASH_9c0dce2c750f]^[ID_NUM_HASH_b113a2ae21d2]||||19800109|F|||||\rOBR|1||ORD1|2345-7^Glucose\rOBX|1|NM|2345-7^Glucose||95|mg/dL\rNTE|1||Call [REDACTED] [REDACTED] at [EMAIL]\r",
+    "removes_raw_name": true,
+    "segment_names": [
+      "MSH",
+      "PID",
+      "OBR",
+      "OBX",
+      "NTE"
+    ]
+  },
+  "schema_version": 1,
+  "smart_scopes": {
+    "excess_count": 1,
+    "excess_status": "excessive",
+    "ok_status": "pass"
+  },
+  "vector_sha256": "sha256:8fc6627aaa93177b8c2674f2ea8320244f62d2200fd9ba755dd3fa153c2ba87d",
+  "x12_837": {
+    "deidentified_text": "ISA*00*          *00*          *ZZ*SENDER         *ZZ*RECEIVER       *261128*1200*^*00501*000000001*0*P*:~GS*HC*SENDER*RECEIVER*20261128*1200*1*X*005010X222A1~ST*837*0001*005010X222A1~NM1*IL*1*REDACTED*REDACTED****MI*REDACTED~N3*REDACTED~N4*REDACTED*REDACTED*REDACTED~DMG*D8*REDACTED*F~SE*6*0001~GE*1*1~IEA*1*000000001~",
+    "redaction_count": 8,
+    "removes_raw_member": true
+  }
+}

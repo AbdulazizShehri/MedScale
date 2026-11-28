@@ -34,6 +34,7 @@ mod project;
 mod r_workspace;
 mod research_packs;
 mod vault_session;
+mod wave3_ops;
 
 #[derive(Debug, Parser)]
 #[command(
@@ -284,6 +285,32 @@ enum Commands {
         #[command(subcommand)]
         action: Box<clinical_v4::UnitsCmd>,
     },
+    /// Wave 3 DoS-bounded multimodal document & media extractors, scrubbers & residual verifiers.
+    Multimodal {
+        #[command(subcommand)]
+        action: Box<wave3_ops::MultimodalCmd>,
+    },
+    /// Wave 3 native DICOM Part 10 + PS3.15 tag, UID, SR & pixel blackout de-identification.
+    Dicom {
+        #[command(subcommand)]
+        action: Box<wave3_ops::DicomCmd>,
+    },
+    /// Wave 3 FHIR $de-identify, SMART scope, HL7v2, C-CDA, X12 & OMOP interop pipelines.
+    Interop {
+        #[command(subcommand)]
+        action: Box<wave3_ops::InteropCmd>,
+    },
+    /// Wave 3 evaluation harnesses & DUA outside-repo path guards.
+    Eval {
+        #[command(subcommand)]
+        action: Box<wave3_ops::EvalCmd>,
+    },
+    /// Wave 3 bounded JSONL streaming privacy batch processor (`stdin` or `--input`).
+    Batch(wave3_ops::BatchArgs),
+    /// Wave 3 opt-in stdio MCP tool server & SSRF endpoint validator.
+    Mcp(wave3_ops::McpArgs),
+    /// Wave 3 opt-in local loopback-only HTTP service (`127.0.0.1` only).
+    Serve(wave3_ops::ServeArgs),
     /// Data source fabric (Spec 075; governed sources through Core).
     /// Boxed: the locator/filter/transform DSL variants are large by value.
     DataSource {
@@ -1967,6 +1994,13 @@ fn run() -> Result<()> {
         Commands::Privacy { action } => privacy_gate::run_privacy(*action),
         Commands::Clinical { action } => clinical_v4::run_clinical(*action),
         Commands::Units { action } => clinical_v4::run_units(*action),
+        Commands::Multimodal { action } => wave3_ops::run_multimodal(*action),
+        Commands::Dicom { action } => wave3_ops::run_dicom(*action),
+        Commands::Interop { action } => wave3_ops::run_interop(*action),
+        Commands::Eval { action } => wave3_ops::run_eval(*action),
+        Commands::Batch(args) => wave3_ops::run_batch(args),
+        Commands::Mcp(args) => wave3_ops::run_mcp(args),
+        Commands::Serve(args) => wave3_ops::run_serve(args),
         Commands::Browse { action } => browse::run_browse(*action),
         Commands::Audio { action } => audio::run_audio(*action),
         Commands::Analytics { action } => analytics::run_analytics(*action),

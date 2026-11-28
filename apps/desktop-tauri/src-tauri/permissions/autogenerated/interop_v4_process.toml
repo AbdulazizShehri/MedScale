@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-interop-v4-process"
+description = "Enables the interop_v4_process command without any pre-configured scope."
+commands.allow = ["interop_v4_process"]
+
+[[permission]]
+identifier = "deny-interop-v4-process"
+description = "Denies the interop_v4_process command without any pre-configured scope."
+commands.deny = ["interop_v4_process"]

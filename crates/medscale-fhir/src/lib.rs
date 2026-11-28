@@ -1,6 +1,7 @@
 //! Lexical/structural gate and H0-B typed extractors for synthetic FHIR R4 JSON.
 
 mod extractors;
+pub mod interop_v4;
 mod lexical;
 mod units;
 
