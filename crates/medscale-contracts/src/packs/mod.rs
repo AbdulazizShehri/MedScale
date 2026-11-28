@@ -262,3 +262,28 @@ pub struct PackAdmitResult {
     pub pack_id: Option<OpaqueId>,
     pub audit_id: OpaqueId,
 }
+
+/// Wave 1 (OpenMed v4.0.0): cancellable ordered batch evaluation request on an
+/// admitted local Pack (`synthetic_only` must remain `true`).
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct PackBatchEvaluationRequest {
+    pub pack_id: OpaqueId,
+    pub local_path: String,
+    pub inputs: Vec<String>,
+    pub max_tokens: u32,
+    pub decoding: Option<EntityDecoding>,
+    pub zero_shot_labels: Option<Vec<String>>,
+    pub synthetic_only: bool,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct PackBatchEvaluationResult {
+    pub pack_id: OpaqueId,
+    pub content_digest: DigestSha256,
+    pub runtime_id: String,
+    pub prepared_cache_hit: bool,
+    pub evidence_only: bool,
+    pub items: Vec<serde_json::Value>,
+    pub provenance: ModelSourceProvenance,
+    pub audit_id: OpaqueId,
+}

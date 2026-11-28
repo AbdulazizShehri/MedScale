@@ -751,6 +751,222 @@ impl PreparedCandleTokenClassifier {
             pack_id: pack_id.clone(),
         })
     }
+
+    /// Runs [`Self::run_document_cancellable`] over an ordered batch of inputs,
+    /// stopping between items if `cancel` is set.
+    pub fn run_batch_cancellable(
+        &self,
+        pack_id: &OpaqueId,
+        inputs: &[String],
+        options: CandleRunOptions,
+        cancel: &AtomicBool,
+    ) -> Result<Vec<crate::BatchEvaluationItem>, CandleRuntimeError> {
+        match crate::evaluate_texts_ordered_cancellable(
+            inputs,
+            cancel,
+            CandleRuntimeError::Cancelled,
+            |text| {
+                self.run_document_cancellable(pack_id, text, options, cancel)
+                    .map(|out| out.proposal_payload)
+            },
+        ) {
+            Ok(items) => Ok(items),
+            Err(Ok(err)) => Err(err),
+            Err(Err(_)) => Err(CandleRuntimeError::InputBound),
+        }
+    }
+}
+
+/// Stable runtime identifier for Candle sequence classification (NLI / triage
+/// routing).
+pub const CANDLE_SEQUENCE_CLASSIFIER_RUNTIME_ID: &str = "candle_sequence_classifier_v1";
+
+/// Prepared local Candle sequence classifier (3-way NLI or label logits on CLS
+/// token pooling).
+pub struct PreparedCandleSequenceClassifier {
+    inner: PreparedCandleTokenClassifier,
+}
+
+impl fmt::Debug for PreparedCandleSequenceClassifier {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_struct("PreparedCandleSequenceClassifier")
+            .field("inner", &self.inner)
+            .finish()
+    }
+}
+
+/// Prepare a verified local Pack declaring [`CANDLE_SEQUENCE_CLASSIFIER_RUNTIME_ID`]
+/// (or a token-classifier layout adapted to CLS pooling).
+pub fn prepare_candle_sequence_classifier(
+    pack_dir: &Path,
+    pack: &PackManifestV0,
+) -> Result<PreparedCandleSequenceClassifier, CandleRuntimeError> {
+    prepare_candle_sequence_classifier_with(pack_dir, pack, CandleDevicePreference::Auto)
+}
+
+/// As [`prepare_candle_sequence_classifier`] with an explicit device preference.
+pub fn prepare_candle_sequence_classifier_with(
+    pack_dir: &Path,
+    pack: &PackManifestV0,
+    preference: CandleDevicePreference,
+) -> Result<PreparedCandleSequenceClassifier, CandleRuntimeError> {
+    let declared = pack.runtime_requirements.split(';').any(|r| {
+        r == CANDLE_SEQUENCE_CLASSIFIER_RUNTIME_ID || r == CANDLE_TOKEN_CLASSIFIER_RUNTIME_ID
+    });
+    if !declared {
+        return Err(CandleRuntimeError::RuntimeNotAdmitted);
+    }
+    let weights = select_artifact(pack_dir, pack, PackArtifactKind::SafetensorsModel, None)?;
+    let config_bytes = select_artifact(
+        pack_dir,
+        pack,
+        PackArtifactKind::ModelMetadata,
+        Some("config.json"),
+    )?;
+    let tokenizer_bytes = select_artifact(
+        pack_dir,
+        pack,
+        PackArtifactKind::TokenizerMeta,
+        Some("tokenizer.json"),
+    )?;
+    let labels_bytes = select_artifact(
+        pack_dir,
+        pack,
+        PackArtifactKind::TokenizerMeta,
+        Some("labels.json"),
+    )?;
+    let provenance_bytes = select_artifact(
+        pack_dir,
+        pack,
+        PackArtifactKind::ModelMetadata,
+        Some("model.meta.json"),
+    )?;
+    let provenance: ModelSourceProvenance = serde_json::from_slice(&provenance_bytes)
+        .map_err(|_| CandleRuntimeError::InvalidProvenance)?;
+    if provenance.runtime_family != CANDLE_SEQUENCE_CLASSIFIER_RUNTIME_ID
+        && provenance.runtime_family != CANDLE_TOKEN_CLASSIFIER_RUNTIME_ID
+    {
+        return Err(CandleRuntimeError::RuntimeNotAdmitted);
+    }
+    prepare_sequence_from_bytes(
+        pack.content_digest.clone(),
+        provenance,
+        &config_bytes,
+        weights,
+        &tokenizer_bytes,
+        &labels_bytes,
+        preference,
+    )
+}
+
+pub(crate) fn prepare_sequence_from_bytes(
+    content_digest: DigestSha256,
+    provenance: ModelSourceProvenance,
+    config_bytes: &[u8],
+    weights: Vec<u8>,
+    tokenizer_bytes: &[u8],
+    labels_bytes: &[u8],
+    preference: CandleDevicePreference,
+) -> Result<PreparedCandleSequenceClassifier, CandleRuntimeError> {
+    let inner = prepare_from_bytes(
+        content_digest,
+        provenance,
+        config_bytes,
+        weights,
+        tokenizer_bytes,
+        labels_bytes,
+        preference,
+    )?;
+    Ok(PreparedCandleSequenceClassifier { inner })
+}
+
+impl PreparedCandleSequenceClassifier {
+    #[must_use]
+    pub fn provenance(&self) -> &ModelSourceProvenance {
+        self.inner.provenance()
+    }
+
+    pub fn run(
+        &self,
+        pack_id: &OpaqueId,
+        input: &str,
+    ) -> Result<RuntimeOutput, CandleRuntimeError> {
+        self.run_cancellable(pack_id, input, &AtomicBool::new(false))
+    }
+
+    pub fn run_cancellable(
+        &self,
+        pack_id: &OpaqueId,
+        input: &str,
+        cancel: &AtomicBool,
+    ) -> Result<RuntimeOutput, CandleRuntimeError> {
+        if cancel.load(Ordering::Relaxed) {
+            return Err(CandleRuntimeError::Cancelled);
+        }
+        if input.len() > MAX_INPUT_BYTES {
+            return Err(CandleRuntimeError::InputBound);
+        }
+        let encoding = self
+            .inner
+            .tokenizer
+            .encode(input, true)
+            .map_err(|_| CandleRuntimeError::Tokenizer)?;
+        let ids = encoding.get_ids();
+        let type_ids = encoding.get_type_ids();
+        if ids.is_empty() {
+            return Err(CandleRuntimeError::EmptyInput);
+        }
+        let keep = ids.len().min(self.inner.window);
+        let flat = self.inner.infer(&ids[..keep], &type_ids[..keep])?;
+        let width = self.inner.labels.len();
+        if flat.len() < width {
+            return Err(CandleRuntimeError::OutputShape);
+        }
+        let cls_logits = &flat[..width];
+        let scores = crate::softmax_label_scores(cls_logits, &self.inner.labels)
+            .ok_or(CandleRuntimeError::NonFiniteLogit)?;
+        let predicted = scores.first().map(|s| s.label.clone()).unwrap_or_default();
+        let top_score = scores.first().map(|s| s.probability).unwrap_or(0.0);
+        Ok(RuntimeOutput {
+            proposal_payload: json!({
+                "kind": "candle_sequence_classification_v1",
+                "runtime": CANDLE_SEQUENCE_CLASSIFIER_RUNTIME_ID,
+                "model_type": self.inner.model_type,
+                "device": self.inner.device_name,
+                "content_digest": self.inner.content_digest.to_hex(),
+                "source_kind": self.inner.provenance.source_kind,
+                "source_repository": self.inner.provenance.repository,
+                "source_revision": self.inner.provenance.revision,
+                "predicted_label": predicted,
+                "score": top_score,
+                "scores": scores,
+                "note": "Proposal/evaluation evidence only; never ClinicalAssertion",
+            }),
+            evidence_only: true,
+            pack_id: pack_id.clone(),
+        })
+    }
+
+    pub fn run_batch_cancellable(
+        &self,
+        pack_id: &OpaqueId,
+        inputs: &[String],
+        cancel: &AtomicBool,
+    ) -> Result<Vec<crate::BatchEvaluationItem>, CandleRuntimeError> {
+        match crate::evaluate_texts_ordered_cancellable(
+            inputs,
+            cancel,
+            CandleRuntimeError::Cancelled,
+            |text| {
+                self.run_cancellable(pack_id, text, cancel)
+                    .map(|out| out.proposal_payload)
+            },
+        ) {
+            Ok(items) => Ok(items),
+            Err(Ok(err)) => Err(err),
+            Err(Err(_)) => Err(CandleRuntimeError::InputBound),
+        }
+    }
 }
 
 #[cfg(test)]
@@ -783,13 +999,17 @@ mod tests {
         })
     }
 
-    /// A randomly initialised tiny BERT token classifier saved as safetensors.
+    /// A randomly initialised tiny BERT classifier saved as safetensors.
     fn tiny_bert_weights(config: &Value) -> Vec<u8> {
+        tiny_bert_weights_n(config, 2)
+    }
+
+    fn tiny_bert_weights_n(config: &Value, n_labels: usize) -> Vec<u8> {
         let varmap = VarMap::new();
         let vb = VarBuilder::from_varmap(&varmap, DType::F32, &Device::Cpu);
         let cfg: bert::Config = serde_json::from_value(config.clone()).unwrap();
         bert::BertModel::load(vb.pp("bert"), &cfg).unwrap();
-        candle_nn::linear(8, 2, vb.pp("classifier")).unwrap();
+        candle_nn::linear(8, n_labels, vb.pp("classifier")).unwrap();
         // Unique per call: tests run in parallel in one process.
         static NEXT: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
         let path = std::env::temp_dir().join(format!(
@@ -1177,5 +1397,43 @@ mod tests {
             ),
             Err(CandleRuntimeError::InvalidThreshold)
         ));
+    }
+
+    #[test]
+    fn sequence_classification_runs_nli_logits_and_batch_cancellation() {
+        let config = tiny_bert_config();
+        let prepared = prepare_sequence_from_bytes(
+            DigestSha256::of(b"tiny-seq"),
+            provenance(),
+            config.to_string().as_bytes(),
+            tiny_bert_weights_n(&config, 3),
+            TOKENIZER.as_bytes(),
+            br#"["entailment","neutral","contradiction"]"#,
+            CandleDevicePreference::Cpu,
+        )
+        .unwrap();
+        let pid = OpaqueId::new("seq-pack");
+        let single = prepared.run(&pid, "alice visited clinic").unwrap();
+        assert!(single.evidence_only);
+        let scores = single.proposal_payload["scores"].as_array().unwrap();
+        assert_eq!(scores.len(), 3);
+        let prob_sum: f64 = scores
+            .iter()
+            .map(|s| s["probability"].as_f64().unwrap())
+            .sum();
+        assert!((prob_sum - 1.0).abs() < 1e-4, "softmax sum={prob_sum}");
+
+        let batch_inputs = vec!["alice".to_owned(), "bob".to_owned()];
+        let batch = prepared
+            .run_batch_cancellable(&pid, &batch_inputs, &AtomicBool::new(false))
+            .unwrap();
+        assert_eq!(batch.len(), 2);
+        assert_eq!(batch[0].index, 0);
+        assert_eq!(batch[1].index, 1);
+
+        let err = prepared
+            .run_batch_cancellable(&pid, &batch_inputs, &AtomicBool::new(true))
+            .unwrap_err();
+        assert!(matches!(err, CandleRuntimeError::Cancelled));
     }
 }

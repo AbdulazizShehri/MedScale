@@ -187,6 +187,139 @@ pub fn models_evaluate(
     Ok(json!(result))
 }
 
+/// Hardware-tier recommendation query over the bundled MedScale catalog.
+#[tauri::command(async)]
+pub fn models_recommend(
+    host: tauri::State<'_, Host>,
+    device_tier: String,
+    task: Option<String>,
+    language: Option<String>,
+    limit: Option<usize>,
+) -> CmdResult<Value> {
+    let device_tier = host::bounded_text(&device_tier, 32)?;
+    let mut state = lock(&host)?;
+    let snapshot_path = catalog_path(&state)?;
+    let source = bundled_catalog_source()?;
+    let rec = state.session()?.model_catalog_recommend(
+        medscale_contracts::model_catalog::ModelCatalogRecommendRequest {
+            snapshot_path: Some(snapshot_path),
+            repository: Some(source.repository),
+            commit: Some(source.commit),
+            device_tier,
+            task: filter(task)?,
+            language: filter(language)?,
+            limit: limit.unwrap_or(50),
+        },
+    )?;
+    Ok(json!(rec))
+}
+
+/// Renders a MedScale Model Card for a source `repo_id` in the bundled catalog.
+#[tauri::command(async)]
+pub fn models_card(host: tauri::State<'_, Host>, repo_id: String) -> CmdResult<Value> {
+    let repo_id = host::bounded_text(&repo_id, 200)?;
+    let mut state = lock(&host)?;
+    let snapshot_path = catalog_path(&state)?;
+    let source = bundled_catalog_source()?;
+    let card = state.session()?.model_catalog_card(
+        medscale_contracts::model_catalog::ModelCatalogCardRequest {
+            snapshot_path: Some(snapshot_path),
+            repository: Some(source.repository),
+            commit: Some(source.commit),
+            repo_id,
+        },
+    )?;
+    Ok(json!(card))
+}
+
+/// Checks RAM and disk preflight requirements for a catalog model on a target tier.
+#[tauri::command(async)]
+pub fn models_preflight(
+    host: tauri::State<'_, Host>,
+    repo_id: String,
+    device_tier: Option<String>,
+    available_ram_mb: Option<f64>,
+    free_disk_mb: Option<f64>,
+) -> CmdResult<Value> {
+    let repo_id = host::bounded_text(&repo_id, 200)?;
+    let device_tier = device_tier
+        .filter(|t| !t.trim().is_empty())
+        .map(|t| host::bounded_text(&t, 32))
+        .transpose()?
+        .unwrap_or_else(|| "laptop".to_owned());
+    let ram = available_ram_mb
+        .filter(|v| v.is_finite() && *v >= 0.0)
+        .unwrap_or(16_384.0);
+    let disk = free_disk_mb
+        .filter(|v| v.is_finite() && *v >= 0.0)
+        .unwrap_or(20_480.0);
+    let mut state = lock(&host)?;
+    let snapshot_path = catalog_path(&state)?;
+    let source = bundled_catalog_source()?;
+    let preflight = state.session()?.model_catalog_preflight(
+        medscale_contracts::model_catalog::ModelCatalogPreflightRequest {
+            snapshot_path: Some(snapshot_path),
+            repository: Some(source.repository),
+            commit: Some(source.commit),
+            repo_id,
+            device_tier,
+            available_ram_mb: ram,
+            free_disk_mb: disk,
+        },
+    )?;
+    Ok(json!(preflight))
+}
+
+/// Evaluates an ordered batch of synthetic texts on an admitted local Pack.
+#[tauri::command(async)]
+pub fn models_evaluate_batch(
+    host: tauri::State<'_, Host>,
+    pack_id: String,
+    inputs: Vec<String>,
+    decoding: Option<String>,
+    labels: Option<Vec<String>>,
+) -> CmdResult<Value> {
+    let pack_id = host::bounded_id(&pack_id)?.to_owned();
+    if inputs.is_empty() || inputs.len() > 32 {
+        return Err(CmdError::invalid(
+            "Invalid: provide 1 to 32 synthetic inputs",
+        ));
+    }
+    let bounded_inputs = inputs
+        .into_iter()
+        .map(|item| host::bounded_text(&item, 4000))
+        .collect::<CmdResult<Vec<_>>>()?;
+    let decoding = decoding
+        .filter(|d| !d.is_empty())
+        .map(|d| {
+            serde_json::from_value::<medscale_contracts::packs::EntityDecoding>(Value::String(d))
+                .map_err(|_| CmdError::invalid("Invalid: unknown entity decoding"))
+        })
+        .transpose()?;
+    let labels = labels
+        .filter(|l| !l.is_empty())
+        .map(|l| {
+            l.iter()
+                .map(|x| host::bounded_text(x, 64))
+                .collect::<CmdResult<Vec<_>>>()
+        })
+        .transpose()?;
+    let mut state = lock(&host)?;
+    let local_path = pack_dir(&mut state, &pack_id)?;
+    let result = state.session()?.packs_evaluate_batch(
+        medscale_contracts::packs::PackBatchEvaluationRequest {
+            pack_id: OpaqueId::new(&pack_id),
+            local_path,
+            inputs: bounded_inputs,
+            max_tokens: 512,
+            decoding,
+            zero_shot_labels: labels,
+            synthetic_only: true,
+        },
+    )?;
+    Ok(json!(result))
+}
+
 // ─────────────────────── shared agent fixtures ───────────────────────
 
 /// Installs the ONNX fixture pack into the workspace session and returns

@@ -73,6 +73,8 @@ pub enum GlinerRuntimeError {
     TooLong,
     #[error("score threshold must be between 0 and 1")]
     InvalidThreshold,
+    #[error("zero-shot inference was cancelled")]
+    Cancelled,
 }
 
 fn prep(e: impl fmt::Display) -> GlinerRuntimeError {
@@ -426,6 +428,27 @@ impl PreparedGlinerSpanModel {
         threshold: f32,
         flat_ner: bool,
     ) -> Result<Vec<ZeroShotEntity>, GlinerRuntimeError> {
+        self.predict_cancellable(
+            text,
+            labels,
+            threshold,
+            flat_ner,
+            &std::sync::atomic::AtomicBool::new(false),
+        )
+    }
+
+    /// [`Self::predict`] checking `cancel` between preparation, encoding, and scoring.
+    pub fn predict_cancellable(
+        &self,
+        text: &str,
+        labels: &[&str],
+        threshold: f32,
+        flat_ner: bool,
+        cancel: &std::sync::atomic::AtomicBool,
+    ) -> Result<Vec<ZeroShotEntity>, GlinerRuntimeError> {
+        if cancel.load(std::sync::atomic::Ordering::Relaxed) {
+            return Err(GlinerRuntimeError::Cancelled);
+        }
         if text.len() > MAX_INPUT_BYTES {
             return Err(GlinerRuntimeError::InputBound);
         }
@@ -509,6 +532,9 @@ impl PreparedGlinerSpanModel {
             .forward(&input, None, Some(mask))
             .and_then(|h| h.i(0))
             .map_err(exec)?;
+        if cancel.load(std::sync::atomic::Ordering::Relaxed) {
+            return Err(GlinerRuntimeError::Cancelled);
+        }
         let take = |positions: &[u32]| -> candle_core::Result<Tensor> {
             let index = Tensor::from_slice(positions, positions.len(), device)?;
             hidden.index_select(&index, 0)
@@ -601,7 +627,25 @@ impl PreparedGlinerSpanModel {
         labels: &[&str],
         threshold: f32,
     ) -> Result<RuntimeOutput, GlinerRuntimeError> {
-        let entities = self.predict(text, labels, threshold, true)?;
+        self.run_cancellable(
+            pack_id,
+            text,
+            labels,
+            threshold,
+            &std::sync::atomic::AtomicBool::new(false),
+        )
+    }
+
+    /// [`Self::run`] checking `cancel` before returning proposal output.
+    pub fn run_cancellable(
+        &self,
+        pack_id: &OpaqueId,
+        text: &str,
+        labels: &[&str],
+        threshold: f32,
+        cancel: &std::sync::atomic::AtomicBool,
+    ) -> Result<RuntimeOutput, GlinerRuntimeError> {
+        let entities = self.predict_cancellable(text, labels, threshold, true, cancel)?;
         Ok(RuntimeOutput {
             proposal_payload: json!({
                 "kind": "gliner_zero_shot_ner_v1",
@@ -909,5 +953,14 @@ mod tests {
         )
         .unwrap_err();
         assert!(matches!(err, GlinerRuntimeError::NotGliner(_)));
+
+        let cancelled = model.predict_cancellable(
+            "pain",
+            &["anatomy"],
+            0.5,
+            true,
+            &std::sync::atomic::AtomicBool::new(true),
+        );
+        assert!(matches!(cancelled, Err(GlinerRuntimeError::Cancelled)));
     }
 }

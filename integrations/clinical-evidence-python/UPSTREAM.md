@@ -137,3 +137,14 @@ conformance generator and its test) are not listed.
   a misleading hash or failing on import.
 - The importer scripts record the original import; rerunning them on this
   tree is refused, and their output is superseded by these revisions.
+
+
+---
+
+## v4.0.0 Full Capability Transplant Expansion (2026-11-28)
+
+- **Upstream pin:** `https://github.com/maziyarpanahi/openmed` tag `v4.0.0` (`5b79cae5df6bc22b0fcdc799be480ee4ffc23c57`, Apache-2.0)
+- **Additional upstream reference:** `https://github.com/openmed-labs/openmed-agent` tag `v1.0.3` (`ded6e57b5b93cb6dc49c8639662b381179697c7`, Apache-2.0; `README.md` + `LICENSE` only)
+- **Importers:** `scripts/vendor_openmed_v4.py` (preserves the 44 existing files from `3e232328` including `core/audit.py` and `clinical/__init__.py` explicit exports while transplanting pure-stdlib v4.0.0 modules across `core`, `clinical`, `risk`, `compliance`, `multimodal`, `interop`, `agent`, `mcp`, `service/{brief,journey_resources,journey_workflows}`, and `eval`).
+- **Additional Third-Party Notices Carried:** `medspaCy ConText` (`https://github.com/medspacy/medspacy`, Apache-2.0), `hijridate` (`2.6.0`, MIT, Mohammed Alshehri), `py-nepali` (`1.2.0`, MIT), `ICU 57.1` grapheme break rules (`ICU.txt`), and `baijiaxing` surnames (`CC0-1.0`).
+- **Companion TypeScript Client:** `integrations/medscale-sdk-ts/` (`@medscale/sdk`, Apache-2.0, zero runtime dependencies) generated from `clients/typescript/`.

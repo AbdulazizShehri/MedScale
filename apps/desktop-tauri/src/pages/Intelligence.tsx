@@ -1,4 +1,4 @@
-import { useEffect, useState, type FormEvent, type KeyboardEvent, type ReactNode } from "react";
+import { useEffect, useMemo, useState, type FormEvent, type KeyboardEvent, type ReactNode } from "react";
 import { formatDecimalMegabytes } from "../model-storage";
 import { useAction, useCommand, type CmdError } from "../lib/ipc";
 import { ProjectScope } from "../components/project";
@@ -55,6 +55,14 @@ type CatalogRow = {
   family: string | null;
   formats: string[];
   tier: string | null;
+  recommended_tier?: string | null;
+  download_mb?: number | null;
+  peak_ram_mb?: Record<string, unknown> | number | null;
+  benchmark?: Record<string, unknown> | null;
+  canonical_labels?: string[];
+  arxiv?: string | null;
+  reproducibility_hash?: string | null;
+  script_coverage?: Record<string, unknown>;
   status: string;
   license_claim: string | null;
   device_fit: string;
@@ -70,6 +78,30 @@ type CatalogPage = {
   status_counts: Record<string, number>;
   rows: CatalogRow[];
 };
+type RecommendResponse = {
+  device_tier: string;
+  total_matches: number;
+  items: CatalogRow[];
+};
+type ModelCardResponse = {
+  medscale_id: string;
+  repo_id: string;
+  markdown: string;
+  row: CatalogRow;
+};
+type PreflightResponse = {
+  repo_id: string;
+  medscale_id: string;
+  device_tier: string;
+  fits_ram: boolean;
+  fits_disk: boolean;
+  required_ram_mb: number | null;
+  required_disk_mb: number | null;
+  available_ram_mb: number;
+  free_disk_mb: number;
+  bucketed_ram_bytes: number | null;
+  recommended_tier: string | null;
+};
 
 type EvalResult = {
   proposal_payload: Record<string, unknown>;
@@ -77,13 +109,38 @@ type EvalResult = {
   prepared_cache_hit: boolean;
   audit_id: string;
 };
+type BatchEvalItem = {
+  index: number;
+  input_len: number;
+  proposal_payload: Record<string, unknown>;
+};
+type BatchEvalResult = {
+  pack_id: string;
+  runtime_id: string;
+  prepared_cache_hit: boolean;
+  evidence_only: boolean;
+  items: BatchEvalItem[];
+  audit_id: string;
+};
+type SeqScore = { label: string; probability: number };
+type EvalReceiptSummary = {
+  packId: string;
+  runtimeId: string;
+  preparedCacheHit: boolean;
+  auditId: string;
+  entityCount: number;
+  itemCount: number;
+};
+
+const HARDWARE_TIERS = ["", "phone", "laptop", "workstation", "server"] as const;
 
 export function Models() {
   const { state, reload } = useCommand<ModelsVm>("models_overview");
   const [sel, setSel] = useState(0);
   const [tab, setTab] = useState<"packs" | "catalog" | "evaluate">("packs");
   const [selectedCatalog, setSelectedCatalog] = useState<CatalogRow | null>(null);
-  const [evalSummary, setEvalSummary] = useState<{ packId: string; result: EvalResult; entityCount: number } | null>(null);
+  const [catalogTier, setCatalogTier] = useState<string>("");
+  const [evalSummary, setEvalSummary] = useState<EvalReceiptSummary | null>(null);
   const { pending, run } = useAction();
   const outcome = useOutcome();
   async function admit() {
@@ -98,33 +155,10 @@ export function Models() {
 
   const inspectorNode: ReactNode = tab === "catalog" ? (
     selectedCatalog ? (
-      <div className="ins-pad">
-        <div>
-          <div style={{ fontSize: 15, fontWeight: 600, letterSpacing: "-0.01em" }}>{catalogDisplayName(selectedCatalog.repo_id)}</div>
-          <div className="mono t-mono-sm i3 wrap-any" style={{ marginTop: 4 }}>{selectedCatalog.repo_id}</div>
-          <div className="row-gap" style={{ gap: 10, marginTop: 10, flexWrap: "wrap" }}>
-            <Status kind={selectedCatalog.status === "DISCOVERABLE" ? "available" : "limited"} weight="strong">{selectedCatalog.status}</Status>
-            <CopyButton text={selectedCatalog.repo_id} label="Copy repo ID" />
-          </div>
-        </div>
-        <Section title="Catalog record">
-          <KV keyWidth={102} rows={[
-            ["Catalog ID", <span className="mono t-mono-sm wrap-any">{selectedCatalog.medscale_id}</span>],
-            ["task", selectedCatalog.task ?? "—"],
-            ["family", selectedCatalog.family ?? "—"],
-            ["tier", selectedCatalog.tier ?? "—"],
-            ["license", selectedCatalog.license_claim ?? "See model card"],
-            ["formats", <span className="mono t-mono-sm">{selectedCatalog.formats.join(", ") || "—"}</span>],
-            ["disk", <span className="mono t-mono-sm">{formatDecimalMegabytes(selectedCatalog.disk?.megabytes)}</span>],
-            ["device fit", selectedCatalog.device_fit],
-            ["expectation", selectedCatalog.runtime_expectation.kind.replace(/_/g, " ")],
-          ]} />
-        </Section>
-        <Authority>A catalog listing is not a download or endorsement. Rights and clinical suitability follow each model&apos;s own license and evaluation evidence.</Authority>
-      </div>
+      <CatalogInspector selected={selectedCatalog} tier={catalogTier || "laptop"} />
     ) : (
       <div className="ins-pad">
-        <Empty icon="models" title="Select a catalog model">Click any row in the MedScale Catalog to inspect its formats, disk budget, license claim, and pre-download expectation.</Empty>
+        <Empty icon="models" title="Select a catalog model">Click any row in the MedScale Catalog to inspect its formats, hardware preflight fit, license claim, and model card.</Empty>
       </div>
     )
   ) : tab === "evaluate" ? (
@@ -135,23 +169,24 @@ export function Models() {
             <div className="t-h2">Evaluation receipt</div>
             <div className="row-gap" style={{ gap: 10, marginTop: 8 }}>
               <Status kind="proposal" weight="strong">Proposal only</Status>
-              <Status kind={evalSummary.result.prepared_cache_hit ? "available" : "pending"} weight="weak">
-                {evalSummary.result.prepared_cache_hit ? "Warm cache" : "Cold run"}
+              <Status kind={evalSummary.preparedCacheHit ? "available" : "pending"} weight="weak">
+                {evalSummary.preparedCacheHit ? "Warm cache" : "Cold run"}
               </Status>
             </div>
           </div>
           <Section title="Run metadata">
             <KV keyWidth={96} rows={[
               ["pack", <span className="mono t-mono-sm wrap-any">{evalSummary.packId}</span>],
-              ["runtime", <span className="mono t-mono-sm wrap-any">{evalSummary.result.runtime_id}</span>],
+              ["runtime", <span className="mono t-mono-sm wrap-any">{evalSummary.runtimeId}</span>],
+              ["items", <span className="mono t-mono-sm">{evalSummary.itemCount}</span>],
               ["entities", <span className="mono t-mono-sm">{evalSummary.entityCount}</span>],
-              ["Audit ID", <span className="row-gap" style={{ gap: 6, flexWrap: "wrap" }}><span className="mono t-mono-sm wrap-any">{evalSummary.result.audit_id}</span><CopyButton text={evalSummary.result.audit_id} label="Copy" /></span>],
+              ["Audit ID", <span className="row-gap" style={{ gap: 6, flexWrap: "wrap" }}><span className="mono t-mono-sm wrap-any">{evalSummary.auditId}</span><CopyButton text={evalSummary.auditId} label="Copy" /></span>],
             ]} />
           </Section>
           <Authority>Evaluation output is synthetic evidence only. Nothing is saved to a patient record or promoted.</Authority>
         </>
       ) : (
-        <Empty icon="models" title="Ready to evaluate">Choose an admitted pack and run it on synthetic text. Results appear with inline entity highlights and a full audit receipt.</Empty>
+        <Empty icon="models" title="Ready to evaluate">Choose an admitted pack and run single or batch synthetic inputs. Results appear with highlights, label scores, and an audit receipt.</Empty>
       )}
     </div>
   ) : m ? (
@@ -243,7 +278,14 @@ export function Models() {
               ))}</tbody>
             </table>
           ) : <Empty icon="models" title="No admitted packs">Admit the bundled synthetic ONNX fixture pack. Core verifies its manifest, digests and signature before admission.</Empty>)}
-          {tab === "catalog" && <CatalogTab selected={selectedCatalog} onSelect={setSelectedCatalog} />}
+          {tab === "catalog" && (
+            <CatalogTab
+              selected={selectedCatalog}
+              tierFilter={catalogTier}
+              onTierChange={setCatalogTier}
+              onSelect={setSelectedCatalog}
+            />
+          )}
           {tab === "evaluate" && <EvaluateTab onEvaluated={setEvalSummary} />}
           <Section title="How model output is treated">
             <div className="grid-2">
@@ -268,25 +310,124 @@ function catalogDisplayName(repoId: string): string {
   return segments.join(" ") || "Model";
 }
 
-function CatalogTab({ selected, onSelect }: { selected: CatalogRow | null; onSelect: (row: CatalogRow | null) => void }) {
+function CatalogInspector({ selected, tier }: { selected: CatalogRow; tier: string }) {
+  const card = useCommand<ModelCardResponse>("models_card", { repoId: selected.repo_id });
+  const preflight = useCommand<PreflightResponse>("models_preflight", { repoId: selected.repo_id, deviceTier: tier });
+  const cardData = card.state.status === "ready" ? card.state.data : null;
+  const row = cardData?.row ?? selected;
+  const pf = preflight.state.status === "ready" ? preflight.state.data : null;
+  const benchmarkEntries = row.benchmark && typeof row.benchmark === "object"
+    ? Object.entries(row.benchmark).filter(([, val]) => val !== null && val !== undefined)
+    : [];
+
+  return (
+    <div className="ins-pad">
+      <div>
+        <div style={{ fontSize: 15, fontWeight: 600, letterSpacing: "-0.01em" }}>{catalogDisplayName(row.repo_id)}</div>
+        <div className="mono t-mono-sm i3 wrap-any" style={{ marginTop: 4 }}>{row.repo_id}</div>
+        <div className="row-gap" style={{ gap: 10, marginTop: 10, flexWrap: "wrap" }}>
+          <Status kind={row.status === "DISCOVERABLE" ? "available" : "limited"} weight="strong">{row.status}</Status>
+          {pf && (
+            <Status kind={pf.fits_ram && pf.fits_disk ? "available" : "limited"} weight="weak">
+              {pf.fits_ram && pf.fits_disk ? `Fits ${pf.device_tier}` : `Exceeds ${pf.device_tier} budget`}
+            </Status>
+          )}
+          <CopyButton text={row.repo_id} label="Copy repo ID" />
+        </div>
+      </div>
+      <Section title="Catalog record">
+        <KV keyWidth={102} rows={[
+          ["Catalog ID", <span className="mono t-mono-sm wrap-any">{row.medscale_id}</span>],
+          ["task", row.task ?? "—"],
+          ["family", row.family ?? "—"],
+          ["tier", [row.tier, row.recommended_tier ? `rec: ${row.recommended_tier}` : null].filter(Boolean).join(" · ") || "—"],
+          ["license", row.license_claim ?? "See model card"],
+          ["formats", <span className="mono t-mono-sm">{row.formats.join(", ") || "—"}</span>],
+          ["disk", <span className="mono t-mono-sm">{formatDecimalMegabytes(row.download_mb ?? row.disk?.megabytes)}</span>],
+          ["device fit", row.device_fit],
+          ["expectation", row.runtime_expectation.kind.replace(/_/g, " ")],
+          ...(row.arxiv ? [["arXiv", <span className="mono t-mono-sm">{row.arxiv}</span>] as [string, ReactNode]] : []),
+          ...(row.reproducibility_hash ? [["repro hash", <span className="mono-break">{row.reproducibility_hash}</span>] as [string, ReactNode]] : []),
+        ]} />
+      </Section>
+      {pf && (
+        <Section title={`Hardware preflight (${pf.device_tier})`}>
+          <KV keyWidth={102} rows={[
+            ["RAM fit", <Status kind={pf.fits_ram ? "available" : "limited"} weight="weak">{pf.fits_ram ? "Fits" : "Too large"} ({pf.required_ram_mb !== null ? formatDecimalMegabytes(pf.required_ram_mb) : "estimated by tier"} / {formatDecimalMegabytes(pf.available_ram_mb)})</Status>],
+            ["Disk fit", <Status kind={pf.fits_disk ? "available" : "limited"} weight="weak">{pf.fits_disk ? "Fits" : "Too large"} ({pf.required_disk_mb !== null ? formatDecimalMegabytes(pf.required_disk_mb) : "unspecified"} / {formatDecimalMegabytes(pf.free_disk_mb)})</Status>],
+          ]} />
+        </Section>
+      )}
+      {benchmarkEntries.length > 0 && (
+        <Section title="Recorded benchmark">
+          <KV keyWidth={102} rows={benchmarkEntries.map(([k, val]) => [k, <span className="mono t-mono-sm">{typeof val === "number" ? val.toFixed(4) : String(val)}</span>])} />
+        </Section>
+      )}
+      {row.canonical_labels && row.canonical_labels.length > 0 && (
+        <Section title="Canonical labels" count={row.canonical_labels.length}>
+          <div className="mono t-mono-sm i2 wrap-any">{row.canonical_labels.join(", ")}</div>
+        </Section>
+      )}
+      {cardData && (
+        <Disclosure summary="Model card markdown">
+          <pre className="pre" style={{ whiteSpace: "pre-wrap" }}>{cardData.markdown}</pre>
+        </Disclosure>
+      )}
+      <Authority>A catalog listing is not a download or endorsement. Rights and clinical suitability follow each model&apos;s own license and evaluation evidence.</Authority>
+    </div>
+  );
+}
+
+function CatalogTab({
+  selected,
+  tierFilter,
+  onTierChange,
+  onSelect,
+}: {
+  selected: CatalogRow | null;
+  tierFilter: string;
+  onTierChange: (tier: string) => void;
+  onSelect: (row: CatalogRow | null) => void;
+}) {
   const [draft, setDraft] = useState({ text: "", task: "", format: "", status: "" });
   const [query, setQuery] = useState({ text: "", task: "", format: "", status: "", offset: 0 });
-  const page = useCommand<CatalogPage>("models_catalog", query);
-  const p = page.state.status === "ready" ? page.state.data : null;
-  const hasFilters = Boolean(draft.text || draft.task || draft.format || draft.status || query.text || query.task || query.format || query.status);
+  const page = useCommand<CatalogPage>(tierFilter ? null : "models_catalog", query);
+  const rec = useCommand<RecommendResponse>(
+    tierFilter ? "models_recommend" : null,
+    tierFilter ? { deviceTier: tierFilter, task: query.task || null, language: null, limit: 50 } : undefined,
+  );
+  const p = !tierFilter && page.state.status === "ready" ? page.state.data : null;
+  const rData = tierFilter && rec.state.status === "ready" ? rec.state.data : null;
+  const hasFilters = Boolean(tierFilter || draft.text || draft.task || draft.format || draft.status || query.text || query.task || query.format || query.status);
+
+  const visibleRows = useMemo<CatalogRow[]>(() => {
+    if (rData) {
+      return rData.items.filter((row) => {
+        if (query.text) {
+          const needle = query.text.toLowerCase();
+          if (!`${row.repo_id} ${row.family ?? ""} ${row.task ?? ""}`.toLowerCase().includes(needle)) return false;
+        }
+        if (query.format && !row.formats.includes(query.format)) return false;
+        if (query.status && row.status !== query.status) return false;
+        return true;
+      });
+    }
+    return p?.rows ?? [];
+  }, [rData, p, query.text, query.format, query.status]);
 
   const submit = (e: FormEvent) => { e.preventDefault(); setQuery({ ...draft, offset: 0 }); };
   const clearFilters = () => {
     const empty = { text: "", task: "", format: "", status: "" };
+    onTierChange("");
     setDraft(empty);
     setQuery({ ...empty, offset: 0 });
   };
 
   useEffect(() => {
-    if (p && p.rows.length > 0 && (!selected || !p.rows.some((r) => r.repo_id === selected.repo_id))) {
-      onSelect(p.rows[0]!);
+    if (visibleRows.length > 0 && (!selected || !visibleRows.some((r) => r.repo_id === selected.repo_id))) {
+      onSelect(visibleRows[0]!);
     }
-  }, [p, selected, onSelect]);
+  }, [visibleRows, selected, onSelect]);
 
   const statusSegments: SegmentItem[] = p
     ? Object.entries(p.status_counts).map(([k, count]) => ({
@@ -297,13 +438,36 @@ function CatalogTab({ selected, onSelect }: { selected: CatalogRow | null; onSel
       }))
     : [];
 
+  const activeState = tierFilter ? rec.state : page.state;
+  const reloadActive = tierFilter ? rec.reload : page.reload;
+  let countLabel = "…";
+  if (tierFilter) {
+    if (rData) countLabel = `${visibleRows.length} fit ${rData.device_tier} (${rData.total_matches} total)`;
+  } else if (p) {
+    countLabel = `${p.total_matching} of ${p.total_rows}`;
+  }
+
   return (
-    <Section title="Model catalog" count={p ? `${p.total_matching} of ${p.total_rows}` : "…"}>
+    <Section title="Model catalog" count={countLabel}>
       {statusSegments.length > 0 && (
         <div style={{ marginBottom: 14 }}>
           <SegmentedBar title="Catalog status distribution" meta={`${p?.total_rows ?? 0} total`} items={statusSegments} />
         </div>
       )}
+      <div className="tabs" role="tablist" aria-label="Hardware tier recommender" style={{ marginBottom: 10 }}>
+        {HARDWARE_TIERS.map((t) => (
+          <button
+            key={t || "all"}
+            type="button"
+            role="tab"
+            aria-selected={tierFilter === t}
+            className={`tab ${tierFilter === t ? "on" : ""}`}
+            onClick={() => onTierChange(t)}
+          >
+            {t ? `Tier: ${t}` : "All hardware tiers"}
+          </button>
+        ))}
+      </div>
       <form onSubmit={submit} className="row-gap" style={{ gap: 8, flexWrap: "wrap", marginBottom: 12 }}>
         <input aria-label="Search the catalog" data-page-search="true" placeholder="Search model, family or language" value={draft.text} maxLength={120} onChange={(e) => setDraft({ ...draft, text: e.target.value })} style={{ minWidth: 230, flex: "1 1 230px" }} />
         <select aria-label="Task" value={draft.task} onChange={(e) => setDraft({ ...draft, task: e.target.value })}>
@@ -321,9 +485,9 @@ function CatalogTab({ selected, onSelect }: { selected: CatalogRow | null; onSel
         <button type="submit" className="btn btn-s">Search</button>
         {hasFilters && <button type="button" className="btn btn-g" onClick={clearFilters}>Clear filters</button>}
       </form>
-      {page.state.status === "loading" && <Skeleton />}
-      {page.state.status === "error" && <ErrorState error={page.state.error} onRetry={page.reload} />}
-      {p && (p.rows.length > 0 ? <>
+      {activeState.status === "loading" && <Skeleton />}
+      {activeState.status === "error" && <ErrorState error={activeState.error} onRetry={reloadActive} />}
+      {(p || rData) && (visibleRows.length > 0 ? <>
         <table className="tb">
           <thead>
             <tr>
@@ -335,37 +499,39 @@ function CatalogTab({ selected, onSelect }: { selected: CatalogRow | null; onSel
               <th style={{ width: 128 }}>Status</th>
             </tr>
           </thead>
-          <tbody>{p.rows.map((r) => (
+          <tbody>{visibleRows.map((r) => (
             <tr key={r.repo_id} className={`r2 clickable ${selected?.repo_id === r.repo_id ? "sel" : ""}`} tabIndex={0} aria-label={`Inspect catalog model ${catalogDisplayName(r.repo_id)}`} aria-selected={selected?.repo_id === r.repo_id} onClick={() => onSelect(r)} onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); onSelect(r); } }}>
               <td>
                 <div style={{ display: "flex", flexDirection: "column", minWidth: 0 }}>
                   <span className="mono trunc" style={{ fontSize: 12.5, fontWeight: 500 }} title={r.repo_id}>{catalogDisplayName(r.repo_id)}</span>
-                  <span className="t-sm i3 trunc">{[r.family, r.tier, r.license_claim].filter(Boolean).join(" · ")}</span>
+                  <span className="t-sm i3 trunc">{[r.family, r.recommended_tier ?? r.tier, r.license_claim].filter(Boolean).join(" · ")}</span>
                   <span className="t-sm i3 mono trunc" title="MedScale catalog entry ID (not an assertion of model authorship)">{r.medscale_id}</span>
                 </div>
               </td>
               <td className="t-sm i2"><span className="trunc" title={r.task ?? undefined}>{r.task ?? "—"}</span></td>
               <td className="col-p3 mono t-mono-sm i2"><span className="trunc">{r.formats.join(", ")}</span></td>
-              <td className="mono t-mono-sm i2">{formatDecimalMegabytes(r.disk?.megabytes)}</td>
+              <td className="mono t-mono-sm i2">{formatDecimalMegabytes(r.download_mb ?? r.disk?.megabytes)}</td>
               <td className="t-sm i2"><span className="trunc" title={r.runtime_expectation.kind.replace(/_/g, " ")}>{r.runtime_expectation.kind.replace(/_/g, " ")}</span></td>
               <td><Status kind={r.status === "DISCOVERABLE" ? "available" : "limited"} weight="weak">{r.status.replace(/_/g, " ").toLowerCase().replace(/^./, (c) => c.toUpperCase())}</Status></td>
             </tr>
           ))}</tbody>
         </table>
-        <div className="row-gap" style={{ gap: 8, marginTop: 10, justifyContent: "space-between", flexWrap: "wrap" }}>
-          <span className="t-sm i3">MedScale catalog snapshot <span className="mono">{p.commit.slice(0, 12)}</span> · rows {query.offset + 1}–{query.offset + p.rows.length}</span>
-          <span className="row-gap" style={{ gap: 8 }}>
-            <button type="button" className="btn btn-g" disabled={query.offset === 0} onClick={() => setQuery({ ...query, offset: Math.max(0, query.offset - 50) })}>Previous</button>
-            <button type="button" className="btn btn-g" disabled={p.next_offset == null} onClick={() => setQuery({ ...query, offset: p.next_offset ?? query.offset })}>Next</button>
-          </span>
-        </div>
+        {p && (
+          <div className="row-gap" style={{ gap: 8, marginTop: 10, justifyContent: "space-between", flexWrap: "wrap" }}>
+            <span className="t-sm i3">MedScale catalog snapshot <span className="mono">{p.commit.slice(0, 12)}</span> · rows {query.offset + 1}–{query.offset + visibleRows.length}</span>
+            <span className="row-gap" style={{ gap: 8 }}>
+              <button type="button" className="btn btn-g" disabled={query.offset === 0} onClick={() => setQuery({ ...query, offset: Math.max(0, query.offset - 50) })}>Previous</button>
+              <button type="button" className="btn btn-g" disabled={p.next_offset === null} onClick={() => setQuery({ ...query, offset: p.next_offset ?? query.offset })}>Next</button>
+            </span>
+          </div>
+        )}
       </> : (
         <Empty
           icon="models"
           title="No matching catalog models"
           action={hasFilters ? <button type="button" className="btn btn-s" onClick={clearFilters}>Clear filters</button> : undefined}
         >
-          No entries matched the active filters in snapshot <span className="mono">{p.commit.slice(0, 12)}</span>.
+          No entries matched the active filters{p ? <> in snapshot <span className="mono">{p.commit.slice(0, 12)}</span></> : null}.
         </Empty>
       ))}
       <p className="t-sm i3" style={{ marginTop: 8 }}>A listing is not a download and not an executable model. Each row shows MedScale&apos;s pre-download expectation; rights follow each model&apos;s own card.</p>
@@ -420,29 +586,102 @@ function HighlightedEntityProse({ text, entities }: { text: string; entities: Ar
   );
 }
 
-function EvaluateTab({ onEvaluated }: { onEvaluated: (s: { packId: string; result: EvalResult; entityCount: number } | null) => void }) {
+function ProposalPayloadView({ text, payload }: { text: string; payload: Record<string, unknown> }) {
+  const entities = (payload.entities ?? payload.pii_merged_entities) as Array<Record<string, unknown>> | undefined;
+  const scores = Array.isArray(payload.scores) ? (payload.scores as SeqScore[]) : undefined;
+  const predicted = typeof payload.predicted_label === "string" ? payload.predicted_label : null;
+  return (
+    <>
+      {predicted && scores && scores.length > 0 && (
+        <div style={{ margin: "10px 0" }}>
+          <div className="row-gap" style={{ gap: 8, marginBottom: 6 }}>
+            <span className="lbl">Top sequence label</span>
+            <Status kind="proposal" weight="strong">{predicted}</Status>
+          </div>
+          <SegmentedBar
+            title="Softmax label probabilities"
+            items={scores.map((s, idx) => ({
+              key: s.label,
+              label: s.label,
+              count: Math.round(s.probability * 1000) / 10,
+              tone: idx === 0 ? "present" : "neutral",
+            }))}
+          />
+        </div>
+      )}
+      {entities?.length ? (
+        <>
+          <HighlightedEntityProse text={text} entities={entities} />
+          <table className="tb">
+            <thead><tr><th style={{ width: "40%" }}>Text</th><th style={{ width: "30%" }}>Label</th><th>Span</th></tr></thead>
+            <tbody>{entities.map((x, i) => <tr key={i}><td className="t-sm">{String(x.text ?? x.word ?? "")}</td><td className="t-sm i2">{String(x.label ?? x.entity_group ?? x.entity ?? "")}</td><td className="mono t-mono-sm i3">{String(x.start ?? "")}–{String(x.end ?? "")}</td></tr>)}</tbody>
+          </table>
+        </>
+      ) : null}
+    </>
+  );
+}
+
+function EvaluateTab({ onEvaluated }: { onEvaluated: (s: EvalReceiptSummary | null) => void }) {
   const models = useCommand<Model[]>("medagent_models");
   const [packId, setPackId] = useState("");
+  const [mode, setMode] = useState<"single" | "batch">("single");
   const [input, setInput] = useState("Synthetic note: Ada Example, born 12 March 1980, seen at Utrecht clinic for type 2 diabetes.");
-  const [evaluatedText, setEvaluatedText] = useState("");
+  const [evaluatedTexts, setEvaluatedTexts] = useState<string[]>([]);
   const [decoding, setDecoding] = useState("recommended");
   const [labels, setLabels] = useState("");
   const [result, setResult] = useState<EvalResult | null>(null);
+  const [batchResult, setBatchResult] = useState<BatchEvalResult | null>(null);
   const { pending, run } = useAction();
   const outcome = useOutcome();
   const packs = models.state.status === "ready" ? models.state.data.filter((m) => m.runnable) : [];
   useEffect(() => { if (!packId && packs[0]) setPackId(packs[0].id); }, [packs, packId]);
 
+  const countEntities = (payload: Record<string, unknown>) =>
+    ((payload.entities ?? payload.pii_merged_entities) as unknown[] | undefined)?.length ?? 0;
+
   async function runEvaluate() {
     if (!packId || !input.trim() || !!pending) return;
     const list = labels.split(",").map((l) => l.trim()).filter(Boolean);
+    if (mode === "batch") {
+      const lines = input.split(/\r?\n/).map((l) => l.trim()).filter(Boolean).slice(0, 32);
+      if (!lines.length) return;
+      const r = await run<BatchEvalResult>("evaluate", "models_evaluate_batch", {
+        packId,
+        inputs: lines,
+        decoding: decoding || null,
+        labels: list.length ? list : null,
+      });
+      if (outcome(r, `Evaluated ${r.ok ? r.data.items.length : lines.length} batch items · evidence only`)) {
+        setResult(null);
+        setBatchResult(r.data);
+        setEvaluatedTexts(lines);
+        const entityCount = r.data.items.reduce((acc, it) => acc + countEntities(it.proposal_payload), 0);
+        onEvaluated({
+          packId,
+          runtimeId: r.data.runtime_id,
+          preparedCacheHit: r.data.prepared_cache_hit,
+          auditId: r.data.audit_id,
+          entityCount,
+          itemCount: r.data.items.length,
+        });
+      }
+      return;
+    }
     const currentInput = input;
     const r = await run<EvalResult>("evaluate", "models_evaluate", { packId, input: currentInput, decoding: decoding || null, labels: list.length ? list : null });
     if (outcome(r, "Evaluated on the local runtime · evidence only")) {
+      setBatchResult(null);
       setResult(r.data);
-      setEvaluatedText(currentInput);
-      const ents = (r.data.proposal_payload.entities ?? r.data.proposal_payload.pii_merged_entities) as Array<Record<string, unknown>> | undefined;
-      onEvaluated({ packId, result: r.data, entityCount: ents?.length ?? 0 });
+      setEvaluatedTexts([currentInput]);
+      onEvaluated({
+        packId,
+        runtimeId: r.data.runtime_id,
+        preparedCacheHit: r.data.prepared_cache_hit,
+        auditId: r.data.audit_id,
+        entityCount: countEntities(r.data.proposal_payload),
+        itemCount: 1,
+      });
     }
   }
   function evaluate(e: FormEvent) {
@@ -456,14 +695,17 @@ function EvaluateTab({ onEvaluated }: { onEvaluated: (s: { packId: string; resul
     }
   }
 
-  const entities = (result?.proposal_payload.entities ?? result?.proposal_payload.pii_merged_entities) as Array<Record<string, unknown>> | undefined;
   return (
     <Section title="Try a model" count="synthetic text only">
+      <div className="tabs" role="tablist" aria-label="Evaluation mode" style={{ marginBottom: 10 }}>
+        <button type="button" role="tab" aria-selected={mode === "single"} className={`tab ${mode === "single" ? "on" : ""}`} onClick={() => setMode("single")}>Single note</button>
+        <button type="button" role="tab" aria-selected={mode === "batch"} className={`tab ${mode === "batch" ? "on" : ""}`} onClick={() => setMode("batch")}>Batch (one note per line)</button>
+      </div>
       <form onSubmit={evaluate} className="stack" style={{ gap: 8, maxWidth: 760 }}>
         <label className="lbl" htmlFor="ep">Admitted Pack</label>
         <select id="ep" value={packId} onChange={(e) => setPackId(e.target.value)}>{packs.map((p) => <option key={p.id} value={p.id}>{p.id} · {p.version}</option>)}</select>
-        <label className="lbl" htmlFor="ei">Synthetic input</label>
-        <textarea id="ei" value={input} maxLength={4000} onChange={(e) => setInput(e.target.value)} onKeyDown={onInputKeyDown} style={{ minHeight: 84 }} />
+        <label className="lbl" htmlFor="ei">{mode === "batch" ? "Synthetic inputs (one note per line, max 32)" : "Synthetic input"}</label>
+        <textarea id="ei" value={input} maxLength={4000} onChange={(e) => setInput(e.target.value)} onKeyDown={onInputKeyDown} style={{ minHeight: mode === "batch" ? 116 : 84 }} />
         <div className="grid-2">
           <div className="stack" style={{ gap: 4 }}>
             <label className="lbl" htmlFor="ed">Entity decoding (token classification)</label>
@@ -475,22 +717,24 @@ function EvaluateTab({ onEvaluated }: { onEvaluated: (s: { packId: string; resul
           </div>
         </div>
         <div className="row-gap" style={{ gap: 10 }}>
-          <button type="submit" className="btn btn-p btn-inline" disabled={!packId || !input.trim() || !!pending}>{pending === "evaluate" ? <Glyph kind="running" /> : null}Evaluate</button>
+          <button type="submit" className="btn btn-p btn-inline" disabled={!packId || !input.trim() || !!pending}>{pending === "evaluate" ? <Glyph kind="running" /> : null}{mode === "batch" ? "Evaluate batch" : "Evaluate"}</button>
           <span className="t-sm i3">{MOD}+Enter to run on local runtime</span>
         </div>
       </form>
       {result && <div style={{ marginTop: 14 }}>
         <Ledger items={[{ k: "runtime", v: result.runtime_id, mono: true }, { k: "prepared cache", v: result.prepared_cache_hit ? "hit" : "cold", mono: true }, { k: "audit", v: result.audit_id, mono: true }]} />
-        {entities?.length ? (
-          <>
-            <HighlightedEntityProse text={evaluatedText} entities={entities} />
-            <table className="tb">
-              <thead><tr><th style={{ width: "40%" }}>Text</th><th style={{ width: "30%" }}>Label</th><th>Span</th></tr></thead>
-              <tbody>{entities.map((x, i) => <tr key={i}><td className="t-sm">{String(x.text ?? x.word ?? "")}</td><td className="t-sm i2">{String(x.label ?? x.entity_group ?? x.entity ?? "")}</td><td className="mono t-mono-sm i3">{String(x.start ?? "")}–{String(x.end ?? "")}</td></tr>)}</tbody>
-            </table>
-          </>
-        ) : null}
+        <ProposalPayloadView text={evaluatedTexts[0] ?? ""} payload={result.proposal_payload} />
         <Disclosure summary="Full proposal payload"><pre className="pre">{JSON.stringify(result.proposal_payload, null, 2)}</pre></Disclosure>
+        <Authority>Evaluation evidence, not a record. Nothing is promoted; synthetic input only.</Authority>
+      </div>}
+      {batchResult && <div style={{ marginTop: 14 }}>
+        <Ledger items={[{ k: "runtime", v: batchResult.runtime_id, mono: true }, { k: "items", v: String(batchResult.items.length), mono: true }, { k: "prepared cache", v: batchResult.prepared_cache_hit ? "hit" : "cold", mono: true }, { k: "audit", v: batchResult.audit_id, mono: true }]} />
+        {batchResult.items.map((it) => (
+          <Section key={it.index} title={`Item #${it.index + 1}`} count={`${it.input_len} bytes`}>
+            <ProposalPayloadView text={evaluatedTexts[it.index] ?? ""} payload={it.proposal_payload} />
+          </Section>
+        ))}
+        <Disclosure summary="Full batch payload"><pre className="pre">{JSON.stringify(batchResult, null, 2)}</pre></Disclosure>
         <Authority>Evaluation evidence, not a record. Nothing is promoted; synthetic input only.</Authority>
       </div>}
     </Section>

@@ -96,6 +96,26 @@ pub use pii_merge::{
     normalize_label,
 };
 pub use residency::{EvictionPlan, ResidencyError, ResidencyPool};
+pub mod ecosystem_v4;
+
+pub use candle_runtime::{
+    CANDLE_SEQUENCE_CLASSIFIER_RUNTIME_ID, PreparedCandleSequenceClassifier,
+    prepare_candle_sequence_classifier, prepare_candle_sequence_classifier_with,
+};
+pub use ecosystem_v4::{
+    BatchEvaluationItem, BundleCalibrationProfile, CalibrationMethod, CatalogManifestDiff,
+    DECISION_CALIBRATION_EXTENSION, DIFF_FIELDS, DecisionCalibrationReason, DeviceTier,
+    EcosystemV4Error, MAX_BATCH_ITEMS, MAX_BUDGET_BYTES, MIB, MIN_BUDGET_BYTES,
+    ManifestFieldChange, ManifestRepoChange, PPM_SCALE, PreflightAssessment, SequenceLabelScore,
+    budget_bucket_bytes, build_jcs_object, diff_catalog_manifests,
+    evaluate_texts_ordered_cancellable, jcs_canonical_bytes, jcs_content_id,
+    preflight_model_resources, recommend_catalog_models, render_medscale_model_card,
+    softmax_label_scores, verify_calibration_profile_bounds,
+};
+pub use onnx_runtime::{
+    ONNX_SEQUENCE_CLASSIFIER_RUNTIME_ID, OnnxSequenceClassifierRuntime,
+    PreparedOnnxSequenceClassifier,
+};
 pub use runtime::{FixtureRuntime, PackRuntimeAdapter, RuntimeOutput};
 pub use store::PackStore;
 pub use token_windows::{

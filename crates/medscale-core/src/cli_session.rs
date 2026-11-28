@@ -669,6 +669,21 @@ impl CliSession {
         Ok(result)
     }
 
+    /// Evaluates an ordered batch of synthetic inputs on an admitted local Pack.
+    pub fn packs_evaluate_batch(
+        &mut self,
+        request: medscale_contracts::packs::PackBatchEvaluationRequest,
+    ) -> Result<medscale_contracts::packs::PackBatchEvaluationResult, AuthorityError> {
+        let resp = self.dispatch(
+            Capability::PacksEvaluateLocal,
+            RequestBody::PacksEvaluateBatch { request },
+        )?;
+        let ResponseBody::PackBatchEvaluation { result } = resp else {
+            return Err(Self::unexpected("pack batch evaluation"));
+        };
+        Ok(result)
+    }
+
     /// One page of a pinned local model catalog snapshot (Spec 103). Read
     /// only: nothing is downloaded, and a listing implies no execution.
     pub fn model_catalog_query(
@@ -685,6 +700,77 @@ impl CliSession {
             return Err(Self::unexpected("model catalog page"));
         };
         Ok(*page)
+    }
+
+    /// Hardware-tier recommendation query over a local or bundled catalog.
+    pub fn model_catalog_recommend(
+        &mut self,
+        request: medscale_contracts::model_catalog::ModelCatalogRecommendRequest,
+    ) -> Result<medscale_contracts::model_catalog::ModelCatalogRecommendResponse, AuthorityError>
+    {
+        let resp = self.dispatch(
+            Capability::ModelCatalogRead,
+            RequestBody::ModelCatalogRecommend {
+                request: Box::new(request),
+            },
+        )?;
+        let ResponseBody::ModelCatalogRecommendations { recommendations } = resp else {
+            return Err(Self::unexpected("model catalog recommendations"));
+        };
+        Ok(*recommendations)
+    }
+
+    /// Render a MedScale Model Card for a source `repo_id`.
+    pub fn model_catalog_card(
+        &mut self,
+        request: medscale_contracts::model_catalog::ModelCatalogCardRequest,
+    ) -> Result<medscale_contracts::model_catalog::ModelCatalogCardResponse, AuthorityError> {
+        let resp = self.dispatch(
+            Capability::ModelCatalogRead,
+            RequestBody::ModelCatalogCard {
+                request: Box::new(request),
+            },
+        )?;
+        let ResponseBody::ModelCatalogCard { card } = resp else {
+            return Err(Self::unexpected("model catalog card"));
+        };
+        Ok(*card)
+    }
+
+    /// Evaluate RAM and disk preflight constraints for a catalog model.
+    pub fn model_catalog_preflight(
+        &mut self,
+        request: medscale_contracts::model_catalog::ModelCatalogPreflightRequest,
+    ) -> Result<medscale_contracts::model_catalog::ModelCatalogPreflightResponse, AuthorityError>
+    {
+        let resp = self.dispatch(
+            Capability::ModelCatalogRead,
+            RequestBody::ModelCatalogPreflight {
+                request: Box::new(request),
+            },
+        )?;
+        let ResponseBody::ModelCatalogPreflight { preflight } = resp else {
+            return Err(Self::unexpected("model catalog preflight"));
+        };
+        Ok(*preflight)
+    }
+
+    /// Structural diff between two JSONL catalog snapshots.
+    pub fn model_catalog_manifest_diff(
+        &mut self,
+        request: medscale_contracts::model_catalog::ModelCatalogManifestDiffRequest,
+    ) -> Result<medscale_contracts::model_catalog::ModelCatalogManifestDiffResponse, AuthorityError>
+    {
+        let resp = self.dispatch(
+            Capability::ModelCatalogRead,
+            RequestBody::ModelCatalogManifestDiff {
+                request: Box::new(request),
+            },
+        )?;
+        let ResponseBody::ModelCatalogManifestDiff { diff } = resp else {
+            return Err(Self::unexpected("model catalog manifest diff"));
+        };
+        Ok(*diff)
     }
 
     /// Read the durable external-action outbox through the same authority facade as Desktop.

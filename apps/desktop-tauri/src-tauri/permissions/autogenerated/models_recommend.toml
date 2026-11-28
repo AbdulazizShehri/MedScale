@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-models-recommend"
+description = "Enables the models_recommend command without any pre-configured scope."
+commands.allow = ["models_recommend"]
+
+[[permission]]
+identifier = "deny-models-recommend"
+description = "Denies the models_recommend command without any pre-configured scope."
+commands.deny = ["models_recommend"]

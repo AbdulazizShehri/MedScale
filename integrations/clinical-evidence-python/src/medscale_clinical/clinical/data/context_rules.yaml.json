@@ -1,0 +1,392 @@
+{
+  "provenance": {
+    "adaptation": "OpenMed-maintained English starter cues; no clinical corpus data",
+    "license": "Apache-2.0",
+    "restricted_data": false,
+    "sources": [
+      "NegEx trigger lexicon",
+      "medspaCy ConText rules"
+    ]
+  },
+  "rules": [
+    {
+      "category": "negation",
+      "cue": "no evidence of",
+      "direction": "forward",
+      "max_scope_tokens": 40,
+      "scope": "clause",
+      "terminators": [
+        "but",
+        "however",
+        "although",
+        "yet",
+        ";"
+      ]
+    },
+    {
+      "category": "negation",
+      "cue": "no sign of",
+      "direction": "forward",
+      "max_scope_tokens": 40,
+      "scope": "clause",
+      "terminators": [
+        "but",
+        "however",
+        "although",
+        "yet",
+        ";"
+      ]
+    },
+    {
+      "category": "negation",
+      "cue": "negative for",
+      "direction": "forward",
+      "max_scope_tokens": 40,
+      "scope": "clause",
+      "terminators": [
+        "but",
+        "however",
+        "although",
+        "yet",
+        ";"
+      ]
+    },
+    {
+      "category": "negation",
+      "cue": "absence of",
+      "direction": "forward",
+      "max_scope_tokens": 40,
+      "scope": "clause",
+      "terminators": [
+        "but",
+        "however",
+        "although",
+        "yet",
+        ";"
+      ]
+    },
+    {
+      "category": "negation",
+      "cue": "denies",
+      "direction": "forward",
+      "max_scope_tokens": 40,
+      "scope": "clause",
+      "terminators": [
+        "but",
+        "however",
+        "although",
+        "yet",
+        ";"
+      ]
+    },
+    {
+      "category": "negation",
+      "cue": "without",
+      "direction": "forward",
+      "max_scope_tokens": 40,
+      "scope": "clause",
+      "terminators": [
+        "but",
+        "however",
+        "although",
+        "yet",
+        ";"
+      ]
+    },
+    {
+      "category": "negation",
+      "cue": "no",
+      "direction": "forward",
+      "max_scope_tokens": 40,
+      "scope": "clause",
+      "terminators": [
+        "but",
+        "however",
+        "although",
+        "yet",
+        ";"
+      ]
+    },
+    {
+      "category": "negation",
+      "cue": "ruled out",
+      "direction": "backward",
+      "max_scope_tokens": 40,
+      "scope": "clause",
+      "terminators": [
+        "but",
+        "however",
+        "although",
+        "yet",
+        ";"
+      ]
+    },
+    {
+      "category": "negation",
+      "cue": "absent",
+      "direction": "bidirectional",
+      "max_scope_tokens": 40,
+      "scope": "clause",
+      "terminators": [
+        "but",
+        "however",
+        "although",
+        "yet",
+        ";"
+      ]
+    },
+    {
+      "category": "uncertainty",
+      "cue": "cannot exclude",
+      "direction": "forward",
+      "max_scope_tokens": 40,
+      "scope": "clause",
+      "terminators": [
+        "but",
+        "however",
+        "although",
+        "yet",
+        ";"
+      ]
+    },
+    {
+      "category": "uncertainty",
+      "cue": "concern for",
+      "direction": "forward",
+      "max_scope_tokens": 40,
+      "scope": "clause",
+      "terminators": [
+        "but",
+        "however",
+        "although",
+        "yet",
+        ";"
+      ]
+    },
+    {
+      "category": "uncertainty",
+      "cue": "suspicious for",
+      "direction": "forward",
+      "max_scope_tokens": 40,
+      "scope": "clause",
+      "terminators": [
+        "but",
+        "however",
+        "although",
+        "yet",
+        ";"
+      ]
+    },
+    {
+      "category": "uncertainty",
+      "cue": "rule out",
+      "direction": "forward",
+      "max_scope_tokens": 40,
+      "scope": "clause",
+      "terminators": [
+        "but",
+        "however",
+        "although",
+        "yet",
+        ";"
+      ]
+    },
+    {
+      "category": "uncertainty",
+      "cue": "possible",
+      "direction": "forward",
+      "max_scope_tokens": 40,
+      "scope": "clause",
+      "terminators": [
+        "but",
+        "however",
+        "although",
+        "yet",
+        ";"
+      ]
+    },
+    {
+      "category": "uncertainty",
+      "cue": "probable",
+      "direction": "forward",
+      "max_scope_tokens": 40,
+      "scope": "clause",
+      "terminators": [
+        "but",
+        "however",
+        "although",
+        "yet",
+        ";"
+      ]
+    },
+    {
+      "category": "uncertainty",
+      "cue": "suspected",
+      "direction": "forward",
+      "max_scope_tokens": 40,
+      "scope": "clause",
+      "terminators": [
+        "but",
+        "however",
+        "although",
+        "yet",
+        ";"
+      ]
+    },
+    {
+      "category": "experiencer",
+      "cue": "family history of",
+      "direction": "forward",
+      "max_scope_tokens": 40,
+      "scope": "clause",
+      "terminators": [
+        "but",
+        "however",
+        "although",
+        "yet",
+        ";"
+      ]
+    },
+    {
+      "category": "experiencer",
+      "cue": "mother",
+      "direction": "forward",
+      "max_scope_tokens": 40,
+      "scope": "clause",
+      "terminators": [
+        "but",
+        "however",
+        "although",
+        "yet",
+        ";"
+      ]
+    },
+    {
+      "category": "experiencer",
+      "cue": "father",
+      "direction": "forward",
+      "max_scope_tokens": 40,
+      "scope": "clause",
+      "terminators": [
+        "but",
+        "however",
+        "although",
+        "yet",
+        ";"
+      ]
+    },
+    {
+      "category": "experiencer",
+      "cue": "sister",
+      "direction": "forward",
+      "max_scope_tokens": 40,
+      "scope": "clause",
+      "terminators": [
+        "but",
+        "however",
+        "although",
+        "yet",
+        ";"
+      ]
+    },
+    {
+      "category": "experiencer",
+      "cue": "brother",
+      "direction": "forward",
+      "max_scope_tokens": 40,
+      "scope": "clause",
+      "terminators": [
+        "but",
+        "however",
+        "although",
+        "yet",
+        ";"
+      ]
+    },
+    {
+      "category": "temporality",
+      "cue": "history of",
+      "direction": "forward",
+      "max_scope_tokens": 40,
+      "scope": "clause",
+      "terminators": [
+        "but",
+        "however",
+        "although",
+        "yet",
+        ";"
+      ]
+    },
+    {
+      "category": "temporality",
+      "cue": "status post",
+      "direction": "forward",
+      "max_scope_tokens": 40,
+      "scope": "clause",
+      "terminators": [
+        "but",
+        "however",
+        "although",
+        "yet",
+        ";"
+      ]
+    },
+    {
+      "category": "temporality",
+      "cue": "previously",
+      "direction": "forward",
+      "max_scope_tokens": 40,
+      "scope": "clause",
+      "terminators": [
+        "but",
+        "however",
+        "although",
+        "yet",
+        ";"
+      ]
+    },
+    {
+      "category": "temporality",
+      "cue": "prior",
+      "direction": "forward",
+      "max_scope_tokens": 40,
+      "scope": "clause",
+      "terminators": [
+        "but",
+        "however",
+        "although",
+        "yet",
+        ";"
+      ]
+    },
+    {
+      "category": "temporality",
+      "cue": "if",
+      "direction": "forward",
+      "max_scope_tokens": 40,
+      "scope": "clause",
+      "terminators": [
+        "but",
+        "however",
+        "although",
+        "yet",
+        ";"
+      ]
+    },
+    {
+      "category": "temporality",
+      "cue": "resolved",
+      "direction": "bidirectional",
+      "max_scope_tokens": 40,
+      "scope": "clause",
+      "terminators": [
+        "but",
+        "however",
+        "although",
+        "yet",
+        ";"
+      ]
+    }
+  ],
+  "schema_version": 1
+}

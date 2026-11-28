@@ -75,6 +75,30 @@ pub struct CatalogRow {
     pub disk: SizeMb,
     pub device_fit: DeviceFit,
     pub status: CatalogStatus,
+    #[serde(default)]
+    pub arxiv: Option<String>,
+    #[serde(default)]
+    pub benchmark: Option<serde_json::Value>,
+    #[serde(default)]
+    pub canonical_labels: Vec<String>,
+    #[serde(default)]
+    pub download_mb: Option<f64>,
+    #[serde(default)]
+    pub download_sizes: std::collections::BTreeMap<String, serde_json::Value>,
+    #[serde(default)]
+    pub peak_ram_mb: Option<serde_json::Value>,
+    #[serde(default)]
+    pub recommended_tier: Option<String>,
+    #[serde(default)]
+    pub latency_ms: Option<serde_json::Value>,
+    #[serde(default)]
+    pub script_coverage: std::collections::BTreeMap<String, serde_json::Value>,
+    #[serde(default)]
+    pub script_eval: Option<serde_json::Value>,
+    #[serde(default)]
+    pub training_data_licenses: Option<serde_json::Value>,
+    #[serde(default)]
+    pub training_provenance: Option<serde_json::Value>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
@@ -122,6 +146,18 @@ struct RawRow {
     released: Option<String>,
     reproducibility_hash: Option<String>,
     disk_mb: Option<f64>,
+    arxiv: Option<String>,
+    benchmark: Option<serde_json::Value>,
+    canonical_labels: Option<Vec<String>>,
+    download_mb: Option<f64>,
+    download_sizes: Option<std::collections::BTreeMap<String, serde_json::Value>>,
+    peak_ram_mb: Option<serde_json::Value>,
+    recommended_tier: Option<String>,
+    latency_ms: Option<serde_json::Value>,
+    script_coverage: Option<std::collections::BTreeMap<String, serde_json::Value>>,
+    script_eval: Option<serde_json::Value>,
+    training_data_licenses: Option<serde_json::Value>,
+    training_provenance: Option<serde_json::Value>,
 }
 
 /// Licenses whose claim alone is enough to list a row as discoverable. Every
@@ -229,6 +265,18 @@ fn row_from_raw(raw: RawRow, line: usize) -> Result<CatalogRow, CatalogError> {
         released: raw.released,
         reproducibility_hash: raw.reproducibility_hash,
         status,
+        arxiv: raw.arxiv,
+        benchmark: raw.benchmark,
+        canonical_labels: raw.canonical_labels.unwrap_or_default(),
+        download_mb: raw.download_mb,
+        download_sizes: raw.download_sizes.unwrap_or_default(),
+        peak_ram_mb: raw.peak_ram_mb,
+        recommended_tier: raw.recommended_tier,
+        latency_ms: raw.latency_ms,
+        script_coverage: raw.script_coverage.unwrap_or_default(),
+        script_eval: raw.script_eval,
+        training_data_licenses: raw.training_data_licenses,
+        training_provenance: raw.training_provenance,
     })
 }
 

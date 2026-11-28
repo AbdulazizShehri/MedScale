@@ -1,0 +1,197 @@
+{
+  "determinants": {
+    "employment": {
+      "category": "employment",
+      "score": 0.95,
+      "status_cues": {
+        "disabled": [
+          "on disability",
+          "disability benefits",
+          "unable to work",
+          "disabled"
+        ],
+        "employed": [
+          "currently employed",
+          "employed",
+          "working",
+          "works",
+          "full-time",
+          "full time",
+          "part-time",
+          "part time",
+          "has a job"
+        ],
+        "former": [
+          "previously employed",
+          "formerly employed",
+          "past employment",
+          "stopped working",
+          "quit job",
+          "lost job"
+        ],
+        "never": [
+          "never employed",
+          "no employment history",
+          "denies employment"
+        ],
+        "retired": [
+          "retired",
+          "retiree"
+        ],
+        "student": [
+          "student",
+          "in school",
+          "attends school"
+        ],
+        "unemployed": [
+          "unemployed",
+          "not employed",
+          "jobless",
+          "without work",
+          "out of work",
+          "no job",
+          "laid off"
+        ]
+      },
+      "status_priority": [
+        "never",
+        "retired",
+        "disabled",
+        "student",
+        "unemployed",
+        "former",
+        "employed"
+      ],
+      "types": {
+        "construction_worker": [
+          "construction worker"
+        ],
+        "driver": [
+          "truck driver",
+          "bus driver",
+          "driver"
+        ],
+        "engineer": [
+          "engineer"
+        ],
+        "nurse": [
+          "registered nurse",
+          "licensed practical nurse",
+          "nurse"
+        ],
+        "office_worker": [
+          "office worker",
+          "administrative assistant"
+        ],
+        "physician": [
+          "physician",
+          "doctor"
+        ],
+        "service_worker": [
+          "food service worker",
+          "service worker",
+          "cashier"
+        ],
+        "teacher": [
+          "school teacher",
+          "teacher",
+          "educator"
+        ]
+      }
+    },
+    "food_insecurity": {
+      "category": "food_insecurity",
+      "cues": [
+        "food insecurity",
+        "food insecure",
+        "SNAP",
+        "skips meals"
+      ],
+      "extension_beyond_core_shac": true,
+      "extension_note": "Food insecurity is an OpenMed extension beyond the five core SHAC determinant categories.",
+      "score": 0.9,
+      "status": "current",
+      "value": "food_insecure"
+    },
+    "living_status": {
+      "category": "living_status",
+      "score": 0.95,
+      "status_cues": {
+        "assisted_living": [
+          "assisted living",
+          "skilled nursing facility",
+          "nursing home",
+          "long-term care",
+          "long term care",
+          "group home",
+          "SNF"
+        ],
+        "former": [
+          "formerly homeless",
+          "previously homeless",
+          "past homelessness",
+          "prior homelessness",
+          "history of homelessness",
+          "no longer homeless"
+        ],
+        "homeless": [
+          "living in shelter",
+          "street homeless",
+          "without housing",
+          "no housing",
+          "homeless",
+          "unhoused",
+          "shelter"
+        ],
+        "housed": [
+          "stable housing",
+          "has housing",
+          "lives at home",
+          "home with",
+          "own apartment",
+          "own home",
+          "housed"
+        ],
+        "lives_alone": [
+          "lives alone",
+          "living alone",
+          "alone at home"
+        ],
+        "lives_with_family": [
+          "lives with family",
+          "living with family",
+          "lives with spouse",
+          "lives with daughter",
+          "lives with son",
+          "stays with family"
+        ],
+        "never": [
+          "denies homelessness",
+          "not homeless",
+          "never homeless",
+          "no housing insecurity"
+        ]
+      },
+      "status_priority": [
+        "never",
+        "former",
+        "homeless",
+        "assisted_living",
+        "lives_alone",
+        "lives_with_family",
+        "housed"
+      ]
+    }
+  },
+  "languages": [
+    "en"
+  ],
+  "provenance": {
+    "data_policy": "Synthetic and public phrases only; no SHAC source text is bundled.",
+    "license": "Apache-2.0 repository asset.",
+    "restricted_data": false,
+    "source": "OpenMed curated deterministic social-determinant cue table.",
+    "task": "OM-214"
+  },
+  "schema_version": 1
+}

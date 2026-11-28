@@ -1,0 +1,57 @@
+# SPDX-License-Identifier: Apache-2.0
+# Modified from maziyarpanahi/openmed@5b79cae5 (openmed/clinical/coref/__init__.py): renamed package/symbols to medscale_clinical / MedScale.
+"""Clinical mention coreference and document-level entity linking."""
+
+from .clustering import (
+    COMPATIBILITY_SCORER_VERSION,
+    COMPATIBILITY_WEIGHTS,
+    COREFERENCE_ADVISORY,
+    DEFAULT_LINK_THRESHOLD,
+    ClusteringMetric,
+    CoreferenceResult,
+    EntityCluster,
+    PairCompatibility,
+    ResolvedCoreferenceCluster,
+    ResolvedCoreferenceResult,
+    bcubed_precision_recall_f1,
+    link_mentions,
+    resolve_coreference,
+    score_mention_pair,
+)
+from .mentions import (
+    DEFAULT_ABBREVIATION_EXPANSIONS,
+    DEFAULT_CANONICAL_ALIASES,
+    DEFAULT_DOCUMENT_ID,
+    EVENT_COREFERENCE_SEMANTIC_TYPES,
+    CanonicalMention,
+    SpanOffset,
+    canonicalize_mentions,
+    canonicalize_text,
+    event_coreference_mentions,
+)
+
+__all__ = [
+    "COREFERENCE_ADVISORY",
+    "COMPATIBILITY_SCORER_VERSION",
+    "COMPATIBILITY_WEIGHTS",
+    "DEFAULT_ABBREVIATION_EXPANSIONS",
+    "DEFAULT_CANONICAL_ALIASES",
+    "DEFAULT_DOCUMENT_ID",
+    "DEFAULT_LINK_THRESHOLD",
+    "EVENT_COREFERENCE_SEMANTIC_TYPES",
+    "CanonicalMention",
+    "ClusteringMetric",
+    "CoreferenceResult",
+    "EntityCluster",
+    "PairCompatibility",
+    "ResolvedCoreferenceCluster",
+    "ResolvedCoreferenceResult",
+    "SpanOffset",
+    "bcubed_precision_recall_f1",
+    "canonicalize_mentions",
+    "canonicalize_text",
+    "event_coreference_mentions",
+    "link_mentions",
+    "resolve_coreference",
+    "score_mention_pair",
+]

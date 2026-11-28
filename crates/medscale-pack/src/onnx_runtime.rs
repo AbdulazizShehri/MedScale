@@ -725,6 +725,310 @@ impl PreparedOnnxTokenClassifier {
             provenance: self.provenance.clone(),
         })
     }
+
+    /// Runs [`Self::run_document_cancellable`] across an ordered batch, stopping
+    /// cleanly if `cancel` is set.
+    pub fn run_batch_cancellable(
+        &self,
+        pack_id: &OpaqueId,
+        inputs: &[String],
+        options: DocumentRunOptions,
+        cancel: &AtomicBool,
+    ) -> Result<Vec<crate::BatchEvaluationItem>, OnnxRuntimeError> {
+        match crate::evaluate_texts_ordered_cancellable(
+            inputs,
+            cancel,
+            OnnxRuntimeError::Cancelled,
+            |text| {
+                self.run_document_cancellable(pack_id, text, options, cancel)
+                    .map(|ev| ev.output.proposal_payload)
+            },
+        ) {
+            Ok(items) => Ok(items),
+            Err(Ok(err)) => Err(err),
+            Err(Err(_)) => Err(OnnxRuntimeError::InputBound),
+        }
+    }
+}
+
+/// Stable runtime identifier for static-shape ONNX sequence classifiers (`[1, num_labels]`).
+pub const ONNX_SEQUENCE_CLASSIFIER_RUNTIME_ID: &str = "onnx_sequence_classifier_v1";
+
+/// Prepared static-shape ONNX sequence classification runtime.
+pub struct OnnxSequenceClassifierRuntime {
+    max_tokens: usize,
+}
+
+pub struct PreparedOnnxSequenceClassifier {
+    content_digest: DigestSha256,
+    provenance: ModelSourceProvenance,
+    tokenizer: Tokenizer,
+    labels: Vec<String>,
+    input_names: Vec<String>,
+    fixed_sequence_length: usize,
+    runnable: TypedSimplePlan<TypedModel>,
+    pad_id: u32,
+}
+
+impl fmt::Debug for PreparedOnnxSequenceClassifier {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_struct("PreparedOnnxSequenceClassifier")
+            .field("content_digest", &self.content_digest)
+            .field("provenance", &self.provenance)
+            .field("fixed_sequence_length", &self.fixed_sequence_length)
+            .finish_non_exhaustive()
+    }
+}
+
+impl OnnxSequenceClassifierRuntime {
+    pub fn new(max_tokens: usize) -> Result<Self, OnnxRuntimeError> {
+        if !(1..=4096).contains(&max_tokens) {
+            return Err(OnnxRuntimeError::TokenBound);
+        }
+        Ok(Self { max_tokens })
+    }
+
+    pub fn prepare(
+        &self,
+        pack_dir: &Path,
+        pack: &PackManifestV0,
+    ) -> Result<PreparedOnnxSequenceClassifier, OnnxRuntimeError> {
+        let declared = pack
+            .runtime_requirements
+            .split(';')
+            .any(|r| r == ONNX_SEQUENCE_CLASSIFIER_RUNTIME_ID);
+        if !declared {
+            return Err(OnnxRuntimeError::RuntimeNotAdmitted);
+        }
+        let model_bytes = select_artifact(pack_dir, pack, PackArtifactKind::OnnxModel, None)?;
+        let tokenizer_bytes = select_artifact(
+            pack_dir,
+            pack,
+            PackArtifactKind::TokenizerMeta,
+            Some("tokenizer.json"),
+        )?;
+        let labels_bytes = select_artifact(
+            pack_dir,
+            pack,
+            PackArtifactKind::TokenizerMeta,
+            Some("labels.json"),
+        )?;
+        let provenance_bytes = select_artifact(
+            pack_dir,
+            pack,
+            PackArtifactKind::ModelMetadata,
+            Some("model.meta.json"),
+        )?;
+        let provenance: ModelSourceProvenance = serde_json::from_slice(&provenance_bytes)
+            .map_err(|_| OnnxRuntimeError::InvalidProvenance)?;
+        validate_provenance(&provenance)?;
+        if provenance.runtime_family != ONNX_SEQUENCE_CLASSIFIER_RUNTIME_ID {
+            return Err(OnnxRuntimeError::RuntimeNotAdmitted);
+        }
+        let fixed_sequence_length = usize::try_from(provenance.fixed_sequence_length)
+            .ok()
+            .filter(|&n| (1..=self.max_tokens).contains(&n))
+            .ok_or(OnnxRuntimeError::TokenBound)?;
+        let tokenizer =
+            Tokenizer::from_bytes(&tokenizer_bytes).map_err(|_| OnnxRuntimeError::Tokenizer)?;
+        let labels: Vec<String> =
+            serde_json::from_slice(&labels_bytes).map_err(|_| OnnxRuntimeError::InvalidLabels)?;
+        if labels.is_empty() || labels.len() > MAX_LABELS {
+            return Err(OnnxRuntimeError::InvalidLabels);
+        }
+        let pad_id = tokenizer
+            .token_to_id("<pad>")
+            .or_else(|| tokenizer.token_to_id("[PAD]"))
+            .unwrap_or(0);
+        let (runnable, input_names) = std::panic::catch_unwind(std::panic::AssertUnwindSafe(
+            || -> Result<(TypedSimplePlan<TypedModel>, Vec<String>), OnnxRuntimeError> {
+                let mut reader = Cursor::new(model_bytes);
+                let onnx = tract_onnx::onnx();
+                let mut model = onnx
+                    .model_for_read(&mut reader)
+                    .map_err(|e| OnnxRuntimeError::prepare("load", &e))?;
+                let input_outlets = model
+                    .input_outlets()
+                    .map_err(|e| OnnxRuntimeError::prepare("inputs", &e))?
+                    .to_vec();
+                let input_names: Vec<String> = input_outlets
+                    .iter()
+                    .map(|outlet| {
+                        model
+                            .outlet_label(*outlet)
+                            .unwrap_or(&model.node(outlet.node).name)
+                            .to_owned()
+                    })
+                    .collect();
+                for (index, name) in input_names.iter().enumerate() {
+                    if !matches!(
+                        name.as_str(),
+                        "input_ids" | "attention_mask" | "token_type_ids"
+                    ) {
+                        return Err(OnnxRuntimeError::UnsupportedModelInput(name.clone()));
+                    }
+                    model
+                        .set_input_fact(
+                            index,
+                            InferenceFact::dt_shape(
+                                i64::datum_type(),
+                                tvec!(1, fixed_sequence_length),
+                            ),
+                        )
+                        .map_err(|e| OnnxRuntimeError::prepare("input_fact", &e))?;
+                }
+                let optimized = model
+                    .into_typed()
+                    .and_then(TypedModel::into_decluttered)
+                    .and_then(TypedModel::into_optimized)
+                    .map_err(|e| OnnxRuntimeError::prepare("optimize", &e))?;
+                if optimized
+                    .output_outlets()
+                    .map_err(|_| OnnxRuntimeError::OutputShape)?
+                    .len()
+                    != 1
+                {
+                    return Err(OnnxRuntimeError::OutputShape);
+                }
+                let fact = optimized
+                    .output_fact(0)
+                    .map_err(|_| OnnxRuntimeError::OutputShape)?;
+                let expected = [1, labels.len()];
+                if fact.datum_type != f32::datum_type()
+                    || fact.shape.as_concrete() != Some(expected.as_slice())
+                {
+                    return Err(OnnxRuntimeError::OutputShape);
+                }
+                let runnable = optimized
+                    .into_runnable()
+                    .map_err(|e| OnnxRuntimeError::prepare("runnable", &e))?;
+                Ok((runnable, input_names))
+            },
+        ))
+        .map_err(|_| OnnxRuntimeError::Prepare {
+            stage: "load",
+            detail: "sequence classifier preparation panicked".to_owned(),
+        })??;
+        Ok(PreparedOnnxSequenceClassifier {
+            content_digest: pack.content_digest.clone(),
+            provenance,
+            tokenizer,
+            labels,
+            input_names,
+            fixed_sequence_length,
+            runnable,
+            pad_id,
+        })
+    }
+}
+
+impl PreparedOnnxSequenceClassifier {
+    #[must_use]
+    pub fn provenance(&self) -> &ModelSourceProvenance {
+        &self.provenance
+    }
+
+    pub fn run(
+        &self,
+        pack_id: &OpaqueId,
+        input: &str,
+    ) -> Result<OnnxRuntimeEvaluation, OnnxRuntimeError> {
+        self.run_cancellable(pack_id, input, &AtomicBool::new(false))
+    }
+
+    pub fn run_cancellable(
+        &self,
+        pack_id: &OpaqueId,
+        input: &str,
+        cancel: &AtomicBool,
+    ) -> Result<OnnxRuntimeEvaluation, OnnxRuntimeError> {
+        if cancel.load(std::sync::atomic::Ordering::Relaxed) {
+            return Err(OnnxRuntimeError::Cancelled);
+        }
+        if input.len() > MAX_INPUT_BYTES {
+            return Err(OnnxRuntimeError::InputBound);
+        }
+        let encoding = self
+            .tokenizer
+            .encode(input, true)
+            .map_err(|_| OnnxRuntimeError::Tokenizer)?;
+        let len = self.fixed_sequence_length;
+        let mut ids = vec![i64::from(self.pad_id); len];
+        let mut mask = vec![0i64; len];
+        let mut type_ids = vec![0i64; len];
+        for (i, &id) in encoding.get_ids().iter().take(len).enumerate() {
+            ids[i] = i64::from(id);
+            mask[i] = i64::from(encoding.get_attention_mask()[i]);
+            type_ids[i] = i64::from(encoding.get_type_ids()[i]);
+        }
+        let mut model_inputs = tvec![];
+        for name in &self.input_names {
+            let values: &[i64] = match name.as_str() {
+                "input_ids" => &ids,
+                "attention_mask" => &mask,
+                "token_type_ids" => &type_ids,
+                other => return Err(OnnxRuntimeError::UnsupportedModelInput(other.to_owned())),
+            };
+            let tensor = Tensor::from_shape(&[1, len], values)
+                .map_err(|_| OnnxRuntimeError::ModelExecution)?;
+            model_inputs.push(tensor.into_tvalue());
+        }
+        let outputs = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+            self.runnable.run(model_inputs)
+        }))
+        .map_err(|_| OnnxRuntimeError::ModelExecution)?
+        .map_err(|_| OnnxRuntimeError::ModelExecution)?;
+        if outputs.len() != 1 || outputs[0].shape() != [1, self.labels.len()] {
+            return Err(OnnxRuntimeError::OutputShape);
+        }
+        let logits = outputs[0]
+            .as_slice::<f32>()
+            .map_err(|_| OnnxRuntimeError::OutputShape)?;
+        let scores = crate::softmax_label_scores(logits, &self.labels)
+            .ok_or(OnnxRuntimeError::NonFiniteLogit)?;
+        let predicted = scores.first().map(|s| s.label.clone()).unwrap_or_default();
+        let top_score = scores.first().map(|s| s.probability).unwrap_or(0.0);
+        Ok(OnnxRuntimeEvaluation {
+            output: RuntimeOutput {
+                proposal_payload: json!({
+                    "kind": "onnx_sequence_classification_v1",
+                    "runtime": ONNX_SEQUENCE_CLASSIFIER_RUNTIME_ID,
+                    "content_digest": self.content_digest.to_hex(),
+                    "source_kind": self.provenance.source_kind,
+                    "source_repository": self.provenance.repository,
+                    "source_revision": self.provenance.revision,
+                    "predicted_label": predicted,
+                    "score": top_score,
+                    "scores": scores,
+                    "note": "Proposal/evaluation evidence only; never ClinicalAssertion",
+                }),
+                evidence_only: true,
+                pack_id: pack_id.clone(),
+            },
+            provenance: self.provenance.clone(),
+        })
+    }
+
+    pub fn run_batch_cancellable(
+        &self,
+        pack_id: &OpaqueId,
+        inputs: &[String],
+        cancel: &AtomicBool,
+    ) -> Result<Vec<crate::BatchEvaluationItem>, OnnxRuntimeError> {
+        match crate::evaluate_texts_ordered_cancellable(
+            inputs,
+            cancel,
+            OnnxRuntimeError::Cancelled,
+            |text| {
+                self.run_cancellable(pack_id, text, cancel)
+                    .map(|ev| ev.output.proposal_payload)
+            },
+        ) {
+            Ok(items) => Ok(items),
+            Err(Ok(err)) => Err(err),
+            Err(Err(_)) => Err(OnnxRuntimeError::InputBound),
+        }
+    }
 }
 
 fn safe_join(root: &Path, relative: &str) -> Result<PathBuf, OnnxRuntimeError> {
@@ -949,9 +1253,15 @@ fn validate_provenance(provenance: &ModelSourceProvenance) -> Result<(), OnnxRun
         || provenance.transform.trim().is_empty()
         || provenance.fixed_sequence_length == 0
         || provenance.fixed_sequence_length > 4096
-        || provenance.task != "token-classification"
+        || !matches!(
+            provenance.task.as_str(),
+            "token-classification" | "text-classification" | "sequence-classification"
+        )
         || provenance.export_format != "onnx"
-        || provenance.runtime_family != ONNX_TOKEN_CLASSIFIER_RUNTIME_ID
+        || !matches!(
+            provenance.runtime_family.as_str(),
+            ONNX_TOKEN_CLASSIFIER_RUNTIME_ID | ONNX_SEQUENCE_CLASSIFIER_RUNTIME_ID
+        )
         || provenance.license_id.trim().is_empty()
         || provenance.upstream_rights_uri.trim().is_empty()
     {
@@ -1192,5 +1502,24 @@ mod tests {
         assert_eq!(f.as_slice::<f32>().unwrap(), &[-1.0, 0.0, 1.0]);
         assert_eq!(op.output_type(DatumType::I64), Some(DatumType::I64));
         assert!(op.eval_out_of_place(&tensor1(&[true]), None).is_err());
+    }
+
+    #[test]
+    fn validate_provenance_accepts_onnx_sequence_classifier_family() {
+        let prov = ModelSourceProvenance {
+            source_kind: "synthetic_fixture".to_owned(),
+            repository: "synthetic/nli".to_owned(),
+            revision: "0".repeat(40),
+            original_file: "model.onnx".to_owned(),
+            source_sha256: "a".repeat(64),
+            transform: "none".to_owned(),
+            fixed_sequence_length: 16,
+            task: "text-classification".to_owned(),
+            export_format: "onnx".to_owned(),
+            runtime_family: ONNX_SEQUENCE_CLASSIFIER_RUNTIME_ID.to_owned(),
+            license_id: "Apache-2.0".to_owned(),
+            upstream_rights_uri: "https://example.invalid/nli".to_owned(),
+        };
+        assert!(validate_provenance(&prov).is_ok());
     }
 }

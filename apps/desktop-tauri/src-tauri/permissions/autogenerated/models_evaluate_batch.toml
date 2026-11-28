@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-models-evaluate-batch"
+description = "Enables the models_evaluate_batch command without any pre-configured scope."
+commands.allow = ["models_evaluate_batch"]
+
+[[permission]]
+identifier = "deny-models-evaluate-batch"
+description = "Denies the models_evaluate_batch command without any pre-configured scope."
+commands.deny = ["models_evaluate_batch"]

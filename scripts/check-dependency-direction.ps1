@@ -34,15 +34,22 @@ $storage = Get-Package 'medscale-storage'
 $fhir = Get-Package 'medscale-fhir'
 $network = Get-Package 'medscale-network'
 $pack = Get-Package 'medscale-pack'
+$clinical = Get-Package 'medscale-clinical'
 
 $failures = @()
 
 foreach ($name in @('medscale-contracts')) {
     $pkg = Get-Package $name
-    foreach ($forbidden in @('medscale-core', 'medscale-cli', 'medscale-storage', 'medscale-fhir', 'medscale-keys', 'medscale-desktop', 'medscale-network', 'medscale-pack')) {
+    foreach ($forbidden in @('medscale-core', 'medscale-cli', 'medscale-storage', 'medscale-fhir', 'medscale-keys', 'medscale-desktop', 'medscale-desktop-vm', 'medscale-network', 'medscale-pack', 'medscale-clinical')) {
         if (Test-DependsOn -Package $pkg -DepName $forbidden) {
             $failures += "$name must not depend on $forbidden"
         }
+    }
+}
+
+foreach ($forbidden in @('medscale-core', 'medscale-cli', 'medscale-storage', 'medscale-fhir', 'medscale-keys', 'medscale-desktop', 'medscale-desktop-vm', 'medscale-network', 'medscale-pack')) {
+    if (Test-DependsOn -Package $clinical -DepName $forbidden) {
+        $failures += "medscale-clinical must not depend on $forbidden"
     }
 }
 
