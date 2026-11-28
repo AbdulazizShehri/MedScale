@@ -756,3 +756,39 @@
 
 Machine-readable copy: `evidence/032-privacy-probes-notice-perf/notice-inventory.json`.
 Regenerate: `pwsh ./scripts/generate-notice-inventory.ps1`.
+
+---
+
+## OpenMed v4.0.0 & `openmed-agent` v1.0.3 Transplanted Source & Reference Assets (PRs #537, #538, #539)
+
+All adapted Python reference modules (`integrations/clinical-evidence-python`, package `medscale_clinical` v0.4.0, generated via `scripts/vendor_openmed_v4.py`), zero-dependency TypeScript SDK (`integrations/medscale-sdk-ts`, `@medscale/sdk`), conformance vector sets, and clean-room native Rust implementations are derived from or held to pinned Apache-2.0 upstream commits with full notice preservation and product identity separation (while keeping immutable HuggingFace `OpenMed/...` `repo_id` lookup keys).
+
+### Pinned Upstream Commits
+
+| Component | Repository / Source | Pinned Tag / Commit | License | MedScale Target Paths |
+|---|---|---|---|---|
+| OpenMed `v4.0.0` | `https://github.com/maziyarpanahi/openmed` | `v4.0.0` (`5b79cae5df6bc22b0fcdc799be480ee4ffc23c57`) | Apache-2.0 (`LICENSE` + `NOTICE`) | `integrations/clinical-evidence-python/`, `integrations/medscale-sdk-ts/`, native ports in `crates/medscale-{contracts,pack,clinical,fhir,core,cli}` and `apps/desktop-tauri` |
+| `openmed-agent` | `https://github.com/openmed-labs/openmed-agent` | `v1.0.3` (`ded6e57b5b93cb6dc849c8639662b381179697c7`) | Apache-2.0 (`README.md` + `LICENSE` only) | Pinned provenance record `third_party/provenance/openmed-v4-source-transplant.md`; open offline governance specs live in `openmed/agent/` at `5b79cae5` |
+| Historical clinical v3 snapshot (preserved) | `https://github.com/maziyarpanahi/openmed` | `3e2323288ec551157c0b943b331f399ef1434649` | Apache-2.0 | Historical provenance in `third_party/provenance/openmed-clinical-python-2026-11-08.md` |
+| Read-only v3/v4 Model Catalog (immutable SHA-256) | `https://github.com/maziyarpanahi/openmed` (`models.jsonl`) | `ea920f36fadd7b45935247d639f0ffa1ef493b23` (byte-identical to `v4.0.0`) | Apache-2.0 (per-model weight card licenses vary) | `third_party/medscale-model-catalog-v3/{models.jsonl,LICENSE,NOTICE}` (`models.jsonl`: `805e79f7db5514cf308c6deffa67d72c4ce9a59bf4e54487d2783eecbb1e34ab`) |
+
+### Third-Party Attributions & Embedded Permissive Notices Carried Forward
+
+| Upstream Asset | Source | License | Usage & Attribution Record in MedScale |
+|---|---|---|---|
+| **medspaCy ConText** rules | `https://github.com/medspacy/medspacy` | Apache-2.0 | Negation, uncertainty, temporality, and experiencer patterns adapted in `medscale_clinical/clinical/` (`context.py`, `lexicons/context_cues.py`) and `crates/medscale-clinical/src/data/context_rules.yaml.json` / `clinical_nlp_v4.rs`; full upstream attribution headers preserved |
+| **Presidio** patterns | `https://github.com/microsoft/presidio` | MIT | Recognizer/validator design patterns referenced behind MedScale's `PrivacyGate` and `identifier_validators` orchestrators (`NOTICE` preserved in Python/TS packages & root `THIRD_PARTY_NOTICES.md`) |
+| **KServe V2 inference protocol** | `https://github.com/kserve/open-inference-protocol` | Apache-2.0 | Minimal client-side wire contract notices preserved; no external inference server bundled |
+| **DataProfiler & ARX Data Anonymization Tool** | `https://github.com/capitalone/DataProfiler`, `https://github.com/arx-deidentifier/arx` | Apache-2.0 | Structured QI profiling and `k`-anonymity / `l`-diversity / `t`-closeness concepts implemented cleanly in pure Rust (`crates/medscale-clinical/src/privacy_v4.rs`) and stdlib Python |
+| **ICU 57.1 grapheme-break rules** | `https://github.com/unicode-org/icu` (`0c5873f89bf64f6bbc0a24b84f07d79b25785a42`) | ICU License | Copyright (C) 2002-2016 IBM & others; retained in `integrations/clinical-evidence-python/src/medscale_clinical/processing/resources/segmenter/{ICU.txt,indic_rules.json}` |
+| **hijridate Umm al-Qura calendar table** (`v2.6.0`) | `https://github.com/dralshehri/hijridate` | MIT | Copyright (c) Mohammed Alshehri; 1356–1450 AH month lengths in `medscale_clinical/core/data/calendars/hijri_umm_al_qura.json` and `crates/medscale-clinical/src/data/hijri_umm_al_qura.json` |
+| **py-nepali Bikram Sambat calendar table** (`v1.2.0`) | `https://github.com/opensource-nepal/py-nepali` | MIT | Copyright (c) 2018 The Python Packaging Authority; 2000–2083 BS month lengths in `medscale_clinical/core/data/calendars/bikram_sambat.json` and `crates/medscale-clinical/src/data/bikram_sambat.json` |
+| **Chinese Surnames (`baijiaxing`) list** | Derived from `openmed/core/data/` | CC0-1.0 | Public-domain surname reference data carried into permissive `medscale_clinical` data assets |
+
+### Explicit Quarantines & Exclusions (`BLOCKED_EXTERNAL_RIGHTS`)
+
+- **Excluded copyleft / non-OSI / proprietary libraries (never bundled, linked, or shipped):** `sdcMicro` (`GPL-2.0-or-later`), `extract-msg` (`.msg` branch, `GPL-3.0`), `MedCAT` (`Elastic-License-2.0`), `Aksharamukha` (`AGPL-3.0`), `com.google.mlkit` (proprietary), `openmed-labs/synthvision` & `openmed-labs/welna` (`license: null`).
+- **Excluded external DUA corpora & restricted terminologies:** `i2b2`, `n2c2`, `SHAC`, `MADE`, `THYME`, `MedNLI`, `MIMIC-III/IV`, `SHIELD`, `RadGraph`, `BioRED`, `CBLUE`, `MasakhaNER`, `SNOMED CT`, `CPT`, full `UMLS`, full `LOINC` (enforced via `eval_only=True`, `network_fetch=False`, and in-repo path rejection in `crates/medscale-clinical/src/agent_eval_v4.rs`).
+
+See root [THIRD_PARTY_NOTICES.md](../../THIRD_PARTY_NOTICES.md) and [openmed-v4-source-transplant.md](../../third_party/provenance/openmed-v4-source-transplant.md) for complete notices.
+
