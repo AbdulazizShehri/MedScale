@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-multimodal-v4-process"
+description = "Enables the multimodal_v4_process command without any pre-configured scope."
+commands.allow = ["multimodal_v4_process"]
+
+[[permission]]
+identifier = "deny-multimodal-v4-process"
+description = "Denies the multimodal_v4_process command without any pre-configured scope."
+commands.deny = ["multimodal_v4_process"]

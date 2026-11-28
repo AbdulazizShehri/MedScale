@@ -61,6 +61,22 @@ impl CliSession {
         )
     }
 
+    /// Least-privilege session for Wave 3 multimodal/DICOM, interop, agent governance,
+    /// MCP SSRF/consent, and DUA-guarded evaluation endpoints.
+    pub fn connect_wave3_studio(vault_id: &str) -> Result<Self, AuthorityError> {
+        Self::connect_with_grants(
+            vault_id,
+            "medscale-wave3-studio",
+            "wave3-studio-holder",
+            vec![
+                Capability::PrivacyRead,
+                Capability::ClinicalV4Read,
+                Capability::InteropV4Read,
+                Capability::EvalV4Read,
+            ],
+        )
+    }
+
     fn connect_with_grants(
         vault_id: &str,
         client_id: &str,
@@ -867,6 +883,109 @@ impl CliSession {
         )?;
         let ResponseBody::UnitsV4Convert { response } = resp else {
             return Err(Self::unexpected("units v4 convert"));
+        };
+        Ok(*response)
+    }
+
+    /// Wave 3 DoS-bounded multimodal extractor, scrubber & residual verifier.
+    pub fn multimodal_v4_process(
+        &mut self,
+        request: medscale_contracts::openmed_wave3::MultimodalV4ProcessRequest,
+    ) -> Result<medscale_contracts::openmed_wave3::MultimodalV4ProcessResponse, AuthorityError>
+    {
+        let resp = self.dispatch(
+            Capability::PrivacyRead,
+            RequestBody::MultimodalV4Process {
+                request: Box::new(request),
+            },
+        )?;
+        let ResponseBody::MultimodalV4Process { response } = resp else {
+            return Err(Self::unexpected("multimodal v4 process"));
+        };
+        Ok(*response)
+    }
+
+    /// Wave 3 native DICOM Part 10 + PS3.15 header/UID/pixel blackout/SR de-identification.
+    pub fn dicom_v4_deidentify(
+        &mut self,
+        request: medscale_contracts::openmed_wave3::DicomV4DeidentifyRequest,
+    ) -> Result<medscale_contracts::openmed_wave3::DicomV4DeidentifyResponse, AuthorityError> {
+        let resp = self.dispatch(
+            Capability::PrivacyRead,
+            RequestBody::DicomV4Deidentify {
+                request: Box::new(request),
+            },
+        )?;
+        let ResponseBody::DicomV4Deidentify { response } = resp else {
+            return Err(Self::unexpected("dicom v4 deidentify"));
+        };
+        Ok(*response)
+    }
+
+    /// Wave 3 healthcare interoperability operations (FHIR $de-identify, SMART, HL7v2, C-CDA, X12, OMOP).
+    pub fn interop_v4_process(
+        &mut self,
+        request: medscale_contracts::openmed_wave3::InteropV4ProcessRequest,
+    ) -> Result<medscale_contracts::openmed_wave3::InteropV4ProcessResponse, AuthorityError> {
+        let resp = self.dispatch(
+            Capability::InteropV4Read,
+            RequestBody::InteropV4Process {
+                request: Box::new(request),
+            },
+        )?;
+        let ResponseBody::InteropV4Process { response } = resp else {
+            return Err(Self::unexpected("interop v4 process"));
+        };
+        Ok(*response)
+    }
+
+    /// Wave 3 clinical agent governance kernel (ActionGraph, FSM, ApprovalToken, InjectionGuard, drafts).
+    pub fn agent_v4_govern(
+        &mut self,
+        request: medscale_contracts::openmed_wave3::AgentV4GovernRequest,
+    ) -> Result<medscale_contracts::openmed_wave3::AgentV4GovernResponse, AuthorityError> {
+        let resp = self.dispatch(
+            Capability::EvalV4Read,
+            RequestBody::AgentV4Govern {
+                request: Box::new(request),
+            },
+        )?;
+        let ResponseBody::AgentV4Govern { response } = resp else {
+            return Err(Self::unexpected("agent v4 govern"));
+        };
+        Ok(*response)
+    }
+
+    /// Wave 3 MCP tool registry, SSRF endpoint policy & ConsentReceipt verification.
+    pub fn mcp_v4_policy_check(
+        &mut self,
+        request: medscale_contracts::openmed_wave3::McpV4PolicyCheckRequest,
+    ) -> Result<medscale_contracts::openmed_wave3::McpV4PolicyCheckResponse, AuthorityError> {
+        let resp = self.dispatch(
+            Capability::EvalV4Read,
+            RequestBody::McpV4PolicyCheck {
+                request: Box::new(request),
+            },
+        )?;
+        let ResponseBody::McpV4PolicyCheck { response } = resp else {
+            return Err(Self::unexpected("mcp v4 policy check"));
+        };
+        Ok(*response)
+    }
+
+    /// Wave 3 deterministic evaluation harness & DUA outside-repo path guard.
+    pub fn eval_v4_run(
+        &mut self,
+        request: medscale_contracts::openmed_wave3::EvalV4RunRequest,
+    ) -> Result<medscale_contracts::openmed_wave3::EvalV4RunResponse, AuthorityError> {
+        let resp = self.dispatch(
+            Capability::EvalV4Read,
+            RequestBody::EvalV4Run {
+                request: Box::new(request),
+            },
+        )?;
+        let ResponseBody::EvalV4Run { response } = resp else {
+            return Err(Self::unexpected("eval v4 run"));
         };
         Ok(*response)
     }

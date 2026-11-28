@@ -232,6 +232,7 @@ pub struct State {
     pub workspace: Option<Workspace>,
     pub packs: Option<CliSession>,
     pub wave2: Option<CliSession>,
+    pub wave3: Option<CliSession>,
 }
 
 #[derive(Default)]
@@ -392,6 +393,14 @@ impl State {
             )?);
         }
         Ok(self.wave2.as_mut().expect("wave2 session just installed"))
+    }
+
+    /// Least-privilege Wave 3 multimodal/interop/agent/eval studio session.
+    pub fn wave3(&mut self) -> CmdResult<&mut CliSession> {
+        if self.wave3.is_none() {
+            self.wave3 = Some(CliSession::connect_wave3_studio("desktop-wave3-studio")?);
+        }
+        Ok(self.wave3.as_mut().expect("wave3 session just installed"))
     }
 
     /// Writes a fixture pack into the app data directory and returns its path.

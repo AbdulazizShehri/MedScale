@@ -183,6 +183,7 @@ export function Documents() {
           <Notice kind="unsupported" title="Not admitted.">{state.data.document_understanding}</Notice>
         </Section>
         <ClinicalUnitWorkbench />
+        <MultimodalDicomWorkbench />
       </>}
     </div>
   );
@@ -377,6 +378,171 @@ function ClinicalUnitWorkbench() {
                 </span>
               </div>
               <p className="t-sm i3">{unitRes.conversion?.reason ?? unitRes.parsed.reason}</p>
+            </div>
+          )}
+        </form>
+      </div>
+    </Section>
+  );
+}
+
+type MultimodalVm = {
+  format: string;
+  status: string;
+  extracted_text: string;
+  scrubbed_text: string;
+  output_sha256: string;
+  removed_segments: string[];
+  residual_clean: boolean;
+};
+
+type DicomVm = {
+  transfer_syntax_uid: string;
+  explicit_vr_dataset: boolean;
+  tags_scrubbed: string[];
+  uids_remapped: number;
+  sr_items_scrubbed: number;
+  blackout_regions_applied: number;
+  residual_clean: boolean;
+  input_sha256: string;
+  output_sha256: string;
+};
+
+function syntheticDicomBase64(): string {
+  const bytes: number[] = new Array(128).fill(0);
+  const pushStr = (s: string) => {
+    for (let i = 0; i < s.length; i += 1) bytes.push(s.charCodeAt(i));
+  };
+  const pushU16 = (n: number) => {
+    bytes.push(n & 0xff, (n >> 8) & 0xff);
+  };
+  const pushEvr = (g: number, e: number, vr: string, val: string) => {
+    const padded = val.length % 2 === 1 ? `${val} ` : val;
+    pushU16(g);
+    pushU16(e);
+    pushStr(vr);
+    pushU16(padded.length);
+    pushStr(padded);
+  };
+  pushStr("DICM");
+  pushEvr(0x0002, 0x0010, "UI", "1.2.840.10008.1.2.1");
+  pushEvr(0x0008, 0x0018, "UI", "1.2.840.999.303");
+  pushEvr(0x0010, 0x0010, "PN", "Example^Jane");
+  pushEvr(0x0010, 0x0020, "LO", "MRN-778899");
+  pushEvr(0x0010, 0x0030, "DA", "19800102");
+  return btoa(String.fromCharCode(...bytes));
+}
+
+function MultimodalDicomWorkbench() {
+  const [fmt, setFmt] = useState("html");
+  const [payload, setPayload] = useState(
+    "<html><body><p>Synthetic discharge summary for Jane Example, SSN 123-45-6789.</p><script>alert(1)</script></body></html>",
+  );
+  const [mmBusy, setMmBusy] = useState(false);
+  const [mmErr, setMmErr] = useState<CmdError | null>(null);
+  const [mmRes, setMmRes] = useState<MultimodalVm | null>(null);
+
+  const [dcmBusy, setDcmBusy] = useState(false);
+  const [dcmErr, setDcmErr] = useState<CmdError | null>(null);
+  const [dcmRes, setDcmRes] = useState<DicomVm | null>(null);
+
+  async function runMultimodal(e: FormEvent) {
+    e.preventDefault();
+    if (mmBusy) return;
+    setMmBusy(true);
+    setMmErr(null);
+    try {
+      const request =
+        fmt === "archive_meta"
+          ? {
+              format: "archive_meta",
+              archive_members: [
+                {
+                  path: "../../evil.txt",
+                  compressed_size: 16,
+                  uncompressed_size: 64,
+                  kind: "file",
+                },
+              ],
+            }
+          : { format: fmt, text: payload };
+      const res = await call<MultimodalVm>("multimodal_v4_process", { request });
+      setMmRes(res);
+    } catch (err) {
+      setMmErr(err as CmdError);
+      setMmRes(null);
+    } finally {
+      setMmBusy(false);
+    }
+  }
+
+  async function runDicomSample() {
+    if (dcmBusy) return;
+    setDcmBusy(true);
+    setDcmErr(null);
+    try {
+      const res = await call<DicomVm>("dicom_v4_deidentify", {
+        request: {
+          base64_payload: syntheticDicomBase64(),
+          date_shift_days: 7,
+        },
+      });
+      setDcmRes(res);
+    } catch (err) {
+      setDcmErr(err as CmdError);
+    } finally {
+      setDcmBusy(false);
+    }
+  }
+
+  return (
+    <Section title="Multimodal & DICOM inspection">
+      <div className="stack" style={{ gap: 14 }}>
+        <form onSubmit={runMultimodal} className="viz-frame stack" style={{ gap: 10 }}>
+          <div style={{ display: "grid", gridTemplateColumns: "180px minmax(0, 1fr)", gap: 10 }}>
+            <div>
+              <label className="lbl" htmlFor="mm-fmt">Container / format</label>
+              <select id="mm-fmt" value={fmt} onChange={(e) => setFmt(e.target.value)} style={{ width: "100%" }}>
+                <option value="html">html</option>
+                <option value="csv">csv</option>
+                <option value="eml">eml</option>
+                <option value="rtf">rtf</option>
+                <option value="vtt">vtt</option>
+                <option value="archive_meta">archive_meta (traversal gate)</option>
+                <option value="msg">msg (GPL-3.0 quarantine)</option>
+              </select>
+            </div>
+            <div>
+              <label className="lbl" htmlFor="mm-txt">Synthetic document / table payload</label>
+              <input id="mm-txt" value={payload} maxLength={4000} onChange={(e) => setPayload(e.target.value)} style={{ width: "100%" }} />
+            </div>
+          </div>
+          <div className="row-gap" style={{ gap: 10, flexWrap: "wrap" }}>
+            <button type="submit" className="btn btn-s" disabled={mmBusy}>{mmBusy ? <><Glyph kind="running" />Inspecting</> : "Inspect & scrub"}</button>
+            <button type="button" className="btn btn-g" disabled={dcmBusy} onClick={() => void runDicomSample()}>{dcmBusy ? <><Glyph kind="running" />De-identifying</> : "Run synthetic DICOM PS3.15 check"}</button>
+          </div>
+          {mmErr && <ErrorState error={mmErr} />}
+          {mmRes && (
+            <div className="stack" style={{ gap: 6, paddingTop: 6, borderTop: "1px solid var(--line-subtle)" }}>
+              <Ledger items={[
+                { k: "format", v: mmRes.format, mono: true },
+                { k: "status", v: <Status kind={mmRes.residual_clean ? "present" : "blocked"} weight="weak">{mmRes.status}</Status> },
+                { k: "removed", v: mmRes.removed_segments.join(", ") || "none", mono: true },
+                { k: "digest", v: mmRes.output_sha256.slice(0, 20), mono: true },
+              ]} />
+              {mmRes.scrubbed_text && <pre className="pre">{mmRes.scrubbed_text}</pre>}
+            </div>
+          )}
+          {dcmErr && <ErrorState error={dcmErr} />}
+          {dcmRes && (
+            <div className="stack" style={{ gap: 6, paddingTop: 6, borderTop: "1px solid var(--line-subtle)" }}>
+              <Ledger items={[
+                { k: "transfer_syntax", v: dcmRes.transfer_syntax_uid, mono: true },
+                { k: "uids_remapped", v: dcmRes.uids_remapped, mono: true },
+                { k: "tags_scrubbed", v: dcmRes.tags_scrubbed.length, mono: true },
+                { k: "residual", v: <Status kind={dcmRes.residual_clean ? "present" : "blocked"} weight="weak">{dcmRes.residual_clean ? "clean" : "residual"}</Status> },
+              ]} />
+              <p className="t-sm i3 mono trunc">scrubbed: {dcmRes.tags_scrubbed.join(", ") || "none"}</p>
             </div>
           )}
         </form>

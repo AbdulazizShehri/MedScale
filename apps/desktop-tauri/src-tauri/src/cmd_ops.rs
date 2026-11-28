@@ -1795,6 +1795,75 @@ pub fn units_v4_convert(
     Ok(json!(res))
 }
 
+// ─────────────── Wave 3 multimodal, DICOM, interop, agent, MCP & eval ───────────────
+
+const MAX_WAVE3_REQUEST_JSON_BYTES: usize = 4 * 1024 * 1024;
+
+fn parse_wave3_req<T: serde::de::DeserializeOwned>(request: Value) -> CmdResult<T> {
+    let encoded = serde_json::to_vec(&request).map_err(|e| AuthorityError::InvalidArgument {
+        message: format!("invalid Wave 3 request JSON: {e}"),
+    })?;
+    if encoded.len() > MAX_WAVE3_REQUEST_JSON_BYTES {
+        return Err(AuthorityError::InvalidArgument {
+            message: format!(
+                "Wave 3 request exceeds {} byte IPC budget",
+                MAX_WAVE3_REQUEST_JSON_BYTES
+            ),
+        }
+        .into());
+    }
+    serde_json::from_value(request).map_err(|e| {
+        AuthorityError::InvalidArgument {
+            message: format!("invalid Wave 3 request shape: {e}"),
+        }
+        .into()
+    })
+}
+
+#[tauri::command(async)]
+pub fn multimodal_v4_process(host: tauri::State<'_, Host>, request: Value) -> CmdResult<Value> {
+    let req: medscale_contracts::openmed_wave3::MultimodalV4ProcessRequest =
+        parse_wave3_req(request)?;
+    let mut state = lock(&host)?;
+    Ok(json!(state.wave3()?.multimodal_v4_process(req)?))
+}
+
+#[tauri::command(async)]
+pub fn dicom_v4_deidentify(host: tauri::State<'_, Host>, request: Value) -> CmdResult<Value> {
+    let req: medscale_contracts::openmed_wave3::DicomV4DeidentifyRequest =
+        parse_wave3_req(request)?;
+    let mut state = lock(&host)?;
+    Ok(json!(state.wave3()?.dicom_v4_deidentify(req)?))
+}
+
+#[tauri::command(async)]
+pub fn interop_v4_process(host: tauri::State<'_, Host>, request: Value) -> CmdResult<Value> {
+    let req: medscale_contracts::openmed_wave3::InteropV4ProcessRequest = parse_wave3_req(request)?;
+    let mut state = lock(&host)?;
+    Ok(json!(state.wave3()?.interop_v4_process(req)?))
+}
+
+#[tauri::command(async)]
+pub fn agent_v4_govern(host: tauri::State<'_, Host>, request: Value) -> CmdResult<Value> {
+    let req: medscale_contracts::openmed_wave3::AgentV4GovernRequest = parse_wave3_req(request)?;
+    let mut state = lock(&host)?;
+    Ok(json!(state.wave3()?.agent_v4_govern(req)?))
+}
+
+#[tauri::command(async)]
+pub fn mcp_v4_policy_check(host: tauri::State<'_, Host>, request: Value) -> CmdResult<Value> {
+    let req: medscale_contracts::openmed_wave3::McpV4PolicyCheckRequest = parse_wave3_req(request)?;
+    let mut state = lock(&host)?;
+    Ok(json!(state.wave3()?.mcp_v4_policy_check(req)?))
+}
+
+#[tauri::command(async)]
+pub fn eval_v4_run(host: tauri::State<'_, Host>, request: Value) -> CmdResult<Value> {
+    let req: medscale_contracts::openmed_wave3::EvalV4RunRequest = parse_wave3_req(request)?;
+    let mut state = lock(&host)?;
+    Ok(json!(state.wave3()?.eval_v4_run(req)?))
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

@@ -8,6 +8,7 @@ import { Mark, Wordmark } from "../components/brand";
 import {
   Authority,
   CopyButton,
+  Disclosure,
   Empty,
   ErrorState,
   Glyph,
@@ -529,9 +530,156 @@ export function Exports() {
           </table>
           {state.data.fhir_support.limitations.map((l) => <p key={l} className="t-sm i3" style={{ marginTop: 6 }}>{l}</p>)}
         </Section>}
+        <InteropMcpWorkbench />
         <p className="t-sm i3" style={{ marginTop: 12 }}>{state.data.export_boundary}</p>
       </>}
     </div>
+  );
+}
+
+type InteropVm = {
+  operation: string;
+  status: string;
+  result: Record<string, unknown>;
+  warnings: string[];
+  redaction_count: number;
+};
+
+type McpPolicyVm = {
+  operation: string;
+  allowed: boolean;
+  result: Record<string, unknown>;
+};
+
+function InteropMcpWorkbench() {
+  const [op, setOp] = useState("fhir_deidentify");
+  const [endpoint, setEndpoint] = useState("https://169.254.169.254/latest");
+  const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState<CmdError | null>(null);
+  const [res, setRes] = useState<InteropVm | null>(null);
+  const [mcpRes, setMcpRes] = useState<McpPolicyVm | null>(null);
+
+  async function runInterop(e: FormEvent) {
+    e.preventDefault();
+    if (busy) return;
+    setBusy(true);
+    setErr(null);
+    try {
+      const request =
+        op === "hl7v2_redact"
+          ? {
+              operation: op,
+              raw_text:
+                "MSH|^~\\&|EHR|CLINIC|LAB|MED|20260101||ADT^A01|1|P|2.5\rPID|1||MRN123||Example^Jane||19800102|F|||123 Main St^^Riyadh||555-0199",
+              date_shift_days: 7,
+            }
+          : op === "smart_audit"
+            ? {
+                operation: op,
+                workflow_id: "patient_summary",
+                required_scopes: ["patient/Patient.r"],
+                declared_scopes: ["patient/Patient.r", "system/*.cruds"],
+              }
+            : {
+                operation: op,
+                reference_year: 2026,
+                date_shift_days: 7,
+                payload: {
+                  resourceType: "Bundle",
+                  type: "collection",
+                  entry: [
+                    {
+                      resource: {
+                        resourceType: "Patient",
+                        id: "pat-synth",
+                        name: [{ text: "Jane Example" }],
+                        birthDate: "1920-05-01",
+                        gender: "female",
+                      },
+                    },
+                  ],
+                },
+              };
+      const out = await call<InteropVm>("interop_v4_process", { request });
+      setRes(out);
+    } catch (x) {
+      setErr(x as CmdError);
+      setRes(null);
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function verifyEndpoint() {
+    if (busy) return;
+    setBusy(true);
+    setErr(null);
+    try {
+      const ipGuess = endpoint.includes("169.254.169.254") ? "169.254.169.254" : "93.184.216.34";
+      const out = await call<McpPolicyVm>("mcp_v4_policy_check", {
+        request: {
+          operation: "validate_endpoint",
+          endpoint,
+          resolved_ips: [ipGuess],
+          allowed_origins: ["https://fhir.medscale.local"],
+        },
+      });
+      setMcpRes(out);
+    } catch (x) {
+      setErr(x as CmdError);
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <Section title="Healthcare interchange & endpoint guard">
+      <div className="stack" style={{ gap: 12 }}>
+        <form onSubmit={runInterop} className="viz-frame stack" style={{ gap: 10 }}>
+          <div style={{ display: "grid", gridTemplateColumns: "220px minmax(0, 1fr)", gap: 10 }}>
+            <div>
+              <label className="lbl" htmlFor="io-op">Interchange operation</label>
+              <select id="io-op" value={op} onChange={(e) => setOp(e.target.value)} style={{ width: "100%" }}>
+                <option value="fhir_deidentify">FHIR $de-identify (R4)</option>
+                <option value="fhir_integrity">FHIR bundle integrity</option>
+                <option value="smart_audit">SMART least-privilege audit</option>
+                <option value="hl7v2_redact">HL7v2 pipe-segment redaction</option>
+                <option value="omop_project">OMOP CDM v5.4 Safe Harbor projection</option>
+              </select>
+            </div>
+            <div>
+              <label className="lbl" htmlFor="mcp-ep">MCP upstream endpoint (SSRF guard)</label>
+              <input id="mcp-ep" value={endpoint} maxLength={512} onChange={(e) => setEndpoint(e.target.value)} style={{ width: "100%" }} />
+            </div>
+          </div>
+          <div className="row-gap" style={{ gap: 10, flexWrap: "wrap" }}>
+            <button type="submit" className="btn btn-s" disabled={busy}>{busy ? <><Glyph kind="running" />Running</> : "Run interop gate"}</button>
+            <button type="button" className="btn btn-g" disabled={busy} onClick={() => void verifyEndpoint()}>Check SSRF policy</button>
+          </div>
+          {err && <ErrorState error={err} />}
+          {res && (
+            <div className="stack" style={{ gap: 6, paddingTop: 6, borderTop: "1px solid var(--line-subtle)" }}>
+              <Ledger items={[
+                { k: "operation", v: res.operation, mono: true },
+                { k: "status", v: <Status kind={res.status === "excessive" || res.status === "invalid" ? "needs-review" : "present"} weight="weak">{res.status}</Status> },
+                { k: "redactions", v: res.redaction_count, mono: true },
+                { k: "warnings", v: res.warnings.length, mono: true },
+              ]} />
+              <Disclosure summary="Interop result payload"><pre className="pre">{JSON.stringify(res.result, null, 2)}</pre></Disclosure>
+            </div>
+          )}
+          {mcpRes && (
+            <div className="stack" style={{ gap: 6, paddingTop: 6, borderTop: "1px solid var(--line-subtle)" }}>
+              <Ledger items={[
+                { k: "endpoint_policy", v: <Status kind={mcpRes.allowed ? "available" : "blocked"} weight="strong">{mcpRes.allowed ? "Allowed" : "Blocked"}</Status> },
+                { k: "operation", v: mcpRes.operation, mono: true },
+              ]} />
+              <p className="t-sm i3">{String(mcpRes.result.reason ?? "Endpoint satisfies HTTPS allowlist and non-private DNS check.")}</p>
+            </div>
+          )}
+        </form>
+      </div>
+    </Section>
   );
 }
 

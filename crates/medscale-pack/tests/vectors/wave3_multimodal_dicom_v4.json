@@ -1,0 +1,58 @@
+{
+  "archive_safety": {
+    "decision": "reject",
+    "reasons": [
+      "expansion_ratio",
+      "path_traversal"
+    ]
+  },
+  "chatlog": {
+    "line_count": 1,
+    "pseudonymized_speaker_count": 1,
+    "text": "{\"speaker\":\"USERNAME_ded784c6\",\"content\":\"Synthetic consult note; call [PHONE]\"}\n"
+  },
+  "csv": {
+    "columns": [
+      {
+        "action": "mask",
+        "assigned_class": "DIRECT_ID",
+        "name": "patient_name"
+      },
+      {
+        "action": "mask",
+        "assigned_class": "DIRECT_ID",
+        "name": "dob"
+      },
+      {
+        "action": "hash",
+        "assigned_class": "DIRECT_ID",
+        "name": "mrn"
+      },
+      {
+        "action": "keep",
+        "assigned_class": "SAFE",
+        "name": "glucose_mg_dl"
+      }
+    ],
+    "text": "patient_name,dob,mrn,glucose_mg_dl\n[PERSON],[DATE_OF_BIRTH],ID_NUM_faf39bed,118\n"
+  },
+  "html": {
+    "text": "Discharge Note\nPatient: Jane Example, DOB 1980-01-02."
+  },
+  "markdown": {
+    "text": "Follow-up\nSynthetic note for Alex Rivera with A1c 6.4%."
+  },
+  "ooxml_residual": {
+    "categories": [
+      "core_properties",
+      "uncovered_text"
+    ]
+  },
+  "pdf_geometry": {
+    "declared_page_count": 1,
+    "pdf_version": "1.4",
+    "status": "readable"
+  },
+  "schema_version": 1,
+  "vector_sha256": "sha256:ab2e8c9ab9c5399109c7d421d7d5425778d640cc72cf6674b4f5bcda749868ef"
+}

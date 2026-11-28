@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-mcp-v4-policy-check"
+description = "Enables the mcp_v4_policy_check command without any pre-configured scope."
+commands.allow = ["mcp_v4_policy_check"]
+
+[[permission]]
+identifier = "deny-mcp-v4-policy-check"
+description = "Denies the mcp_v4_policy_check command without any pre-configured scope."
+commands.deny = ["mcp_v4_policy_check"]

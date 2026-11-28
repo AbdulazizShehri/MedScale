@@ -11,6 +11,7 @@
 //! Every check is advisory: it reports findings for a human reviewer and never
 //! resolves them, reads source text, or reaches the network.
 
+pub mod agent_eval_v4;
 pub mod canonical;
 pub mod clinical_nlp_v4;
 pub mod evidence_coverage;

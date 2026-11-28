@@ -430,6 +430,49 @@ pub enum MedAgentCmd {
         #[arg(long)]
         json: bool,
     },
+    /// Wave 3 ActionGraph DAG & dependency validation.
+    VerifyGraph {
+        #[arg(long)]
+        nodes_json: String,
+        #[arg(long)]
+        json: bool,
+    },
+    /// Wave 3 ActionPhase FSM transition & review gate verification.
+    CheckPhase {
+        #[arg(long)]
+        from: String,
+        #[arg(long)]
+        to: String,
+        #[arg(long)]
+        reviewed: bool,
+        #[arg(long)]
+        json: bool,
+    },
+    /// Wave 3 clinical prompt-injection scanner.
+    ScanInjection {
+        #[arg(long)]
+        text: String,
+        #[arg(long)]
+        json: bool,
+    },
+    /// Wave 3 clinician-review prior-authorization completeness draft.
+    PriorAuthDraft {
+        #[arg(long)]
+        requirements_json: String,
+        #[arg(long)]
+        evidence_json: String,
+        #[arg(long)]
+        json: bool,
+    },
+    /// Wave 3 clinician-review clinical-trial eligibility discrepancy draft.
+    TrialDraft {
+        #[arg(long)]
+        trial_id: String,
+        #[arg(long)]
+        criteria_json: String,
+        #[arg(long)]
+        json: bool,
+    },
 }
 
 pub fn run_medagent(action: MedAgentCmd) -> anyhow::Result<()> {
@@ -819,5 +862,97 @@ pub fn run_medagent(action: MedAgentCmd) -> anyhow::Result<()> {
             }
             Ok(())
         }
+        MedAgentCmd::VerifyGraph { nodes_json, json } => {
+            let nodes: Vec<serde_json::Value> =
+                serde_json::from_str(&nodes_json).map_err(|e| invalid(e.to_string(), json))?;
+            dispatch_wave3_medagent(
+                medscale_contracts::openmed_wave3::AgentV4GovernRequest {
+                    operation: "validate_graph".to_owned(),
+                    nodes,
+                    ..Default::default()
+                },
+                json,
+            )
+        }
+        MedAgentCmd::CheckPhase {
+            from,
+            to,
+            reviewed,
+            json,
+        } => dispatch_wave3_medagent(
+            medscale_contracts::openmed_wave3::AgentV4GovernRequest {
+                operation: "check_phase".to_owned(),
+                current_phase: Some(from),
+                target_phase: Some(to),
+                reviewed,
+                ..Default::default()
+            },
+            json,
+        ),
+        MedAgentCmd::ScanInjection { text, json } => dispatch_wave3_medagent(
+            medscale_contracts::openmed_wave3::AgentV4GovernRequest {
+                operation: "scan_injection".to_owned(),
+                text: Some(text),
+                strict: true,
+                ..Default::default()
+            },
+            json,
+        ),
+        MedAgentCmd::PriorAuthDraft {
+            requirements_json,
+            evidence_json,
+            json,
+        } => {
+            let requirements: Vec<serde_json::Value> = serde_json::from_str(&requirements_json)
+                .map_err(|e| invalid(e.to_string(), json))?;
+            let evidence: Vec<serde_json::Value> =
+                serde_json::from_str(&evidence_json).map_err(|e| invalid(e.to_string(), json))?;
+            dispatch_wave3_medagent(
+                medscale_contracts::openmed_wave3::AgentV4GovernRequest {
+                    operation: "prior_auth_draft".to_owned(),
+                    requirements,
+                    evidence,
+                    ..Default::default()
+                },
+                json,
+            )
+        }
+        MedAgentCmd::TrialDraft {
+            trial_id,
+            criteria_json,
+            json,
+        } => {
+            let criteria: Vec<serde_json::Value> =
+                serde_json::from_str(&criteria_json).map_err(|e| invalid(e.to_string(), json))?;
+            dispatch_wave3_medagent(
+                medscale_contracts::openmed_wave3::AgentV4GovernRequest {
+                    operation: "trial_eligibility_draft".to_owned(),
+                    trial_id: Some(trial_id),
+                    criteria,
+                    ..Default::default()
+                },
+                json,
+            )
+        }
     }
+}
+
+fn dispatch_wave3_medagent(
+    req: medscale_contracts::openmed_wave3::AgentV4GovernRequest,
+    json: bool,
+) -> anyhow::Result<()> {
+    let mut session = medscale_core::CliSession::connect_wave3_studio("cli-medagent-wave3")
+        .map_err(|err| medagent_fail(&err, json))?;
+    let res = session
+        .agent_v4_govern(req)
+        .map_err(|err| medagent_fail(&err, json))?;
+    if json {
+        print_json_or_debug(&res, true)?;
+    } else {
+        println!(
+            "operation={} allowed={} result={}",
+            res.operation, res.allowed, res.result
+        );
+    }
+    Ok(())
 }

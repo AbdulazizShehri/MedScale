@@ -25,6 +25,7 @@ mod medagent;
 mod model_fleet;
 mod model_fleet_compare;
 mod openmed_wave2;
+mod openmed_wave3;
 mod presentation;
 mod privacy_gate;
 mod privacy_recognizers;

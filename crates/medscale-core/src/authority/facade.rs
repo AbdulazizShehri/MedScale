@@ -5302,6 +5302,42 @@ impl CoreFacade {
                     response: Box::new(response),
                 })
             }
+            RequestBody::MultimodalV4Process { request } => {
+                let response = super::openmed_wave3::handle_multimodal_process(&request)?;
+                Ok(ResponseBody::MultimodalV4Process {
+                    response: Box::new(response),
+                })
+            }
+            RequestBody::DicomV4Deidentify { request } => {
+                let response = super::openmed_wave3::handle_dicom_deidentify(&request)?;
+                Ok(ResponseBody::DicomV4Deidentify {
+                    response: Box::new(response),
+                })
+            }
+            RequestBody::InteropV4Process { request } => {
+                let response = super::openmed_wave3::handle_interop_process(&request)?;
+                Ok(ResponseBody::InteropV4Process {
+                    response: Box::new(response),
+                })
+            }
+            RequestBody::AgentV4Govern { request } => {
+                let response = super::openmed_wave3::handle_agent_govern(&request)?;
+                Ok(ResponseBody::AgentV4Govern {
+                    response: Box::new(response),
+                })
+            }
+            RequestBody::McpV4PolicyCheck { request } => {
+                let response = super::openmed_wave3::handle_mcp_policy_check(&request)?;
+                Ok(ResponseBody::McpV4PolicyCheck {
+                    response: Box::new(response),
+                })
+            }
+            RequestBody::EvalV4Run { request } => {
+                let response = super::openmed_wave3::handle_eval_run(&request)?;
+                Ok(ResponseBody::EvalV4Run {
+                    response: Box::new(response),
+                })
+            }
             RequestBody::PackCatalog => Ok(ResponseBody::PackCatalog {
                 packs: super::data_sources::DataSources::pack_catalog(),
             }),
@@ -7270,6 +7306,8 @@ fn capability_matches(cap: &Capability, body: &RequestBody) -> bool {
                     | RequestBody::PrivacyV4Presets { .. }
                     | RequestBody::PrivacyV4Deidentify { .. }
                     | RequestBody::PrivacyV4Risk { .. }
+                    | RequestBody::MultimodalV4Process { .. }
+                    | RequestBody::DicomV4Deidentify { .. }
             )
             | (
                 Capability::PrivacyProfileCreate,
@@ -7481,6 +7519,16 @@ fn capability_matches(cap: &Capability, body: &RequestBody) -> bool {
             | (
                 Capability::ClinicalV4Read,
                 RequestBody::ClinicalV4Analyze { .. } | RequestBody::UnitsV4Convert { .. }
+            )
+            | (
+                Capability::InteropV4Read,
+                RequestBody::InteropV4Process { .. }
+            )
+            | (
+                Capability::EvalV4Read,
+                RequestBody::AgentV4Govern { .. }
+                    | RequestBody::McpV4PolicyCheck { .. }
+                    | RequestBody::EvalV4Run { .. }
             )
             | (
                 Capability::PackRead,

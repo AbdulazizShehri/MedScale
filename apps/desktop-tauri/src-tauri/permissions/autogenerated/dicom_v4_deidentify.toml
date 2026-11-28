@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-dicom-v4-deidentify"
+description = "Enables the dicom_v4_deidentify command without any pre-configured scope."
+commands.allow = ["dicom_v4_deidentify"]
+
+[[permission]]
+identifier = "deny-dicom-v4-deidentify"
+description = "Denies the dicom_v4_deidentify command without any pre-configured scope."
+commands.deny = ["dicom_v4_deidentify"]

@@ -96,7 +96,9 @@ pub use pii_merge::{
     normalize_label,
 };
 pub use residency::{EvictionPlan, ResidencyError, ResidencyPool};
+pub mod dicom_v4;
 pub mod ecosystem_v4;
+pub mod multimodal_v4;
 
 pub use candle_runtime::{
     CANDLE_SEQUENCE_CLASSIFIER_RUNTIME_ID, PreparedCandleSequenceClassifier,

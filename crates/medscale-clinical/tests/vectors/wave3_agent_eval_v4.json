@@ -1,0 +1,51 @@
+{
+  "action_graph": {
+    "cycle_findings": [
+      "dependency_cycle"
+    ],
+    "dag_findings": 0,
+    "dag_order": [
+      "step-a",
+      "step-b"
+    ]
+  },
+  "action_phase": {
+    "unreviewed_waiting_review_blocked": true
+  },
+  "approval_token": {
+    "receipt_code": "approved",
+    "replay_blocked": true
+  },
+  "consent_receipt": {
+    "verified_receipt_id": "rcpt-wave3-001"
+  },
+  "dua_guard": {
+    "external_path_validated": true,
+    "in_repo_blocked": true
+  },
+  "eval_metrics": {
+    "ece": 0.166667,
+    "relation_strict_f1": 1.0,
+    "relaxed_f1": 1.0,
+    "strict_f1": 0.5
+  },
+  "injection_guard": {
+    "bad_finding_ids": [
+      "instruction_override",
+      "tool_name_spoofing"
+    ],
+    "clean_finding_count": 0
+  },
+  "mcp_ssrf": {
+    "blocks_metadata": true,
+    "blocks_private": true,
+    "loopback_allowed_when_opted_in": true
+  },
+  "prior_auth": {
+    "complete_count": 1,
+    "completeness_score": 0.5,
+    "required_count": 2
+  },
+  "schema_version": 1,
+  "vector_sha256": "sha256:86a584d4f56ae958b85f7ae86f3506c520182d03794fb95e8290c53ac4b9a6b1"
+}
